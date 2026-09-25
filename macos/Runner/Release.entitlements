@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Direct builds: "this computer" spawns omp and shells, and the app reads ~/.ssh; the sandbox forbids
+	     both. The Mac App Store channel needs its own sandboxed entitlements (docs/PLAN.md §9). -->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	<!-- file_picker refuses to open panels without this key, sandboxed or not. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+</dict>
+</plist>

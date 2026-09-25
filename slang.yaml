@@ -1,0 +1,6 @@
+base_locale: en
+input_directory: lib/i18n
+input_file_pattern: .i18n.json
+output_directory: lib/i18n
+timestamp: false
+fallback_strategy: base_locale_empty_string

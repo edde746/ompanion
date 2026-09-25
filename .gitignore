@@ -8,12 +8,33 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 *.iml
+*.ipr
+*.iws
 .idea/
 .vscode/
 coverage/
 **/doc/api/
 .pub-cache/
 .pub/
+.widget_preview/
+migrate_working_dir/
+**/ios/Flutter/.last_build_id
+
+# Symbolication and obfuscation maps
+app.*.symbols
+app.*.map.json
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
 
 # Platform build output
 **/Pods/
