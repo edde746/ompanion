@@ -408,7 +408,7 @@ final class Goal {
 /// any device answers (its `extension_ui_response` line, seen on `in.jsonl`), on omp's `cancel`, and on the
 /// companion's `request.settled`. One-shot requests ([EditorTextRequest], [OpenUrlRequest]) close through
 /// `dismissRequest` once the UI acted on them. omp resolves a dialog with a `timeout` by itself and sends no frame, so
-/// the UI dismisses it when the time is up.
+/// the UI dismisses it when the time is up; one that tool calls opened also closes once none of them runs.
 sealed class UiRequest {
   const UiRequest(this.id);
 
@@ -422,6 +422,7 @@ final class SelectRequest extends UiRequest {
     required this.options,
     this.descriptions = const [],
     this.timeout,
+    this.toolCallIds = const [],
   });
 
   final String title;
@@ -432,6 +433,9 @@ final class SelectRequest extends UiRequest {
 
   /// Milliseconds after which omp stops waiting.
   final int? timeout;
+
+  /// For a timed dialog: the tool calls running when it opened.
+  final List<String> toolCallIds;
 }
 
 /// A tool approval: omp's `select` titled `Allow tool: <name>` (`formatApprovalPrompt`, `tools/approval.ts`). Answer
@@ -459,19 +463,25 @@ final class ApprovalRequest extends UiRequest {
 }
 
 final class ConfirmRequest extends UiRequest {
-  const ConfirmRequest(super.id, {required this.title, required this.message, this.timeout});
+  const ConfirmRequest(super.id, {required this.title, required this.message, this.timeout, this.toolCallIds = const []});
 
   final String title;
   final String message;
   final int? timeout;
+
+  /// See [SelectRequest.toolCallIds].
+  final List<String> toolCallIds;
 }
 
 final class InputRequest extends UiRequest {
-  const InputRequest(super.id, {required this.title, this.placeholder, this.timeout});
+  const InputRequest(super.id, {required this.title, this.placeholder, this.timeout, this.toolCallIds = const []});
 
   final String title;
   final String? placeholder;
   final int? timeout;
+
+  /// See [SelectRequest.toolCallIds].
+  final List<String> toolCallIds;
 }
 
 final class EditorRequest extends UiRequest {

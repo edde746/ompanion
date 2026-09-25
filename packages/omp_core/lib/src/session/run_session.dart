@@ -35,8 +35,9 @@ abstract interface class RunAccess {
   /// Records [sessionPath] as the run's session in its `meta.json`.
   Future<void> recordSession(String sessionPath);
 
-  /// Rotates `out.jsonl` when it still holds [rotateAt] bytes or more.
-  Future<void> rotate();
+  /// Rotates `out.jsonl` if it is still [generation] and [size] bytes long: where this device read a
+  /// `session_settled`, so nothing was written since.
+  Future<void> rotate({required int generation, required int size});
 
   /// Stops omp gracefully and returns its exit code.
   Future<int?> stop();
@@ -89,6 +90,10 @@ final class OmpUnavailable implements Exception {
   @override
   String toString() => reason;
 }
+
+/// A connect failure that retrying cannot fix, such as a cancelled credential prompt or a missing key. `connect`
+/// closures throw it, and sessions stop reconnecting.
+abstract interface class PermanentConnectFailure implements Exception {}
 
 /// Reconnect delay before [attempt] (from 1): 1 s doubling to 30 s, ±20 % jitter so devices that lost the same
 /// link do not come back in lockstep.
@@ -358,9 +363,11 @@ final class RunSession implements LiveSession {
     var view = fresh ? SessionView() : _carryOver(_view);
     for (final frame in frames.take(boundary)) {
       view = _reduceFrame(view, frame);
+      // The seed is the resync a replayed session change asks for: what came before it belongs to another
+      // conversation, and RPC only lists the current one.
+      if (view.resyncReason != null) view = _carryOver(view);
     }
-    // The seed is the resync any replayed session change asked for.
-    view = view.copyWith(resyncReason: null, notices: fresh ? const [] : null);
+    if (fresh) view = view.copyWith(notices: const []);
     view = _safely(view, 'get_state', (view) => withState(view, stateJson));
     view = _safely(view, 'get_entries', (view) => withEntries(view, history.entries, leafId: history.leafId));
     if (commands != null) {
@@ -544,16 +551,17 @@ final class RunSession implements LiveSession {
 
   void _onSettled(_Attachment attachment) {
     final at = _access.rotateAt;
-    if (at != null && !_rotating && attachment.tracked.offset >= at) {
+    final tracked = attachment.tracked;
+    if (at != null && !_rotating && tracked.offset >= at) {
       _rotating = true;
-      unawaited(_rotate());
+      unawaited(_rotate(tracked.generation, tracked.offset));
     }
     unawaited(_catchUpEntries(attachment));
   }
 
-  Future<void> _rotate() async {
+  Future<void> _rotate(int generation, int size) async {
     try {
-      await _access.rotate();
+      await _access.rotate(generation: generation, size: size);
     } on Object catch (error) {
       if (_linkState is LinkLive) _warn('Rotating the session log on the machine failed: $error');
     } finally {
@@ -588,6 +596,8 @@ final class RunSession implements LiveSession {
     } on RpcClosedException {
       // The channel ended; the next attachment reads the whole history.
       return;
+    } on Object catch (error) {
+      _warn('Reading the session entries failed: $error');
     } finally {
       _catchingUp = false;
     }
@@ -705,7 +715,7 @@ final class RunSession implements LiveSession {
 
   /// Reconnecting cannot help: credentials or host key refused, the run gone, omp missing or unable to start.
   static bool _permanent(Object error) => switch (error) {
-    OmpStartFailed() || RunGone() || OmpUnavailable() => true,
+    OmpStartFailed() || RunGone() || OmpUnavailable() || PermanentConnectFailure() => true,
     SshConnectException(:final failure) =>
       failure == SshFailure.authFailed ||
           failure == SshFailure.hostKeyRejected ||

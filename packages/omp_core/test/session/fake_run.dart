@@ -33,6 +33,9 @@ final class FakeRun {
   /// Every line any channel appended to `in.jsonl`, decoded.
   final received = <Map<String, Object?>>[];
 
+  /// Thrown by every send while set, as by an append that failed on the machine.
+  Object? sendError;
+
   int generation = 1;
   final _out = BytesBuilder(copy: false);
   final _in = BytesBuilder(copy: false);
@@ -95,7 +98,8 @@ final class FakeRun {
   FakeChannel attach({int? generation, int offset = 0, int inboxOffset = 0}) {
     final bytes = _out.toBytes();
     final start = generation == this.generation && offset <= bytes.length ? offset : 0;
-    final channel = FakeChannel._(this, this.generation, start, inboxOffset, exitCode);
+    final ended = exitCode == null ? null : (code: exitCode!, size: bytes.length);
+    final channel = FakeChannel._(this, this.generation, start, inboxOffset, ended);
     _channels.add(channel);
     channel._output.add(Uint8List.sublistView(bytes, start));
     if (exitCode != null) channel._output.transportEnded(StateError('the run had ended'));
@@ -176,9 +180,9 @@ final class FakeRun {
 
 /// One device's channel to a [FakeRun].
 final class FakeChannel implements RunChannel {
-  FakeChannel._(this._run, int generation, int offset, int inboxOffset, int? endedWith)
+  FakeChannel._(this._run, int generation, int offset, int inboxOffset, ({int code, int size})? ended)
     : _inboxFrom = inboxOffset {
-    _output = RunOutput(generation: generation, offset: offset, endedWith: endedWith, onEnd: () {});
+    _output = RunOutput(generation: generation, offset: offset, endedWith: ended, onEnd: () {});
     _inbox = RunInbox(
       onListen: () {
         _inbox.start(_inboxFrom);
@@ -217,6 +221,7 @@ final class FakeChannel implements RunChannel {
   @override
   Future<void> send(String line) async {
     if (_closed) throw StateError('channel closed');
+    if (_run.sendError case final error?) throw error;
     if (_run.exitCode != null) return;
     _inbox.sending();
     final end = _run._append(line);
@@ -276,8 +281,10 @@ final class FakeAccess implements RunAccess {
   @override
   Future<void> recordSession(String sessionPath) async => recorded.add(sessionPath);
 
+  /// `rotateRunOutput` with `settledAt`: a log written to or rotated since is left alone.
   @override
-  Future<void> rotate() async {
+  Future<void> rotate({required int generation, required int size}) async {
+    if (generation != run.generation || size != run.outSize) return;
     rotations++;
     run.rotate();
   }

@@ -131,6 +131,31 @@ void main() {
         expect(late.exitCode, 0);
         await late.close();
       });
+
+      if (kind == 'exec') {
+        test('a channel closed while its inbox is still starting leaves no follower running', () async {
+          Future<List<String>> followers() async {
+            final ps = await Process.run('ps', ['-A', '-o', 'command=']);
+            return [
+              for (final line in const LineSplitter().convert(ps.stdout as String))
+                if (line.contains('$dir/in.jsonl')) line,
+            ];
+          }
+
+          final channel = await attach(inboxOffset: 0);
+          final inbox = channel.inbox.listen((_) {});
+          await channel.close();
+          await inbox.cancel();
+          // A follower left behind has started `tail` by now; one the close ended is gone or going.
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          var left = await followers();
+          for (var i = 0; i < 40 && left.isNotEmpty; i++) {
+            await Future<void>.delayed(const Duration(milliseconds: 50));
+            left = await followers();
+          }
+          expect(left, isEmpty);
+        });
+      }
     });
   }
 }

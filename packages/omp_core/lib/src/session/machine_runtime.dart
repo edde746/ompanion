@@ -15,9 +15,6 @@ import '../transport/host_link.dart';
 import 'live_session.dart';
 import 'run_session.dart';
 
-/// The oldest omp the app drives.
-const minimumOmpVersion = '18.3.1';
-
 /// `out.jsonl` size from which a settled run's log is rotated.
 const rotateOutputAt = 8 << 20;
 
@@ -113,23 +110,27 @@ final class MachineRuntime {
   /// [connect] opens a fresh link; it is called again after the link dropped. [deviceId] is stable per app install
   /// and namespaces RPC ids. [companionBytes] supplies the companion build for an omp version. [overlay] holds
   /// config keys (dotted paths, values written as YAML) for every run's `--config` overlay, which always forces
-  /// `speech.enabled: false`.
+  /// `speech.enabled: false`. [searchSystemPaths] false keeps the probe to omp in the machine's home directory
+  /// ([probeHost]), for a machine whose home is an isolated one.
   MachineRuntime({
     required this._connect,
     required this.deviceId,
     required this._companionBytes,
     Map<String, String> overlay = const {},
+    this._searchSystemPaths = true,
   }) : _overlay = renderOverlay(overlay);
 
   final Future<HostLink> Function() _connect;
   final Future<List<int>> Function(String ompVersion) _companionBytes;
   final String _overlay;
+  final bool _searchSystemPaths;
   final String deviceId;
 
   final _statuses = StreamController<MachineStatus>.broadcast();
   MachineStatus _status = const MachineOffline();
   _Connection? _connection;
   Future<_Connection>? _connecting;
+  Future<_Connection>? _reprobing;
 
   /// Open sessions by run id, including ones still attaching.
   final _opens = <String, Future<RunSession>>{};
@@ -150,8 +151,16 @@ final class MachineRuntime {
 
   /// Connects unless connected, probes once per connection, and uploads the companion for the probed omp. Returns
   /// the probe; [status] is [MachineNeedsOmp] when omp is missing or too old, and the link stays usable. Throws
-  /// when connecting or probing fails ([MachineFailed]).
+  /// when connecting or probing fails ([MachineFailed]). After omp was installed or replaced, [reprobe] sees it.
   Future<HostProbe> connectAndProbe() async => (await _connected()).probe;
+
+  /// Probes the connected machine again and uploads the companion for the omp found now, e.g. after installing omp;
+  /// connects first when not connected, as [connectAndProbe] does. [status] follows the new probe. A failed probe
+  /// throws and leaves the connection and [status] as they were. Calls made while one runs share it.
+  Future<HostProbe> reprobe() async {
+    if (_connection == null && _connecting == null) return connectAndProbe();
+    return (await (_reprobing ??= _reprobe().whenComplete(() => _reprobing = null))).probe;
+  }
 
   /// Session files on the machine, newest first, each with the live run holding it. Sessions of live runs that omp
   /// has not written yet (no message so far) are included.
@@ -290,23 +299,41 @@ final class MachineRuntime {
       rethrow;
     }
     try {
-      final probe = await probeHost(link);
-      final problem = ompProblem(probe);
-      final version = probe.ompVersion;
-      final companion = problem == null && version != null
-          ? await uploadCompanion(link, ompVersion: version, bytes: await _companionBytes(version))
-          : null;
+      final connection = await _probe(link);
       if (_disposed) throw StateError('the machine runtime was disposed');
-      final connection = (link: link, probe: probe, companion: companion, problem: problem);
       _connection = connection;
       unawaited(link.done.then((_) => _dropped(link)));
-      _setStatus(problem == null ? MachineOnline(probe) : MachineNeedsOmp(probe, problem));
+      final problem = connection.problem;
+      _setStatus(problem == null ? MachineOnline(connection.probe) : MachineNeedsOmp(connection.probe, problem));
       return connection;
     } on Object catch (error) {
       unawaited(link.close());
       if (!_disposed) _setStatus(MachineFailed(error));
       rethrow;
     }
+  }
+
+  Future<_Connection> _reprobe() async {
+    final current = await _connected();
+    final connection = await _probe(current.link);
+    if (_disposed) throw StateError('the machine runtime was disposed');
+    // The link dropped while probing; the connection that replaces it probes by itself.
+    if (!identical(_connection, current)) return _connected();
+    _connection = connection;
+    final problem = connection.problem;
+    _setStatus(problem == null ? MachineOnline(connection.probe) : MachineNeedsOmp(connection.probe, problem));
+    return connection;
+  }
+
+  /// Probes [link] and uploads the companion when the app can drive the omp found there.
+  Future<_Connection> _probe(HostLink link) async {
+    final probe = await probeHost(link, searchSystemPaths: _searchSystemPaths);
+    final problem = ompProblem(probe);
+    final version = probe.ompVersion;
+    final companion = problem == null && version != null
+        ? await uploadCompanion(link, ompVersion: version, bytes: await _companionBytes(version))
+        : null;
+    return (link: link, probe: probe, companion: companion, problem: problem);
   }
 
   void _dropped(HostLink link) {
@@ -428,28 +455,6 @@ String? ompProblem(HostProbe probe) {
   return null;
 }
 
-/// Orders `major.minor.patch[-pre]` versions; a pre-release sorts before its release.
-int compareOmpVersions(String a, String b) {
-  (List<int>, String?) parse(String version) {
-    final dash = version.indexOf('-');
-    final core = dash < 0 ? version : version.substring(0, dash);
-    final parts = core.split('.').map(int.parse).toList();
-    if (parts.length != 3) throw FormatException('not a major.minor.patch version', version);
-    return (parts, dash < 0 ? null : version.substring(dash + 1));
-  }
-
-  final (coreA, preA) = parse(a);
-  final (coreB, preB) = parse(b);
-  for (var i = 0; i < 3; i++) {
-    final order = coreA[i].compareTo(coreB[i]);
-    if (order != 0) return order;
-  }
-  if (preA == preB) return 0;
-  if (preA == null) return 1;
-  if (preB == null) return -1;
-  return preA.compareTo(preB);
-}
-
 /// The `--config` overlay of every run: [overlay]'s dotted keys as nested YAML, values written verbatim, and
 /// `speech.enabled: false` so the `ask` tool never speaks on the host's speaker.
 String renderOverlay(Map<String, String> overlay) {
@@ -529,9 +534,9 @@ final class _DetachedAccess implements RunAccess {
   }
 
   @override
-  Future<void> rotate() async {
+  Future<void> rotate({required int generation, required int size}) async {
     final connection = await _machine._connected();
-    await rotateRunOutput(connection.link, connection.probe, _run, minSize: rotateAt ?? 0);
+    await rotateRunOutput(connection.link, connection.probe, _run, settledAt: (generation: generation, size: size));
   }
 
   @override
@@ -597,7 +602,8 @@ final class _ControlAccess implements RunAccess {
       throw StateError('the control session runs with --no-session and has no session file');
 
   @override
-  Future<void> rotate() => throw StateError('the control session has no log to rotate');
+  Future<void> rotate({required int generation, required int size}) =>
+      throw StateError('the control session has no log to rotate');
 
   @override
   Future<int?> stop() async {

@@ -5,6 +5,7 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/src/session/run_session.dart';
 import 'package:omp_core/ssh.dart';
 import 'package:omp_core/store.dart';
+import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
 
 import '../store/reducer_test.dart' show agentEnd, assistant, messageEnd, messageStart, text, uiRequest, user;
@@ -159,7 +160,7 @@ void main() {
     await live.detach();
   });
 
-  test('refused credentials, a removed run and an exited omp end the session', () async {
+  test('refused credentials, a failure the app marks permanent, a removed run and an exited omp end the session', () async {
     final refused = session(recordedPath: run.sessionFile);
     await refused.start();
     final hop = SshHop(host: 'h', user: 'u', auth: const SshPasswordAuth('x'));
@@ -167,6 +168,17 @@ void main() {
     run.dropChannels();
     await until(() => refused.linkState is LinkClosed);
     expect((refused.linkState as LinkClosed).cause, isA<SshConnectException>());
+
+    access = FakeAccess(run = FakeRun());
+    final cancelled = session(
+      recordedPath: run.sessionFile,
+      backoff: (attempt) => attempt == 1 ? Duration.zero : const Duration(hours: 1),
+    );
+    await cancelled.start();
+    access.attachError = _PromptCancelled();
+    run.dropChannels();
+    await until(() => cancelled.linkState is LinkClosed);
+    expect((cancelled.linkState as LinkClosed).cause, isA<_PromptCancelled>());
 
     access = FakeAccess(run = FakeRun());
     final removed = session(recordedPath: run.sessionFile);
@@ -219,6 +231,21 @@ void main() {
     await live.detach();
   });
 
+  test('a first attach shows only the conversation after the last session change in the log', () async {
+    run.emit(messageEnd(user('old question', 1), 'm1'));
+    run.emit(messageEnd(assistant(2, [text('old answer')]), 'm2'));
+    run.emit({'id': 'dev-b:1', 'type': 'response', 'command': 'branch', 'success': true, 'data': {'cancelled': false}});
+    run.emit(messageEnd(user('new question', 3), 'm3'));
+    run.entries.add(entry('n1', null, user('new question', 3)));
+
+    final live = session(recordedPath: run.sessionFile);
+    await live.start();
+
+    expect(texts(live.view), ['user: new question']);
+    expect(live.view.resyncReason, isNull);
+    await live.detach();
+  });
+
   test('a rotation the session had read is followed; one it missed while away rebuilds the view', () async {
     final live = session(
       recordedPath: run.sessionFile,
@@ -262,6 +289,20 @@ void main() {
     await live.detach();
   });
 
+  test('a settle read after omp wrote more leaves the log alone', () async {
+    access = FakeAccess(run, rotateAt: 64);
+    final live = session(recordedPath: run.sessionFile);
+    await live.start();
+    // Another device's prompt lands before this device reads the settle.
+    run.emit({'type': 'session_settled'});
+    run.emit(messageEnd(user('next', 9), 'm9'));
+    await until(() => live.view.transcript.isNotEmpty);
+    await pumpEventQueue();
+    expect(run.generation, 1);
+    expect(access.rotations, 0);
+    await live.detach();
+  });
+
   test('state news from a frame is read once with get_state', () async {
     final live = session(recordedPath: run.sessionFile);
     await live.start();
@@ -274,6 +315,18 @@ void main() {
     await until(() => run.received.where((command) => command['type'] == 'get_state').length == before + 1);
     await until(() => !live.view.stateStale);
     expect(live.view.run.running, isFalse);
+    await live.detach();
+  });
+
+  test('reading the entries of a settled run fails with a notice, and the session stays live', () async {
+    final live = session(recordedPath: run.sessionFile);
+    await live.start();
+    run.sendError = HostLinkException('appending to in.jsonl failed: "1 20"');
+    run.emit({'type': 'session_settled'});
+    await until(() => live.view.notices.isNotEmpty);
+    expect((live.view.notices.single as MessageNotice).message, startsWith('Reading the session entries failed'));
+    expect(live.linkState, isA<LinkLive>());
+    run.sendError = null;
     await live.detach();
   });
 
@@ -293,3 +346,5 @@ void main() {
     expect(started, 1, reason: 'a stop is final');
   });
 }
+
+final class _PromptCancelled implements PermanentConnectFailure {}

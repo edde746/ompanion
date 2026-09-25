@@ -68,14 +68,15 @@ final class DetachedChannel implements RunChannel {
   @override
   int get inboxOffset => _inbox.offset;
 
-  /// Header: `<generation> <start offset> <exit code or ->`.
+  /// Header: `<generation> <start offset> <exit code or -> <out.jsonl size>`.
   void _onOutputHeader(String header) {
     final fields = header.split(' ');
-    if (fields.length != 3) throw HostLinkException('bad attach header "$header" from $dir');
+    if (fields.length != 4) throw HostLinkException('bad attach header "$header" from $dir');
+    final code = int.tryParse(fields[2]);
     _output = RunOutput(
       generation: int.parse(fields[0]),
       offset: int.parse(fields[1]),
-      endedWith: int.tryParse(fields[2]),
+      endedWith: code == null ? null : (code: code, size: int.parse(fields[3])),
       onEnd: () => unawaited(_follow.stop()),
     );
   }
@@ -96,7 +97,7 @@ final class DetachedChannel implements RunChannel {
     try {
       await follow.start(_link, _inboxScript(dir, _inboxFrom));
     } on Object catch (error) {
-      _inbox.fail(error);
+      if (!_closed) _inbox.fail(error);
     }
   }
 
@@ -188,7 +189,7 @@ final class _Follower {
 
   /// The stream ended by itself (not through [stop]), with the transport's error if any.
   final void Function(Object? error) onEnd;
-  HostProcess? _process;
+  Future<HostProcess>? _exec;
   StreamSubscription<Uint8List>? _out;
   StreamSubscription<Uint8List>? _err;
   final _errBytes = BytesBuilder();
@@ -201,7 +202,7 @@ final class _Follower {
 
   /// Completes once the header was handled.
   Future<void> start(HostLink link, String script) async {
-    final process = _process = await startPosixScript(link, script);
+    final process = await (_exec = startPosixScript(link, script));
     _err = process.stderr.listen((chunk) {
       if (_errBytes.length < 16384) _errBytes.add(chunk);
     });
@@ -243,20 +244,30 @@ final class _Follower {
 
   void _end() {
     if (!_done.isCompleted) _done.complete();
+    if (_stopping) return;
     if (!_started.isCompleted) {
       _started.completeError(HostLinkException('attach failed: ${stderr.isEmpty ? 'no output' : stderr}'));
-    } else if (!_stopping) {
+    } else {
       onEnd(null);
     }
   }
 
+  /// Ends the script, also one whose exec was still opening: a channel can close right after it started following.
   Future<void> stop() async {
     if (_stopping) return;
     _stopping = true;
-    final process = _process;
-    if (process == null) return;
+    final exec = _exec;
+    if (exec == null) return;
+    final HostProcess process;
+    try {
+      process = await exec;
+    } on Object {
+      // The exec failed; [start] reports it.
+      return;
+    }
     await finishProcess(process, _done.future);
     await Future.wait([?_out?.cancel(), ?_err?.cancel()]);
+    if (!_started.isCompleted) _started.completeError(HostLinkException('stopped before the header arrived'));
   }
 }
 
@@ -298,10 +309,10 @@ g=$(sed -n 's/.*"generation":\([0-9][0-9]*\).*/\1/p' "$d/meta.json" 2>/dev/null)
 if [ -z "$g" ]; then echo "no run in $d" >&2; exit 3; fi
 e=-
 if [ -f "$d/exit" ]; then e=$(cat "$d/exit"); fi
-s=$(wc -c < "$d/out.jsonl" | tr -d ' ')
+s=$(wc -c < "$d/out.jsonl" | tr -d ' '); s=${s:-0}
 o=0
 if [ "$g" = "$g0" ] && [ "$o0" -le "$s" ]; then o=$o0; fi
-printf '%s %s %s\n' "$g" "$o" "$e"
+printf '%s %s %s %s\n' "$g" "$o" "$e" "$s"
 if [ "$e" != - ] && [ "$o" -ge "$s" ]; then exit 0; fi
 tail $tailpoll -c +$((o + 1)) -F "$d/out.jsonl" &
 t=$!
@@ -330,7 +341,7 @@ String _appenderScript(String dir) => 'd=${shQuote(dir)}\n$posixLockFunctions$_a
 
 const _appenderBody = r'''
 while IFS= read -r l; do
-  lock "$d/in.lock" 30 || { echo "no run directory $d" >&2; exit 1; }
+  lock "$d/in.lock" 30 || exit 1
   case $l in
     @*) f="$d/${l#@}"; cat "$f" >> "$d/in.jsonl"; r=$?; rm -f "$f" ;;
     *) printf '%s\n' "$l" >> "$d/in.jsonl"; r=$? ;;

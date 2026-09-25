@@ -19,10 +19,12 @@ import 'transcript.dart';
 ///
 /// Frames from before the seed are safe for messages and requests (rows dedupe by [TranscriptItem.identity], a
 /// finished message ignores a replayed start or update, a closed request stays closed) but not for settings, change
-/// markers and toasts, which follow the frame order.
+/// markers and toasts, which follow the frame order. A timed dialog closes once the tool calls that opened it ended.
 ///
 /// Throws [FormatException] when a known frame has the wrong shape; [view] stays valid.
-SessionView reduce(SessionView view, Map<String, Object?> frame) => switch (frame.string('type')) {
+SessionView reduce(SessionView view, Map<String, Object?> frame) => _closeTimedDialogs(_reduce(view, frame));
+
+SessionView _reduce(SessionView view, Map<String, Object?> frame) => switch (frame.string('type')) {
   'agent_start' => view.copyWith(
     run: view.run.copyWith(running: true, retrying: null, outcome: const RunIdle()),
     // A new run cannot inherit a streaming message or a foreground tool; omp's TUI seals them here too.
@@ -166,9 +168,9 @@ SessionView withState(SessionView view, Map<String, Object?> state) {
     stateStale: false,
   );
   if (state.optBool('isSettled') ?? false) {
-    next = next.copyWith(transcript: _settledTranscript(next.transcript));
+    next = _closeTimedDialogs(next.copyWith(transcript: _settledTranscript(next.transcript)));
   } else if (!isStreaming) {
-    next = next.copyWith(transcript: _interruptTools(_finishStreaming(next.transcript)));
+    next = _closeTimedDialogs(next.copyWith(transcript: _interruptTools(_finishStreaming(next.transcript))));
   }
   if (previous.sessionId != null && !sameSession) return next.copyWith(resyncReason: 'session');
   if (!sameSession) return next;
@@ -301,6 +303,12 @@ SessionView _agentEnd(SessionView view, Map<String, Object?> frame) {
   AssistantItem? last;
   for (var i = messages.length - 1; i >= 0 && last == null; i--) {
     if (messages[i]['role'] == 'assistant') last = decodeAssistant(messages[i]);
+  }
+  // Over 1 MiB omp drops the messages it already sent with `message_end` and keeps their count (`compactTerminalFrame`,
+  // rpc-frame.ts); the final reply is then the transcript's.
+  if (last == null && (frame.optInt('messageCount') ?? 0) > messages.length) {
+    final index = _lastIndexWhere(view.transcript, (item) => item is AssistantItem);
+    if (index >= 0) last = view.transcript[index] as AssistantItem;
   }
   final outcome = switch (last) {
     AssistantItem(stopReason: StopReason.aborted, silentAbort: false) => const RunAborted(),
@@ -705,6 +713,7 @@ SessionView _uiRequest(SessionView view, Map<String, Object?> frame) {
       final title = frame.string('title');
       final options = frame.strings('options');
       if (title.startsWith(_approvalPrefix)) return _openRequest(view, _approval(view, id, title, options));
+      final timeout = frame.optInt('timeout');
       return _openRequest(
         view,
         SelectRequest(
@@ -715,27 +724,32 @@ SessionView _uiRequest(SessionView view, Map<String, Object?> frame) {
             for (final detail in frame.optObjects('optionDetails') ?? const <Map<String, Object?>>[])
               detail.optString('description'),
           ],
-          timeout: frame.optInt('timeout'),
+          timeout: timeout,
+          toolCallIds: _owningTools(view, timeout),
         ),
       );
     case 'confirm':
+      final timeout = frame.optInt('timeout');
       return _openRequest(
         view,
         ConfirmRequest(
           id,
           title: frame.string('title'),
           message: frame.optString('message') ?? '',
-          timeout: frame.optInt('timeout'),
+          timeout: timeout,
+          toolCallIds: _owningTools(view, timeout),
         ),
       );
     case 'input':
+      final timeout = frame.optInt('timeout');
       return _openRequest(
         view,
         InputRequest(
           id,
           title: frame.string('title'),
           placeholder: frame.optString('placeholder'),
-          timeout: frame.optInt('timeout'),
+          timeout: timeout,
+          toolCallIds: _owningTools(view, timeout),
         ),
       );
     case 'editor':
@@ -834,6 +848,35 @@ ApprovalRequest _approval(SessionView view, String id, String title, List<String
 SessionView _openRequest(SessionView view, UiRequest request) {
   if (view.settledRequestIds.contains(request.id) || view.requests.any((open) => open.id == request.id)) return view;
   return view.copyWith(requests: UnmodifiableListView([...view.requests, request]));
+}
+
+/// The tool calls a timed dialog belongs to: those running when it opens.
+List<String> _owningTools(SessionView view, int? timeout) => timeout == null
+    ? const []
+    : [
+        for (final item in view.transcript)
+          if (item is ToolResultItem && item.state == ToolState.running) item.toolCallId,
+      ];
+
+/// omp resolves a timed dialog by itself and sends no frame (`requestRpcDialog`, rpc-mode.ts): one that tool calls
+/// opened is over once none of them runs, also in a log replayed long after.
+SessionView _closeTimedDialogs(SessionView view) {
+  List<String> owners(UiRequest request) => switch (request) {
+    SelectRequest(:final toolCallIds) || ConfirmRequest(:final toolCallIds) || InputRequest(:final toolCallIds) =>
+      toolCallIds,
+    _ => const [],
+  };
+  if (!view.requests.any((request) => owners(request).isNotEmpty)) return view;
+  final running = {
+    for (final item in view.transcript)
+      if (item is ToolResultItem && item.state == ToolState.running) item.toolCallId,
+  };
+  var next = view;
+  for (final request in view.requests) {
+    final tools = owners(request);
+    if (tools.isNotEmpty && !tools.any(running.contains)) next = dismissRequest(next, request.id);
+  }
+  return next;
 }
 
 SessionView _notice(SessionView view, Notice Function(int seq) build) => view.copyWith(
@@ -1116,7 +1159,20 @@ SessionView _seed(SessionView view, List<TranscriptItem> run) {
   for (var i = 0; i < view.transcript.length; i++) {
     positions.putIfAbsent(view.transcript[i].identity, () => i);
   }
-  final anchors = [for (final item in run) positions[item.identity]];
+  final anchors = List<int?>.filled(run.length, null);
+  final claimed = <int>{};
+  int? last;
+  for (var k = 0; k < run.length; k++) {
+    final item = run[k];
+    var anchor = positions[item.identity];
+    // A change seen live is a marker without an entry id; its entry arrives with another identity.
+    if (anchor == null && (item is ModelChangeItem || item is ThinkingChangeItem)) {
+      anchor = _liveMarker(view.transcript, item, from: last == null ? 0 : last + 1, claimed: claimed);
+      if (anchor != null) claimed.add(anchor);
+    }
+    anchors[k] = anchor;
+    last = anchor ?? last;
+  }
   // For each run item, the transcript position of the next run item the transcript has.
   final nextAnchors = List<int?>.filled(run.length, null);
   int? upcoming;
@@ -1162,6 +1218,22 @@ SessionView _seed(SessionView view, List<TranscriptItem> run) {
     emit(replacement ?? view.transcript[i], seeded: replacement != null || i < view.historyLength);
   }
   return view.copyWith(transcript: UnmodifiableListView(merged), historyLength: historyLength);
+}
+
+/// The live marker [change], a model or thinking change from an entry, stands for: the first unclaimed marker of its
+/// kind and value from [from] on. A marker goes where its change was seen live, at or after its entry's place.
+int? _liveMarker(List<TranscriptItem> transcript, TranscriptItem change, {required int from, required Set<int> claimed}) {
+  for (var i = from; i < transcript.length; i++) {
+    final item = transcript[i];
+    if (item.entryId != null || claimed.contains(i)) continue;
+    final same = switch ((item, change)) {
+      (ModelChangeItem(:final model), ModelChangeItem(model: final other)) => model == other,
+      (ThinkingChangeItem(:final level), ThinkingChangeItem(level: final other)) => level == other,
+      _ => false,
+    };
+    if (same) return i;
+  }
+  return null;
 }
 
 /// The entries from the root to [leafId] along `parentId` (`buildSessionContext`). An unknown leaf falls back to the

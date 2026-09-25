@@ -94,6 +94,8 @@ final class RpcClient {
       await _channel.send(line);
     } catch (_) {
       _pending.remove(requestId);
+      // A channel that ended also fails the sends it had not acknowledged; the caller keys on why the client stopped.
+      if (_stopReason case final reason?) throw reason;
       rethrow;
     }
     return pending.completer.future;
@@ -106,15 +108,20 @@ final class RpcClient {
       throw ArgumentError('respondToUi needs exactly one of value, confirmed, cancelled');
     }
     _checkRunning();
-    await _channel.send(
-      jsonEncode({
-        'type': 'extension_ui_response',
-        'id': id,
-        'value': ?value,
-        'confirmed': ?confirmed,
-        if (cancelled) 'cancelled': true,
-      }),
-    );
+    try {
+      await _channel.send(
+        jsonEncode({
+          'type': 'extension_ui_response',
+          'id': id,
+          'value': ?value,
+          'confirmed': ?confirmed,
+          if (cancelled) 'cancelled': true,
+        }),
+      );
+    } catch (_) {
+      if (_stopReason case final reason?) throw reason;
+      rethrow;
+    }
   }
 
   // Prompting

@@ -70,7 +70,8 @@ final class HostProbe {
   /// The active omp profile from `OMP_PROFILE`/`PI_PROFILE`, if any.
   final String? profile;
 
-  /// Absolute path of the omp binary, null when none was found.
+  /// Absolute path of the omp binary the app drives, null when none was found. The probe looks on PATH and in
+  /// the install locations and takes the first omp at least [minimumOmpVersion], else the first one it found.
   final String? ompPath;
 
   /// `18.3.1` from `omp --version`.
@@ -118,19 +119,21 @@ final class HostProbe {
 
 /// Probes a machine. Without [commandShell] (first contact) a polyglot command decides how the machine's
 /// SSH exec parses commands; a POSIX shell that turns out to run on Windows (MSYS, Cygwin) is followed by
-/// the Windows probe, because omp there is the Windows build.
-Future<HostProbe> probeHost(HostLink link, {CommandShell? commandShell}) async {
+/// the Windows probe, because omp there is the Windows build. With [searchSystemPaths] false omp is looked
+/// for only in the install locations under the home directory, never on PATH or in system directories
+/// such as `/opt/homebrew/bin`, so a machine with an isolated home never runs the user's own omp.
+Future<HostProbe> probeHost(HostLink link, {CommandShell? commandShell, bool searchSystemPaths = true}) async {
   final shell = commandShell ?? parseShellProbe((await runCommand(link, shellProbeCommand)).stdout);
-  if (shell != CommandShell.posix) return _probeWindows(link, shell);
+  if (shell != CommandShell.posix) return _probeWindows(link, shell, searchSystemPaths);
   final marker = newMarker();
-  final result = await runPosixScript(link, posixProbeScript(marker));
+  final result = await runPosixScript(link, posixProbeScript(marker, searchSystemPaths: searchSystemPaths));
   final probe = parsePosixProbe(result.payload(marker));
-  return probe.os == HostOs.windows ? _probeWindows(link, CommandShell.posix) : probe;
+  return probe.os == HostOs.windows ? _probeWindows(link, CommandShell.posix, searchSystemPaths) : probe;
 }
 
-Future<HostProbe> _probeWindows(HostLink link, CommandShell shell) async {
+Future<HostProbe> _probeWindows(HostLink link, CommandShell shell, bool searchSystemPaths) async {
   final marker = newMarker();
-  final result = await runPowerShell(link, shell, windowsProbeScript(marker));
+  final result = await runPowerShell(link, shell, windowsProbeScript(marker, searchSystemPaths: searchSystemPaths));
   return parseWindowsProbe(result.payload(marker), shell);
 }
 
@@ -154,9 +157,12 @@ CommandShell parseShellProbe(String output) {
   return CommandShell.posix;
 }
 
-/// POSIX probe, printed as one JSON object of strings between marker lines. `LC_ALL=C` keeps `tr` and `sed`
-/// from rejecting non-UTF-8 bytes in paths.
-String posixProbeScript(String marker) => 'm=${shQuote(marker)}\n$_posixProbeBody';
+/// POSIX probe, printed as one JSON object between marker lines. `LC_ALL=C` keeps `tr` and `sed` from
+/// rejecting non-UTF-8 bytes in paths. `omps` lists the omp on PATH and the first other one in the install
+/// locations, `~/.local/bin` first (where both installers and `uploadOmp` put it), each with the first
+/// line of its `--version`; [parsePosixProbe] picks one.
+String posixProbeScript(String marker, {bool searchSystemPaths = true}) =>
+    'm=${shQuote(marker)}; sys=${searchSystemPaths ? '1' : ''}\n$_posixProbeBody';
 
 const _posixProbeBody = r'''
 LC_ALL=C; export LC_ALL
@@ -180,21 +186,32 @@ fi
 cfg="$HOME/${PI_CONFIG_DIR:-.omp}"
 prof=${OMP_PROFILE-${PI_PROFILE-}}
 if [ -n "$prof" ]; then agent="$cfg/profiles/$prof/agent"; else agent=${PI_CODING_AGENT_DIR:-$cfg/agent}; fi
-omp=$(command -v omp 2>/dev/null)
-case $omp in /*) ;; *) omp= ;; esac
-if [ -z "$omp" ]; then
-  for c in "$HOME/.local/bin/omp" /opt/homebrew/bin/omp /usr/local/bin/omp "$HOME/.bun/bin/omp"; do
-    if [ -f "$c" ] && [ -x "$c" ]; then omp=$c; break; fi
-  done
+p=
+if [ -n "$sys" ]; then
+  p=$(command -v omp 2>/dev/null)
+  case $p in /*) ;; *) p= ;; esac
+  set -- "$HOME/.local/bin/omp" /opt/homebrew/bin/omp /usr/local/bin/omp "$HOME/.bun/bin/omp"
+else
+  set -- "$HOME/.local/bin/omp" "$HOME/.bun/bin/omp"
 fi
-ver=
-if [ -n "$omp" ]; then ver=$("$omp" --version </dev/null 2>/dev/null | head -n 1); fi
+c=
+for x in "$@"; do
+  if [ "$x" != "$p" ] && [ -f "$x" ] && [ -x "$x" ]; then c=$x; break; fi
+done
+ver() { "$1" --version </dev/null 2>/dev/null | head -n 1; }
+pv=; if [ -n "$p" ]; then pv=$(ver "$p"); fi
+cv=; if [ -n "$c" ]; then cv=$(ver "$c"); fi
+e() { printf '{"path":'; q "$1"; printf ',"version":'; q "$2"; printf '}'; }
 curl=; if has curl; then curl=1; fi
 wget=; if has wget; then wget=1; fi
 printf '\n%s:begin\n{"v":"1"' "$m"
 o kernel "$kernel"; o machine "$machine"; o arm64 "$arm64"; o libc "$libc"; o shell "$SHELL"; o home "$HOME"
-o agentDir "$agent"; o profile "$prof"; o omp "$omp"; o ompVersion "$ver"; o curl "$curl"; o wget "$wget"
-printf '}\n%s:end\n' "$m"
+o agentDir "$agent"; o profile "$prof"; o curl "$curl"; o wget "$wget"
+printf ',"omps":['
+if [ -n "$p" ]; then e "$p" "$pv"; fi
+if [ -n "$p" ] && [ -n "$c" ]; then printf ','; fi
+if [ -n "$c" ]; then e "$c" "$cv"; fi
+printf ']}\n%s:end\n' "$m"
 ''';
 
 /// Parses the payload of [posixProbeScript].
@@ -210,6 +227,7 @@ HostProbe parsePosixProbe(String payload) {
   };
   final machine = json.optString('machine') ?? '';
   final arch = os == HostOs.macos ? (json.optString('arm64') == '1' ? 'arm64' : 'x64') : normalizeArch(machine);
+  final omp = _pickOmp(json.objects('omps'));
   return HostProbe(
     commandShell: CommandShell.posix,
     os: os,
@@ -220,15 +238,17 @@ HostProbe parsePosixProbe(String payload) {
     libc: json.optString('libc'),
     shell: json.optString('shell'),
     profile: json.optString('profile'),
-    ompPath: json.optString('omp'),
-    ompVersion: parseOmpVersion(json.optString('ompVersion')),
+    ompPath: omp?.path,
+    ompVersion: omp?.version,
     curl: json.optString('curl') == '1',
     wget: json.optString('wget') == '1',
   );
 }
 
-/// Windows probe. Architecture follows omp's install.ps1: `PROCESSOR_ARCHITEW6432` wins under WOW64.
-String windowsProbeScript(String marker) => '\$m = ${psQuote(marker)}\n$_windowsProbeBody';
+/// Windows probe. Architecture follows omp's install.ps1: `PROCESSOR_ARCHITEW6432` wins under WOW64. `omps`
+/// lists omp on PATH and the first other one in the install locations, as [posixProbeScript] does.
+String windowsProbeScript(String marker, {bool searchSystemPaths = true}) =>
+    '\$m = ${psQuote(marker)}; \$sys = \$$searchSystemPaths\n$_windowsProbeBody';
 
 const _windowsProbeBody = r'''
 $arch = $env:PROCESSOR_ARCHITEW6432
@@ -244,18 +264,24 @@ if ($prof) { $agent = Join-Path $cfg "profiles\$prof\agent" }
 elseif ($env:PI_CODING_AGENT_DIR) { $agent = $env:PI_CODING_AGENT_DIR }
 else { $agent = Join-Path $cfg 'agent' }
 $omp = $null
-$found = Get-Command -Name 'omp.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($found) { $omp = $found.Source }
-if (-not $omp) {
-  $candidates = @()
-  if ($env:PI_INSTALL_DIR) { $candidates += Join-Path $env:PI_INSTALL_DIR 'omp.exe' }
-  if ($env:LOCALAPPDATA) { $candidates += Join-Path $env:LOCALAPPDATA 'omp\omp.exe' }
-  $candidates += Join-Path $env:USERPROFILE '.bun\bin\omp.exe'
-  $candidates += Join-Path $env:USERPROFILE '.local\bin\omp.exe'
-  foreach ($c in $candidates) { if (Test-Path -LiteralPath $c -PathType Leaf) { $omp = $c; break } }
+if ($sys) {
+  $found = Get-Command -Name 'omp.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($found) { $omp = $found.Source }
 }
-$ver = $null
-if ($omp) { try { $ver = & $omp --version 2>$null | Select-Object -First 1 } catch { $ver = $null } }
+$candidates = @()
+if ($env:PI_INSTALL_DIR) { $candidates += Join-Path $env:PI_INSTALL_DIR 'omp.exe' }
+if ($env:LOCALAPPDATA) { $candidates += Join-Path $env:LOCALAPPDATA 'omp\omp.exe' }
+$candidates += Join-Path $env:USERPROFILE '.bun\bin\omp.exe'
+$candidates += Join-Path $env:USERPROFILE '.local\bin\omp.exe'
+$other = $null
+foreach ($c in $candidates) { if ($c -ne $omp -and (Test-Path -LiteralPath $c -PathType Leaf)) { $other = $c; break } }
+$omps = @(foreach ($c in @($omp, $other)) {
+  if ($c) {
+    $ver = $null
+    try { $ver = & $c --version 2>$null | Select-Object -First 1 } catch { $ver = $null }
+    [pscustomobject]@{ path = $c; version = $ver }
+  }
+})
 $sshd = $null
 foreach ($p in @((Join-Path $env:SystemRoot 'System32\OpenSSH\sshd.exe'), (Join-Path $env:ProgramFiles 'OpenSSH\sshd.exe'))) {
   if (Test-Path -LiteralPath $p -PathType Leaf) { $sshd = (Get-Item -LiteralPath $p).VersionInfo.ProductVersion; break }
@@ -264,16 +290,17 @@ $curl = $null
 if (Get-Command -Name 'curl.exe' -CommandType Application -ErrorAction SilentlyContinue) { $curl = '1' }
 $o = [ordered]@{
   v = '1'; kernel = 'Windows_NT'; machine = $arch; shell = $defaultShell; home = $env:USERPROFILE
-  agentDir = $agent; profile = $prof; omp = $omp; ompVersion = $ver; curl = $curl
+  agentDir = $agent; profile = $prof; omps = $omps; curl = $curl
   powershell = $PSVersionTable.PSVersion.ToString(); localAppData = $env:LOCALAPPDATA; sshd = $sshd
 }
-$json = ConvertTo-OmpAscii (ConvertTo-Json -InputObject $o -Compress)
+$json = ConvertTo-OmpAscii (ConvertTo-Json -InputObject $o -Compress -Depth 4)
 [Console]::Out.Write("`n" + $m + ":begin`n" + $json + "`n" + $m + ":end`n")
 ''';
 
 /// Parses the payload of [windowsProbeScript].
 HostProbe parseWindowsProbe(String payload, CommandShell commandShell) {
   final json = asJsonObject(jsonDecode(payload), 'probe');
+  final omp = _pickOmp(json.objects('omps'));
   return HostProbe(
     commandShell: commandShell,
     os: HostOs.windows,
@@ -283,8 +310,8 @@ HostProbe parseWindowsProbe(String payload, CommandShell commandShell) {
     agentDir: _required(json, 'agentDir'),
     shell: json.optString('shell'),
     profile: json.optString('profile'),
-    ompPath: json.optString('omp'),
-    ompVersion: parseOmpVersion(json.optString('ompVersion')),
+    ompPath: omp?.path,
+    ompVersion: omp?.version,
     curl: json.optString('curl') == '1',
     powershellVersion: json.optString('powershell'),
     localAppData: json.optString('localAppData'),
@@ -302,6 +329,45 @@ String normalizeArch(String machine) => switch (machine.toLowerCase()) {
 /// The version in `omp --version` output (`omp/18.3.1`), or null.
 String? parseOmpVersion(String? output) =>
     output == null ? null : RegExp(r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?').firstMatch(output)?.group(0);
+
+/// The oldest omp the app drives.
+const minimumOmpVersion = '18.3.1';
+
+/// Orders `major.minor.patch[-pre]` versions; a pre-release sorts before its release.
+int compareOmpVersions(String a, String b) {
+  (List<int>, String?) parse(String version) {
+    final dash = version.indexOf('-');
+    final core = dash < 0 ? version : version.substring(0, dash);
+    final parts = core.split('.').map(int.parse).toList();
+    if (parts.length != 3) throw FormatException('not a major.minor.patch version', version);
+    return (parts, dash < 0 ? null : version.substring(dash + 1));
+  }
+
+  final (coreA, preA) = parse(a);
+  final (coreB, preB) = parse(b);
+  for (var i = 0; i < 3; i++) {
+    final order = coreA[i].compareTo(coreB[i]);
+    if (order != 0) return order;
+  }
+  if (preA == preB) return 0;
+  if (preA == null) return 1;
+  if (preB == null) return -1;
+  return preA.compareTo(preB);
+}
+
+/// The omp the app drives out of those a probe found, in search order: the first one at least
+/// [minimumOmpVersion], else the first one, whose problem the app then reports. So an older omp on PATH
+/// gives way to the one an install put into the install directory.
+({String path, String? version})? _pickOmp(List<Map<String, Object?>> found) {
+  final omps = [
+    for (final omp in found) (path: omp.string('path'), version: parseOmpVersion(omp.optString('version'))),
+  ];
+  for (final omp in omps) {
+    final version = omp.version;
+    if (version != null && compareOmpVersions(version, minimumOmpVersion) >= 0) return omp;
+  }
+  return omps.firstOrNull;
+}
 
 String _required(Map<String, Object?> json, String key) {
   final value = json.optString(key);

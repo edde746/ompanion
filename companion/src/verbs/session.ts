@@ -218,15 +218,18 @@ const lifecycleVerbs: VerbTable = {
 		if (session.isStreaming) {
 			throw new VerbError("busy", "wait for the current response to finish or abort it before navigating");
 		}
+		const leafBefore = session.sessionManager.getLeafId();
 		const result = await session.navigateTree(entryId, { summarize, customInstructions });
 		if (result.cancelled) return { cancelled: true, aborted: result.aborted === true };
+		// omp returns without touching anything when the target already is the leaf (agent-session.ts navigateTree).
+		const moved = result.summaryEntry !== undefined || session.sessionManager.getLeafId() !== leafBefore;
 		return {
 			cancelled: false,
 			aborted: false,
 			editorText: result.editorText ?? null,
 			editorImages: result.editorImages ?? [],
 			summaryEntryId: result.summaryEntry?.id ?? null,
-			...announceChange("tree", session),
+			...(moved ? announceChange("tree", session) : sessionState(session)),
 		};
 	},
 

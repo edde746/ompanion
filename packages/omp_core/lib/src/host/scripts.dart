@@ -125,19 +125,28 @@ Future<HostProcess> startPosixScript(HostLink link, String script) async {
   return process;
 }
 
-/// Shell functions for scripts that take a `mkdir` lock. `lock <dir> <stale-seconds>` waits for the lock,
-/// breaks one older than the given age (only a holder that died leaves one behind), and fails when the
-/// directory that should contain the lock is gone.
+/// Shell functions for scripts that take a `mkdir` lock. `lock <dir> <stale-seconds>` waits for the lock and breaks
+/// one older than the given age (only a holder that died leaves one behind). It fails, with the reason on stderr,
+/// when the directory that should contain the lock is gone, when mkdir keeps failing while no lock exists (a full
+/// disk, a read-only or unwritable directory), and after waiting four times the stale age for a lock it cannot
+/// break. Its variables are prefixed, since shell functions share the script's.
 const posixLockFunctions = r'''
 mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
 lock() {
-  n=0
+  lock_n=0; lock_e=0; lock_s=
   until mkdir "$1" 2>/dev/null; do
-    [ -d "${1%/*}" ] || return 1
-    n=$((n + 1))
-    if [ $((n % 100)) -eq 0 ]; then
-      t=$(mtime "$1")
-      if [ -n "$t" ] && [ $(($(date +%s) - t)) -gt "$2" ]; then rmdir "$1" 2>/dev/null; fi
+    [ -d "${1%/*}" ] || { echo "no directory ${1%/*}" >&2; return 1; }
+    if [ -d "$1" ]; then lock_e=0; else
+      lock_e=$((lock_e + 1))
+      if [ "$lock_e" -ge 5 ]; then mkdir "$1" && return 0; return 1; fi
+    fi
+    lock_n=$((lock_n + 1))
+    if [ $((lock_n % 100)) -eq 0 ]; then
+      lock_now=$(date +%s)
+      [ -n "$lock_s" ] || lock_s=$lock_now
+      lock_t=$(mtime "$1")
+      if [ -n "$lock_t" ] && [ $((lock_now - lock_t)) -gt "$2" ] && rmdir "$1" 2>/dev/null; then continue; fi
+      if [ $((lock_now - lock_s)) -ge $(($2 * 4)) ]; then echo "$1 is still held after $(($2 * 4)) s" >&2; return 1; fi
     fi
     sleep 0.01 2>/dev/null || sleep 1
   done
@@ -230,7 +239,8 @@ Future<void> _mkdirIfMissing(HostFiles files, String path) async {
 }
 
 /// Takes a `mkdir` lock at [path] (SFTP path space), retrying every [retry] until [timeout]. A lock older
-/// than [stale] was left by a holder that died and is broken.
+/// than [stale] was left by a holder that died and is broken, with any files its holder put in it. The age
+/// is taken on the host's clock, which stamped the lock, never on this device's.
 Future<void> acquireDirLock(
   HostFiles files,
   String path, {
@@ -239,23 +249,43 @@ Future<void> acquireDirLock(
   Duration retry = const Duration(milliseconds: 200),
 }) async {
   final deadline = DateTime.now().add(timeout);
+  ({DateTime at, Stopwatch since})? hostClock;
   while (true) {
     try {
       await files.mkdir(path, mode: 0x1C0);
       return;
     } on HostFileExists {
       final modified = (await files.stat(path))?.modified;
-      if (modified != null && DateTime.now().difference(modified) > stale) {
-        try {
-          await files.removeDir(path);
-        } on Object {
-          // Another waiter broke it first; anything else leaves the lock in place and is re-raised.
-          if (await files.stat(path) != null) rethrow;
+      if (modified != null) {
+        final clock = hostClock ??= await _hostClock(files, path);
+        if (clock.at.add(clock.since.elapsed).difference(modified) > stale) {
+          try {
+            for (final entry in await files.list(path)) {
+              await files.remove('$path/${entry.name}');
+            }
+            await files.removeDir(path);
+          } on Object {
+            // Another waiter broke it first; anything else leaves the lock in place and is re-raised.
+            if (await files.stat(path) != null) rethrow;
+          }
+          continue;
         }
-        continue;
       }
       if (DateTime.now().isAfter(deadline)) throw HostLinkException('$path is still held after $timeout');
       await Future<void>.delayed(retry);
     }
+  }
+}
+
+/// The host's time, read from the modification time of a file written next to [path], and a stopwatch since then.
+/// It lags the host by the round trip and SFTP's one-second resolution, so a lock looks younger, never older.
+Future<({DateTime at, Stopwatch since})> _hostClock(HostFiles files, String path) async {
+  final probe = '$path.${newMarker()}.clock';
+  await files.write(probe, const []);
+  try {
+    final at = (await files.stat(probe))?.modified ?? (throw HostLinkException('$probe has no modification time'));
+    return (at: at, since: Stopwatch()..start());
+  } finally {
+    await files.remove(probe);
   }
 }

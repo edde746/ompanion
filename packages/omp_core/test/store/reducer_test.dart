@@ -414,6 +414,18 @@ void main() {
       expect(view.status, isA<RunIdle>());
     });
 
+    test('an agent_end compacted over 1 MiB takes the outcome from the reply it already streamed', () {
+      final failed = assistant(200, [text('partial')], stopReason: 'error', errorMessage: '500 upstream overloaded');
+      final view = apply(SessionView(), [
+        running,
+        messageEnd(user('Hi', 100), 'msg-1'),
+        messageEnd(failed, 'msg-2'),
+        // rpc-frame.ts compactTerminalFrame: the messages sent with message_end are dropped, their count kept.
+        {'type': 'agent_end', 'messages': <Object?>[], 'messageCount': 2},
+      ]);
+      expect((view.status as RunFailed).message, '500 upstream overloaded');
+    });
+
     test('auto-retry reports attempt and delay, then marks the superseded attempt recovered', () {
       final failed = assistant(100, [], stopReason: 'error', errorMessage: '500 upstream overloaded');
       var view = apply(SessionView(), [
@@ -610,6 +622,30 @@ void main() {
       expect(dismissRequest(view, 'q1').requests, isEmpty);
     });
 
+    test('a timed dialog a tool opened closes when the tool ends, since omp times it out without a frame', () {
+      final ask = uiRequest('q1', 'select', {'title': 'Which color?', 'options': ['Red', 'Blue'], 'timeout': 30000});
+      var view = apply(SessionView(), [
+        running,
+        toolStart('call_1', 'ask', {'questions': <Object?>[]}),
+        ask,
+        uiRequest('q2', 'input', {'title': 'Name?'}),
+      ]);
+      view = reduce(view, toolEnd('call_1', 'ask', 'User selected: Red (auto-selected after timeout)'));
+      expect([for (final request in view.requests) request.id], ['q2'], reason: 'omp cancels or answers untimed ones');
+      expect(reduce(view, ask), same(view), reason: 'a replayed request stays closed');
+
+      // Opened outside any tool call: only the timer of the UI that shows it can tell.
+      final idle = apply(SessionView(), [
+        uiRequest('q3', 'confirm', {'title': 'Proceed?', 'timeout': 30000}),
+        running,
+        toolStart('call_2', 'bash', {'command': 'true'}),
+        toolEnd('call_2', 'bash', ''),
+        agentEnd([assistant(300, [text('done')])]),
+        {'type': 'session_settled'},
+      ]);
+      expect([for (final request in idle.requests) request.id], ['q3']);
+    });
+
     test('status and widget frames set and clear by key; notify becomes a toast', () {
       var view = apply(SessionView(), [
         uiRequest('1', 'setStatus', {'statusKey': 'git', 'statusText': 'main'}),
@@ -756,6 +792,47 @@ void main() {
       expect(view.transcript.first.key, firstKey, reason: 'a row keeps the key it was first shown with');
       expect((view.transcript[3] as ModelChangeItem).model, 'fake/fake-think');
       expect(withEntries(SessionView(), entries, leafId: null).transcript, isEmpty);
+    });
+
+    test('entries give the model and thinking changes seen live their entry ids instead of adding them twice', () {
+      Map<String, Object?> entry(String id, String? parentId, String type, Map<String, Object?> fields) => {
+        'type': type,
+        'id': id,
+        'parentId': parentId,
+        'timestamp': '2026-09-25T16:35:50.798Z',
+        ...fields,
+      };
+      Map<String, Object?> message(String id, String? parentId, Map<String, Object?> message) =>
+          entry(id, parentId, 'message', {'message': message});
+      var view = apply(fromState(state()), [
+        messageEnd(page1.first, 'msg-1'),
+        messageEnd(page1.last, 'msg-2'),
+        {'type': 'thinking_level_changed', 'thinkingLevel': 'high'},
+        messageEnd(page2.first, 'msg-3'),
+        messageStart(assistant(210, []), 'msg-4'),
+        // Set while the reply streams: omp writes its entry before the reply's.
+        {
+          'type': 'config_update',
+          'model': {'id': 'fake-think', 'name': 'Fake Think', 'provider': 'fake', 'reasoning': true},
+          'thinkingLevel': 'high',
+        },
+        messageEnd(page2.last, 'msg-4'),
+      ]);
+      bool marker(TranscriptItem item) => item is ModelChangeItem || item is ThinkingChangeItem;
+      final markerKeys = [for (final item in view.transcript) if (marker(item)) item.key];
+      final entries = [
+        message('u1', null, page1.first),
+        message('a1', 'u1', page1.last),
+        entry('t1', 'a1', 'thinking_level_change', {'thinkingLevel': 'high', 'configured': 'high'}),
+        message('u2', 't1', page2.first),
+        entry('m1', 'u2', 'model_change', {'model': 'fake/fake-think', 'role': 'default'}),
+        message('a2', 'm1', page2.last),
+      ];
+
+      view = withEntries(view, entries, leafId: 'a2');
+      expect([for (final item in view.transcript) item.entryId], ['u1', 'a1', 't1', 'u2', 'a2', 'm1']);
+      expect([for (final item in view.transcript) if (marker(item)) item.key], markerKeys, reason: 'live rows keep their keys');
+      expect(withEntries(view, entries, leafId: 'a2').transcript, hasLength(6), reason: 'merging again adds nothing');
     });
   });
 

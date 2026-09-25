@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:omp_core/src/channel/run_log.dart';
+import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
 
 Uint8List bytes(String text) => Uint8List.fromList(utf8.encode(text));
@@ -77,11 +78,25 @@ void main() {
     });
 
     test('a run that had ended before the attach ends cleanly when nothing more comes', () async {
-      final ended = RunOutput(generation: 1, offset: 50, endedWith: 0, onEnd: () {});
+      final ended = RunOutput(generation: 1, offset: 50, endedWith: (code: 0, size: 50), onEnd: () {});
       final received = ended.lines.toList();
       ended.transportEnded(StateError('stream closed'));
       expect(await received, isEmpty);
       expect(ended.exitCode, 0);
+    });
+
+    test('a run that had ended fails when the transport ends before the rest of its log arrived', () async {
+      final ended = RunOutput(generation: 1, offset: 0, endedWith: (code: 0, size: 60), onEnd: () {});
+      final received = <String>[];
+      Object? failure;
+      final finished = Completer<void>();
+      ended.lines.listen(received.add, onError: (Object e) => failure = e, onDone: finished.complete);
+      ended.add(bytes('{"n":1}\n'));
+      ended.transportEnded(HostLinkException('link lost'));
+      await finished.future;
+      expect(received, ['{"n":1}']);
+      expect(failure, isA<HostLinkException>());
+      expect(ended.exitCode, isNull);
     });
   });
 

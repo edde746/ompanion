@@ -316,6 +316,28 @@ describe("accounts", () => {
 		expect((await omp.callError("accounts.pin", { credentialId: id })).code).toBe("not_found");
 	});
 
+	test("accounts.pin names the models.yml key that overrides the model provider's OAuth accounts", async () => {
+		// testing/omp-home.sh gives the model's provider, fake, a models.yml apiKey.
+		const store = await SqliteAuthCredentialStore.open(path.join(omp.home, ".omp", "agent", "agent.db"));
+		let credentialId: number | undefined;
+		try {
+			const stored = await store.upsertAuthCredential("fake", {
+				type: "oauth",
+				access: "access-c@example.com",
+				refresh: "refresh-c@example.com",
+				expires: Date.now() + 86_400_000,
+				email: "c@example.com",
+			});
+			credentialId = stored.find(row => row.credential.type === "oauth")?.id;
+			const error = await omp.callError("accounts.pin", { credentialId });
+			expect(error.code).toBe("failed");
+			expect(error.message).toContain("models.yml");
+		} finally {
+			if (credentialId !== undefined) await store.deleteAuthCredential(credentialId, "test cleanup");
+			store.close();
+		}
+	});
+
 	test("accounts.setKey stores a key from an uploaded file, deletes the file and keeps the key out of frames", async () => {
 		const secret = "sk-test-secret-value-123";
 		const keyFile = await omp.uploadSecret(`${secret}\n`);

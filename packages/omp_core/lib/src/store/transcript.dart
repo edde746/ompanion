@@ -489,7 +489,7 @@ final class MentionedFile {
 }
 
 /// The session model changed: a `model_change` entry, or a change seen live. Live markers have no entry id and their
-/// own key; a transcript rebuilt from entries carries the entry-backed ones instead.
+/// own key until the entry's merge gives them its id, which identifies them from then on.
 final class ModelChangeItem extends TranscriptItem {
   ModelChangeItem({required String super.key, super.entryId, required this.model, this.role});
 
@@ -500,7 +500,7 @@ final class ModelChangeItem extends TranscriptItem {
   final String? role;
 
   @override
-  String get identity => key;
+  String get identity => entryId ?? key;
 
   @override
   ModelChangeItem rekeyed(String key, String? entryId) =>
@@ -518,7 +518,7 @@ final class ThinkingChangeItem extends TranscriptItem {
   final String? configured;
 
   @override
-  String get identity => key;
+  String get identity => entryId ?? key;
 
   @override
   ThinkingChangeItem rekeyed(String key, String? entryId) =>

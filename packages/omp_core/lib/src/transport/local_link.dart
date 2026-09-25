@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:meta/meta.dart';
+
 import 'host_link.dart';
 
 /// This computer. Desktop only; PTYs come from the app layer (`flutter_pty`), not from here.
@@ -23,9 +25,13 @@ final class LocalLink implements HostLink {
     if (pty != null) {
       throw UnsupportedError('LocalLink has no PTY support; the app provides local terminals');
     }
-    final process = Platform.isWindows
-        ? await Process.start('cmd.exe', ['/d', '/s', '/c', command], environment: _environment)
-        : await Process.start('/bin/sh', ['-c', command], environment: _environment);
+    final Process process;
+    if (Platform.isWindows) {
+      final start = windowsShellStart(command);
+      process = await Process.start(start.executable, start.arguments, environment: _environment);
+    } else {
+      process = await Process.start('/bin/sh', ['-c', command], environment: _environment);
+    }
     return _LocalProcess(process);
   }
 
@@ -39,6 +45,26 @@ final class LocalLink implements HostLink {
   Future<void> close() async {
     if (!_done.isCompleted) _done.complete();
   }
+}
+
+/// How [LocalLink] has `cmd.exe` run [command] on Windows exactly as written, the way sshd's cmd.exe default
+/// shell runs an exec command. dart:io quotes every argument that holds a space or `"` for the C runtime, which
+/// turns each `"` inside it into `\"`; cmd.exe has no such escape and would see the backslashes. dart:io passes
+/// an executable that holds a `"` into the command line unchanged (sdk/lib/_internal/vm/bin/process_patch.dart,
+/// `_ProcessImpl`; runtime/bin/process_win.cc joins it and the arguments with spaces and passes no application
+/// name to CreateProcessW), so the whole command line goes there. `/s` makes cmd.exe remove exactly the outer
+/// quotes. [flags] are cmd.exe's switches.
+@visibleForTesting
+({String executable, List<String> arguments}) windowsShellStart(String command, {String flags = '/d'}) =>
+    (executable: 'cmd.exe $flags /s /c "$command"', arguments: const []);
+
+/// The start of cmd.exe's `mkdir` for [path] (`C:/Users/x`), see [windowsShellStart]. Without command extensions
+/// (`/e:off`) mkdir creates no missing parents, like SFTP's mkdir. The path goes with backslashes, since cmd.exe
+/// reads `/Users` as a switch, and through the environment, since cmd.exe expands `%` even inside quotes.
+@visibleForTesting
+({String executable, List<String> arguments, Map<String, String> environment}) windowsMkdirStart(String path) {
+  final start = windowsShellStart('mkdir "%OMPAPP_DIR%"', flags: '/d /e:off /v:off');
+  return (executable: start.executable, arguments: start.arguments, environment: {'OMPAPP_DIR': path.replaceAll('/', r'\')});
 }
 
 final class _LocalProcess implements HostProcess {
@@ -153,7 +179,8 @@ final class _LocalFiles implements HostFiles {
     // whose cmd messages are localized, retries when the path is gone.
     for (var attempt = 1;; attempt++) {
       if (Platform.isWindows) {
-        final result = await Process.run('cmd.exe', ['/d', '/c', 'mkdir', native]);
+        final start = windowsMkdirStart(native);
+        final result = await Process.run(start.executable, start.arguments, environment: start.environment);
         if (result.exitCode == 0) return;
         if (await FileSystemEntity.type(native) != FileSystemEntityType.notFound) throw HostFileExists(path);
         if (attempt == 5) throw HostLinkException('mkdir $path', cause: '${result.stderr}'.trim());

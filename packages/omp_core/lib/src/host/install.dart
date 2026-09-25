@@ -98,11 +98,17 @@ $_windowsDownloadBody$_windowsPlaceBody}
 ''';
 }
 
+/// Markers of this app's installs whose link dropped before they released `install.lock`. Each such lock still
+/// holds a file named by its marker, so a later install from this app takes it over at once instead of waiting
+/// until it is stale.
+final _abandonedInstalls = <String>{};
+
 /// Installs omp [version] from a release asset the app already downloaded ([asset], the bytes of
 /// [HostProbe.releaseAsset]). Under a `mkdir` lock at `~/.omp-app/install.lock` it uploads the bytes next
 /// to the target over SFTP, checks their SHA-256 on the host against [ompReleases], marks the file
 /// executable, runs `--version`, and moves it over the target, so running omp processes keep their old
-/// binary. Returns the installed binary's host-native path.
+/// binary. A failed upload removes its partial file, and one left behind by an install that lost its link
+/// is removed by the next. Returns the installed binary's host-native path.
 Future<String> uploadOmp(
   HostLink link,
   HostProbe probe,
@@ -120,22 +126,52 @@ Future<String> uploadOmp(
   final files = await link.files();
   try {
     final lock = '${await ensureAppDir(files, '')}/install.lock';
+    for (final abandoned in _abandonedInstalls.toList()) {
+      if (await files.stat('$lock/$abandoned') == null) continue;
+      await files.remove('$lock/$abandoned');
+      await files.removeDir(lock);
+      _abandonedInstalls.remove(abandoned);
+    }
     await acquireDirLock(files, lock, timeout: lockTimeout, stale: staleLock);
+    final marker = newMarker();
+    final owner = '$lock/$marker';
     try {
-      final marker = newMarker();
+      await files.write(owner, const []);
       final upload = probe.isWindows ? '$dir\\.omp-upload-$marker.exe' : '$dir/.omp-upload-$marker';
       final prepare = probe.isWindows
           ? await runPowerShell(link, probe.commandShell, 'New-Item -ItemType Directory -Force -Path ${psQuote(dir)} | Out-Null')
           : await runPosixScript(link, 'mkdir -p ${shQuote(dir)}');
       if (prepare.exit.code != 0) throw prepare.failure('cannot create $dir');
-      await _upload(files, toSftpPath(upload), asset);
+      final remoteDir = toSftpPath(dir);
+      for (final entry in await files.list(remoteDir)) {
+        // Uploads of installs that died; none runs while this one holds the lock.
+        if (entry.name.startsWith('.omp-upload-')) await files.remove('$remoteDir/${entry.name}');
+      }
+      final remote = toSftpPath(upload);
+      try {
+        await _upload(files, remote, asset);
+      } on Object catch (error, stack) {
+        try {
+          if (await files.stat(remote) != null) await files.remove(remote);
+        } on Object {
+          // The link is gone as well; the next install removes the partial upload.
+          Error.throwWithStackTrace(error, stack);
+        }
+        rethrow;
+      }
       final result = probe.isWindows
           ? await runPowerShell(link, probe.commandShell, _windowsPlaceScript(marker, upload, target, digest, version))
           : await runPosixScript(link, _posixPlaceScript(marker, upload, target, digest, version));
       if (result.exit.code != 0) throw result.failure('installing omp $version failed');
       return result.payload(marker);
     } finally {
-      await files.removeDir(lock);
+      try {
+        if (await files.stat(owner) != null) await files.remove(owner);
+        await files.removeDir(lock);
+      } on Object {
+        _abandonedInstalls.add(marker);
+        rethrow;
+      }
     }
   } finally {
     await files.close();

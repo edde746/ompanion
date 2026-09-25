@@ -65,15 +65,16 @@ void main() {
     expect((await listRuns(link, probe)).single.meta?.sessionPath, path);
   });
 
-  test('a rotation below the size limit leaves the log alone', () async {
-    final size = File('${run.dir}/out.jsonl').lengthSync();
-    expect(await rotateRunOutput(link, probe, run, minSize: size + 1), 1);
-    expect(File('${run.dir}/out.jsonl').lengthSync(), size);
-    expect(await rotateRunOutput(link, probe, run, minSize: size), 2);
-    expect(
-      File('${run.dir}/out.jsonl').readAsStringSync(),
-      '{"type":"omp_app_rotate","generation":2,"previousSize":$size}\n',
-    );
+  test('a log written to or rotated since the settle the caller read is left alone', () async {
+    final out = File('${run.dir}/out.jsonl');
+    final settled = out.lengthSync();
+    out.writeAsStringSync('{"type":"agent_start"}\n', mode: FileMode.append);
+    final size = out.lengthSync();
+    expect(await rotateRunOutput(link, probe, run, settledAt: (generation: 1, size: settled)), 1);
+    expect(out.lengthSync(), size);
+    expect(await rotateRunOutput(link, probe, run, settledAt: (generation: 2, size: size)), 1);
+    expect(await rotateRunOutput(link, probe, run, settledAt: (generation: 1, size: size)), 2);
+    expect(out.readAsStringSync(), '{"type":"omp_app_rotate","generation":2,"previousSize":$size}\n');
   });
 }
 

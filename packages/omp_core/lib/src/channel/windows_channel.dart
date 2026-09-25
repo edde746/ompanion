@@ -81,7 +81,7 @@ final class SftpRunChannel implements RunChannel {
     _output = RunOutput(
       generation: meta.generation,
       offset: generation == meta.generation && offset <= size ? offset : 0,
-      endedWith: ended,
+      endedWith: ended == null ? null : (code: ended, size: size),
       onEnd: () {},
     );
     _loops.add(_followOutput());

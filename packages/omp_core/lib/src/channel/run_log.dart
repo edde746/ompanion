@@ -142,7 +142,8 @@ final class LogCursor {
 /// app's markers, and keeps [offset], [generation] and [exitCode] in step with what the consumer of [lines]
 /// has received.
 final class RunOutput {
-  /// [endedWith] is the exit code of a run that had already ended when the channel attached.
+  /// [endedWith] describes a run that had already ended when the channel attached: its exit code, and the size of its
+  /// `out.jsonl` then, where its log ends.
   RunOutput({required this.generation, required int offset, required this.onEnd, this.endedWith})
     : offset = offset,
       _parsing = generation,
@@ -150,7 +151,7 @@ final class RunOutput {
 
   /// Called once when the log ended: exit marker, gap, or [finish].
   final void Function() onEnd;
-  final int? endedWith;
+  final ({int code, int size})? endedWith;
   int generation;
   int offset;
   int? exitCode;
@@ -215,11 +216,11 @@ final class RunOutput {
     _cursor.position += shift;
   }
 
-  /// The transport reached the end of what it will ever deliver. Fine for a run that had ended before the
-  /// attach; anything else is a failure described by [error].
+  /// The transport reached the end of what it will ever deliver. Fine for a run that had ended before the attach once
+  /// its whole log arrived; anything else is a failure described by [error], such as a link lost mid-read.
   void transportEnded(Object error) {
     if (_ended) return;
-    if (endedWith case final code?) {
+    if (endedWith case (:final code, :final size) when readPosition >= size) {
       _events.add(_Exited(code));
       finish();
     } else {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:omp_core/rpc.dart';
+import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
 
 import 'scripted_channel.dart';
@@ -175,6 +176,18 @@ void main() {
     });
   });
 
+  test('a request or answer whose send fails after the channel ended reports why the client stopped', () async {
+    final acked = _AckedChannel(channel);
+    client = RpcClient(acked, deviceId: 'phone');
+    await startClient(client, channel);
+    acked.holdAcks = true;
+    final state = expectLater(client.getState(), throwsA(isA<RpcClosedException>()));
+    final answer = expectLater(client.respondToUi('u1', value: 'Approve'), throwsA(isA<RpcClosedException>()));
+    await acked.drop();
+    await state;
+    await answer;
+  });
+
   test('two devices on one process each get their own answers', () async {
     final phone = client;
     final deskChannel = ScriptedChannel();
@@ -319,4 +332,37 @@ void main() {
     expect(frames, [isA<AgentEndFrame>(), isA<ResponseFrame>()]);
     expect(frames.first.raw, big);
   });
+}
+
+/// Sends complete once acknowledged, like a detached run's appender; [drop] ends the output, then fails the sends still
+/// waiting, as a lost link does.
+final class _AckedChannel implements LineChannel {
+  _AckedChannel(this.inner);
+
+  final ScriptedChannel inner;
+  final _acks = <Completer<void>>[];
+  bool holdAcks = false;
+
+  @override
+  Stream<String> get lines => inner.lines;
+
+  @override
+  Future<void> send(String line) async {
+    await inner.send(line);
+    if (!holdAcks) return;
+    final ack = Completer<void>();
+    _acks.add(ack);
+    await ack.future;
+  }
+
+  @override
+  Future<void> close() => inner.close();
+
+  Future<void> drop() async {
+    await inner.end();
+    await pumpEventQueue();
+    for (final ack in _acks) {
+      ack.completeError(HostLinkException('the appender ended'));
+    }
+  }
 }

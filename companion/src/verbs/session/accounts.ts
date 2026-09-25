@@ -94,13 +94,24 @@ export const accountVerbs: VerbTable = {
 		const credentialId = requireCredentialId(args);
 		const provider = session.model?.provider;
 		if (!provider) throw new VerbError("failed", "select a model before pinning a provider account");
-		if (session.isStreaming) throw new VerbError("busy", "cannot pin an account while the session is streaming");
-		const list = await session.listCurrentProviderOAuthAccounts();
-		if (!list?.accounts.some(account => account.credentialId === credentialId)) {
-			throw new VerbError("not_found", `no stored OAuth account ${credentialId} for ${provider}`);
+		const streaming = "cannot pin an account while the session is streaming";
+		if (session.isStreaming) throw new VerbError("busy", streaming);
+		const auth = session.modelRegistry.authStorage;
+		// rpc-mode does not await /ompx handlers: commands from other devices run while the credentials reload, so
+		// everything is checked after it, and nothing awaits between the checks and the pin.
+		await auth.credentials.reload();
+		if (session.isStreaming) throw new VerbError("busy", streaming);
+		// The stored rows, not `oauth.accounts`, which lists none while a key override applies.
+		const stored =
+			session.model?.provider === provider &&
+			auth.credentials.list(provider).some(row => row.id === credentialId && row.credential.type === "oauth");
+		if (!stored) throw new VerbError("not_found", `no stored OAuth account ${credentialId} for ${provider}`);
+		const source = auth.keys.source(provider)?.kind;
+		if (source === "runtime" || source === "config") {
+			throw new VerbError("failed", `${provider} has an --api-key or models.yml key override, which OAuth pins cannot replace`);
 		}
 		if (!session.pinCurrentProviderOAuthAccount(credentialId)) {
-			throw new VerbError("failed", `${provider} has an --api-key or models.yml key override, which OAuth pins cannot replace`);
+			throw new VerbError("failed", `omp did not pin account ${credentialId} for ${provider}`);
 		}
 		return { provider, credentialId };
 	},

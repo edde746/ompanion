@@ -218,14 +218,21 @@ Future<List<String>> removeDeadRuns(HostLink link, HostProbe probe, {Duration ol
 /// meanwhile. Call it only while the session is settled: output omp writes during the rotation lands in the
 /// new generation ahead of its first line. Attached channels continue seamlessly when they had read
 /// everything, otherwise their `lines` fail with [RunLogGap]. POSIX only: cmd.exe's `>>` keeps writing at
-/// its old offset after a truncation. Returns the new generation, or the current one when `out.jsonl` holds
-/// fewer than [minSize] bytes under the lock (another device rotated first) and was left alone.
-Future<int> rotateRunOutput(HostLink link, HostProbe probe, DetachedRun run, {int minSize = 0}) async {
+/// its old offset after a truncation. [settledAt] is where the caller read a `session_settled`: the log is rotated
+/// only while it is still that generation and size, so nothing was written since and no other device rotated first.
+/// Returns the new generation, or the current one when the log was left alone.
+Future<int> rotateRunOutput(
+  HostLink link,
+  HostProbe probe,
+  DetachedRun run, {
+  ({int generation, int size})? settledAt,
+}) async {
   if (probe.isWindows) throw UnsupportedError('out.jsonl is not rotated on Windows hosts');
   final marker = newMarker();
   final result = await runPosixScript(
     link,
-    'm=${shQuote(marker)}; d=${shQuote(run.dir)}; min=$minSize\n$posixLockFunctions$_processFunctions$_rotateBody',
+    'm=${shQuote(marker)}; d=${shQuote(run.dir)}; g0=${settledAt?.generation ?? -1}; s0=${settledAt?.size ?? -1}\n'
+    '$posixLockFunctions$_processFunctions$_rotateBody',
   );
   if (result.exit.code != 0) throw result.failure('rotating ${run.dir}/out.jsonl failed');
   return int.parse(result.payload(marker).trim().split(' ').first);
@@ -539,12 +546,14 @@ printf '%s:end\n' "$m"
 ''';
 
 const _rotateBody = r'''
-lock "$d/in.lock" 30 || { echo "no run directory $d" >&2; exit 1; }
+lock "$d/in.lock" 30 || exit 1
 trap 'rmdir "$d/in.lock" 2>/dev/null' EXIT
 g=$(sed -n 's/.*"generation":\([0-9][0-9]*\).*/\1/p' "$d/meta.json")
 if [ -z "$g" ]; then echo "no generation in $d/meta.json" >&2; exit 1; fi
 s=$(size "$d/out.jsonl")
-if [ "$s" -lt "$min" ]; then printf '%s:begin\n%s %s\n%s:end\n' "$m" "$g" "$s" "$m"; exit 0; fi
+if { [ "$g0" -ge 0 ] && [ "$g" != "$g0" ]; } || { [ "$s0" -ge 0 ] && [ "$s" != "$s0" ]; }; then
+  printf '%s:begin\n%s %s\n%s:end\n' "$m" "$g" "$s" "$m"; exit 0
+fi
 n=$((g + 1))
 sed "s/\"generation\":$g/\"generation\":$n/" "$d/meta.json" > "$d/meta.json.tmp" && mv -f "$d/meta.json.tmp" "$d/meta.json" || exit 1
 : > "$d/out.jsonl"
@@ -556,7 +565,7 @@ printf '%s:begin\n%s %s\n%s:end\n' "$m" "$n" "$s" "$m"
 const _recordBody = r'''
 lock "$R/.launch.lock" 60 || exit 1
 trap 'rmdir "$R/.launch.lock" 2>/dev/null' EXIT
-lock "$d/in.lock" 30 || { echo "no run directory $d" >&2; exit 1; }
+lock "$d/in.lock" 30 || exit 1
 trap 'rmdir "$d/in.lock" 2>/dev/null; rmdir "$R/.launch.lock" 2>/dev/null' EXIT
 r=same
 if ! grep -qF "$session" "$d/meta.json"; then

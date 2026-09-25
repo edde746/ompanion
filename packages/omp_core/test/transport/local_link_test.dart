@@ -2,8 +2,42 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:omp_core/src/channel/attached_channel.dart';
+import 'package:omp_core/src/host/scripts.dart';
+import 'package:omp_core/src/transport/local_link.dart';
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
+
+/// The command line dart:io hands CreateProcessW on Windows: the executable quoted when it holds a space and no
+/// `"`, each argument quoted for the C runtime when it holds a space, a tab or a `"`, joined with spaces
+/// (sdk/lib/_internal/vm/bin/process_patch.dart, `_ProcessImpl` and `_windowsArgumentEscape`;
+/// runtime/bin/process_win.cc).
+String dartWindowsCommandLine(({String executable, List<String> arguments}) start) {
+  String escape(String argument) {
+    if (argument.isEmpty) return '""';
+    if (!argument.contains(RegExp('[\t "]'))) return argument;
+    final quoted = argument.replaceAllMapped(RegExp(r'(\\*)"'), (m) => '${m[1]}${m[1]}\\"');
+    return '"$quoted${RegExp(r'\\*$').firstMatch(argument)![0]}"';
+  }
+
+  final executable = start.executable;
+  final path = executable.contains(' ') && !executable.contains('"') ? '"$executable"' : executable;
+  return [path, ...start.arguments.map(escape)].join(' ');
+}
+
+/// What cmd.exe makes of [commandLine] (`cmd /?`): its switches, and the command after `/c`, of which `/s` removes
+/// the first and the last quote. cmd.exe knows no `\"` escape.
+({List<String> switches, String command}) cmdExe(String commandLine) {
+  final match = RegExp(r'^cmd\.exe((?: /[^ ]+)*?) /c (.*)$', dotAll: true).firstMatch(commandLine)!;
+  final switches = match[1]!.trim().split(' ');
+  expect(switches, contains('/s'), reason: 'without /s cmd.exe may keep the quotes');
+  var command = match[2]!;
+  if (command.startsWith('"')) {
+    final last = command.lastIndexOf('"');
+    command = '${command.substring(1, last)}${command.substring(last + 1)}';
+  }
+  return (switches: switches, command: command);
+}
 
 void main() {
   late Directory temp;
@@ -43,6 +77,33 @@ void main() {
     await expectLater(files.mkdir(lock), throwsA(isA<HostFileExists>()));
     await files.removeDir(lock);
     await files.mkdir(lock);
+  });
+
+  test('cmd.exe on Windows runs an exec command exactly as written', () {
+    final commands = [
+      windowsAttachedCommand(
+        CommandShell.cmd,
+        r'C:\Users\Jo Doe\demo',
+        r'C:\Users\Jo Doe\AppData\Local\omp\omp.exe',
+        ['--mode', 'rpc-ui', '-e', r'C:\Users\Jo Doe\.omp-app\companion\18.3.1\x.js', '--thinking', 'high'],
+        r'C:\Users\Jo Doe\.omp-app\attached\OMPAPP_1.yml',
+      ),
+      powershellCommand(CommandShell.cmd, r'-File "C:\Users\Jo Doe\.omp-app\tmp\OMPAPP_2.ps1"'),
+      'echo "OMPAPP_SHELL.%OS%.\$env:OS.\$OS."',
+      r'dir C:\',
+      'echo ok',
+    ];
+    for (final command in commands) {
+      expect(cmdExe(dartWindowsCommandLine(windowsShellStart(command))).command, command);
+    }
+  });
+
+  test('cmd.exe on Windows makes the directory at the backslashed path and no missing parents', () {
+    final start = windowsMkdirStart('C:/Users/Jo Doe/100%OS%/.omp-app');
+    final cmd = cmdExe(dartWindowsCommandLine((executable: start.executable, arguments: start.arguments)));
+    expect(cmd.switches, contains('/e:off'), reason: 'command extensions make mkdir create parents');
+    final expanded = cmd.command.replaceAllMapped(RegExp('%([^%]+)%'), (m) => start.environment[m[1]] ?? m[0]!);
+    expect(expanded, r'mkdir "C:\Users\Jo Doe\100%OS%\.omp-app"', reason: 'cmd.exe expands a variable once');
   });
 
   test('concurrent mkdir admits exactly one locker', () async {

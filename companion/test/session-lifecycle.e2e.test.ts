@@ -285,6 +285,20 @@ describe("tree.navigate and tree.label", () => {
 		expect((await state()).sessionFile).toBe(file);
 	});
 
+	test("navigating to the current leaf changes nothing and announces nothing", async () => {
+		// The test above left the leaf on branch A's answer.
+		const since = omp.mark();
+		expect(await omp.call("tree.navigate", { entryId: branchAAnswer })).toMatchObject({
+			cancelled: false,
+			summaryEntryId: null,
+			leafId: branchAAnswer,
+		});
+		// Events arrive in order: the first change after the navigate is the label's.
+		await omp.call("tree.label", { entryId: branchAAnswer, label: "here" });
+		expect(await changed(since)).toMatchObject({ reason: "label" });
+		await omp.call("tree.label", { entryId: branchAAnswer, label: null });
+	});
+
 	test("a user message rewinds past itself and hands its text back for the composer", async () => {
 		expect(await omp.call("tree.navigate", { entryId: branchBQuestion })).toMatchObject({
 			cancelled: false,
