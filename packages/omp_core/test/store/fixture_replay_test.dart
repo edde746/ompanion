@@ -57,10 +57,17 @@ final class Replay {
   /// A `message.appended` companion event was recorded.
   bool announced = false;
 
+  /// Index in [views] of the view the first `message.appended` event produced.
+  int? appendedAt;
+
   void _step(Map<String, Object?> frame) {
-    if (frame case {'type': 'ompx', 'event': 'message.appended'}) announced = true;
+    final appended = frame['type'] == 'ompx' && frame['event'] == 'message.appended';
     view = reduce(view, frame);
     views.add(view);
+    if (appended) {
+      announced = true;
+      appendedAt ??= views.length - 1;
+    }
     for (final request in view.requests) {
       if (!opened.any((seen) => seen.id == request.id)) opened.add(request);
     }
@@ -124,6 +131,23 @@ final checks = <String, void Function(Replay)>{
     expect(replay.announced, isTrue);
     final execution = replay.view.transcript.single as ExecutionItem;
     expect((execution.kind, execution.output), (ExecutionKind.bash, 'one\ntwo\nthree\n'));
+  },
+  'companion-exec-streaming': (replay) {
+    // omp holds a command run while a turn streams until the next prompt; the companion pushes it then.
+    final appendedAt = replay.appendedAt!;
+    expect([
+      for (final view in replay.views.take(appendedAt)) view.transcript.whereType<ExecutionItem>().length,
+    ], everyElement(0));
+    expect(
+      [for (final item in replay.views[appendedAt].transcript) item.runtimeType],
+      [UserItem, AssistantItem, ExecutionItem],
+    );
+    final rows = replay.view.transcript;
+    expect(
+      [for (final item in rows) item.runtimeType],
+      [UserItem, AssistantItem, ExecutionItem, UserItem, AssistantItem],
+    );
+    expect((rows[2] as ExecutionItem).command, 'echo while-streaming');
   },
   'companion-pause': (replay) {
     expect(replay.views.any((view) => view.run.paused && view.run.pausedAt != null), isTrue);
