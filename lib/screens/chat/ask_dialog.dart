@@ -10,6 +10,7 @@ class AskContent extends StatefulWidget {
   const AskContent({
     super.key,
     required this.params,
+    required this.drafts,
     required this.sheet,
     required this.busy,
     required this.error,
@@ -19,6 +20,10 @@ class AskContent extends StatefulWidget {
   });
 
   final Map<String, Object?> params;
+
+  /// The answers entered so far, one per question: empty the first time, filled and kept up to date here, so a hidden
+  /// form comes back as it was left.
+  final List<AskDraft> drafts;
   final bool sheet;
   final bool busy;
   final String? error;
@@ -40,9 +45,10 @@ const _otherValue = '\u0000other';
 class _AskContentState extends State<AskContent> {
   AskParams? _params;
   String? _invalid;
-  List<AskDraft> _drafts = const [];
   List<TextEditingController> _custom = const [];
   List<TextEditingController> _notes = const [];
+
+  List<AskDraft> get _drafts => widget.drafts;
 
   @override
   void initState() {
@@ -50,9 +56,9 @@ class _AskContentState extends State<AskContent> {
     try {
       final params = AskParams.fromJson(widget.params);
       _params = params;
-      _drafts = [for (final question in params.questions) AskDraft.initial(question)];
-      _custom = [for (final _ in params.questions) TextEditingController()];
-      _notes = [for (final _ in params.questions) TextEditingController()];
+      if (_drafts.isEmpty) _drafts.addAll([for (final question in params.questions) AskDraft.initial(question)]);
+      _custom = [for (final draft in _drafts) TextEditingController(text: draft.custom)];
+      _notes = [for (final draft in _drafts) TextEditingController(text: draft.note)];
     } on FormatException catch (error) {
       _invalid = error.message;
     }
@@ -60,6 +66,7 @@ class _AskContentState extends State<AskContent> {
 
   @override
   void dispose() {
+    _syncText();
     for (final controller in [..._custom, ..._notes]) {
       controller.dispose();
     }

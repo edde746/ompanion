@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../sessions/connect_prompt_queue.dart';
@@ -56,18 +56,17 @@ class _ConnectPromptHostState extends State<ConnectPromptHost> with WidgetsBindi
   }
 
   Future<void> _show(PendingPrompt prompt) async {
-    final dialogs = dialogConnectPrompts(context);
     try {
       switch (prompt) {
         case PendingPassword(:final hop, :final answer):
-          final password = await dialogs.password(hop);
+          final password = await _dialog<String>(prompt, PasswordDialog(hop: hop.label));
           if (!answer.isCompleted) answer.complete(password);
         case PendingKeyboardInteractive(:final request, :final answer):
-          final responses = await dialogs.keyboardInteractive(request);
+          final responses = await _dialog<List<String>>(prompt, KeyboardInteractiveDialog(request));
           if (!answer.isCompleted) answer.complete(responses);
         case PendingHostKey(:final check, :final verdict, :final answer):
-          final trusted = await dialogs.hostKey(check, verdict);
-          if (!answer.isCompleted) answer.complete(trusted);
+          final trusted = await _dialog<bool>(prompt, HostKeyDialog(check: check, verdict: verdict), dismissible: false);
+          if (!answer.isCompleted) answer.complete(trusted ?? false);
       }
     } finally {
       // A dialog that could not be shown fails its connection attempt rather than leaving it hanging.
@@ -76,6 +75,19 @@ class _ConnectPromptHostState extends State<ConnectPromptHost> with WidgetsBindi
       _showing = null;
       _pump();
     }
+  }
+
+  /// Shows [dialog] until it pops, or until [prompt] is cancelled elsewhere (its machine was deleted, or a retry asked
+  /// the same question again), which closes it: an answer there would be dropped.
+  Future<T?> _dialog<T>(PendingPrompt prompt, Widget dialog, {bool dismissible = true}) {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final route = DialogRoute<T>(context: context, barrierDismissible: dismissible, builder: (_) => dialog);
+    unawaited(
+      prompt.settled.then((_) {
+        if (route.isActive) navigator.removeRoute(route);
+      }),
+    );
+    return navigator.push(route);
   }
 
   @override

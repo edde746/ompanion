@@ -24,20 +24,24 @@ final class FileChangedOnDisk implements Exception {
 /// One file open in the Files tab: its text in an editor controller, and the size and time it had on disk, which
 /// [save] compares before writing so an edit made elsewhere is never silently overwritten.
 final class FileDocument extends ChangeNotifier {
-  FileDocument._(this._path, this.controller, this._baseline, this.readOnlyReason) : _saved = controller.codeLines {
+  FileDocument._(this._path, this.controller, this._baseline, this.readOnlyReason, this._lineBreak)
+    : _saved = controller.codeLines {
     controller.addListener(_onEdit);
   }
 
   /// Reads [path] (SFTP space). Throws [HostLinkException] when it is missing or a directory.
   static Future<FileDocument> load(HostFiles files, String path) async {
     final (text, stat, reason) = await _read(files, path);
-    return FileDocument._(path, CodeLineEditingController.fromText(text, _options(text)), stat, reason);
+    return FileDocument._(path, CodeLineEditingController.fromText(text), stat, reason, _lineBreakOf(text));
   }
 
   String _path;
   final CodeLineEditingController controller;
   HostFileStat _baseline;
   CodeLines _saved;
+
+  /// The file's line break, written after every line on save. The editor splits lines at every break.
+  TextLineBreak _lineBreak;
   var _dirty = false;
   var _saving = false;
 
@@ -87,7 +91,7 @@ final class FileDocument extends ChangeNotifier {
         }
       }
       final lines = controller.codeLines;
-      await files.write(path, utf8.encode(controller.text));
+      await files.write(path, utf8.encode(lines.asString(_lineBreak)));
       _saved = lines;
       _baseline = await files.stat(path) ?? _baseline;
       _dirty = !identical(controller.codeLines, _saved);
@@ -103,6 +107,7 @@ final class FileDocument extends ChangeNotifier {
     controller.value = CodeLineEditingValue(codeLines: text.codeLines);
     _saved = controller.codeLines;
     _baseline = stat;
+    _lineBreak = _lineBreakOf(text);
     readOnlyReason = reason;
     _dirty = false;
     notifyListeners();
@@ -121,9 +126,10 @@ Future<(String, HostFileStat, ReadOnlyReason?)> _read(HostFiles files, String pa
   final stat = await files.stat(path);
   if (stat == null) throw HostLinkException('no such file: $path');
   if (stat.isDirectory) throw HostLinkException('$path is a directory');
-  final tooLarge = stat.size > maxEditableBytes;
-  final bytes = await files.read(path, length: tooLarge ? maxEditableBytes : null);
-  final (text, reason) = decodeFileText(bytes, truncated: tooLarge);
+  // Always a bounded read: devices and /proc files report size 0 yet never end, or hold more than they report.
+  final bytes = await files.read(path, length: maxEditableBytes + 1);
+  final tooLarge = bytes.length > maxEditableBytes;
+  final (text, reason) = decodeFileText(tooLarge ? bytes.sublist(0, maxEditableBytes) : bytes, truncated: tooLarge);
   return (text, stat, reason);
 }
 
@@ -140,6 +146,21 @@ Future<(String, HostFileStat, ReadOnlyReason?)> _read(HostFiles files, String pa
   }
 }
 
-/// Keeps a file's CRLF line breaks when it is saved.
-CodeLineOptions _options(String text) =>
-    CodeLineOptions(lineBreak: text.contains('\r\n') ? TextLineBreak.crlf : TextLineBreak.lf);
+/// The line break most of [text]'s lines end with, so saving rewrites only the lines that differ from it.
+TextLineBreak _lineBreakOf(String text) {
+  var crlf = 0, cr = 0, lf = 0;
+  for (var i = 0; i < text.length; i++) {
+    switch (text.codeUnitAt(i)) {
+      case 0x0d when i + 1 < text.length && text.codeUnitAt(i + 1) == 0x0a:
+        crlf++;
+        i++;
+      case 0x0d:
+        cr++;
+      case 0x0a:
+        lf++;
+    }
+  }
+  if (crlf > lf && crlf >= cr) return TextLineBreak.crlf;
+  if (cr > lf && cr > crlf) return TextLineBreak.cr;
+  return TextLineBreak.lf;
+}

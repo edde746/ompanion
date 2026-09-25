@@ -1042,6 +1042,9 @@ class Translations$chat$en {
 	/// en: 'Stop the omp process'
 	String get stopSession => 'Stop the omp process';
 
+	/// en: 'Could not stop the omp process: $error'
+	String stopSessionFailed({required Object error}) => 'Could not stop the omp process: ${error}';
+
 	/// en: 'Connection lost. Reconnecting (attempt $attempt) in $seconds s.'
 	String reconnecting({required Object attempt, required Object seconds}) => 'Connection lost. Reconnecting (attempt ${attempt}) in ${seconds} s.';
 
@@ -1616,6 +1619,18 @@ class Translations$dock$hub$en {
 
 	/// en: 'Failed: $error'
 	String failed({required Object error}) => 'Failed: ${error}';
+
+	/// en: 'The companion is not loaded in this session, so messaging, killing and reviving agents are unavailable.'
+	String get noCompanion => 'The companion is not loaded in this session, so messaging, killing and reviving agents are unavailable.';
+
+	/// en: '${hours}h ${minutes}m'
+	String durationHours({required Object hours, required Object minutes}) => '${hours}h ${minutes}m';
+
+	/// en: '${minutes}m ${seconds}s'
+	String durationMinutes({required Object minutes, required Object seconds}) => '${minutes}m ${seconds}s';
+
+	/// en: '${seconds}s'
+	String durationSeconds({required Object seconds}) => '${seconds}s';
 }
 
 // Path: dock.sessionTree
@@ -1722,6 +1737,12 @@ class Translations$dock$sessionTree$en {
 	/// en: 'Label cleared'
 	String get labelCleared => 'Label cleared';
 
+	/// en: 'advisor: $notes'
+	String advisor({required Object notes}) => 'advisor: ${notes}';
+
+	/// en: 'advisor ($tags): $notes'
+	String advisorTagged({required Object tags, required Object notes}) => 'advisor (${tags}): ${notes}';
+
 	/// en: 'Summarize the branch you leave'
 	String get summaryTitle => 'Summarize the branch you leave';
 
@@ -1742,6 +1763,9 @@ class Translations$dock$sessionTree$en {
 
 	/// en: 'Clear label'
 	String get clearLabel => 'Clear label';
+
+	/// en: 'The companion is not loaded in this session, so going to an entry and labels are unavailable.'
+	String get noCompanion => 'The companion is not loaded in this session, so going to an entry and labels are unavailable.';
 }
 
 // Path: dock.fileBrowser
@@ -2228,6 +2252,15 @@ class Translations$config$settings$en {
 	/// en: 'Not a number'
 	String get notANumber => 'Not a number';
 
+	/// en: 'Not JSON: $error'
+	String notJson({required Object error}) => 'Not JSON: ${error}';
+
+	/// en: 'Expected a JSON object'
+	String get expectedObject => 'Expected a JSON object';
+
+	/// en: 'Expected a JSON array'
+	String get expectedArray => 'Expected a JSON array';
+
 	/// en: 'Configured'
 	String get secretSet => 'Configured';
 
@@ -2503,6 +2536,12 @@ class Translations$config$mcp$en {
 
 	/// en: 'Name'
 	String get name => 'Name';
+
+	/// en: 'At most 100 characters'
+	String get nameTooLong => 'At most 100 characters';
+
+	/// en: 'Only letters, digits, - _ . : and single spaces'
+	String get nameInvalid => 'Only letters, digits, - _ . : and single spaces';
 
 	/// en: 'Command'
 	String get command => 'Command';
@@ -2924,6 +2963,10 @@ extension on Translations {
 			'dock.hub.noTranscript' => 'No transcript yet.',
 			'dock.hub.transcriptFailed' => ({required Object error}) => 'Transcript unavailable: ${error}',
 			'dock.hub.failed' => ({required Object error}) => 'Failed: ${error}',
+			'dock.hub.noCompanion' => 'The companion is not loaded in this session, so messaging, killing and reviving agents are unavailable.',
+			'dock.hub.durationHours' => ({required Object hours, required Object minutes}) => '${hours}h ${minutes}m',
+			'dock.hub.durationMinutes' => ({required Object minutes, required Object seconds}) => '${minutes}m ${seconds}s',
+			'dock.hub.durationSeconds' => ({required Object seconds}) => '${seconds}s',
 			'dock.sessionTree.search' => 'Search entries',
 			'dock.sessionTree.filter' => 'Filter',
 			'dock.sessionTree.filterStandard' => 'Conversation',
@@ -2956,6 +2999,8 @@ extension on Translations {
 			'dock.sessionTree.thinking' => ({required Object level}) => 'Thinking: ${level}',
 			'dock.sessionTree.labelSet' => ({required Object label}) => 'Label: ${label}',
 			'dock.sessionTree.labelCleared' => 'Label cleared',
+			'dock.sessionTree.advisor' => ({required Object notes}) => 'advisor: ${notes}',
+			'dock.sessionTree.advisorTagged' => ({required Object tags, required Object notes}) => 'advisor (${tags}): ${notes}',
 			'dock.sessionTree.summaryTitle' => 'Summarize the branch you leave',
 			'dock.sessionTree.summaryBody' => 'omp writes a summary of the abandoned branch at the new position. This makes a model call.',
 			'dock.sessionTree.summaryInstructions' => 'Custom instructions (optional)',
@@ -2963,6 +3008,7 @@ extension on Translations {
 			'dock.sessionTree.labelTitle' => 'Label entry',
 			'dock.sessionTree.labelField' => 'Label',
 			'dock.sessionTree.clearLabel' => 'Clear label',
+			'dock.sessionTree.noCompanion' => 'The companion is not loaded in this session, so going to an entry and labels are unavailable.',
 			'dock.fileBrowser.up' => 'Parent folder',
 			'dock.fileBrowser.refresh' => 'Refresh',
 			'dock.fileBrowser.newFile' => 'New file',
@@ -3266,6 +3312,7 @@ extension on Translations {
 			'chat.copyPath' => 'Copy session file path',
 			'chat.detach' => 'Close on this device',
 			'chat.stopSession' => 'Stop the omp process',
+			'chat.stopSessionFailed' => ({required Object error}) => 'Could not stop the omp process: ${error}',
 			'chat.reconnecting' => ({required Object attempt, required Object seconds}) => 'Connection lost. Reconnecting (attempt ${attempt}) in ${seconds} s.',
 			'chat.retryNow' => 'Retry now',
 			'chat.closed' => 'This session is closed.',
@@ -3359,6 +3406,8 @@ extension on Translations {
 			'transcript.lengthLimit' => 'Stopped at the output token limit.',
 			'transcript.retryRecovered' => ({required Object attempt}) => 'This attempt failed; retry ${attempt} succeeded.',
 			'transcript.retrySuperseded' => ({required Object attempt}) => 'This attempt failed; retrying gave up after attempt ${attempt}.',
+			_ => null,
+		} ?? switch (path) {
 			'transcript.tokensIn' => ({required Object count}) => '${count} in',
 			'transcript.tokensOut' => ({required Object count}) => '${count} out',
 			'transcript.tokensCached' => ({required Object count}) => '${count} cached',
@@ -3367,8 +3416,6 @@ extension on Translations {
 			'transcript.loadImage' => 'Load image',
 			'transcript.showMoreLines' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Show ${n} more line', other: 'Show ${n} more lines', ), 
 			'transcript.showLess' => 'Show less',
-			_ => null,
-		} ?? switch (path) {
 			'transcript.tool.running' => 'Running…',
 			'transcript.tool.background' => 'Running in the background',
 			'transcript.tool.interrupted' => 'Did not finish',
@@ -3459,6 +3506,9 @@ extension on Translations {
 			'config.settings.unset' => 'unset',
 			'config.settings.presets' => 'Suggested values',
 			'config.settings.notANumber' => 'Not a number',
+			'config.settings.notJson' => ({required Object error}) => 'Not JSON: ${error}',
+			'config.settings.expectedObject' => 'Expected a JSON object',
+			'config.settings.expectedArray' => 'Expected a JSON array',
 			'config.settings.secretSet' => 'Configured',
 			'config.settings.secretUnset' => 'Not set',
 			'config.settings.secretEdit' => 'Set…',
@@ -3542,6 +3592,8 @@ extension on Translations {
 			'config.mcp.removeTitle' => ({required Object name}) => 'Remove ${name}?',
 			'config.mcp.removeBody' => ({required Object scope}) => 'The server is removed from the ${scope} mcp.json.',
 			'config.mcp.name' => 'Name',
+			'config.mcp.nameTooLong' => 'At most 100 characters',
+			'config.mcp.nameInvalid' => 'Only letters, digits, - _ . : and single spaces',
 			'config.mcp.command' => 'Command',
 			'config.mcp.url' => 'URL',
 			'config.mcp.token' => 'Bearer token (optional)',

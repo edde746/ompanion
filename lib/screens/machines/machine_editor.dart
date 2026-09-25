@@ -17,18 +17,23 @@ import 'ssh_config_picker.dart';
 import 'tailscale_picker.dart';
 
 /// Adds a machine, or edits [machine]. A new machine is selected after saving.
-Future<void> showMachineEditor(BuildContext context, {Machine? machine}) => showDialog<void>(
-  context: context,
-  builder: (context) => isCompact(context)
-      ? Dialog.fullscreen(child: MachineEditor(machine: machine))
-      : Dialog(
-          clipBehavior: Clip.antiAlias,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640, maxHeight: 800),
-            child: MachineEditor(machine: machine),
+Future<void> showMachineEditor(BuildContext context, {Machine? machine}) async {
+  // A new hop's default auth depends on whether keys are stored.
+  await context.read<KeysProvider>().ready;
+  if (!context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    builder: (context) => isCompact(context)
+        ? Dialog.fullscreen(child: MachineEditor(machine: machine))
+        : Dialog(
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640, maxHeight: 800),
+              child: MachineEditor(machine: machine),
+            ),
           ),
-        ),
-);
+  );
+}
 
 /// Form fields of one hop. The id owns the hop's saved password.
 class _HopFields {
@@ -193,46 +198,51 @@ class _MachineEditorState extends State<MachineEditor> {
   }
 
   Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
+    final invalid = _form.currentState!.validateGranularly();
+    if (invalid.isNotEmpty) {
+      // It may be a hop below the visible part of the form.
+      await Scrollable.ensureVisible(invalid.first.context, alignment: 0.5, duration: const Duration(milliseconds: 200));
+      return;
+    }
     setState(() => _saving = true);
     final machines = context.read<MachinesProvider>();
     final shell = context.read<ShellProvider>();
-    final now = DateTime.now();
-    final createdAt = widget.machine?.createdAt ?? now;
-    final name = _name.text.trim();
-    final Machine machine;
-    final passwords = <String, String?>{};
-    var hostKeys = const <KnownHostRow>[];
-    switch (_kind) {
-      case MachineKind.local:
-        machine = LocalMachine(id: _id, name: name, createdAt: createdAt, updatedAt: now);
-      case MachineKind.ssh:
-        final target = _target.toEndpoint();
-        machine = SshMachine(
-          id: _id,
-          name: name,
-          createdAt: createdAt,
-          updatedAt: now,
-          target: target,
-          jumps: [for (final jump in _jumps) jump.toEndpoint()],
-          sshConfigAlias: _sshConfigAlias,
-          tailscale: _tailscale,
-        );
-        for (final hop in [_target, ..._jumps]) {
-          if (hop.auth != AuthMethod.password) continue;
-          if (!hop.savePassword) {
-            passwords[hop.id] = null;
-          } else if (hop.password.text.isNotEmpty) {
-            passwords[hop.id] = hop.password.text;
-          }
-        }
-        // Keys from Tailscale belong to the host they were listed for; an edited host does not inherit them.
-        hostKeys = [
-          for (final row in _hostKeys)
-            if (row.host == target.host && row.port == target.port) row,
-        ];
-    }
     try {
+      final now = DateTime.now();
+      final createdAt = widget.machine?.createdAt ?? now;
+      final name = _name.text.trim();
+      final Machine machine;
+      final passwords = <String, String?>{};
+      var hostKeys = const <KnownHostRow>[];
+      switch (_kind) {
+        case MachineKind.local:
+          machine = LocalMachine(id: _id, name: name, createdAt: createdAt, updatedAt: now);
+        case MachineKind.ssh:
+          final target = _target.toEndpoint();
+          machine = SshMachine(
+            id: _id,
+            name: name,
+            createdAt: createdAt,
+            updatedAt: now,
+            target: target,
+            jumps: [for (final jump in _jumps) jump.toEndpoint()],
+            sshConfigAlias: _sshConfigAlias,
+            tailscale: _tailscale,
+          );
+          for (final hop in [_target, ..._jumps]) {
+            if (hop.auth != AuthMethod.password) continue;
+            if (!hop.savePassword) {
+              passwords[hop.id] = null;
+            } else if (hop.password.text.isNotEmpty) {
+              passwords[hop.id] = hop.password.text;
+            }
+          }
+          // Keys from Tailscale belong to the host they were listed for; an edited host does not inherit them.
+          hostKeys = [
+            for (final row in _hostKeys)
+              if (row.host == target.host && row.port == target.port) row,
+          ];
+      }
       await machines.save(machine, passwords: passwords, hostKeys: hostKeys);
     } on Exception catch (error) {
       if (!mounted) return;
@@ -240,7 +250,7 @@ class _MachineEditorState extends State<MachineEditor> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
       return;
     }
-    if (!_editing) shell.select(MachineSelection(machine.id));
+    if (!_editing) shell.select(MachineSelection(_id));
     if (mounted) Navigator.pop(context);
   }
 
@@ -289,110 +299,115 @@ class _MachineEditorState extends State<MachineEditor> {
           ),
           const Divider(height: 1),
           Expanded(
-            child: ListView(
+            // Not a ListView: validate() checks only mounted fields, and a lazy list unmounts the hops scrolled
+            // out of view.
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              children: [
-                if (canChooseKind) ...[
-                  SegmentedButton<MachineKind>(
-                    segments: [
-                      ButtonSegment(
-                        value: MachineKind.local,
-                        icon: const Icon(Icons.computer),
-                        label: Text(t.machines.thisComputer),
-                      ),
-                      ButtonSegment(
-                        value: MachineKind.ssh,
-                        icon: const Icon(Icons.dns_outlined),
-                        label: Text(t.editor.kindSsh),
-                      ),
-                    ],
-                    selected: {_kind},
-                    onSelectionChanged: (selection) => setState(() => _kind = selection.single),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (canChooseKind) ...[
+                    SegmentedButton<MachineKind>(
+                      segments: [
+                        ButtonSegment(
+                          value: MachineKind.local,
+                          icon: const Icon(Icons.computer),
+                          label: Text(t.machines.thisComputer),
+                        ),
+                        ButtonSegment(
+                          value: MachineKind.ssh,
+                          icon: const Icon(Icons.dns_outlined),
+                          label: Text(t.editor.kindSsh),
+                        ),
+                      ],
+                      selected: {_kind},
+                      onSelectionChanged: (selection) => setState(() => _kind = selection.single),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  TextFormField(
+                    controller: _name,
+                    autofocus: !isCompact(context),
+                    decoration: InputDecoration(labelText: t.editor.name),
+                    validator: (value) => _required(t, value),
                   ),
-                  const SizedBox(height: 16),
-                ],
-                TextFormField(
-                  controller: _name,
-                  autofocus: !isCompact(context),
-                  decoration: InputDecoration(labelText: t.editor.name),
-                  validator: (value) => _required(t, value),
-                ),
-                if (_kind == MachineKind.ssh) ...[
-                  const SizedBox(height: 16),
-                  _HopEditor(
-                    hop: _target,
-                    onChanged: () => setState(() {}),
-                    onAddKey: (generate) => _addKey(_target, generate: generate),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(t.editor.tailscale),
-                    value: _tailscale,
-                    onChanged: (value) => setState(() => _tailscale = value),
-                  ),
-                  if (_ignoredProxyCommand case final command?)
-                    _Note(icon: Icons.warning_amber, text: t.editor.proxyCommandIgnored(command: command)),
-                  if (_hostKeys.isNotEmpty) _Note(icon: Icons.verified_user_outlined, text: t.editor.hostKeysPretrusted),
-                  const SizedBox(height: 16),
-                  Text(t.editor.jumpHosts, style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 4),
-                  Text(t.editor.jumpHostsHelp, style: theme.textTheme.bodySmall),
-                  for (final (index, jump) in _jumps.indexed)
-                    Card.outlined(
-                      key: ObjectKey(jump),
-                      margin: const EdgeInsets.only(top: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 8, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(child: Text(t.editor.jumpHostN(n: index + 1), style: theme.textTheme.titleSmall)),
-                                IconButton(
-                                  tooltip: t.editor.moveUp,
-                                  icon: const Icon(Icons.arrow_upward),
-                                  onPressed: index == 0
-                                      ? null
-                                      : () => setState(() => _jumps.insert(index - 1, _jumps.removeAt(index))),
-                                ),
-                                IconButton(
-                                  tooltip: t.editor.moveDown,
-                                  icon: const Icon(Icons.arrow_downward),
-                                  onPressed: index == _jumps.length - 1
-                                      ? null
-                                      : () => setState(() => _jumps.insert(index + 1, _jumps.removeAt(index))),
-                                ),
-                                IconButton(
-                                  tooltip: t.editor.remove,
-                                  icon: const Icon(Icons.close),
-                                  onPressed: () => setState(() => _disposeLater([_jumps.removeAt(index)])),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: _HopEditor(
-                                hop: jump,
-                                onChanged: () => setState(() {}),
-                                onAddKey: (generate) => _addKey(jump, generate: generate),
+                  if (_kind == MachineKind.ssh) ...[
+                    const SizedBox(height: 16),
+                    _HopEditor(
+                      hop: _target,
+                      onChanged: () => setState(() {}),
+                      onAddKey: (generate) => _addKey(_target, generate: generate),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(t.editor.tailscale),
+                      value: _tailscale,
+                      onChanged: (value) => setState(() => _tailscale = value),
+                    ),
+                    if (_ignoredProxyCommand case final command?)
+                      _Note(icon: Icons.warning_amber, text: t.editor.proxyCommandIgnored(command: command)),
+                    if (_hostKeys.isNotEmpty) _Note(icon: Icons.verified_user_outlined, text: t.editor.hostKeysPretrusted),
+                    const SizedBox(height: 16),
+                    Text(t.editor.jumpHosts, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(t.editor.jumpHostsHelp, style: theme.textTheme.bodySmall),
+                    for (final (index, jump) in _jumps.indexed)
+                      Card.outlined(
+                        key: ObjectKey(jump),
+                        margin: const EdgeInsets.only(top: 12),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 8, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(child: Text(t.editor.jumpHostN(n: index + 1), style: theme.textTheme.titleSmall)),
+                                  IconButton(
+                                    tooltip: t.editor.moveUp,
+                                    icon: const Icon(Icons.arrow_upward),
+                                    onPressed: index == 0
+                                        ? null
+                                        : () => setState(() => _jumps.insert(index - 1, _jumps.removeAt(index))),
+                                  ),
+                                  IconButton(
+                                    tooltip: t.editor.moveDown,
+                                    icon: const Icon(Icons.arrow_downward),
+                                    onPressed: index == _jumps.length - 1
+                                        ? null
+                                        : () => setState(() => _jumps.insert(index + 1, _jumps.removeAt(index))),
+                                  ),
+                                  IconButton(
+                                    tooltip: t.editor.remove,
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () => setState(() => _disposeLater([_jumps.removeAt(index)])),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: _HopEditor(
+                                  hop: jump,
+                                  onChanged: () => setState(() {}),
+                                  onAddKey: (generate) => _addKey(jump, generate: generate),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: Text(t.editor.addJumpHost),
+                        onPressed: () => setState(() => _jumps.add(_HopFields.blank(newId(), _defaultAuth()))),
+                      ),
                     ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.add),
-                      label: Text(t.editor.addJumpHost),
-                      onPressed: () => setState(() => _jumps.add(_HopFields.blank(newId(), _defaultAuth()))),
-                    ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           const Divider(height: 1),

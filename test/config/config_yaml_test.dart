@@ -55,6 +55,15 @@ void main() {
       expect(() => setConfigValue('theme: dark\n', ['theme', 'dark'], 'x'), throwsFormatException);
       expect(() => setConfigValue('- a\n- b\n', ['theme'], 'x'), throwsFormatException);
     });
+
+    test('a file holding only comments keeps them', () {
+      for (final source in ['# keep me\n# and me\n', '---\n# keep me\n...\n', '# keep me', '# keep me\n~\n']) {
+        final written = setConfigValue(source, ['a', 'b'], true);
+        expect(valueAt(written, ['a', 'b']), isTrue, reason: source);
+        expect(written, contains('# keep me'), reason: source);
+      }
+      expect(setConfigValue('# keep me\n# and me\n', ['a', 'b'], true), contains('# and me'));
+    });
   });
 
   group('removeConfigValue', () {
@@ -77,6 +86,20 @@ void main() {
       expect(removeConfigValue(base, ['theme', 'dark']), base);
       expect(removeConfigValue(base, ['startup', 'checkUpdate', 'deeper']), base);
     });
+  });
+
+  test('edit errors name the setting or the position, never the file text', () {
+    const secret = 'sk-SECRET-123';
+    final edits = <String Function()>[
+      // yaml_edit's own check of its output.
+      () => setConfigValue('apiKey: $secret\nx: 1\n', ['x'], double.nan),
+      () => setConfigValue('apiKey: $secret: oops\n', ['x'], 1),
+      () => setConfigValue('base: &b\n  apiKey: $secret\nother: *b\n', ['other', 'x'], 1),
+      () => removeConfigValue('base: &b\n  apiKey: $secret\nother: *b\n', ['other', 'apiKey']),
+    ];
+    for (final edit in edits) {
+      expect(edit, throwsA(isA<FormatException>().having((error) => '$error', 'text', isNot(contains(secret)))));
+    }
   });
 
   group('ConfigLayer', () {

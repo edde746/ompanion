@@ -166,7 +166,9 @@ List<DiffLine> _markWordChanges(List<DiffLine> rows) {
   return rows;
 }
 
-final _token = RegExp(r'\s+|\w+|[^\w\s]');
+// Unicode mode matches an emoji (a surrogate pair) as one token; otherwise a shared high surrogate can be kept and
+// half a character marked.
+final _token = RegExp(r'\s+|\w+|[^\w\s]', unicode: true);
 
 /// Largest token grid (old tokens × new tokens) worth an exact longest-common-subsequence diff.
 const _maxWordDiffCells = 40000;

@@ -220,11 +220,19 @@ void main() {
       expect(parseNumber('abc'), isNull);
     });
 
+    test('NaN and the infinities are not numbers', () {
+      for (final text in ['NaN', 'Infinity', '-Infinity', '1e999']) {
+        expect(parseNumber(text), isNull, reason: text);
+      }
+    });
+
     test('JSON must match the setting type', () {
+      Matcher refused(JsonValueProblem problem) =>
+          throwsA(isA<JsonValueException>().having((error) => error.problem, 'problem', problem));
       expect(parseJsonValue('{"bash": "allow"}', SettingType.record), {'bash': 'allow'});
-      expect(() => parseJsonValue('[1]', SettingType.record), throwsFormatException);
-      expect(() => parseJsonValue('{}', SettingType.array), throwsFormatException);
-      expect(() => parseJsonValue('{', SettingType.record), throwsFormatException);
+      expect(() => parseJsonValue('[1]', SettingType.record), refused(JsonValueProblem.notObject));
+      expect(() => parseJsonValue('{}', SettingType.array), refused(JsonValueProblem.notArray));
+      expect(() => parseJsonValue('{', SettingType.record), refused(JsonValueProblem.notJson));
     });
   });
 }

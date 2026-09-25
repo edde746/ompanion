@@ -11,6 +11,7 @@ import '../../i18n/strings.g.dart';
 import '../../sessions/sessions_provider.dart';
 import '../external_links.dart';
 import '../shell/layout.dart';
+import 'ask.dart';
 import 'ask_dialog.dart';
 import 'request_frame.dart';
 
@@ -32,8 +33,9 @@ class RequestHost extends StatefulWidget {
 class _RequestHostState extends State<RequestHost> {
   StreamSubscription<SessionView>? _subscription;
   final Set<String> _hidden = {};
-  final Map<String, Timer> _timeouts = {};
-  final Map<String, DateTime> _deadlines = {};
+
+  /// What the user entered into each open request's dialog, so a hidden dialog comes back as it was left.
+  final Map<String, RequestDraft> _drafts = {};
   Route<void>? _route;
   String? _showing;
   List<UiRequest>? _lastRequests;
@@ -67,6 +69,8 @@ class _RequestHostState extends State<RequestHost> {
   }
 
   void _subscribe() {
+    // Timed dialogs count down from their arrival, also while this chat is not on screen.
+    context.read<SessionsProvider>().deadlinesOf(widget.session);
     _subscription = widget.session.views.listen(_onView);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _onView(widget.session.view);
@@ -77,12 +81,8 @@ class _RequestHostState extends State<RequestHost> {
   void _reset() {
     unawaited(_subscription?.cancel());
     _subscription = null;
-    for (final timer in _timeouts.values) {
-      timer.cancel();
-    }
-    _timeouts.clear();
-    _deadlines.clear();
     _hidden.clear();
+    _drafts.clear();
     _lastRequests = null;
     final route = _route;
     _route = null;
@@ -101,26 +101,8 @@ class _RequestHostState extends State<RequestHost> {
     _lastRequests = view.requests;
     final open = {for (final request in view.requests) request.id};
     _hidden.removeWhere((id) => !open.contains(id));
-    for (final id in _timeouts.keys.where((id) => !open.contains(id)).toList()) {
-      _timeouts.remove(id)!.cancel();
-      _deadlines.remove(id);
-    }
-    final editorTexts = <EditorTextRequest>[];
-    for (final request in view.requests) {
-      switch (request) {
-        case EditorTextRequest():
-          editorTexts.add(request);
-        case SelectRequest(:final id, timeout: final ms?) ||
-            ConfirmRequest(:final id, timeout: final ms?) ||
-            InputRequest(:final id, timeout: final ms?):
-          // omp resolves a timed-out dialog by itself and sends no frame.
-          _timeouts.putIfAbsent(id, () {
-            _deadlines[id] = DateTime.now().add(Duration(milliseconds: ms));
-            return Timer(Duration(milliseconds: ms), () => widget.session.dismissRequest(id));
-          });
-        case _:
-      }
-    }
+    _drafts.removeWhere((id, _) => !open.contains(id));
+    final editorTexts = view.requests.whereType<EditorTextRequest>().toList();
     setState(() {});
     for (final request in editorTexts) {
       context.read<SessionsProvider>().setDraft(widget.session, request.text);
@@ -147,11 +129,12 @@ class _RequestHostState extends State<RequestHost> {
   Future<void> _show(UiRequest request) async {
     final session = widget.session;
     _showing = request.id;
-    final deadline = _deadlines[request.id];
+    final deadline = context.read<SessionsProvider>().deadlinesOf(session).of(request.id);
+    final draft = _drafts.putIfAbsent(request.id, () => RequestDraft(request));
     Widget content(BuildContext context, bool sheet) => _ClosesWhenSettled(
       session: session,
       requestId: request.id,
-      child: RequestContent(session: session, request: request, deadline: deadline, sheet: sheet),
+      child: RequestContent(session: session, request: request, draft: draft, deadline: deadline, sheet: sheet),
     );
     final Route<void> route = isCompact(context)
         ? ModalBottomSheetRoute<void>(
@@ -285,6 +268,22 @@ class _ClosesWhenSettledState extends State<_ClosesWhenSettled> {
   Widget build(BuildContext context) => widget.child;
 }
 
+/// What the user entered into one request's dialog so far. [RequestHost] keeps it while the dialog is hidden, so the
+/// dialog comes back as it was left.
+final class RequestDraft {
+  RequestDraft(UiRequest request)
+    : text = switch (request) {
+        EditorRequest(:final prefill?) => prefill,
+        _ => '',
+      };
+
+  /// The input's or the editor's text.
+  String text;
+
+  /// The `ask` form's answers, one per question; filled when the form first shows.
+  final List<AskDraft> ask = [];
+}
+
 /// The body of one request's dialog or sheet. Answers go out through [session]; the dialog then closes
 /// because the request leaves the view.
 class RequestContent extends StatefulWidget {
@@ -292,12 +291,16 @@ class RequestContent extends StatefulWidget {
     super.key,
     required this.session,
     required this.request,
+    required this.draft,
     required this.sheet,
     this.deadline,
   });
 
   final LiveSession session;
   final UiRequest request;
+
+  /// What the user entered so far; edits land here.
+  final RequestDraft draft;
 
   /// Render as a bottom sheet (phones) rather than a dialog.
   final bool sheet;
@@ -310,12 +313,7 @@ class RequestContent extends StatefulWidget {
 }
 
 class _RequestContentState extends State<RequestContent> {
-  late final TextEditingController _text = TextEditingController(
-    text: switch (widget.request) {
-      EditorRequest(:final prefill?) => prefill,
-      _ => '',
-    },
-  );
+  late final TextEditingController _text = TextEditingController(text: widget.draft.text);
   bool _busy = false;
   String? _error;
   String? _forwardNote;
@@ -323,6 +321,7 @@ class _RequestContentState extends State<RequestContent> {
   @override
   void initState() {
     super.initState();
+    _text.addListener(() => widget.draft.text = _text.text);
     if (widget.request case OpenUrlRequest(:final url)) {
       // _forward reads translations, which initState may not.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -382,6 +381,7 @@ class _RequestContentState extends State<RequestContent> {
     if (request case CompanionRequest(method: 'ask', :final params)) {
       return AskContent(
         params: params,
+        drafts: widget.draft.ask,
         sheet: widget.sheet,
         busy: _busy,
         error: _error,

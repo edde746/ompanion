@@ -47,7 +47,7 @@ LiveSession? shownSession(BuildContext context) {
 }
 
 /// Binds the app shortcuts. Callbacks left null disable their intent in that layout.
-class _ShellShortcuts extends StatelessWidget {
+class _ShellShortcuts extends StatefulWidget {
   const _ShellShortcuts({
     this.onToggleSidebar,
     required this.onTogglePanels,
@@ -60,15 +60,36 @@ class _ShellShortcuts extends StatelessWidget {
   final ValueChanged<DockTab> onShowPanelTab;
   final Widget child;
 
+  @override
+  State<_ShellShortcuts> createState() => _ShellShortcutsState();
+}
+
+class _ShellShortcutsState extends State<_ShellShortcuts> {
+  /// Holds the focus while nothing in the shell has it, so the shortcuts still get their keys.
+  final _focus = FocusNode(debugLabel: 'shell');
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
   /// The chat on screen, if any.
-  LiveSession? _session(BuildContext context) =>
+  LiveSession? _session() =>
       context.read<ShellProvider>().selection is SessionSelection ? context.read<SessionsProvider>().active : null;
 
+  /// Esc aborts from the chat, or while nothing but the shell has focus, as in the TUI. In the dock and the sidebar it
+  /// belongs to the focused field or editor, even one that leaves it unhandled.
+  bool _escInChat() {
+    final focus = FocusManager.instance.primaryFocus;
+    return focus == _focus || focus?.context?.findAncestorWidgetOfExactType<ChatScreen>() != null;
+  }
+
   /// Where Cmd/Ctrl+N starts a session: the shown session's machine, else the selected machine, else the first.
-  Machine? _newSessionMachine(BuildContext context) {
+  Machine? _newSessionMachine() {
     final sessions = context.read<SessionsProvider>();
     final machines = context.read<MachinesProvider>();
-    final session = _session(context);
+    final session = _session();
     if (session != null) return sessions.machineOf(session);
     if (context.read<ShellProvider>().selection case MachineSelection(:final machineId)) {
       return machines.byId(machineId);
@@ -78,42 +99,44 @@ class _ShellShortcuts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final toggleSidebar = onToggleSidebar;
+    final toggleSidebar = widget.onToggleSidebar;
     return Shortcuts(
       shortcuts: appShortcuts(Theme.of(context).platform),
       child: Actions(
         actions: {
           if (toggleSidebar != null)
             ToggleSidebarIntent: CallbackAction<ToggleSidebarIntent>(onInvoke: (_) => toggleSidebar()),
-          TogglePanelsIntent: CallbackAction<TogglePanelsIntent>(onInvoke: (_) => onTogglePanels()),
-          ShowPanelTabIntent: CallbackAction<ShowPanelTabIntent>(onInvoke: (intent) => onShowPanelTab(intent.tab)),
+          TogglePanelsIntent: CallbackAction<TogglePanelsIntent>(onInvoke: (_) => widget.onTogglePanels()),
+          ShowPanelTabIntent: CallbackAction<ShowPanelTabIntent>(
+            onInvoke: (intent) => widget.onShowPanelTab(intent.tab),
+          ),
           AddMachineIntent: CallbackAction<AddMachineIntent>(onInvoke: (_) => showMachineEditor(context)),
           OpenSettingsIntent: CallbackAction<OpenSettingsIntent>(
             onInvoke: (_) => context.read<ShellProvider>().select(const SettingsSelection()),
           ),
           NewSessionIntent: CallbackAction<NewSessionIntent>(
             onInvoke: (_) {
-              final machine = _newSessionMachine(context);
+              final machine = _newSessionMachine();
               if (machine != null) unawaited(showNewSessionDialog(context, machine));
               return null;
             },
           ),
           TogglePauseIntent: _SessionAction<TogglePauseIntent>(
-            session: () => _session(context),
+            session: _session,
             onInvoke: (session) => unawaited(togglePause(context, session)),
           ),
           OpenPaletteIntent: _SessionAction<OpenPaletteIntent>(
-            session: () => _session(context),
+            session: _session,
             onInvoke: (session) => context.read<SessionsProvider>().draftOf(session).openPalette(),
           ),
           AbortRunIntent: _SessionAction<AbortRunIntent>(
-            session: () => _session(context),
+            session: _session,
             // Esc passes through to other handlers unless a run is there to abort.
-            enabled: (session) => session.view.run.running,
+            enabled: (session) => session.view.run.running && _escInChat(),
             onInvoke: (session) => unawaited(abortRun(context, session)),
           ),
         },
-        child: Focus(autofocus: true, child: child),
+        child: Focus(focusNode: _focus, autofocus: true, child: widget.child),
       ),
     );
   }

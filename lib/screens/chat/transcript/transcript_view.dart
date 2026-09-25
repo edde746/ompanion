@@ -120,8 +120,8 @@ class _TranscriptViewState extends State<TranscriptView> {
   /// Key of the first item in the center (downward-growing) sliver; null while every row is in the upper one.
   String? _firstLiveItem;
 
-  /// Key of the newest item of the previous transcript, to tell which items are new.
-  String? _lastItem;
+  /// The newest item of the previous transcript, to tell which items are new and which grew in place.
+  TranscriptItem? _lastItem;
 
   /// The transcript was taller than the viewport at the last layout.
   bool _overflowing = false;
@@ -157,19 +157,29 @@ class _TranscriptViewState extends State<TranscriptView> {
     _thinking.observe(transcript);
     final newest = transcript.isEmpty ? null : transcript.last;
     final previous = _lastItem;
-    _lastItem = newest?.key;
+    _lastItem = newest;
 
     var split = _splitIndex(transcript);
     if (split == null) {
       _firstLiveItem = null;
       split = transcript.length;
     }
-    if (_firstLiveItem == null && _overflowing && previous != null && newest != null && newest.key != previous) {
-      // The transcript overflowed before these items arrived: they grow downward from here on.
-      final at = _indexFromEnd(transcript, previous);
-      if (at != null && at + 1 < transcript.length) {
-        _firstLiveItem = transcript[at + 1].key;
-        split = at + 1;
+    if (_firstLiveItem == null && _overflowing && previous != null && newest != null) {
+      if (newest.key != previous.key) {
+        // The transcript overflowed before these items arrived: they grow downward from here on.
+        final at = _indexFromEnd(transcript, previous.key);
+        if (at != null && at + 1 < transcript.length) {
+          _firstLiveItem = transcript[at + 1].key;
+          split = at + 1;
+        }
+      } else if (!identical(newest, previous) &&
+          _atBottom.value &&
+          !(_scroll.hasClients && _scroll.position.isScrollingNotifier.value)) {
+        // The newest item grows in place: a reply that streamed before the transcript overflowed or before this view
+        // opened. Moved down while the reader is at the bottom, where [StickToBottomPhysics] pins the new extent, it
+        // moves nothing on screen, and from then on it grows below whatever the reader scrolls up to.
+        _firstLiveItem = newest.key;
+        split = transcript.length - 1;
       }
     }
     _model.update(transcript);
@@ -179,7 +189,11 @@ class _TranscriptViewState extends State<TranscriptView> {
       final keys = {for (final row in rows) row.key};
       _widgets.removeWhere((key, _) => !keys.contains(key));
     }
-    if (!initial && newest is UserItem && newest.key != previous && !newest.synthetic && newest.attribution != 'agent') {
+    if (!initial &&
+        newest is UserItem &&
+        newest.key != previous?.key &&
+        !newest.synthetic &&
+        newest.attribution != 'agent') {
       // The user just sent something: show it, even when they had scrolled up.
       WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToLatest());
     }

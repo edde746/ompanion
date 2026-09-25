@@ -121,6 +121,59 @@ void main() {
     expect(position.pixels, position.maxScrollExtent);
   });
 
+  testWidgets('a reply already streaming when the view opens grows below a reader who scrolled up', (tester) async {
+    final history = _turns(0, 20);
+    final prompt = _user(100);
+    SessionView view(int paragraphs) => SessionView(
+      transcript: [...history, prompt, _answer(101, _paragraphs(paragraphs), streaming: true)],
+      historyLength: history.length,
+    );
+    // Switching to a session whose reply is streaming.
+    await tester.pumpWidget(_harness(view(2)));
+    final position = _position(tester);
+    expect(position.pixels, position.maxScrollExtent);
+    for (var i = 3; i <= 12; i++) {
+      await tester.pumpWidget(_harness(view(i)));
+      expect(position.pixels, position.maxScrollExtent, reason: 'update $i stays at the bottom');
+    }
+
+    await tester.drag(find.byType(TranscriptView), const Offset(0, 300));
+    await tester.pumpAndSettle();
+    final promptRow = find.byKey(ValueKey(prompt.key));
+    final before = tester.getTopLeft(promptRow);
+    for (var i = 13; i <= 20; i++) {
+      await tester.pumpWidget(_harness(view(i)));
+    }
+    expect(tester.getTopLeft(promptRow), before, reason: 'growth below the reader moves nothing above it');
+  });
+
+  testWidgets('a reply that starts while the transcript fits grows below a reader who scrolled up', (tester) async {
+    final history = _turns(0, 1);
+    final prompt = _user(100);
+    SessionView view(int paragraphs) => SessionView(
+      transcript: [...history, prompt, _answer(101, _paragraphs(paragraphs), streaming: true)],
+      historyLength: history.length,
+    );
+    await tester.pumpWidget(_harness(SessionView(transcript: [...history, prompt], historyLength: history.length)));
+    final position = _position(tester);
+    // The reply streams past the viewport's height.
+    for (var i = 1; i <= 30; i++) {
+      await tester.pumpWidget(_harness(view(i)));
+      expect(position.pixels, position.maxScrollExtent, reason: 'update $i stays at the bottom');
+    }
+
+    await tester.drag(find.byType(TranscriptView), const Offset(0, 300));
+    await tester.pumpAndSettle();
+    // The reader looks at the middle of the reply; its first line is above the viewport.
+    final anchor = find.byKey(ValueKey('${_answer(101, '').key}#0'));
+    expect(anchor, findsOneWidget);
+    final before = tester.getTopLeft(anchor);
+    for (var i = 31; i <= 40; i++) {
+      await tester.pumpWidget(_harness(view(i)));
+    }
+    expect(tester.getTopLeft(anchor), before, reason: 'growth below the reader moves nothing above it');
+  });
+
   testWidgets('loading an earlier page does not move what is on screen', (tester) async {
     final recent = _turns(20, 40);
     await tester.pumpWidget(_harness(SessionView(transcript: recent, historyLength: recent.length)));

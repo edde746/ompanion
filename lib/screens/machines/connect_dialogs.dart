@@ -23,11 +23,11 @@ Future<T> runOnMachine<T>(BuildContext context, Machine machine, Future<T> Funct
 ConnectPrompts dialogConnectPrompts(BuildContext context) => ConnectPrompts(
   password: (hop) async {
     if (!context.mounted) return null;
-    return showDialog<String>(context: context, builder: (_) => _PasswordDialog(hop: hop.label));
+    return showDialog<String>(context: context, builder: (_) => PasswordDialog(hop: hop.label));
   },
   keyboardInteractive: (request) async {
     if (!context.mounted) return null;
-    return showDialog<List<String>>(context: context, builder: (_) => _KeyboardInteractiveDialog(request));
+    return showDialog<List<String>>(context: context, builder: (_) => KeyboardInteractiveDialog(request));
   },
   hostKey: (check, verdict) async {
     if (!context.mounted) return false;
@@ -138,16 +138,17 @@ class HostKeyDialog extends StatelessWidget {
   }
 }
 
-class _PasswordDialog extends StatefulWidget {
-  const _PasswordDialog({required this.hop});
+/// Asks for [hop]'s password. Pops it, or null to cancel.
+class PasswordDialog extends StatefulWidget {
+  const PasswordDialog({super.key, required this.hop});
 
   final String hop;
 
   @override
-  State<_PasswordDialog> createState() => _PasswordDialogState();
+  State<PasswordDialog> createState() => _PasswordDialogState();
 }
 
-class _PasswordDialogState extends State<_PasswordDialog> {
+class _PasswordDialogState extends State<PasswordDialog> {
   final _password = TextEditingController();
 
   @override
@@ -176,16 +177,17 @@ class _PasswordDialogState extends State<_PasswordDialog> {
   }
 }
 
-class _KeyboardInteractiveDialog extends StatefulWidget {
-  const _KeyboardInteractiveDialog(this.request);
+/// Asks a keyboard-interactive [request]'s prompts. Pops the answers, or null to cancel.
+class KeyboardInteractiveDialog extends StatefulWidget {
+  const KeyboardInteractiveDialog(this.request, {super.key});
 
   final KeyboardInteractiveRequest request;
 
   @override
-  State<_KeyboardInteractiveDialog> createState() => _KeyboardInteractiveDialogState();
+  State<KeyboardInteractiveDialog> createState() => _KeyboardInteractiveDialogState();
 }
 
-class _KeyboardInteractiveDialogState extends State<_KeyboardInteractiveDialog> {
+class _KeyboardInteractiveDialogState extends State<KeyboardInteractiveDialog> {
   late final List<TextEditingController> _answers = [
     for (final _ in widget.request.prompts) TextEditingController(),
   ];

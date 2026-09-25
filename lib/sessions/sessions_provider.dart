@@ -6,6 +6,7 @@ import 'package:omp_core/host.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 
+import '../database/app_database.dart' show AuthMethod;
 import '../models/machine.dart';
 import '../providers/machines_provider.dart';
 import '../services/machine_connector.dart';
@@ -13,6 +14,9 @@ import 'composer_draft.dart';
 import 'connect_prompt_queue.dart';
 import 'exec_runs.dart';
 import 'oauth_callback.dart';
+import 'request_deadlines.dart';
+
+typedef _Hop = (String host, int port, String user, AuthMethod auth, String? keyId);
 
 /// The session files and live runs of one machine, as last listed.
 final class SessionListing {
@@ -60,26 +64,40 @@ class SessionsProvider extends ChangeNotifier {
   final ConnectPromptQueue prompts = ConnectPromptQueue();
 
   final Map<String, MachineRuntime> _runtimes = {};
+
+  /// The route each runtime's machine had when the runtime was created; [_route].
+  final Map<String, List<_Hop>?> _routes = {};
   final Map<String, SessionListing> _listings = {};
   final Map<String, Future<List<RpcModel>>> _models = {};
   final List<LiveSession> _open = [];
   final Map<LiveSession, String> _machineIds = {};
   final Map<LiveSession, ComposerDraft> _drafts = {};
   final Map<LiveSession, ExecRuns> _execRuns = {};
+  final Map<LiveSession, RequestDeadlines> _deadlines = {};
   final Map<String, LocalForward> _oauthForwards = {};
   LiveSession? _active;
   bool _disposed = false;
 
-  /// The runtime of [machine], created on first use.
-  MachineRuntime runtimeFor(Machine machine) => _runtimes.putIfAbsent(
-    machine.id,
-    () => MachineRuntime(
-      // The latest record, so an edited machine dials its new address on the next connect.
-      connect: () => _connector.open(_machines.byId(machine.id) ?? machine, prompts.promptsFor(machine)),
+  /// The runtime of [machine], created on first use. An edit of the machine's route replaces it
+  /// ([_onMachinesChanged]).
+  MachineRuntime runtimeFor(Machine machine) => _runtimes.putIfAbsent(machine.id, () {
+    final record = _machines.byId(machine.id) ?? machine;
+    _routes[machine.id] = _route(record);
+    return MachineRuntime(
+      // The latest record, so a new saved password is used on the next connect.
+      connect: () => _connector.open(_machines.byId(machine.id) ?? record, prompts.promptsFor(record)),
       deviceId: deviceId,
       companionBytes: _companionBytes,
-    ),
-  );
+      searchSystemPaths: _connector.searchSystemPaths(record),
+    );
+  });
+
+  /// Where [machine]'s link goes and how it logs in, hop by hop; null for this computer. An edit that changes it
+  /// leaves the open link pointing at the old place.
+  static List<_Hop>? _route(Machine machine) => switch (machine) {
+    LocalMachine() => null,
+    SshMachine(:final hops) => [for (final hop in hops) (hop.host, hop.port, hop.user, hop.auth, hop.keyId)],
+  };
 
   /// The session the center pane shows, or null.
   LiveSession? get active => _active;
@@ -108,14 +126,18 @@ class SessionsProvider extends ChangeNotifier {
   /// The `!` / `$` runs started from [session]'s composer.
   ExecRuns execRunsOf(LiveSession session) => _execRuns.putIfAbsent(session, ExecRuns.new);
 
+  /// The deadlines of [session]'s timed dialogs, counted from when the session was opened here or the dialog arrived.
+  RequestDeadlines deadlinesOf(LiveSession session) =>
+      _deadlines.putIfAbsent(session, () => RequestDeadlines(session));
+
   /// Opens [request] on [machine] and makes it [active]. A session this device already has open is selected
   /// instead of opened twice; one whose link closed is opened again in its place.
   Future<LiveSession> open(Machine machine, SessionOpen request) async {
     final same = _open.where((s) => _machineIds[s] == machine.id && _opens(request, s)).firstOrNull;
     if (same != null) {
-      if (same.linkState is LinkClosed) return reopen(same);
-      select(same);
-      return same;
+      final session = same.linkState is LinkClosed ? await reopen(same) : same;
+      select(session);
+      return session;
     }
     final session = await runtimeFor(machine).open(request);
     if (_disposed) {
@@ -126,6 +148,7 @@ class SessionsProvider extends ChangeNotifier {
     if (!_open.contains(session)) {
       _open.add(session);
       _machineIds[session] = machine.id;
+      deadlinesOf(session);
     }
     _active = session;
     notifyListeners();
@@ -163,6 +186,8 @@ class SessionsProvider extends ChangeNotifier {
     final draft = _drafts.remove(session);
     if (draft != null) _drafts[replacement] = draft;
     _disposeLater(_execRuns.remove(session));
+    _deadlines.remove(session)?.dispose();
+    deadlinesOf(replacement);
     if (_active == session || _active == null) _active = replacement;
     notifyListeners();
     unawaited(session.detach());
@@ -182,11 +207,12 @@ class SessionsProvider extends ChangeNotifier {
     await session.detach();
   }
 
-  /// Stops [session]'s omp process, then forgets it.
+  /// Stops [session]'s omp process, then forgets it. Throws when the stop failed; the session then stays open, still
+  /// attached, so the user can see it and try again.
   Future<void> stop(LiveSession session) async {
+    await session.stop();
     final machine = machineOf(session);
     _forget(session);
-    await session.stop();
     if (machine != null) unawaited(refresh(machine));
   }
 
@@ -195,23 +221,34 @@ class SessionsProvider extends ChangeNotifier {
 
   SessionListing listingOf(Machine machine) => _listings[machine.id] ?? const SessionListing();
 
-  /// Connects when needed, probes, and lists the machine's sessions and live runs. Failures land in
+  /// Connects when needed, probes, and lists the machine's sessions and live runs. A machine that lacked omp is probed
+  /// again: omp may have been installed since, by hand or through the install dialog. Failures land in
   /// [listingOf]`.error` and in the runtime's status.
   Future<void> refresh(Machine machine) async {
     final runtime = runtimeFor(machine);
     _setListing(machine.id, listingOf(machine).copyWith(loading: true, error: listingOf(machine).error));
     try {
-      if (runtime.status is! MachineOnline) await runtime.connectAndProbe();
+      switch (runtime.status) {
+        case MachineOnline():
+          break;
+        case MachineNeedsOmp():
+          await runtime.reprobe();
+        case _:
+          await runtime.connectAndProbe();
+      }
       if (runtime.status is! MachineOnline) {
         _setListing(machine.id, listingOf(machine).copyWith(loading: false));
         return;
       }
       final sessions = await runtime.listSessions();
+      // An edit of the machine's route replaced the runtime meanwhile; this listing is of the old place.
+      if (!identical(_runtimes[machine.id], runtime)) return;
       _setListing(
         machine.id,
         SessionListing(sessions: sessions, loadedAt: DateTime.now()),
       );
     } on Object catch (error) {
+      if (!identical(_runtimes[machine.id], runtime)) return;
       _setListing(machine.id, listingOf(machine).copyWith(loading: false, error: error));
     }
   }
@@ -227,8 +264,13 @@ class SessionsProvider extends ChangeNotifier {
     if (refresh) _models.remove(key);
     return _models.putIfAbsent(key, () {
       final models = rpc.getAvailableModels();
-      // A failed fetch is not cached; the caller still gets the error.
-      unawaited(models.then((_) {}, onError: (Object _) => _models.remove(key)));
+      // A failed fetch is not cached; the caller still gets the error. The handler returns nothing: a returned future
+      // would be adopted and fail this unawaited chain too.
+      unawaited(
+        models.then((_) {}, onError: (Object _) {
+          _models.remove(key);
+        }),
+      );
       return models;
     });
   }
@@ -270,6 +312,7 @@ class SessionsProvider extends ChangeNotifier {
     _machineIds.remove(session);
     _disposeLater(_drafts.remove(session));
     _disposeLater(_execRuns.remove(session));
+    _deadlines.remove(session)?.dispose();
     final index = _open.indexOf(session);
     if (index < 0) return;
     _open.removeAt(index);
@@ -279,14 +322,16 @@ class SessionsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ends the runtimes of deleted machines, and of machines whose route an edit changed: the open link still goes where
+  /// the machine used to point. Their sessions are detached (the runs keep going); the next use connects anew.
   void _onMachinesChanged() {
-    final ids = {for (final machine in _machines.machines) machine.id};
-    final gone = [
-      for (final id in _runtimes.keys)
-        if (!ids.contains(id)) id,
-    ];
-    if (gone.isEmpty) return;
-    for (final id in gone) {
+    final ended = <String>[];
+    for (final MapEntry(key: id, value: route) in _routes.entries) {
+      final machine = _machines.byId(id);
+      if (machine == null || !listEquals(_route(machine), route)) ended.add(id);
+    }
+    if (ended.isEmpty) return;
+    for (final id in ended) {
       prompts.cancelFor(id);
       for (final session in [
         for (final entry in _machineIds.entries)
@@ -297,6 +342,9 @@ class SessionsProvider extends ChangeNotifier {
       }
       _listings.remove(id);
       _models.removeWhere((key, _) => key.startsWith('$id@'));
+      // The runtime closes its forwards.
+      _oauthForwards.removeWhere((key, _) => key.startsWith('$id:'));
+      _routes.remove(id);
       unawaited(_runtimes.remove(id)!.dispose());
     }
     notifyListeners();
@@ -314,6 +362,10 @@ class SessionsProvider extends ChangeNotifier {
       unawaited(forward.close());
     }
     _oauthForwards.clear();
+    for (final deadlines in _deadlines.values) {
+      deadlines.dispose();
+    }
+    _deadlines.clear();
     prompts.dispose();
     super.dispose();
   }

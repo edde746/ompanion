@@ -13,7 +13,8 @@ final class NothingToSend extends ComposerIntent {
 
 /// RPC `prompt` with [text]. [behavior] is null for a prompt to an idle session; while a run streams it is
 /// [StreamingBehavior.steer] (delivered after the current tool calls) or [StreamingBehavior.followUp]
-/// (delivered once the run finishes). Slash commands the session lists travel this way too.
+/// (delivered once the run finishes). Slash commands the session lists travel this way too; the whitespace after
+/// their name is a space, since omp ends extension, custom and file command names at the first space only.
 final class SendPrompt extends ComposerIntent {
   const SendPrompt(this.text, {this.behavior, this.command});
 
@@ -75,17 +76,25 @@ ComposerIntent composerIntent(
   if (trimmed.isEmpty && !hasImages) return const NothingToSend();
   final behavior = running ? (followUp ? StreamingBehavior.followUp : StreamingBehavior.steer) : null;
   if (trimmed == '/') return const NothingToSend();
-  final name = _commandName.firstMatch(trimmed)?.group(1);
-  if (name == null) return SendPrompt(trimmed, behavior: behavior);
+  final match = _commandName.firstMatch(trimmed);
+  if (match == null) return SendPrompt(trimmed, behavior: behavior);
+  final name = match.group(1)!;
   final command = findCommand(commands, name);
   if (command == null) return UnknownCommand(name);
-  return SendPrompt(trimmed, behavior: behavior, command: command.name);
+  // `/name⏎args` would reach omp as the name `name⏎args`, match nothing, and go to the model as a paid turn.
+  final args = trimmed.substring(match.end);
+  final sent = args.isEmpty || args.startsWith(' ') ? trimmed : '/$name ${args.substring(1)}';
+  return SendPrompt(sent, behavior: behavior, command: command.name);
 }
 
-/// The listed command called [name] or aliased so.
+/// The listed command [name] invokes: the one called or aliased so, else for `name:args` the builtin before the
+/// colon, since omp splits builtin invocations there too (`/force:bash`).
 SlashCommand? findCommand(List<SlashCommand> commands, String name) {
-  for (final command in commands) {
-    if (command.name == name || command.aliases.contains(name)) return command;
-  }
-  return null;
+  SlashCommand? called(String name) =>
+      commands.where((command) => command.name == name || command.aliases.contains(name)).firstOrNull;
+  final command = called(name);
+  final colon = name.indexOf(':');
+  if (command != null || colon <= 0) return command;
+  final builtin = called(name.substring(0, colon));
+  return builtin?.source == 'builtin' ? builtin : null;
 }

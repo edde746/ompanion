@@ -225,9 +225,12 @@ void main() {
     expect([for (final row in rows) (row.entry.kind, row.entry.text)], [
       (TreeEntryKind.compaction, 'long summary'),
       (TreeEntryKind.branchSummary, 'what was tried'),
-      (TreeEntryKind.custom, 'advisor (critic, concern, nit): watch the tests and the docs'),
+      (TreeEntryKind.advisor, 'watch the tests and the docs'),
       (TreeEntryKind.bash, 'git status'),
     ]);
     expect(rows.first.entry.tokensBefore, 48123);
+    // Advisor names other than `default`, then severities, as omp's advisorTreeDisplay lists them.
+    expect(rows[2].entry.advisorTags, 'critic, concern, nit');
+    expect(tree.rows(query: 'critic').map((row) => row.entry.id), contains('adv'));
   });
 }

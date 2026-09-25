@@ -13,9 +13,7 @@ final class ConfigLayer {
     try {
       document = loadYaml(text);
     } on YamlException catch (error) {
-      final start = error.span?.start;
-      final where = start == null ? '' : ' at line ${start.line + 1}, column ${start.column + 1}';
-      throw FormatException('not valid YAML$where: ${error.message}');
+      throw _invalid(error);
     }
     return switch (_plain(document)) {
       null => const ConfigLayer({}),
@@ -49,45 +47,84 @@ Object? _plain(Object? node) => switch (node) {
 /// holding a scalar is a [FormatException].
 String setConfigValue(String source, List<String> path, Object? value) {
   if (path.isEmpty) throw ArgumentError.value(path, 'path', 'empty');
-  final editor = YamlEditor(source);
-  final root = editor.parseAt(const []);
-  if (root is! YamlMap) {
-    if (root.value != null) throw const FormatException('the settings file does not hold a map');
-    editor.update(const [], _nest(path, value));
+  return _edit(source, path, (editor) {
+    final root = editor.parseAt(const []);
+    if (root is! YamlMap) {
+      if (root.value != null) throw const FormatException('the settings file does not hold a map');
+      // yaml_edit replaces the root's span, which in a file of only comments covers the comments.
+      if (_holdsNoNode(root)) return _insertBlock(source, root.span.end.offset, _nest(path, value));
+      editor.update(const [], _nest(path, value));
+      return editor.toString();
+    }
+    var node = root;
+    var depth = 0;
+    while (depth < path.length - 1) {
+      final child = node.nodes[path[depth]];
+      if (child is YamlMap) {
+        node = child;
+        depth++;
+        continue;
+      }
+      if (child != null && child.value != null) {
+        throw FormatException('${path.take(depth + 1).join('.')} holds a value, not a map');
+      }
+      break;
+    }
+    editor.update(path.take(depth + 1), _nest(path.sublist(depth + 1), value));
     return editor.toString();
-  }
-  var node = root;
-  var depth = 0;
-  while (depth < path.length - 1) {
-    final child = node.nodes[path[depth]];
-    if (child is YamlMap) {
-      node = child;
-      depth++;
-      continue;
-    }
-    if (child != null && child.value != null) {
-      throw FormatException('${path.take(depth + 1).join('.')} holds a value, not a map');
-    }
-    break;
-  }
-  editor.update(path.take(depth + 1), _nest(path.sublist(depth + 1), value));
-  return editor.toString();
+  });
 }
 
 /// [source] without [path]; parent maps left empty by the removal are removed too. Unchanged when the file
 /// does not hold [path].
 String removeConfigValue(String source, List<String> path) {
   if (path.isEmpty) throw ArgumentError.value(path, 'path', 'empty');
-  final editor = YamlEditor(source);
-  if (!_holds(editor, path)) return source;
-  editor.remove(path);
-  for (var depth = path.length - 1; depth > 0; depth--) {
-    final parent = path.sublist(0, depth);
-    final node = editor.parseAt(parent);
-    if (node is! YamlMap || node.isNotEmpty) break;
-    editor.remove(parent);
+  return _edit(source, path, (editor) {
+    if (!_holds(editor, path)) return source;
+    editor.remove(path);
+    for (var depth = path.length - 1; depth > 0; depth--) {
+      final parent = path.sublist(0, depth);
+      final node = editor.parseAt(parent);
+      if (node is! YamlMap || node.isNotEmpty) break;
+      editor.remove(parent);
+    }
+    return editor.toString();
+  });
+}
+
+/// Runs [edit] on a [YamlEditor] of [source]. yaml_edit's errors quote the file, which may hold credentials, so
+/// they become [FormatException]s that name a position or [path], never the text.
+String _edit(String source, List<String> path, String Function(YamlEditor editor) edit) {
+  try {
+    return edit(YamlEditor(source));
+  } on YamlException catch (error) {
+    throw _invalid(error);
+  } on AliasException {
+    throw FormatException('${path.join('.')} is reached through a YAML alias (& or *), which the app does not edit');
+  } on Error catch (error) {
+    // yaml_edit parses each edit's output again and throws an AssertionError quoting the file before and after
+    // when it differs; its ArgumentErrors print the nodes or the value involved.
+    if (error is! AssertionError && error is! ArgumentError) rethrow;
+    throw FormatException('could not write ${path.join('.')} into the settings file');
   }
-  return editor.toString();
+}
+
+FormatException _invalid(YamlException error) {
+  final start = error.span?.start;
+  final where = start == null ? '' : ' at line ${start.line + 1}, column ${start.column + 1}';
+  return FormatException('not valid YAML$where: ${error.message}');
+}
+
+/// A document of only comments and blank lines, as opposed to an explicit null (`~`, `null`).
+bool _holdsNoNode(YamlNode root) => root.span.text.replaceAll(RegExp('#.*'), '').trim().isEmpty;
+
+/// [source] with the block YAML of [value] inserted at [offset], on lines of its own.
+String _insertBlock(String source, int offset, Object? value) {
+  final newline = source.contains('\r\n') ? '\r\n' : '\n';
+  final block = (YamlEditor('')..update(const [], value)).toString().replaceAll('\n', newline);
+  final before = source.substring(0, offset);
+  final separator = before.isEmpty || before.endsWith('\n') ? '' : newline;
+  return '$before$separator$block$newline${source.substring(offset)}';
 }
 
 bool _holds(YamlEditor editor, List<String> path) {

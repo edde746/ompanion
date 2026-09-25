@@ -25,6 +25,20 @@ void main() {
     expect(runs, isNull);
   });
 
+  testWidgets('an unknown language stays cached when the block asks again', (tester) async {
+    const language = 'not-a-language';
+    const code = 'graph TD\n  A --> B';
+    final highlighter = CodeHighlighter.instance;
+    await tester.runAsync(() => highlighter.highlight(language, code).timeout(const Duration(seconds: 20)));
+    expect(highlighter.isCached(language, code), isTrue);
+
+    // A block scrolled back into view reads the cache, then asks again.
+    expect(highlighter.cached(language, code), isNull);
+    expect(highlighter.isCached(language, code), isTrue, reason: 'reading it keeps it');
+    expect(await highlighter.highlight(language, code), isNull);
+    expect(highlighter.isCached(language, code), isTrue, reason: 'no second trip to the worker');
+  });
+
   test('fence infos and paths map to highlight.js languages', () {
     expect(
       [languageForFence('ts'), languageForFence('shell'), languageForFence('text'), languageForFence(null)],

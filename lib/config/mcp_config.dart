@@ -74,13 +74,14 @@ String? _safeUrl(String? url) {
   return '${uri.origin}$path';
 }
 
-/// omp's server name rule (`validateServerName`).
-String? mcpNameProblem(String name) {
-  if (name.isEmpty) return 'empty';
-  if (name.length > 100) return 'longer than 100 characters';
-  if (!RegExp(r'^[a-zA-Z0-9_.:-]+(?: [a-zA-Z0-9_.:-]+)*$').hasMatch(name)) {
-    return 'only letters, numbers, dash, underscore, dot, colon and single spaces';
-  }
+/// Why omp's `validateServerName` refuses a server name.
+enum McpNameProblem { empty, tooLong, invalidCharacters }
+
+/// omp's server name rule (`validateServerName`); null when [name] passes.
+McpNameProblem? mcpNameProblem(String name) {
+  if (name.isEmpty) return McpNameProblem.empty;
+  if (name.length > 100) return McpNameProblem.tooLong;
+  if (!RegExp(r'^[a-zA-Z0-9_.:-]+(?: [a-zA-Z0-9_.:-]+)*$').hasMatch(name)) return McpNameProblem.invalidCharacters;
   return null;
 }
 

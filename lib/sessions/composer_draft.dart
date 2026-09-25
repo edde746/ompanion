@@ -9,6 +9,9 @@ class ComposerDraft extends ChangeNotifier {
   List<RpcImage> _images = const [];
   bool _focusRequested = false;
 
+  /// Set by [dispose]. A send or a file picker finishes after the await that may have outlived the session.
+  bool _disposed = false;
+
   List<RpcImage> get images => _images;
 
   /// Replaces text and images, puts the cursor at the end and asks the composer for focus.
@@ -18,6 +21,19 @@ class ComposerDraft extends ChangeNotifier {
     _focusRequested = true;
     notifyListeners();
   }
+
+  /// Puts back a prompt that did not go out, unless the session closed or the user started a new draft meanwhile.
+  void giveBack(String value, {List<RpcImage> images = const []}) {
+    if (_disposed || text.text.trim().isNotEmpty || _images.isNotEmpty) return;
+    replace(value, images: images);
+  }
+
+  /// Puts a message taken back from the queue ahead of the draft, as the TUI's dequeue does: the texts joined by a
+  /// blank line, the queued images after the draft's.
+  void restoreQueued(String value, {List<RpcImage> images = const []}) => replace(
+    [value, text.text].where((part) => part.trim().isNotEmpty).join('\n\n'),
+    images: [..._images, ...images],
+  );
 
   /// Starts a slash command unless the draft already has text, and asks the composer for focus.
   void openPalette() {
@@ -35,6 +51,7 @@ class ComposerDraft extends ChangeNotifier {
   }
 
   void addImages(Iterable<RpcImage> images) {
+    if (_disposed) return;
     _images = List.unmodifiable([..._images, ...images]);
     notifyListeners();
   }
@@ -59,6 +76,7 @@ class ComposerDraft extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     text.dispose();
     super.dispose();
   }

@@ -74,8 +74,10 @@ final class CodeHighlighter {
   /// The cached result for [code] in [language]; null when absent or unknown. Use [isCached] to tell them apart.
   HighlightRuns? cached(String language, String code) {
     final key = _key(language, code);
+    if (!_cache.containsKey(key)) return null;
+    // Most recently used last; a null (unknown language) entry moves too, so its size stays counted.
     final runs = _cache.remove(key);
-    if (runs != null) _cache[key] = runs;
+    _cache[key] = runs;
     return runs;
   }
 

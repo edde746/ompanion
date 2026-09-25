@@ -34,6 +34,7 @@ final class TerminalDeck extends ChangeNotifier {
     session
       ..removeListener(notifyListeners)
       ..dispose();
+    if (index < _selected) _selected--;
     if (_selected >= _sessions.length) _selected = _sessions.isEmpty ? 0 : _sessions.length - 1;
     notifyListeners();
   }

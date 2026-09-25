@@ -82,8 +82,11 @@ final class FileWorkspace extends ChangeNotifier {
   final _documents = <FileDocument>[];
   FileDocument? _current;
   GitStatus? _git;
-  HostFiles? _files;
+  Future<HostFiles>? _files;
   HostLink? _filesLink;
+
+  /// Opens in flight by path, so a double click opens one document.
+  final _opening = <String, Future<void>>{};
   var _disposed = false;
 
   /// The browsed directory (SFTP space); null until the first listing.
@@ -100,21 +103,28 @@ final class FileWorkspace extends ChangeNotifier {
 
   DirListing? listing(String dir) => _dirs[dir];
 
-  /// The machine's file access, reopened when the link changed or failed.
+  /// The machine's file access, reopened when the link changed or failed. Callers at the same time share one open:
+  /// each SFTP channel holds a session slot and a server process on the machine.
   Future<HostFiles> files() async {
     final connect = this.connect;
     if (connect == null) throw StateError('FileWorkspace used before its machine was set');
     final (link, probe) = await connect();
     _probe = probe;
-    final cached = _files;
-    if (cached != null && identical(link, _filesLink)) return cached;
-    _files = null;
-    _filesLink = null;
-    if (cached != null) _closeQuietly(cached);
-    final files = await link.files();
-    _files = files;
-    _filesLink = link;
-    return files;
+    if (!identical(link, _filesLink)) {
+      _forgetFiles();
+      _filesLink = link;
+      _files = link.files();
+    }
+    final opening = _files!;
+    try {
+      return await opening;
+    } on Object {
+      if (identical(_files, opening)) {
+        _files = null;
+        _filesLink = null;
+      }
+      rethrow;
+    }
   }
 
   /// Drops the cached file access after an error, so the next call reconnects.
@@ -125,9 +135,9 @@ final class FileWorkspace extends ChangeNotifier {
     if (cached != null) _closeQuietly(cached);
   }
 
-  void _closeQuietly(HostFiles files) {
+  void _closeQuietly(Future<HostFiles> files) {
     unawaited(
-      files.close().catchError((Object error) {
+      files.then((files) => files.close()).catchError((Object error) {
         appLogger.w('closing file access failed: $error');
       }),
     );
@@ -243,23 +253,30 @@ final class FileWorkspace extends ChangeNotifier {
   /// Opens [path] in the editor, or browses it when it is a directory. A link is followed: the tree lists it as a
   /// link, and opening it opens or browses what it points to. An open document is reused; [line] (1-based) is
   /// revealed.
-  Future<void> open(String path, {int? line}) async {
+  Future<void> open(String path, {int? line}) {
     final normalized = normalizePath(path);
     final existing = _documents.where((document) => document.path == normalized).firstOrNull;
     if (existing != null) {
       existing.pendingLine = line;
       _current = existing;
       _notify();
-      return;
+      return Future.value();
     }
+    // A block body: `remove` returns this very future, and `whenComplete` would wait for it.
+    return _opening[normalized] ??= _openNew(normalized, line).whenComplete(() {
+      _opening.remove(normalized);
+    });
+  }
+
+  Future<void> _openNew(String path, int? line) async {
     final files = await this.files();
-    final stat = await files.stat(normalized);
-    if (stat == null) throw HostLinkException('no such file: $normalized');
+    final stat = await files.stat(path);
+    if (stat == null) throw HostLinkException('no such file: $path');
     if (stat.isDirectory) {
-      await openDir(normalized);
+      await openDir(path);
       return;
     }
-    final document = await FileDocument.load(files, normalized);
+    final document = await FileDocument.load(files, path);
     if (_disposed) {
       document.dispose();
       return;
@@ -320,18 +337,36 @@ final class FileWorkspace extends ChangeNotifier {
     await _reloadListing(dir);
   }
 
-  /// Renames [path] to [name] in the same directory; open documents follow.
+  /// Renames [path] to [name] in the same directory; open documents, expanded folders and their listings follow.
   Future<void> rename(String path, String name) async {
     final files = await this.files();
-    final target = joinPath(parentPath(path), name);
-    if (await files.stat(target) != null) throw HostFileExists(target);
+    final dir = parentPath(path);
+    final target = joinPath(dir, name);
+    if (await files.stat(target) != null) {
+      // Where the file system ignores case (macOS, Windows), a case-only rename finds the file itself; only an entry
+      // with exactly that name is another file.
+      final caseOnly = name.toLowerCase() == baseName(path).toLowerCase();
+      if (!caseOnly || (await files.list(dir)).any((entry) => entry.name == name)) throw HostFileExists(target);
+    }
     await files.rename(path, target);
+    String moved(String inside) => inside == '.' ? target : joinPath(target, inside);
     for (final document in _documents) {
       final inside = relativePath(path, document.path);
-      if (inside != null) document.movedTo(inside == '.' ? target : joinPath(target, inside));
+      if (inside != null) document.movedTo(moved(inside));
     }
-    if (_expanded.remove(path)) _expanded.add(target);
-    await _reloadListing(parentPath(path));
+    for (final expanded in [..._expanded]) {
+      final inside = relativePath(path, expanded);
+      if (inside != null) {
+        _expanded
+          ..remove(expanded)
+          ..add(moved(inside));
+      }
+    }
+    for (final listed in [..._dirs.keys]) {
+      final inside = relativePath(path, listed);
+      if (inside != null) _dirs[moved(inside)] = _dirs.remove(listed)!;
+    }
+    await _reloadListing(dir);
     unawaited(refreshGit());
   }
 

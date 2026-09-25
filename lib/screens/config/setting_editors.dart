@@ -232,8 +232,8 @@ class _SecretDialogState extends State<_SecretDialog> {
     }
     try {
       Navigator.pop(context, (value: parseJsonValue(_controller.text, widget.type)));
-    } on FormatException catch (error) {
-      setState(() => _error = error.message);
+    } on JsonValueException catch (error) {
+      setState(() => _error = _jsonError(context.t, error));
     }
   }
 
@@ -462,8 +462,8 @@ class _JsonDialogState extends State<_JsonDialog> {
     try {
       final value = parseJsonValue(_controller.text, widget.type);
       Navigator.pop(context, (value: value));
-    } on FormatException catch (error) {
-      setState(() => _error = error.message);
+    } on JsonValueException catch (error) {
+      setState(() => _error = _jsonError(context.t, error));
     }
   }
 
@@ -490,3 +490,9 @@ class _JsonDialogState extends State<_JsonDialog> {
     );
   }
 }
+
+String _jsonError(Translations t, JsonValueException error) => switch (error.problem) {
+  JsonValueProblem.notJson => t.config.settings.notJson(error: error.detail ?? ''),
+  JsonValueProblem.notObject => t.config.settings.expectedObject,
+  JsonValueProblem.notArray => t.config.settings.expectedArray,
+};

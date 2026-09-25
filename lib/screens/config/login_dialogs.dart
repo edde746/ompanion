@@ -74,6 +74,7 @@ class _RpcLoginDialogState extends State<RpcLoginDialog> {
   final _handled = <String>{};
   final _input = TextEditingController();
   bool _done = false;
+  bool _closing = false;
   Object? _error;
 
   @override
@@ -131,17 +132,23 @@ class _RpcLoginDialogState extends State<RpcLoginDialog> {
     }, secret: true);
   }
 
+  /// Also runs for system back and Esc, which would otherwise close the dialog and leave omp's `login` blocking
+  /// the control process's command queue.
   Future<void> _cancel() async {
+    if (_closing) return;
+    _closing = true;
     final question = _question;
     if (!_done && _error == null) {
-      if (question != null) {
-        await widget.control.rpc.respondToUi(question.id, cancelled: true);
-        widget.control.dismissRequest(question.id);
-      }
-      // Measured with openai-codex: after its paste prompt is cancelled omp still waits for the browser's
-      // callback, RPC has no command to stop a login, and the control process stops answering prompts. End it;
-      // the next page load starts a new one.
-      await widget.control.detach();
+      await runReporting(context, () async {
+        if (question != null) {
+          await widget.control.rpc.respondToUi(question.id, cancelled: true);
+          widget.control.dismissRequest(question.id);
+        }
+        // Measured with openai-codex: after its paste prompt is cancelled omp still waits for the browser's
+        // callback, RPC has no command to stop a login, and the control process stops answering prompts. End it;
+        // the next page load starts a new one.
+        await widget.control.detach();
+      });
     }
     if (mounted) Navigator.pop(context);
   }
@@ -155,50 +162,56 @@ class _RpcLoginDialogState extends State<RpcLoginDialog> {
       for (final notice in widget.control.view.notices)
         if (notice.seq >= _firstNotice) ?_noticeText(notice),
     ];
-    return AlertDialog(
-      title: Text(t.config.accounts.loginTitle(provider: widget.providerName)),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_link == null && !_done && _error == null)
-                Row(
-                  children: [
-                    const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(t.config.accounts.waitingForLink)),
-                  ],
-                ),
-              if (_link case final link?) _LinkBlock(link: link, forwards: _forwards),
-              for (final notice in notices)
-                Padding(padding: const EdgeInsets.only(top: 8), child: Text(notice, style: theme.textTheme.bodySmall)),
-              if (question != null && !_done && _error == null) ...[
-                const SizedBox(height: 16),
-                _Question(request: question, controller: _input, onAnswer: _answer),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_cancel());
+      },
+      child: AlertDialog(
+        title: Text(t.config.accounts.loginTitle(provider: widget.providerName)),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_link == null && !_done && _error == null)
+                  Row(
+                    children: [
+                      const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(t.config.accounts.waitingForLink)),
+                    ],
+                  ),
+                if (_link case final link?) _LinkBlock(link: link, forwards: _forwards),
+                for (final notice in notices)
+                  Padding(padding: const EdgeInsets.only(top: 8), child: Text(notice, style: theme.textTheme.bodySmall)),
+                if (question != null && !_done && _error == null) ...[
+                  const SizedBox(height: 16),
+                  _Question(request: question, controller: _input, onAnswer: _answer),
+                ],
+                if (_done)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Text(t.config.accounts.loggedIn, style: TextStyle(color: theme.colorScheme.primary)),
+                  ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: SelectableText('$_error', style: TextStyle(color: theme.colorScheme.error)),
+                  ),
               ],
-              if (_done)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Text(t.config.accounts.loggedIn, style: TextStyle(color: theme.colorScheme.primary)),
-                ),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: SelectableText('$_error', style: TextStyle(color: theme.colorScheme.error)),
-                ),
-            ],
+            ),
           ),
         ),
+        actions: [
+          if (_done || _error != null)
+            FilledButton(onPressed: () => Navigator.pop(context), child: Text(t.common.close))
+          else
+            TextButton(onPressed: _cancel, child: Text(t.common.cancel)),
+        ],
       ),
-      actions: [
-        if (_done || _error != null)
-          FilledButton(onPressed: () => Navigator.pop(context), child: Text(t.common.close))
-        else
-          TextButton(onPressed: _cancel, child: Text(t.common.cancel)),
-      ],
     );
   }
 }

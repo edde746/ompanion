@@ -47,6 +47,7 @@ class _SettingsPageState extends State<SettingsPage> {
   StreamSubscription<CompanionEvent>? _events;
   StreamSubscription<LinkState>? _links;
   Timer? _fileReload;
+  Future<void> _projectEdits = Future.value();
 
   @override
   void initState() {
@@ -77,6 +78,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final project = widget.target.projectSession;
       if (_scope == SettingsScope.project && project == null) _scope = SettingsScope.global;
       final source = _scope == SettingsScope.project ? project! : control;
+      if (!mounted) return;
       _watch(source);
       final effective = SettingsSnapshot.fromJson(asJsonObject(await source.companion.call('settings.get'), 'settings.get'));
       await _loadFiles();
@@ -99,14 +101,19 @@ class _SettingsPageState extends State<SettingsPage> {
   void _watch(LiveSession source) {
     unawaited(_events?.cancel());
     unawaited(_links?.cancel());
-    _events = source.companion.events.listen((event) {
-      if (event.event != 'settings.changed' || _effective == null) return;
-      final changed = SettingsSnapshot.fromJson(asJsonObject(event.data, 'settings.changed'));
-      setState(() => _effective = _effective!.merge(changed));
-      // The file watcher, another device or the TUI may have written the files.
-      _fileReload?.cancel();
-      _fileReload = Timer(const Duration(milliseconds: 300), () => unawaited(_reloadFiles()));
-    }, onError: (Object error) => setState(() => _error = error));
+    _events = source.companion.events.listen(
+      (event) {
+        if (!mounted || event.event != 'settings.changed' || _effective == null) return;
+        final changed = SettingsSnapshot.fromJson(asJsonObject(event.data, 'settings.changed'));
+        setState(() => _effective = _effective!.merge(changed));
+        // The file watcher, another device or the TUI may have written the files.
+        _fileReload?.cancel();
+        _fileReload = Timer(const Duration(milliseconds: 300), () => unawaited(_reloadFiles()));
+      },
+      onError: (Object error) {
+        if (mounted) setState(() => _error = error);
+      },
+    );
     var wasLive = source.linkState is LinkLive;
     _links = source.linkStates.listen((state) {
       final live = state is LinkLive;
@@ -133,7 +140,7 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
     try {
-      final path = _projectPath = await target.projectConfigPath(session.cwd);
+      final path = _projectPath = target.projectConfigPath(session.cwd);
       final text = await target.readText(path);
       _project = text == null ? const ConfigLayer({}) : ConfigLayer.parse(text);
       _projectError = null;
@@ -179,9 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             }
           case SettingsScope.project:
-            final path = _projectPath ?? (throw StateError('no project file'));
-            final text = await widget.target.readText(path) ?? '';
-            await widget.target.writeText(path, setConfigValue(text, setting.segments, value));
+            await _editProject((text) => setConfigValue(text ?? '', setting.segments, value));
         }
       });
 
@@ -192,11 +197,26 @@ class _SettingsPageState extends State<SettingsPage> {
             final control = await widget.target.control();
             _applyResult(control, await control.companion.call('settings.unset', {'path': setting.path, 'scope': 'global'}));
           case SettingsScope.project:
-            final path = _projectPath ?? (throw StateError('no project file'));
-            final text = await widget.target.readText(path);
-            if (text != null) await widget.target.writeText(path, removeConfigValue(text, setting.segments));
+            await _editProject((text) => text == null ? null : removeConfigValue(text, setting.segments));
         }
       });
+
+  /// Applies [edit] to the project file's text (null when the file is absent); a null result writes nothing.
+  /// Each edit reads, changes and writes the whole file, so edits run one at a time: a second one reads the
+  /// first one's result, not the text both started from.
+  Future<void> _editProject(String? Function(String? text) edit) async {
+    final path = _projectPath ?? (throw StateError('no project file'));
+    final previous = _projectEdits;
+    final done = Completer<void>();
+    _projectEdits = done.future;
+    try {
+      await previous;
+      final updated = edit(await widget.target.readText(path));
+      if (updated != null) await widget.target.writeText(path, updated);
+    } finally {
+      done.complete();
+    }
+  }
 
   Future<void> _mutate(SettingSchema setting, Future<void> Function() change) async {
     setState(() => _busy.add(setting.path));

@@ -46,7 +46,7 @@ class OmpApp extends StatelessWidget {
             companionBytes: bundledCompanion,
           ),
         ),
-        ChangeNotifierProvider(create: (_) => DockController()),
+        ChangeNotifierProvider(create: (_) => DockController(machines)),
       ],
       child: TranslationProvider(
         child: Builder(

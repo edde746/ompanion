@@ -210,10 +210,11 @@ final class TerminalSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Only a running shell gets input and sizes: once it exited, its PTY throws on both.
   void _onInput(String data) {
     final bytes = encodeTerminalInput(data);
     final backend = _backend;
-    if (backend != null) {
+    if (backend != null && _phase is TerminalRunning) {
       backend.write(bytes);
     } else if (_phase is TerminalStarting) {
       _pendingInput.add(bytes);
@@ -222,7 +223,7 @@ final class TerminalSession extends ChangeNotifier {
 
   void _onResize(int columns, int rows, int pixelWidth, int pixelHeight) {
     final backend = _backend;
-    if (backend != null) {
+    if (backend != null && _phase is TerminalRunning) {
       backend.resize(columns, rows, pixelWidth, pixelHeight);
     } else if (!_started) {
       // The view laid out the grid: start at its real size.

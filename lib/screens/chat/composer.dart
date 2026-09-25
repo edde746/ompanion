@@ -180,13 +180,21 @@ class _ComposerState extends State<Composer> {
         );
         _draft.clear();
       case SendPrompt(text: final message, :final behavior):
+        // The draft this text came from; the composer may show another session by the time omp answers.
+        final draft = _draft;
         setState(() => _sending = true);
-        _draft.clear();
+        draft.clear();
         try {
-          await session.rpc.prompt(message, images: images, streamingBehavior: behavior);
+          await _prompt(
+            session.rpc,
+            message,
+            images: images,
+            behavior: behavior,
+            onRefused: () => draft.giveBack(text, images: images),
+          );
         } on Object catch (error) {
           // Nothing was queued: give the text back.
-          if (_draft.text.text.isEmpty) _draft.replace(text, images: images);
+          draft.giveBack(text, images: images);
           messenger.showSnackBar(SnackBar(content: Text(t.composer.sendFailed(error: '$error'))));
         } finally {
           if (mounted) setState(() => _sending = false);
@@ -197,6 +205,7 @@ class _ComposerState extends State<Composer> {
   Future<void> _attachImages() async {
     final t = context.t;
     final messenger = ScaffoldMessenger.of(context);
+    final draft = _draft;
     final files = await FilePicker.pickFiles(type: FileType.image);
     final images = <RpcImage>[];
     for (final file in files) {
@@ -207,8 +216,51 @@ class _ComposerState extends State<Composer> {
       }
       images.add(RpcImage(data: base64Encode(await file.readAsBytes()), mimeType: mimeType));
     }
-    if (images.isNotEmpty) _draft.addImages(images);
-    _focus.requestFocus();
+    if (images.isNotEmpty) draft.addImages(images);
+    if (mounted) _focus.requestFocus();
+  }
+
+  /// Sends [message] as a prompt; throws when omp rejects it. omp acknowledges a prompt before it starts it, so one it
+  /// then cannot start (no model or API key, another prompt still starting) fails only in its `prompt_result`, and
+  /// [onRefused] runs. A run that started and then failed is in the transcript already.
+  static Future<void> _prompt(
+    RpcClient rpc,
+    String message, {
+    required List<RpcImage> images,
+    required StreamingBehavior? behavior,
+    required VoidCallback onRefused,
+  }) async {
+    String? id;
+    // The result can arrive before the acknowledgement is read, so listening starts before the prompt goes out.
+    final early = <PromptResultFrame>[];
+    late final StreamSubscription<RpcFrame> results;
+    void settle(PromptResultFrame result) {
+      unawaited(results.cancel());
+      if (result.status == PromptStatus.error && !result.agentInvoked) onRefused();
+    }
+
+    results = rpc.frames.listen((frame) {
+      if (frame is! PromptResultFrame) return;
+      if (id == null) {
+        early.add(frame);
+      } else if (frame.id == id) {
+        settle(frame);
+      }
+    });
+    final RpcPromptAck ack;
+    try {
+      ack = await rpc.prompt(message, images: images, streamingBehavior: behavior);
+    } on Object {
+      unawaited(results.cancel());
+      rethrow;
+    }
+    // A command that finished locally gets no result.
+    if (ack.agentInvoked == false) {
+      unawaited(results.cancel());
+      return;
+    }
+    id = ack.id;
+    if (early.where((frame) => frame.id == ack.id).firstOrNull case final result?) settle(result);
   }
 
   @override

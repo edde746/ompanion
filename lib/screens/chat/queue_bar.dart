@@ -30,7 +30,7 @@ class QueueBar extends StatelessWidget {
               if (image case {'data': final String data, 'mimeType': final String mimeType})
                 RpcImage(data: data, mimeType: mimeType),
         ];
-        sessions.setDraft(session, text, images: images);
+        sessions.draftOf(session).restoreQueued(text, images: images);
       }
     } on Object catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(t.queue.popFailed(error: '$error'))));

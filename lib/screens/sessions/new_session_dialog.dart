@@ -64,6 +64,8 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
     try {
       final probe = switch (runtime.status) {
         MachineOnline(:final probe) => probe,
+        // omp may have been installed by hand since the probe.
+        MachineNeedsOmp() => await runtime.reprobe(),
         _ => await runtime.connectAndProbe(),
       };
       if (!mounted) return;
@@ -260,7 +262,13 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
 
   Future<void> _open() async {
     try {
-      final files = _files = await widget.runtime.link.files();
+      final files = await widget.runtime.link.files();
+      // The picker closed while the channel opened.
+      if (!mounted) {
+        unawaited(files.close());
+        return;
+      }
+      _files = files;
       final start = widget.start;
       if (start != null) {
         final stat = await files.stat(toSftpPath(start));

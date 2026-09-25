@@ -94,4 +94,12 @@ index 1111111..2222222 100644
     expect(removed.map((range) => before.substring(range.$1, range.$2)), ['b']);
     expect(added.map((range) => after.substring(range.$1, range.$2)), ['c']);
   });
+
+  test('wordChanges marks a changed emoji whole, even when it shares a UTF-16 unit with the old one', () {
+    const before = '| CI | 🔴 |';
+    const after = '| CI | 🟢 |';
+    final (removed, added) = wordChanges(before, after);
+    expect(removed.map((range) => before.substring(range.$1, range.$2)), ['🔴']);
+    expect(added.map((range) => after.substring(range.$1, range.$2)), ['🟢']);
+  });
 }

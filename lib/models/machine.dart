@@ -1,3 +1,4 @@
+import 'package:omp_core/session.dart' show PermanentConnectFailure;
 import 'package:omp_core/ssh.dart';
 
 import '../database/app_database.dart';
@@ -166,8 +167,9 @@ final class ConnectionSecrets {
 
 enum CredentialProblem { noKeySelected, keyMissing, passwordMissing }
 
-/// A hop cannot be dialed because a credential it needs is absent.
-final class MissingCredential implements Exception {
+/// A hop cannot be dialed because a credential it needs is absent. Retrying cannot help, so a session stops
+/// reconnecting on it.
+final class MissingCredential implements PermanentConnectFailure {
   const MissingCredential(this.endpoint, this.problem);
 
   final SshEndpoint endpoint;

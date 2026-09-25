@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omp_app/terminal/shell_launch.dart';
+import 'package:omp_app/terminal/terminal_deck.dart';
 import 'package:omp_app/terminal/terminal_session.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/transport.dart';
@@ -156,6 +157,47 @@ void main() {
       expect(shell.arguments, ['-NoLogo']);
     });
   });
+
+  group('tabs', () {
+    testWidgets('closing a tab to the left of the selected one keeps that one selected', (tester) async {
+      TerminalSession tab(String title) =>
+          TerminalSession(title: title, open: (columns, rows) => Completer<TerminalBackend>().future);
+      final (a, b, c) = (tab('a'), tab('b'), tab('c'));
+      final deck = TerminalDeck()
+        ..add(a)
+        ..add(b)
+        ..add(c)
+        ..select(1);
+      deck.close(a);
+      expect(deck.current, same(b));
+      deck.close(c);
+      expect(deck.current, same(b));
+      deck.dispose();
+    });
+  });
+
+  group('exited shell', () {
+    testWidgets('resizing and pasting no longer reach it, and the grid still follows the view', (tester) async {
+      final backend = _Backend();
+      final session = TerminalSession(title: 'sh', open: (columns, rows) async => backend);
+      session.terminal.resize(90, 30);
+      await tester.pump();
+      expect(session.phase, isA<TerminalRunning>());
+      session.terminal.resize(95, 30);
+      expect(backend.sizes, [(95, 30)]);
+
+      backend.exit(0);
+      await tester.pump();
+      expect(session.phase, isA<TerminalExited>());
+      session.terminal.resize(100, 40);
+      session.terminal.paste('ls');
+      expect((session.terminal.viewWidth, session.terminal.viewHeight), (100, 40));
+      expect(backend.written, isEmpty);
+
+      session.dispose();
+      expect(backend.closed, isTrue);
+    });
+  });
 }
 
 /// A link whose one PTY process is driven by the test.
@@ -222,4 +264,39 @@ final class _PtyProcess implements HostProcess {
 
   @override
   Future<void> close() async {}
+}
+
+/// A shell that exits when told. Afterwards writes and resizes throw, as they do on a PTY whose shell exited.
+final class _Backend implements TerminalBackend {
+  final _output = StreamController<Uint8List>();
+  final _exit = Completer<int?>();
+  final written = <String>[];
+  final sizes = <(int, int)>[];
+  var closed = false;
+
+  void exit(int code) {
+    _exit.complete(code);
+    unawaited(_output.close());
+  }
+
+  @override
+  Stream<Uint8List> get output => _output.stream;
+
+  @override
+  void write(Uint8List bytes) {
+    if (_exit.isCompleted) throw StateError('PTY closed');
+    written.add(utf8.decode(bytes));
+  }
+
+  @override
+  void resize(int columns, int rows, int pixelWidth, int pixelHeight) {
+    if (_exit.isCompleted) throw StateError('PTY closed');
+    sizes.add((columns, rows));
+  }
+
+  @override
+  Future<int?> get exitCode => _exit.future;
+
+  @override
+  Future<void> close() async => closed = true;
 }

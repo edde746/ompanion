@@ -10,6 +10,7 @@ enum TreeEntryKind {
   bash,
   python,
   custom,
+  advisor,
   compaction,
   branchSummary,
   modelChange,
@@ -31,6 +32,7 @@ final class TreeEntry {
     this.label,
     this.timestamp,
     this.tokensBefore,
+    this.advisorTags = '',
     this.userRequest = false,
     this.bookkeeping = false,
     this.bareToolCalls = false,
@@ -53,6 +55,10 @@ final class TreeEntry {
 
   /// Context size before a compaction.
   final int? tokensBefore;
+
+  /// Advisor names (other than `default`) and severities of an [TreeEntryKind.advisor] entry, comma-separated, as
+  /// omp's `advisorTreeDisplay` lists them; [text] holds the notes.
+  final String advisorTags;
 
   /// A prompt the user typed (or a user-invoked skill): what `/branch` and the rewind start from.
   final bool userRequest;
@@ -264,7 +270,7 @@ final class SessionTree {
       TreeFilter.all => true,
     };
     if (!passes || tokens.isEmpty) return passes;
-    final haystack = '${entry.label ?? ''} ${entry.text}'.toLowerCase();
+    final haystack = '${entry.label ?? ''} ${entry.advisorTags} ${entry.text}'.toLowerCase();
     return tokens.every(haystack.contains);
   }
 }
@@ -314,17 +320,19 @@ TreeEntry _decodeNode(Map<String, Object?> node, Map<String, _ToolCall> toolCall
   final timestamp = entry['timestamp'] is String ? DateTime.tryParse(entry['timestamp']! as String) : null;
   final bookkeeping = _bookkeepingTypes.contains(type);
 
-  TreeEntry make(TreeEntryKind kind, String text, {bool userRequest = false, int? tokensBefore}) => TreeEntry(
-    id: id,
-    type: type,
-    kind: kind,
-    text: _oneLine(text),
-    label: label,
-    timestamp: timestamp,
-    tokensBefore: tokensBefore,
-    userRequest: userRequest,
-    bookkeeping: bookkeeping,
-  );
+  TreeEntry make(TreeEntryKind kind, String text, {bool userRequest = false, int? tokensBefore, String advisorTags = ''}) =>
+      TreeEntry(
+        id: id,
+        type: type,
+        kind: kind,
+        text: _oneLine(text),
+        label: label,
+        timestamp: timestamp,
+        tokensBefore: tokensBefore,
+        advisorTags: advisorTags,
+        userRequest: userRequest,
+        bookkeeping: bookkeeping,
+      );
 
   switch (type) {
     case 'message':
@@ -334,7 +342,10 @@ TreeEntry _decodeNode(Map<String, Object?> node, Map<String, _ToolCall> toolCall
     case 'custom_message':
       final customType = entry['customType'] is String ? entry['customType']! as String : '';
       final text = _joinText(entry['content']);
-      if (customType == 'advisor') return make(TreeEntryKind.custom, _advisorText(entry['details']));
+      if (customType == 'advisor') {
+        final (:tags, :notes) = _advisorNotes(entry['details']);
+        return make(TreeEntryKind.advisor, notes, advisorTags: tags);
+      }
       return make(TreeEntryKind.custom, '[$customType]: ${_stripSystemTags(text)}', userRequest: entry['attribution'] == 'user');
     case 'compaction':
       final summary = entry['shortSummary'] ?? entry['summary'];
@@ -430,8 +441,8 @@ TreeEntry _decodeMessage(
   }
 }
 
-/// The advisor's notes (`advisorTreeDisplay`): `advisor (<advisors, severities>): <notes>`.
-String _advisorText(Object? details) {
+/// The advisor's notes and their tags (`advisorTreeDisplay`, which shows `advisor (<tags>): <notes>`).
+({String tags, String notes}) _advisorNotes(Object? details) {
   final notes = <String>[];
   final advisors = <String>[];
   final severities = <String>[];
@@ -446,8 +457,7 @@ String _advisorText(Object? details) {
       }
     }
   }
-  final qualifier = [...advisors, ...severities].join(', ');
-  return '${qualifier.isEmpty ? 'advisor' : 'advisor ($qualifier)'}: ${notes.join(' ')}';
+  return (tags: [...advisors, ...severities].join(', '), notes: notes.join(' '));
 }
 
 /// A tool call as the `/tree` selector abbreviates it (`#formatToolCall`), without the brackets.

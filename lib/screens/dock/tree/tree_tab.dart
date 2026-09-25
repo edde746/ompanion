@@ -100,6 +100,8 @@ class _TreeTabState extends State<TreeTab> {
   }
 
   Future<void> _reload() async {
+    // Called again after awaited companion calls, which can outlive this tab.
+    if (!mounted) return;
     if (_loading) {
       _reloadAgain = true;
       return;
@@ -249,7 +251,7 @@ class _TreeTabState extends State<TreeTab> {
       position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
       items: [
         for (final action in _actionsFor(row.entry))
-          PopupMenuItem(value: action, child: Text(_actionLabel(t, action))),
+          PopupMenuItem(value: action, enabled: _canRun(action), child: Text(_actionLabel(t, action))),
       ],
     );
     if (action != null && mounted) await _run(action, row.entry);
@@ -262,6 +264,15 @@ class _TreeTabState extends State<TreeTab> {
     if (entry.text.isNotEmpty) _TreeAction.copy,
   ];
 
+  /// Navigate (with or without summary) and labels are companion verbs: without the companion a `/ompx` call would
+  /// reach the model as a prompt. Only one tree operation runs at a time.
+  bool _canRun(_TreeAction action) => switch (action) {
+    _TreeAction.copy => true,
+    _TreeAction.branch => !_busy,
+    _TreeAction.navigate || _TreeAction.summarize || _TreeAction.label =>
+      !_busy && widget.session.companionHello != null,
+  };
+
   String _actionLabel(Translations$dock$sessionTree$en t, _TreeAction action) => switch (action) {
     _TreeAction.navigate => t.navigate,
     _TreeAction.summarize => t.navigateWithSummary,
@@ -271,6 +282,8 @@ class _TreeTabState extends State<TreeTab> {
   };
 
   Future<void> _run(_TreeAction action, TreeEntry entry) async {
+    // Every action starts here, whichever button or menu offered it.
+    if (!_canRun(action)) return;
     switch (action) {
       case _TreeAction.navigate:
         await _navigate(entry);
@@ -347,6 +360,17 @@ class _TreeTabState extends State<TreeTab> {
           ),
         ),
         if (_loading) const LinearProgressIndicator(minHeight: 2) else const SizedBox(height: 2),
+        if (widget.session.companionHello == null)
+          Material(
+            color: theme.colorScheme.secondaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Text(
+                t.noCompanion,
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+              ),
+            ),
+          ),
         if (_summarizing)
           MaterialBanner(
             content: Text(t.summarizing),
@@ -387,8 +411,8 @@ class _TreeTabState extends State<TreeTab> {
           const Divider(height: 1),
           _SelectionBar(
             entry: selected,
-            busy: _busy,
             actions: _actionsFor(selected),
+            enabled: _canRun,
             label: (action) => _actionLabel(t, action),
             onAction: (action) => _run(action, selected),
           ),
@@ -507,6 +531,8 @@ String _rowText(BuildContext context, TreeEntry entry) {
     TreeEntryKind.modelChange => t.model(model: entry.text),
     TreeEntryKind.thinkingChange => t.thinking(level: entry.text),
     TreeEntryKind.label => entry.text.isEmpty ? t.labelCleared : t.labelSet(label: entry.text),
+    TreeEntryKind.advisor when entry.advisorTags.isEmpty => t.advisor(notes: entry.text),
+    TreeEntryKind.advisor => t.advisorTagged(tags: entry.advisorTags, notes: entry.text),
     TreeEntryKind.other when entry.text.isEmpty => '[${entry.type.replaceAll('_', ' ')}]',
     TreeEntryKind.other => '[${entry.type.replaceAll('_', ' ')}] ${entry.text}',
     _ => entry.text,
@@ -520,6 +546,7 @@ String _rowText(BuildContext context, TreeEntry entry) {
   TreeEntryKind.bash => (Icons.terminal, scheme.outline),
   TreeEntryKind.python => (Icons.code, scheme.outline),
   TreeEntryKind.custom => (Icons.extension_outlined, scheme.secondary),
+  TreeEntryKind.advisor => (Icons.rate_review_outlined, scheme.secondary),
   TreeEntryKind.compaction => (Icons.compress, scheme.secondary),
   TreeEntryKind.branchSummary => (Icons.call_split, scheme.secondary),
   TreeEntryKind.modelChange => (Icons.swap_horiz, scheme.outline),
@@ -531,15 +558,15 @@ String _rowText(BuildContext context, TreeEntry entry) {
 class _SelectionBar extends StatelessWidget {
   const _SelectionBar({
     required this.entry,
-    required this.busy,
     required this.actions,
+    required this.enabled,
     required this.label,
     required this.onAction,
   });
 
   final TreeEntry entry;
-  final bool busy;
   final List<_TreeAction> actions;
+  final bool Function(_TreeAction action) enabled;
   final String Function(_TreeAction action) label;
   final void Function(_TreeAction action) onAction;
 
@@ -570,7 +597,7 @@ class _SelectionBar extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                     ),
-                    onPressed: busy ? null : () => onAction(action),
+                    onPressed: enabled(action) ? () => onAction(action) : null,
                     child: Text(label(action)),
                   ),
             ],

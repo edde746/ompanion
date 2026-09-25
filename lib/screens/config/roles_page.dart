@@ -57,9 +57,11 @@ class _RolesPageState extends State<RolesPage> {
     });
     try {
       final source = await _source();
+      if (!mounted) return;
       unawaited(_events?.cancel());
       _events = source.companion.events.listen((event) {
-        if (event.event == 'roles.changed') setState(() => _roles = RolesState.fromJson(asJsonObject(event.data, 'roles.changed')));
+        if (!mounted || event.event != 'roles.changed') return;
+        setState(() => _roles = RolesState.fromJson(asJsonObject(event.data, 'roles.changed')));
       });
       final roles = RolesState.fromJson(asJsonObject(await source.companion.call('roles.get'), 'roles.get'));
       if (mounted) setState(() => _roles = roles);

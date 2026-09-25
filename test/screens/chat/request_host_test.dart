@@ -96,24 +96,25 @@ late AppDatabase _db;
 late MachinesProvider _machines;
 late SessionsProvider _sessions;
 
+Widget _host(_Session session) => ChangeNotifierProvider.value(
+  value: _sessions,
+  child: TranslationProvider(
+    child: MaterialApp(
+      home: Scaffold(body: RequestHost(session: session, child: const SizedBox.expand())),
+    ),
+  ),
+);
+
 Future<void> _pump(WidgetTester tester, _Session session) async {
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox());
+    _sessions.dispose();
     await tester.runAsync(() async {
       _machines.dispose();
       await _db.close();
     });
   });
-  await tester.pumpWidget(
-    ChangeNotifierProvider.value(
-      value: _sessions,
-      child: TranslationProvider(
-        child: MaterialApp(
-          home: Scaffold(body: RequestHost(session: session, child: const SizedBox.expand())),
-        ),
-      ),
-    ),
-  );
+  await tester.pumpWidget(_host(session));
   await tester.pumpAndSettle();
 }
 
@@ -209,6 +210,46 @@ void main() {
     expect(session.channel.sent, isEmpty);
   });
 
+  testWidgets('a hidden input comes back with what was typed into it', (tester) async {
+    final session = _Session(SessionView(requests: const [InputRequest('i1', title: 'Name')]));
+    await _pump(tester, session);
+    await tester.enterText(find.byType(TextField), 'half an answer');
+    // A tap beside the dialog hides it.
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    await tester.tap(find.text('Answer'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'half an answer'), findsOneWidget);
+  });
+
+  // omp resolves a timed-out dialog by itself and says nothing; the sidebar shows a waiting session until it leaves.
+  testWidgets('timed dialogs expire at their deadline, also while their chat is not shown', (tester) async {
+    final session = _Session(
+      SessionView(
+        requests: const [
+          InputRequest('i1', title: 'Name', timeout: 10000),
+          ConfirmRequest('c1', title: 'Proceed?', message: 'Sure?', timeout: 30000),
+        ],
+      ),
+    );
+    await _pump(tester, session);
+    expect(find.text('Name'), findsOneWidget);
+
+    // Another session's chat is shown.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 11));
+    expect([for (final request in session.view.requests) request.id], ['c1']);
+
+    await tester.pumpWidget(_host(session));
+    await tester.pumpAndSettle();
+    expect(find.text('Sure?'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 19));
+    await tester.pumpAndSettle();
+    expect(session.view.requests, isEmpty);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
   group('companion ask', () {
     const params = <String, Object?>{
       'questions': [
@@ -275,6 +316,38 @@ void main() {
         ],
       });
       expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('a hidden form comes back with its choices and text', (tester) async {
+      tester.view.physicalSize = const Size(2400, 3600);
+      addTearDown(tester.view.resetPhysicalSize);
+      final session = _Session(SessionView(requests: const [CompanionRequest('q1', method: 'ask', params: params)]));
+      await _pump(tester, session);
+      await tester.tap(find.text('Red'));
+      await tester.tap(find.text('Commit'));
+      await tester.pump();
+      await tester.enterText(find.widgetWithText(TextField, 'Note (optional)').first, 'dark blue');
+      await tester.pump();
+      await tester.tap(find.text('Later'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Answer'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Submit'));
+      await tester.pumpAndSettle();
+      expect(answerOf(session.channel.sent.single), {
+        'kind': 'submit',
+        'results': [
+          {
+            'id': 'color',
+            'selectedOptions': ['Red'],
+            'note': 'dark blue',
+          },
+          {
+            'id': 'extras',
+            'selectedOptions': ['Commit'],
+          },
+        ],
+      });
     });
 
     testWidgets('"Chat about this" and Cancel', (tester) async {

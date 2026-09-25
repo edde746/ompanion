@@ -82,7 +82,11 @@
       "advisorReadOnly": "Advisors are read-only.",
       "noTranscript": "No transcript yet.",
       "transcriptFailed": "Transcript unavailable: $error",
-      "failed": "Failed: $error"
+      "failed": "Failed: $error",
+      "noCompanion": "The companion is not loaded in this session, so messaging, killing and reviving agents are unavailable.",
+      "durationHours": "${hours}h ${minutes}m",
+      "durationMinutes": "${minutes}m ${seconds}s",
+      "durationSeconds": "${seconds}s"
     },
     "sessionTree": {
       "search": "Search entries",
@@ -117,13 +121,16 @@
       "thinking": "Thinking: $level",
       "labelSet": "Label: $label",
       "labelCleared": "Label cleared",
+      "advisor": "advisor: $notes",
+      "advisorTagged": "advisor ($tags): $notes",
       "summaryTitle": "Summarize the branch you leave",
       "summaryBody": "omp writes a summary of the abandoned branch at the new position. This makes a model call.",
       "summaryInstructions": "Custom instructions (optional)",
       "summarize": "Summarize and go",
       "labelTitle": "Label entry",
       "labelField": "Label",
-      "clearLabel": "Clear label"
+      "clearLabel": "Clear label",
+      "noCompanion": "The companion is not loaded in this session, so going to an entry and labels are unavailable."
     },
     "fileBrowser": {
       "up": "Parent folder",
@@ -471,6 +478,7 @@
     "copyPath": "Copy session file path",
     "detach": "Close on this device",
     "stopSession": "Stop the omp process",
+    "stopSessionFailed": "Could not stop the omp process: $error",
     "reconnecting": "Connection lost. Reconnecting (attempt $attempt) in $seconds s.",
     "retryNow": "Retry now",
     "closed": "This session is closed.",
@@ -705,6 +713,9 @@
       "unset": "unset",
       "presets": "Suggested values",
       "notANumber": "Not a number",
+      "notJson": "Not JSON: $error",
+      "expectedObject": "Expected a JSON object",
+      "expectedArray": "Expected a JSON array",
       "secretSet": "Configured",
       "secretUnset": "Not set",
       "secretEdit": "Set…",
@@ -794,6 +805,8 @@
       "removeTitle": "Remove $name?",
       "removeBody": "The server is removed from the $scope mcp.json.",
       "name": "Name",
+      "nameTooLong": "At most 100 characters",
+      "nameInvalid": "Only letters, digits, - _ . : and single spaces",
       "command": "Command",
       "url": "URL",
       "token": "Bearer token (optional)",

@@ -49,18 +49,17 @@ final class ConfigTarget {
     return [trimmed, ...parts].join(separator);
   }
 
-  /// The profile's settings file: `config.yml`, or `config.yaml` when only that exists.
-  Future<String> globalConfigPath() => _configFile(probe.agentDir);
-
-  /// `<cwd>/.omp/config.yml`, or `.omp/config.yaml` when only that exists.
-  Future<String> projectConfigPath(String cwd) => _configFile(join(cwd, const ['.omp']));
-
-  Future<String> _configFile(String dir) async {
-    final yml = join(dir, const ['config.yml']);
-    final yaml = join(dir, const ['config.yaml']);
+  /// The profile's settings file: `config.yml`, or `config.yaml` when only that exists, the order of omp's
+  /// `MAIN_CONFIG_FILENAMES`.
+  Future<String> globalConfigPath() async {
+    final yml = join(probe.agentDir, const ['config.yml']);
+    final yaml = join(probe.agentDir, const ['config.yaml']);
     if (!await _exists(yml) && await _exists(yaml)) return yaml;
     return yml;
   }
+
+  /// `<cwd>/.omp/config.yml`: omp reads no other name for a project, not even `config.yaml`.
+  String projectConfigPath(String cwd) => join(cwd, const ['.omp', 'config.yml']);
 
   Future<bool> _exists(String hostPath) async {
     final files = await runtime.link.files();

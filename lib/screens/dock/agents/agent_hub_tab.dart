@@ -250,7 +250,7 @@ String _usageLine(BuildContext context, RosterAgent agent) {
     if (agent.tokens case final tokens? when tokens > 0) t.tokens(count: _compact(tokens)),
     if (agent.tools case final tools? when tools > 0) t.tools(n: tools),
     if (agent.cost case final cost? when cost > 0) '\$${cost.toStringAsFixed(cost < 0.01 ? 4 : 2)}',
-    if (agent.duration case final duration? when duration > Duration.zero) _duration(duration),
+    if (agent.duration case final duration? when duration > Duration.zero) _duration(context, duration),
   ].join(' · ');
 }
 
@@ -260,10 +260,11 @@ String _compact(int value) {
   return '${(value / 1000000).toStringAsFixed(1)}M';
 }
 
-String _duration(Duration duration) {
-  if (duration.inHours > 0) return '${duration.inHours}h ${duration.inMinutes % 60}m';
-  if (duration.inMinutes > 0) return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
-  return '${duration.inSeconds}s';
+String _duration(BuildContext context, Duration duration) {
+  final t = context.t.dock.hub;
+  if (duration.inHours > 0) return t.durationHours(hours: duration.inHours, minutes: duration.inMinutes % 60);
+  if (duration.inMinutes > 0) return t.durationMinutes(minutes: duration.inMinutes, seconds: duration.inSeconds % 60);
+  return t.durationSeconds(seconds: duration.inSeconds);
 }
 
 class _Tag extends StatelessWidget {
@@ -359,11 +360,15 @@ class _AgentDetailState extends State<_AgentDetail> {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _call(String verb, Map<String, Object?> args, {String? done}) async {
+  /// Whether the call succeeded; a failure is shown.
+  Future<bool> _call(String verb, Map<String, Object?> args, {String? done}) async {
+    // Without the companion a `/ompx` call would reach the model as a prompt; the UI offers none then.
+    if (widget.session.companionHello == null) return false;
     setState(() => _busy = true);
     try {
       await widget.session.companion.call(verb, args);
       if (done != null && mounted) _snack(done);
+      return true;
     } on CompanionException catch (error) {
       if (mounted) _snack(context.t.dock.hub.failed(error: error.message));
     } on RpcException catch (error) {
@@ -371,14 +376,14 @@ class _AgentDetailState extends State<_AgentDetail> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+    return false;
   }
 
   Future<void> _sendSteer() async {
     final text = _steer.text.trim();
     if (text.isEmpty) return;
     final t = context.t.dock.hub;
-    await _call('subagent.steer', {'id': widget.agent.id, 'text': text}, done: t.steered);
-    if (mounted) _steer.clear();
+    if (await _call('subagent.steer', {'id': widget.agent.id, 'text': text}, done: t.steered) && mounted) _steer.clear();
   }
 
   Future<void> _kill() async {
@@ -408,6 +413,7 @@ class _AgentDetailState extends State<_AgentDetail> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final agent = widget.agent;
+    final withCompanion = widget.session.companionHello != null;
     final dock = context.read<DockController>();
     final details = [
       ?agent.agentType,
@@ -434,8 +440,8 @@ class _AgentDetailState extends State<_AgentDetail> {
                 tooltip: t.actions,
                 enabled: !_busy,
                 itemBuilder: (context) => [
-                  if (agent.canRevive) PopupMenuItem(value: 'revive', child: Text(t.revive)),
-                  if (agent.canKill) PopupMenuItem(value: 'kill', child: Text(t.kill)),
+                  if (withCompanion && agent.canRevive) PopupMenuItem(value: 'revive', child: Text(t.revive)),
+                  if (withCompanion && agent.canKill) PopupMenuItem(value: 'kill', child: Text(t.kill)),
                   PopupMenuItem(value: 'copyId', child: Text(t.copyId)),
                 ],
                 onSelected: (action) async {
@@ -533,6 +539,11 @@ class _AgentDetailState extends State<_AgentDetail> {
               t.advisorReadOnly,
               style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
+          )
+        else if (agent.canSteer && !withCompanion)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(t.noCompanion, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
           )
         else if (agent.canSteer) ...[
           const Divider(height: 1),

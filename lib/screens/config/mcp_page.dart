@@ -268,10 +268,17 @@ class _AddServerDialogState extends State<_AddServerDialog> {
   }
 
   void _save() {
+    final t = context.t;
     final name = _name.text.trim();
     final problem = mcpNameProblem(name);
     if (problem != null) {
-      setState(() => _nameError = problem);
+      setState(
+        () => _nameError = switch (problem) {
+          McpNameProblem.empty => t.common.required,
+          McpNameProblem.tooLong => t.config.mcp.nameTooLong,
+          McpNameProblem.invalidCharacters => t.config.mcp.nameInvalid,
+        },
+      );
       return;
     }
     if (_target.text.trim().isEmpty) return;

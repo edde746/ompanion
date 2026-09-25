@@ -85,26 +85,42 @@ SettingEditor editorFor(SettingSchema setting, Object? current) {
 bool _allStrings(Object? value) => value == null || (value is List && value.every((item) => item is String));
 
 /// Parses what the user typed for a number setting. Integers stay integers, so `config.yml` keeps `30000`
-/// rather than `30000.0`.
+/// rather than `30000.0`. NaN and the infinities are refused: JSON has no such numbers and yaml_edit cannot
+/// write them.
 num? parseNumber(String text) {
   final trimmed = text.trim();
-  return int.tryParse(trimmed) ?? double.tryParse(trimmed);
+  final number = int.tryParse(trimmed) ?? double.tryParse(trimmed);
+  return number != null && number.isFinite ? number : null;
+}
+
+enum JsonValueProblem { notJson, notObject, notArray }
+
+/// Why [parseJsonValue] refused the text; [detail] is the JSON parser's message for
+/// [JsonValueProblem.notJson].
+final class JsonValueException implements Exception {
+  const JsonValueException(this.problem, [this.detail]);
+
+  final JsonValueProblem problem;
+  final String? detail;
+
+  @override
+  String toString() => 'JsonValueException(${problem.name}${detail == null ? '' : ': $detail'})';
 }
 
 /// Parses JSON the user typed for [type] (record: an object; array: a list; others: any JSON). Throws a
-/// [FormatException] naming what is wrong.
+/// [JsonValueException] naming what is wrong.
 Object? parseJsonValue(String text, SettingType type) {
   final Object? value;
   try {
     value = jsonDecode(text);
   } on FormatException catch (error) {
-    throw FormatException('not JSON: ${error.message}');
+    throw JsonValueException(JsonValueProblem.notJson, error.message);
   }
   switch (type) {
     case SettingType.record when value is! Map<String, Object?> && value != null:
-      throw const FormatException('expected a JSON object');
+      throw const JsonValueException(JsonValueProblem.notObject);
     case SettingType.array when value is! List<Object?> && value != null:
-      throw const FormatException('expected a JSON array');
+      throw const JsonValueException(JsonValueProblem.notArray);
     default:
       return value;
   }

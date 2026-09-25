@@ -22,6 +22,7 @@ class KeysProvider extends ChangeNotifier {
   KeysProvider(this._db, this._secrets) {
     _subscription = (_db.select(_db.sshKeys)..orderBy([(k) => OrderingTerm.asc(k.createdAt)])).watch().listen((keys) {
       _keys = keys;
+      if (!_loaded.isCompleted) _loaded.complete();
       notifyListeners();
     });
   }
@@ -29,9 +30,14 @@ class KeysProvider extends ChangeNotifier {
   final AppDatabase _db;
   final SecretStore _secrets;
   late final StreamSubscription<List<SshKeyRow>> _subscription;
+  final _loaded = Completer<void>();
   List<SshKeyRow> _keys = const [];
 
+  /// Empty until the first read of the database is in; see [ready].
   List<SshKeyRow> get keys => _keys;
+
+  /// Completes once [keys] holds the stored keys.
+  Future<void> get ready => _loaded.future;
 
   SshKeyRow? byId(String? id) {
     for (final key in _keys) {

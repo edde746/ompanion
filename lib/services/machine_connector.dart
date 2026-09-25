@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:omp_core/session.dart' show PermanentConnectFailure;
 import 'package:omp_core/ssh.dart';
 import 'package:omp_core/transport.dart';
 
@@ -19,8 +20,9 @@ final class ConnectPrompts {
   final HostKeyPrompt hostKey;
 }
 
-/// The user dismissed a prompt the connection needed.
-final class ConnectCancelled implements Exception {
+/// The user dismissed a prompt the connection needed. Permanent: a session that reconnects in the background stops
+/// instead of asking again every few seconds.
+final class ConnectCancelled implements PermanentConnectFailure {
   const ConnectCancelled();
 }
 
@@ -61,6 +63,10 @@ class MachineConnector {
         return SshLink.open(target, verifyHostKey: await _knownHosts.verifier(prompts.hostKey));
     }
   }
+
+  /// Whether the probe of [machine] may take omp from PATH and the system directories. Not for this computer while it
+  /// runs with an isolated home ([devLocalHome]): the user's own omp there is off limits.
+  bool searchSystemPaths(Machine machine) => !(machine is LocalMachine && devLocalHome != null);
 }
 
 /// Runs `echo ok` on [link] and returns the round trip. Throws [HostLinkException] on any other reply.

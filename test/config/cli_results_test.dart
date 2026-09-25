@@ -176,8 +176,9 @@ void main() {
         '/mcp add docs --scope user --url https://x.dev/mcp --transport http --token t0k',
       );
       expect(mcpNameProblem('ok name_1'), isNull);
-      expect(mcpNameProblem('two  spaces'), isNotNull);
-      expect(mcpNameProblem(''), isNotNull);
+      expect(mcpNameProblem('two  spaces'), McpNameProblem.invalidCharacters);
+      expect(mcpNameProblem(''), McpNameProblem.empty);
+      expect(mcpNameProblem('x' * 101), McpNameProblem.tooLong);
     });
   });
 

@@ -15,6 +15,9 @@ sealed class PendingPrompt {
 
   bool get answered;
 
+  /// Completes once the prompt is answered or cancelled.
+  Future<void> get settled;
+
   /// Gives up on the prompt: the connection attempt fails as if the user dismissed it.
   void cancel();
 }
@@ -27,6 +30,9 @@ final class PendingPassword extends PendingPrompt {
 
   @override
   bool get answered => answer.isCompleted;
+
+  @override
+  Future<void> get settled => answer.future;
 
   @override
   void cancel() {
@@ -44,6 +50,9 @@ final class PendingKeyboardInteractive extends PendingPrompt {
   bool get answered => answer.isCompleted;
 
   @override
+  Future<void> get settled => answer.future;
+
+  @override
   void cancel() {
     if (!answer.isCompleted) answer.complete(null);
   }
@@ -58,6 +67,9 @@ final class PendingHostKey extends PendingPrompt {
 
   @override
   bool get answered => answer.isCompleted;
+
+  @override
+  Future<void> get settled => answer.future;
 
   @override
   void cancel() {

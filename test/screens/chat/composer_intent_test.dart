@@ -5,6 +5,7 @@ import 'package:omp_core/store.dart';
 
 const _commands = [
   SlashCommand(name: 'compact', source: 'builtin'),
+  SlashCommand(name: 'force', aliases: ['force:'], source: 'builtin'),
   SlashCommand(name: 'pause', source: 'extension'),
   SlashCommand(name: 'skill:review', aliases: ['review'], source: 'skill'),
 ];
@@ -61,6 +62,25 @@ void main() {
     test('a path is a prompt, not a command', () {
       expect(_intent('/usr/bin/env is missing'), isA<SendPrompt>());
       expect((_intent('/tmp/x.log') as SendPrompt).command, isNull);
+    });
+
+    // omp ends extension, custom and file command names at the first space only; `pause⏎now` would be no command
+    // and go to the model.
+    test('arguments after a new line or tab are sent after a space', () {
+      expect((_intent('/pause\nfor a minute') as SendPrompt).text, '/pause for a minute');
+      expect((_intent('/pause\tnow\nand later') as SendPrompt).text, '/pause now\nand later');
+      expect((_intent('/pause  twice') as SendPrompt).text, '/pause  twice');
+    });
+
+    test('a builtin takes its arguments after a colon too', () {
+      final intent = _intent('/force:bash list the files') as SendPrompt;
+      expect(intent.text, '/force:bash list the files');
+      expect(intent.command, 'force');
+      expect((_intent('/force:') as SendPrompt).command, 'force');
+    });
+
+    test('only builtins split at a colon', () {
+      expect(_intent('/pause:now'), isA<UnknownCommand>());
     });
 
     test('a bare slash sends nothing', () {

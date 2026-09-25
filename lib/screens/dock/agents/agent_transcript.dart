@@ -99,14 +99,28 @@ final class AgentTranscript extends ChangeNotifier {
         _readFile = true;
       }
     }
-    final files = _files ??= await openFiles!();
+    final files = _files ??= await _openFiles();
     try {
       return await readTranscriptChunk(files, toSftpPath(sessionFile!), _nextByte);
     } on Object {
-      // A dropped link leaves the file access dead; open a new one next time.
+      // The access may be dead (a dropped link): close it, and open a new one next time.
       _files = null;
+      _closeQuietly(files);
       rethrow;
     }
+  }
+
+  Future<HostFiles> _openFiles() async {
+    final files = await openFiles!();
+    if (_disposed) {
+      _closeQuietly(files);
+      throw StateError('agent transcript disposed');
+    }
+    return files;
+  }
+
+  void _closeQuietly(HostFiles files) {
+    unawaited(files.close().catchError((Object error) => appLogger.w('closing file access failed: $error')));
   }
 
   @override
@@ -114,9 +128,7 @@ final class AgentTranscript extends ChangeNotifier {
     _disposed = true;
     _timer?.cancel();
     final files = _files;
-    if (files != null) {
-      unawaited(files.close().catchError((Object error) => appLogger.w('closing file access failed: $error')));
-    }
+    if (files != null) _closeQuietly(files);
     super.dispose();
   }
 }

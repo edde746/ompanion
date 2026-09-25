@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omp_app/files/file_document.dart';
@@ -145,6 +146,40 @@ void main() {
     expect(File('$root/windows.txt').readAsStringSync(), 'one\r\ntwo\r\nthree\r\n');
   });
 
+  test('saving keeps the line break most lines use; a reload takes the one the file has now', () async {
+    File('$root/mixed.txt').writeAsStringSync('one\ntwo\r\nthree\nfour\n');
+    await workspace.follow(root);
+    await workspace.open('$root/mixed.txt');
+    final mixed = workspace.current!;
+    mixed.controller.text = 'one\ntwo\nthree\nfour\nfive\n';
+    await workspace.save(mixed);
+    expect(File('$root/mixed.txt').readAsStringSync(), 'one\ntwo\nthree\nfour\nfive\n');
+
+    File('$root/converted.txt').writeAsStringSync('one\ntwo\n');
+    await workspace.open('$root/converted.txt');
+    final converted = workspace.current!;
+    File('$root/converted.txt').writeAsStringSync('one\r\ntwo\r\n');
+    await workspace.reload(converted);
+    converted.controller.text = 'one\ntwo\nthree\n';
+    await workspace.save(converted);
+    expect(File('$root/converted.txt').readAsStringSync(), 'one\r\ntwo\r\nthree\r\n');
+  });
+
+  test('a file that reports size 0 (a device, /proc) is read only up to the editable limit', () async {
+    final files = _EndlessFiles();
+    final document = await FileDocument.load(files, '/dev/zero');
+    addTearDown(document.dispose);
+    expect(files.lengths, [maxEditableBytes + 1]);
+    expect(document.readOnlyReason, ReadOnlyReason.tooLarge);
+    expect(document.controller.text.length, maxEditableBytes);
+  });
+
+  test('opening a file twice at once, as a double click does, opens one document', () async {
+    await workspace.follow(root);
+    await Future.wait([workspace.open('$root/README.md'), workspace.open('$root/README.md')]);
+    expect(workspace.documents, hasLength(1));
+  });
+
   test('large, binary and non-UTF-8 files open read-only', () async {
     File('$root/big.log').writeAsBytesSync(List.filled(maxEditableBytes + 10, 0x61));
     File('$root/image.png').writeAsBytesSync([0x89, 0x50, 0x4e, 0x47, 0, 0, 0]);
@@ -183,6 +218,37 @@ void main() {
     expect(Directory('$root/source').existsSync(), isFalse);
     expect(workspace.documents.map((document) => document.path), ['$root/notes.txt']);
     expect(names(workspace.rows()).map((entry) => entry.$2), ['docs/', 'notes.txt', 'README.md']);
+  });
+
+  test('renaming an expanded folder keeps it and its expanded subfolders listed', () async {
+    await workspace.follow(root);
+    await workspace.toggle('$root/src');
+    await workspace.toggle('$root/src/lib');
+    await workspace.rename('$root/src', 'source');
+    expect(names(workspace.rows()), [
+      (0, 'docs/'),
+      (0, 'source/'),
+      (1, 'lib/'),
+      (2, 'a.dart'),
+      (1, 'main.dart'),
+      (0, 'README.md'),
+    ]);
+  });
+
+  test('a rename that changes only the case goes through; another file of that name is never replaced', () async {
+    File('$root/notes.txt').writeAsStringSync('mine\n');
+    // macOS and Windows file systems ignore case by default; Linux ones do not.
+    final ignoresCase = File('$root/NOTES.txt').existsSync();
+    await workspace.follow(root);
+    if (ignoresCase) {
+      await workspace.rename('$root/notes.txt', 'NOTES.txt');
+      expect(Directory(root).listSync().map((entity) => entity.uri.pathSegments.last), contains('NOTES.txt'));
+      expect(names(workspace.rows()).map((row) => row.$2), contains('NOTES.txt'));
+    } else {
+      File('$root/NOTES.txt').writeAsStringSync('other\n');
+      await expectLater(workspace.rename('$root/notes.txt', 'NOTES.txt'), throwsA(isA<HostFileExists>()));
+      expect(File('$root/NOTES.txt').readAsStringSync(), 'other\n');
+    }
   });
 
   test('a symbolic link is listed as a link and deleted as one, never what it points to', () async {
@@ -270,6 +336,24 @@ void main() {
     expect(recording.commands, everyElement('sh -s'));
   });
 
+  test('file access is opened once per link, however many operations start at the same time', () async {
+    final first = _RecordingLink(link);
+    HostLink current = first;
+    final browser = FileWorkspace()..connect = () async => (current, probe);
+    addTearDown(browser.dispose);
+    await Future.wait([browser.follow(root), browser.open('$root/README.md')]);
+    await browser.openDir(root);
+    await browser.toggle('$root/src');
+    await browser.toggle('$root/docs');
+    expect(first.filesOpened, 1);
+
+    // A reconnect: the next refresh lists three directories over one new channel.
+    final second = _RecordingLink(link);
+    current = second;
+    await browser.refresh();
+    expect(second.filesOpened, 1);
+  });
+
   test('a transcript file is read line by line from an offset, and again from 0 after a rewrite', () async {
     final files = await link.files();
     final path = '$root/agent.jsonl';
@@ -297,12 +381,13 @@ void main() {
   });
 }
 
-/// Delegates to a real link and records every command it is asked to run.
+/// Delegates to a real link and records every command it is asked to run and every file access it opens.
 final class _RecordingLink implements HostLink {
   _RecordingLink(this._inner);
 
   final HostLink _inner;
   final commands = <String>[];
+  var filesOpened = 0;
 
   @override
   String get label => _inner.label;
@@ -314,7 +399,10 @@ final class _RecordingLink implements HostLink {
   }
 
   @override
-  Future<HostFiles> files() => _inner.files();
+  Future<HostFiles> files() {
+    filesOpened++;
+    return _inner.files();
+  }
 
   @override
   Future<HostSocket> connect(String host, int port) => _inner.connect(host, port);
@@ -324,4 +412,44 @@ final class _RecordingLink implements HostLink {
 
   @override
   Future<void> close() => _inner.close();
+}
+
+/// A file that reports size 0 and never ends, like `/dev/zero` or a `/proc` file over SFTP: a read without a length
+/// goes on until the data runs out; here that is 3 MiB. Records the lengths asked for.
+final class _EndlessFiles implements HostFiles {
+  final lengths = <int?>[];
+
+  @override
+  Future<HostFileStat?> stat(String path, {bool followLinks = true}) async =>
+      const HostFileStat(size: 0, isDirectory: false);
+
+  @override
+  Future<Uint8List> read(String path, {int offset = 0, int? length}) async {
+    lengths.add(length);
+    return Uint8List(length ?? 3 << 20)..fillRange(0, length ?? 3 << 20, 0x61);
+  }
+
+  @override
+  Future<List<HostDirEntry>> list(String path) => throw UnimplementedError();
+
+  @override
+  Future<void> write(String path, List<int> bytes, {bool append = false, int? mode}) => throw UnimplementedError();
+
+  @override
+  Future<void> mkdir(String path, {int? mode}) => throw UnimplementedError();
+
+  @override
+  Future<void> remove(String path) => throw UnimplementedError();
+
+  @override
+  Future<void> removeDir(String path) => throw UnimplementedError();
+
+  @override
+  Future<void> rename(String from, String to) => throw UnimplementedError();
+
+  @override
+  Future<String> home() => throw UnimplementedError();
+
+  @override
+  Future<void> close() async {}
 }

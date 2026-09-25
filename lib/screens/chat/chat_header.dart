@@ -386,7 +386,7 @@ class _SessionMenu extends StatelessWidget {
         ),
         MenuItemButton(
           leadingIcon: const Icon(Icons.power_settings_new),
-          onPressed: () => unawaited(context.read<SessionsProvider>().stop(session)),
+          onPressed: () => unawaited(_stop(context, session)),
           child: Text(t.chat.stopSession),
         ),
       ],
@@ -397,5 +397,16 @@ class _SessionMenu extends StatelessWidget {
         onPressed: () => controller.isOpen ? controller.close() : controller.open(),
       ),
     );
+  }
+}
+
+/// Stops [session]'s omp process; a failed stop leaves the session open and says why.
+Future<void> _stop(BuildContext context, LiveSession session) async {
+  final t = context.t;
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await context.read<SessionsProvider>().stop(session);
+  } on Object catch (error) {
+    messenger.showSnackBar(SnackBar(content: Text(t.chat.stopSessionFailed(error: '$error'))));
   }
 }

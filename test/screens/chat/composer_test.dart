@@ -26,10 +26,15 @@ final class _Omp implements LineChannel {
   final _lines = StreamController<String>();
   final sent = <Map<String, Object?>>[];
 
+  /// While set, prompts are answered once it completes, with its value as `success`.
+  Completer<bool>? promptAnswer;
+
   List<Map<String, Object?>> get prompts => [
     for (final line in sent)
       if (line['type'] == 'prompt') line,
   ];
+
+  void emit(Map<String, Object?> frame) => _lines.add(jsonEncode(frame));
 
   @override
   Stream<String> get lines => _lines.stream;
@@ -41,9 +46,20 @@ final class _Omp implements LineChannel {
     final id = json['id'];
     if (id == null) return;
     final data = json['type'] == 'negotiate_protocol' ? {'protocolVersion': 2} : null;
-    scheduleMicrotask(
-      () => _lines.add(jsonEncode({'type': 'response', 'id': id, 'command': json['type'], 'success': true, 'data': ?data})),
-    );
+    void respond(bool success) => emit({
+      'type': 'response',
+      'id': id,
+      'command': json['type'],
+      'success': success,
+      'data': ?data,
+      if (!success) 'error': 'Agent is busy',
+    });
+    final answer = json['type'] == 'prompt' ? promptAnswer : null;
+    if (answer == null) {
+      scheduleMicrotask(() => respond(true));
+    } else {
+      unawaited(answer.future.then(respond));
+    }
   }
 
   @override
@@ -130,11 +146,16 @@ void main() {
     );
   });
 
-  Future<_Session> pumpComposer(WidgetTester tester) async {
+  Future<_Session> attachedSession(WidgetTester tester) async {
     final session = _Session(SessionView());
     final attached = session.rpc.attach();
     await tester.pump();
     await attached;
+    return session;
+  }
+
+  Future<_Session> pumpComposer(WidgetTester tester, [_Session? shown]) async {
+    final session = shown ?? await attachedSession(tester);
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: sessions,
@@ -219,6 +240,61 @@ void main() {
     expect(jsonDecode(exec.substring('/ompx '.length)), containsPair('verb', 'exec.bash'));
     expect(find.text('!echo hi'), findsOneWidget);
     expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
+
+    await tearDownProviders(tester);
+  });
+
+  testWidgets('a send that fails after the composer moved to another session goes back to its own draft', (tester) async {
+    final first = await pumpComposer(tester);
+    final second = await attachedSession(tester);
+    first.omp.promptAnswer = Completer();
+    await tester.enterText(composer, 'meant for the first');
+    await tester.tap(find.byKey(const ValueKey('send')));
+    await tester.pump();
+    await pumpComposer(tester, second);
+    first.omp.promptAnswer!.complete(false);
+    await tester.pump();
+    expect(sessions.draftOf(first).text.text, 'meant for the first');
+    expect(sessions.draftOf(second).text.text, isEmpty);
+
+    await tearDownProviders(tester);
+  });
+
+  testWidgets('a prompt omp acknowledged but could not start comes back into the draft', (tester) async {
+    final session = await pumpComposer(tester);
+    String text() => tester.widget<TextField>(composer).controller!.text;
+    Future<void> send(String message) async {
+      await tester.enterText(composer, message);
+      await tester.tap(find.byKey(const ValueKey('send')));
+      await tester.pump();
+    }
+
+    Future<void> promptResult({required bool agentInvoked}) async {
+      session.omp.emit({
+        'type': 'prompt_result',
+        'id': session.omp.prompts.last['id'],
+        'agentInvoked': agentInvoked,
+        'status': 'error',
+        'error': {'message': 'No API key found for fake.', 'retryable': false},
+        'sessionSettled': true,
+      });
+      await tester.pump();
+    }
+
+    // A run that started and then failed has the message in its transcript already.
+    await send('hello');
+    await promptResult(agentInvoked: true);
+    expect(text(), isEmpty);
+
+    await send('again');
+    await promptResult(agentInvoked: false);
+    expect(text(), 'again');
+
+    // What the user typed in the meantime stays.
+    await send('third');
+    await tester.enterText(composer, 'typed meanwhile');
+    await promptResult(agentInvoked: false);
+    expect(text(), 'typed meanwhile');
 
     await tearDownProviders(tester);
   });

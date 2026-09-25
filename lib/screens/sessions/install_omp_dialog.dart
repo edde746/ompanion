@@ -86,7 +86,7 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
           await _upload(link, probe);
       }
       setState(() => _phase = _Running(t.install.checking));
-      final installed = await runtime.connectAndProbe();
+      final installed = await runtime.reprobe();
       final version = installed.ompVersion;
       if (runtime.status is! MachineOnline || version == null) {
         final reason = switch (runtime.status) {

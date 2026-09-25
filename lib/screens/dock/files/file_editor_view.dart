@@ -116,10 +116,15 @@ class _FileEditorViewState extends State<FileEditorView> {
     final t = context.t.dock.fileBrowser;
     try {
       await widget.workspace.reload(widget.document);
-      _diff = null;
     } on Object catch (error) {
       if (mounted) _snack(t.openFailed(error: error.toString()));
+      return;
     }
+    // The text came from disk again, so a diff on screen is stale.
+    if (!mounted) return;
+    setState(() {
+      _diff = _showDiff ? widget.workspace.diff(widget.document.path) : null;
+    });
   }
 
   Future<void> _close() async {
@@ -257,7 +262,7 @@ class _FileEditorViewState extends State<FileEditorView> {
                 ? _GitDiff(diff: _diff!, onRetry: () => setState(() => _diff = workspace.diff(document.path)))
                 : document.readOnlyReason == ReadOnlyReason.binary
                 ? const SizedBox.shrink()
-                : _Editor(document: document, find: _find, scroll: _scroll),
+                : _Editor(document: document, find: _find, scroll: _scroll, onSave: _save),
           ),
         ],
       ),
@@ -270,11 +275,12 @@ enum _ConflictChoice { overwrite, reload }
 enum _EditorAction { find, reload, copyPath, close }
 
 class _Editor extends StatelessWidget {
-  const _Editor({required this.document, required this.find, required this.scroll});
+  const _Editor({required this.document, required this.find, required this.scroll, required this.onSave});
 
   final FileDocument document;
   final CodeFindController find;
   final CodeScrollController scroll;
+  final Future<void> Function() onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -295,6 +301,15 @@ class _Editor extends StatelessWidget {
       showCursorWhenReadOnly: true,
       wordWrap: false,
       maxLengthSingleLineRendering: 4000,
+      // The editor binds Cmd+S (Ctrl+S elsewhere) itself and consumes it, so the view's own binding never sees it.
+      shortcutOverrideActions: {
+        CodeShortcutSaveIntent: CallbackAction<CodeShortcutSaveIntent>(
+          onInvoke: (_) {
+            unawaited(onSave());
+            return null;
+          },
+        ),
+      },
       style: CodeEditorStyle(
         fontSize: code.fontSize,
         fontFamily: code.fontFamily,

@@ -6,8 +6,9 @@ library;
 String? get devLocalHome => _nonEmpty(const String.fromEnvironment('OMP_APP_LOCAL_HOME'));
 
 /// The environment of every process "this computer" starts while [devLocalHome] is set, else null. `PATH` holds
-/// only the system directories, so the probe finds `<home>/.local/bin/omp` and never the user's own omp (e.g.
-/// in `/opt/homebrew/bin`); omp's location variables are emptied, which omp reads as unset.
+/// only the system directories, and `MachineConnector.searchSystemPaths` keeps the probe to the home directory, so it
+/// finds `<home>/.local/bin/omp` and never the user's own omp (e.g. in `/opt/homebrew/bin`); omp's location variables
+/// are emptied, which omp reads as unset.
 Map<String, String>? get devLocalEnvironment {
   final home = devLocalHome;
   if (home == null) return null;

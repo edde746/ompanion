@@ -277,7 +277,7 @@ class _ThinkingViewState extends State<_ThinkingView> {
     final label = row.live
         ? t.thinking
         : widget.thought != null
-        ? t.thoughtFor(duration: '${_seconds(widget.thought!)} s')
+        ? t.thoughtFor(duration: t.seconds(value: _seconds(widget.thought!)))
         : t.thought;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
