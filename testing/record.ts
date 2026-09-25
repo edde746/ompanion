@@ -744,7 +744,8 @@ const SCENARIOS: Record<string, Scenario> = {
 	},
 
 	"companion-exec": {
-		summary: "companion `exec.bash` (the TUI's `!`): three `exec.chunk` events, then the reply; no model call",
+		summary:
+			"companion `exec.bash` (the TUI's `!`): three `exec.chunk` events, `message.appended` with the recorded `bashExecution`, then the reply; no model call",
 		setup: withCompanion,
 		async run(omp) {
 			// omp sends at most one chunk per 50 ms, so the sleeps make one chunk per line.
@@ -755,6 +756,36 @@ const SCENARIOS: Record<string, Scenario> = {
 			}
 			const chunks = omp.frames.filter(ompxEvent("exec.chunk"));
 			if (chunks.length !== 3) throw new Error(`expected 3 exec.chunk events, got ${chunks.length}`);
+			const appended = omp.frames.filter(ompxEvent("message.appended", data => isRecord(data.message) && data.message.role === "bashExecution"));
+			if (appended.length !== 1) throw new Error(`expected 1 message.appended bashExecution, got ${appended.length}`);
+		},
+	},
+
+	"companion-exec-streaming": {
+		summary:
+			"companion `exec.bash` while an answer streams: omp holds the `bashExecution` until the next prompt, whose `message.appended` precedes its `agent_start`",
+		setup: withCompanion,
+		async run(omp, { fake }) {
+			await fake.enqueue([
+				{ steps: [{ text: "Working on it." }, { delayMs: 800 }, { text: " Done." }] },
+				{ steps: [{ text: "Saw the command output." }] },
+			]);
+			omp.send({ id: "prompt-1", type: "prompt", message: "Do the first thing." });
+			await omp.next(textDelta, "first text delta");
+			await ompx(omp, "exec", "exec.bash", { command: "echo while-streaming" });
+			await settled(omp, "prompt-1");
+			if (omp.frames.some(ompxEvent("message.appended"))) throw new Error("message.appended before the next prompt");
+			const from = omp.frames.length;
+			await prompt(omp, "prompt-2", "Now the second thing.");
+			const appended = omp.frames.flatMap((frame, index) =>
+				ompxEvent("message.appended", data => isRecord(data.message) && data.message.role === "bashExecution")(frame)
+					? [index]
+					: [],
+			);
+			const start = omp.frames.findIndex((frame, index) => index >= from && frame.type === "agent_start");
+			if (appended.length !== 1 || appended[0]! < from || appended[0]! > start) {
+				throw new Error(`expected one message.appended before prompt-2's agent_start (at ${start}), got ${JSON.stringify(appended)}`);
+			}
 		},
 	},
 };
