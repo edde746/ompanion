@@ -1,5 +1,8 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:omp_app/i18n/strings.g.dart';
 import 'package:omp_app/screens/chat/transcript/markdown.dart';
 
 List<MdNode> parse(String markdown) => Plusparse.parse(
@@ -8,6 +11,12 @@ List<MdNode> parse(String markdown) => Plusparse.parse(
 ).children;
 
 MdCustomBlock fence(MdNode node) => node as MdCustomBlock;
+
+Future<void> pumpMarkdown(WidgetTester tester, String text) => tester.pumpWidget(
+  TranslationProvider(
+    child: MaterialApp(home: Scaffold(body: TranscriptMarkdown(text))),
+  ),
+);
 
 void main() {
   group('CommonMarkFence', () {
@@ -98,6 +107,82 @@ void main() {
 
     test('inline math does not cross lines', () {
       expect(rewriteDollarMath('\$a\nb\$'), '\$a\nb\$');
+    });
+  });
+
+  group('images', () {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+    testWidgets('a web image is not fetched until tapped; its alt text and host show instead', (tester) async {
+      await pumpMarkdown(tester, 'Done. ![build log](https://evil.example/i.png?k=c2VjcmV0) ![](https://cdn.example/b.png)');
+      expect(find.byType(Image), findsNothing);
+      expect(find.text('build log'), findsOneWidget);
+      expect(find.text('evil.example'), findsOneWidget);
+      expect(find.text('cdn.example'), findsOneWidget);
+
+      await tester.tap(find.text('Load image').first);
+      await tester.pump();
+      expect(
+        tester.widget<Image>(find.byType(Image)).image,
+        isA<NetworkImage>().having((image) => image.url, 'url', 'https://evil.example/i.png?k=c2VjcmV0'),
+      );
+      // The other image still waits for its own tap.
+      expect(find.text('cdn.example'), findsOneWidget);
+    });
+
+    testWidgets('an inline data image is drawn right away', (tester) async {
+      await pumpMarkdown(tester, '![dot](data:image/png;base64,$png)');
+      expect(tester.widget<Image>(find.byType(Image)).image, isA<MemoryImage>());
+      expect(find.text('Load image'), findsNothing);
+    });
+
+    test('alt text is found by the URL gpt_markdown hands the image builder', () {
+      expect(markdownImageAlts(r'![a [b]](https://x.example/(1).png) ![\]c]( https://y.example/2.png )'), {
+        'https://x.example/(1).png': 'a [b]',
+        'https://y.example/2.png': r'\]c',
+      });
+    });
+  });
+
+  group('links', () {
+    const channel = MethodChannel('plugins.flutter.io/url_launcher');
+    late List<String> launched;
+
+    setUp(() {
+      launched = [];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'launch') launched.add((call.arguments as Map<Object?, Object?>)['url']! as String);
+        return true;
+      });
+    });
+
+    tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+
+    testWidgets('web and mail links open directly', (tester) async {
+      await pumpMarkdown(tester, '[docs](https://example.com/docs)\n\n[write](mailto:dev@example.com)');
+      await tester.tap(find.text('docs', findRichText: true));
+      await tester.tap(find.text('write', findRichText: true));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(launched, ['https://example.com/docs', 'mailto:dev@example.com']);
+    });
+
+    testWidgets('any other scheme shows the full URL and opens only when confirmed', (tester) async {
+      await pumpMarkdown(tester, '[the report](smb://evil.example/share/report)');
+      await tester.tap(find.text('the report', findRichText: true));
+      await tester.pumpAndSettle();
+      expect(find.text('smb://evil.example/share/report'), findsOneWidget);
+      expect(launched, isEmpty);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(launched, isEmpty);
+
+      await tester.tap(find.text('the report', findRichText: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+      await tester.pumpAndSettle();
+      expect(launched, ['smb://evil.example/share/report']);
     });
   });
 }

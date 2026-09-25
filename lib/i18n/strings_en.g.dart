@@ -51,6 +51,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$editor$en editor = Translations$editor$en.internal(_root);
 	late final Translations$keys$en keys = Translations$keys$en.internal(_root);
 	late final Translations$hostKey$en hostKey = Translations$hostKey$en.internal(_root);
+	late final Translations$links$en links = Translations$links$en.internal(_root);
 	late final Translations$prompt$en prompt = Translations$prompt$en.internal(_root);
 	late final Translations$connectError$en connectError = Translations$connectError$en.internal(_root);
 	late final Translations$tailscale$en tailscale = Translations$tailscale$en.internal(_root);
@@ -542,6 +543,33 @@ class Translations$hostKey$en {
 
 	/// en: 'Replace and connect'
 	String get replace => 'Replace and connect';
+
+	/// en: 'Unexpected key type'
+	String get otherTypesTitle => 'Unexpected key type';
+
+	/// en: '~/.ssh/known_hosts knows $host only with keys of other types. The server may have added a key type, or someone may be intercepting the connection. Compare the fingerprint with the server's key before you trust it.'
+	String otherTypesBody({required Object host}) => '~/.ssh/known_hosts knows ${host} only with keys of other types. The server may have added a key type, or someone may be intercepting the connection. Compare the fingerprint with the server\'s key before you trust it.';
+
+	/// en: 'Known in ~/.ssh/known_hosts'
+	String get knownToOpenSsh => 'Known in ~/.ssh/known_hosts';
+}
+
+// Path: links
+class Translations$links$en {
+	Translations$links$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Open this link?'
+	String get confirmTitle => 'Open this link?';
+
+	/// en: 'This is a $scheme: link, not a web page. It opens whichever app handles $scheme: links on this device.'
+	String confirmBody({required Object scheme}) => 'This is a ${scheme}: link, not a web page. It opens whichever app handles ${scheme}: links on this device.';
+
+	/// en: 'Open'
+	String get open => 'Open';
 }
 
 // Path: prompt
@@ -674,6 +702,27 @@ class Translations$transfer$en {
 
 	/// en: 'Not a machine export: $error'
 	String invalid({required Object error}) => 'Not a machine export: ${error}';
+
+	/// en: 'Host keys to confirm'
+	String get hostKeysTitle => 'Host keys to confirm';
+
+	/// en: 'The import holds host keys that would change which servers this device trusts. Trust a host's keys only if you know they are right; the others are not imported.'
+	String get hostKeysBody => 'The import holds host keys that would change which servers this device trusts. Trust a host\'s keys only if you know they are right; the others are not imported.';
+
+	/// en: 'Trusted on this device'
+	String get trustedHere => 'Trusted on this device';
+
+	/// en: 'Nothing yet'
+	String get nothingTrusted => 'Nothing yet';
+
+	/// en: 'In the import'
+	String get inImport => 'In the import';
+
+	/// en: 'Trust these keys'
+	String get trustKeys => 'Trust these keys';
+
+	/// en: 'Trusted'
+	String get keysTrusted => 'Trusted';
 }
 
 // Path: settings
@@ -867,8 +916,8 @@ class Translations$install$en {
 	/// en: '$os $arch · omp $version into $dir'
 	String facts({required Object os, required Object arch, required Object version, required Object dir}) => '${os} ${arch} · omp ${version} into ${dir}';
 
-	/// en: 'The app runs omp's installer on the machine, pinned to this release.'
-	String get viaInstaller => 'The app runs omp\'s installer on the machine, pinned to this release.';
+	/// en: 'The machine downloads this release from GitHub and checks its SHA-256 before installing it.'
+	String get viaDownload => 'The machine downloads this release from GitHub and checks its SHA-256 before installing it.';
 
 	/// en: 'The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.'
 	String get viaUpload => 'The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.';
@@ -879,11 +928,11 @@ class Translations$install$en {
 	/// en: 'Install'
 	String get install => 'Install';
 
-	/// en: 'Running the installer…'
-	String get runningInstaller => 'Running the installer…';
+	/// en: 'Downloading and installing on the machine…'
+	String get installing => 'Downloading and installing on the machine…';
 
-	/// en: 'The installer failed'
-	String get installerFailed => 'The installer failed';
+	/// en: 'Installing on the machine failed'
+	String get installFailed => 'Installing on the machine failed';
 
 	/// en: 'Downloading $asset…'
 	String downloading({required Object asset}) => 'Downloading ${asset}…';
@@ -1220,6 +1269,9 @@ class Translations$requests$en {
 
 	/// en: '$n s left'
 	String secondsLeft({required Object n}) => '${n} s left';
+
+	/// en: 'Not an http or https link, so it does not open from here.'
+	String get notWebLink => 'Not an http or https link, so it does not open from here.';
 }
 
 // Path: ask
@@ -1340,6 +1392,9 @@ class Translations$transcript$en {
 
 	/// en: 'Image'
 	String get image => 'Image';
+
+	/// en: 'Load image'
+	String get loadImage => 'Load image';
 
 	/// en: '(one) {Show $n more line} (other) {Show $n more lines}'
 	String showMoreLines({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
@@ -1747,6 +1802,12 @@ class Translations$dock$fileBrowser$en {
 
 	/// en: 'The folder and everything in it are deleted from the machine.'
 	String get deleteFolderBody => 'The folder and everything in it are deleted from the machine.';
+
+	/// en: 'The symbolic link is deleted from the machine. What it points to stays.'
+	String get deleteLinkBody => 'The symbolic link is deleted from the machine. What it points to stays.';
+
+	/// en: 'Symbolic link'
+	String get link => 'Symbolic link';
 
 	/// en: 'Empty folder'
 	String get emptyFolder => 'Empty folder';
@@ -2919,6 +2980,8 @@ extension on Translations {
 			'dock.fileBrowser.deleteTitle' => ({required Object name}) => 'Delete ${name}?',
 			'dock.fileBrowser.deleteFileBody' => 'The file is deleted from the machine.',
 			'dock.fileBrowser.deleteFolderBody' => 'The folder and everything in it are deleted from the machine.',
+			'dock.fileBrowser.deleteLinkBody' => 'The symbolic link is deleted from the machine. What it points to stays.',
+			'dock.fileBrowser.link' => 'Symbolic link',
 			'dock.fileBrowser.emptyFolder' => 'Empty folder',
 			'dock.fileBrowser.listFailed' => ({required Object error}) => 'Could not list: ${error}',
 			'dock.fileBrowser.openDocuments' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} open file', other: '${n} open files', ), 
@@ -3070,6 +3133,12 @@ extension on Translations {
 			'hostKey.fingerprint' => 'Fingerprint',
 			'hostKey.trust' => 'Trust',
 			'hostKey.replace' => 'Replace and connect',
+			'hostKey.otherTypesTitle' => 'Unexpected key type',
+			'hostKey.otherTypesBody' => ({required Object host}) => '~/.ssh/known_hosts knows ${host} only with keys of other types. The server may have added a key type, or someone may be intercepting the connection. Compare the fingerprint with the server\'s key before you trust it.',
+			'hostKey.knownToOpenSsh' => 'Known in ~/.ssh/known_hosts',
+			'links.confirmTitle' => 'Open this link?',
+			'links.confirmBody' => ({required Object scheme}) => 'This is a ${scheme}: link, not a web page. It opens whichever app handles ${scheme}: links on this device.',
+			'links.open' => 'Open',
 			'prompt.passwordTitle' => ({required Object hop}) => 'Password for ${hop}',
 			'connectError.noKeySelected' => ({required Object hop}) => '${hop} uses key authentication, but no key is selected. Edit the machine to choose one.',
 			'connectError.keyMissing' => ({required Object hop}) => 'The private key for ${hop} is missing from this device.',
@@ -3099,6 +3168,13 @@ extension on Translations {
 			'transfer.importAction' => 'Import',
 			'transfer.imported' => ({required Object added, required Object skipped}) => 'Imported ${added}, skipped ${skipped} already present.',
 			'transfer.invalid' => ({required Object error}) => 'Not a machine export: ${error}',
+			'transfer.hostKeysTitle' => 'Host keys to confirm',
+			'transfer.hostKeysBody' => 'The import holds host keys that would change which servers this device trusts. Trust a host\'s keys only if you know they are right; the others are not imported.',
+			'transfer.trustedHere' => 'Trusted on this device',
+			'transfer.nothingTrusted' => 'Nothing yet',
+			'transfer.inImport' => 'In the import',
+			'transfer.trustKeys' => 'Trust these keys',
+			'transfer.keysTrusted' => 'Trusted',
 			'settings.theme' => 'Theme',
 			'settings.themeSystem' => 'System',
 			'settings.themeLight' => 'Light',
@@ -3151,12 +3227,12 @@ extension on Translations {
 			'install.title' => ({required Object machine}) => 'Install omp on ${machine}',
 			'install.notConnected' => 'Connect to the machine first.',
 			'install.facts' => ({required Object os, required Object arch, required Object version, required Object dir}) => '${os} ${arch} · omp ${version} into ${dir}',
-			'install.viaInstaller' => 'The app runs omp\'s installer on the machine, pinned to this release.',
+			'install.viaDownload' => 'The machine downloads this release from GitHub and checks its SHA-256 before installing it.',
 			'install.viaUpload' => 'The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.',
 			'install.manual' => 'Or run this on the machine yourself:',
 			'install.install' => 'Install',
-			'install.runningInstaller' => 'Running the installer…',
-			'install.installerFailed' => 'The installer failed',
+			'install.installing' => 'Downloading and installing on the machine…',
+			'install.installFailed' => 'Installing on the machine failed',
 			'install.downloading' => ({required Object asset}) => 'Downloading ${asset}…',
 			'install.downloadFailed' => ({required Object status, required Object url}) => 'Download failed with HTTP ${status}: ${url}',
 			'install.transferring' => ({required Object asset, required Object done, required Object total}) => 'Transferring ${asset}: ${done} of ${total} MB',
@@ -3254,6 +3330,7 @@ extension on Translations {
 			'requests.unsupportedTitle' => 'Unsupported request',
 			'requests.unsupportedBody' => ({required Object method}) => 'The companion asked for "${method}", which this app version cannot show.',
 			'requests.secondsLeft' => ({required Object n}) => '${n} s left',
+			'requests.notWebLink' => 'Not an http or https link, so it does not open from here.',
 			'ask.title' => 'Question',
 			'ask.titleMany' => ({required Object n}) => '${n} questions',
 			'ask.invalid' => ({required Object error}) => 'The question could not be read: ${error}',
@@ -3287,8 +3364,11 @@ extension on Translations {
 			'transcript.tokensCached' => ({required Object count}) => '${count} cached',
 			'transcript.seconds' => ({required Object value}) => '${value} s',
 			'transcript.image' => 'Image',
+			'transcript.loadImage' => 'Load image',
 			'transcript.showMoreLines' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Show ${n} more line', other: 'Show ${n} more lines', ), 
 			'transcript.showLess' => 'Show less',
+			_ => null,
+		} ?? switch (path) {
 			'transcript.tool.running' => 'Running…',
 			'transcript.tool.background' => 'Running in the background',
 			'transcript.tool.interrupted' => 'Did not finish',
@@ -3306,8 +3386,6 @@ extension on Translations {
 			'transcript.tool.noChanges' => 'No changes',
 			'transcript.tool.todoProgress' => ({required Object done, required Object total}) => '${done} of ${total} done',
 			'transcript.tool.agents' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} agent', other: '${n} agents', ), 
-			_ => null,
-		} ?? switch (path) {
 			'transcript.tool.openAgent' => 'Open agent',
 			'transcript.tool.agentPending' => 'Pending',
 			'transcript.tool.agentRunning' => 'Running',

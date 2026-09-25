@@ -284,10 +284,14 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
     });
     try {
       final entries = await files.list(path);
-      final directories = [
-        for (final entry in entries)
-          if (entry.stat.isDirectory && entry.name != '.' && entry.name != '..') entry.name,
-      ]..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final directories = <String>[];
+      for (final entry in entries) {
+        if (entry.name == '.' || entry.name == '..') continue;
+        // Listings describe links themselves; one that leads to a directory is offered like it.
+        final stat = entry.stat.isLink ? await files.stat(_join(path, entry.name)) : entry.stat;
+        if (stat != null && stat.isDirectory) directories.add(entry.name);
+      }
+      directories.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
       if (mounted) {
         setState(() {
           _path = path;

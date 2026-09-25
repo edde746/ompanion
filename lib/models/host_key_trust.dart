@@ -27,21 +27,32 @@ final class HostKeyChanged extends HostKeyVerdict {
   final List<String> knownFingerprints;
 }
 
+/// The app has no record of the host, but `~/.ssh/known_hosts` knows it only with keys of other types: the server
+/// may have gained a key type, or someone in the middle offers one OpenSSH has no key for. OpenSSH asks, with a
+/// warning that lists the keys it knows.
+final class HostKeyOtherTypesKnown extends HostKeyVerdict {
+  const HostKeyOtherTypesKnown(this.knownKeys);
+
+  /// The `known_hosts` keys of this host and port.
+  final List<SshPublicKey> knownKeys;
+}
+
 /// Marked `@revoked` in `~/.ssh/known_hosts`. Never accepted.
 final class HostKeyRevoked extends HostKeyVerdict {
   const HostKeyRevoked();
 }
 
-/// Judges [check] against the app's trusted keys and, on desktop, the OpenSSH verdict for the same key.
+/// Judges [check] against the app's trusted keys and, on desktop, the lines of `~/.ssh/known_hosts` ([openSsh]).
 ///
 /// The app's own record wins over `~/.ssh/known_hosts`; any recorded key for the host and port that
 /// differs from the presented one is a change, whatever its type.
 HostKeyVerdict judgeHostKey(
   HostKeyCheck check,
   Iterable<KnownHostRow> trusted, {
-  KnownHostStatus openSsh = KnownHostStatus.unknown,
+  Iterable<KnownHostEntry> openSsh = const [],
 }) {
-  if (openSsh == KnownHostStatus.revoked) return const HostKeyRevoked();
+  final status = checkKnownHost(openSsh, check);
+  if (status == KnownHostStatus.revoked) return const HostKeyRevoked();
   final blob = base64.encode(check.keyBlob);
   final recorded = [
     for (final row in trusted)
@@ -49,10 +60,14 @@ HostKeyVerdict judgeHostKey(
   ];
   if (recorded.any((row) => row.keyType == check.keyType && row.keyBlob == blob)) return const HostKeyTrusted();
   if (recorded.isNotEmpty) return HostKeyChanged([for (final row in recorded) row.fingerprint]);
-  return switch (openSsh) {
+  return switch (status) {
     KnownHostStatus.match => const HostKeyTrusted(),
     KnownHostStatus.mismatch => const HostKeyChanged([]),
-    KnownHostStatus.differentKeyType || KnownHostStatus.unknown => const HostKeyUnknown(),
+    KnownHostStatus.differentKeyType => HostKeyOtherTypesKnown([
+      for (final entry in openSsh)
+        if (entry.marker == KnownHostMarker.none && entry.matchesHost(check.host, check.port)) entry.key,
+    ]),
+    KnownHostStatus.unknown => const HostKeyUnknown(),
     KnownHostStatus.revoked => const HostKeyRevoked(),
   };
 }

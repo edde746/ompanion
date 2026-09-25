@@ -9,10 +9,14 @@ import 'package:omp_app/screens/dock/agents/agent_transcript.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/transport.dart';
 
+/// Rows as `ls -F` names: `dir/`, `link@`, `file`.
 List<(int, String)> names(List<BrowserRow> rows) => [
   for (final row in rows)
     switch (row) {
-      EntryRow(:final depth, :final entry) => (depth, entry.stat.isDirectory ? '${entry.name}/' : entry.name),
+      EntryRow(:final depth, :final entry) => (
+        depth,
+        entry.stat.isLink ? '${entry.name}@' : (entry.stat.isDirectory ? '${entry.name}/' : entry.name),
+      ),
       EmptyRow(:final depth) => (depth, '(empty)'),
       LoadingRow(:final depth) => (depth, '(loading)'),
       FailedRow(:final depth) => (depth, '(failed)'),
@@ -23,6 +27,7 @@ void main() {
   late Directory temp;
   late String root;
   late LocalLink link;
+  late HostProbe probe;
   late FileWorkspace workspace;
 
   setUp(() async {
@@ -34,7 +39,7 @@ void main() {
     File('$root/src/lib/a.dart').createSync(recursive: true);
     Directory('$root/docs').createSync();
     link = LocalLink(environment: {'HOME': root});
-    final probe = HostProbe(
+    probe = HostProbe(
       commandShell: CommandShell.posix,
       os: HostOs.macos,
       kernel: 'Darwin',
@@ -44,6 +49,19 @@ void main() {
     );
     workspace = FileWorkspace()..connect = () async => (link, probe);
   });
+
+  Future<void> git(List<String> args) async {
+    final result = await Process.run('git', [
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      '-c',
+      'commit.gpgsign=false',
+      ...args,
+    ], workingDirectory: root);
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+  }
 
   tearDown(() async {
     workspace.dispose();
@@ -167,20 +185,44 @@ void main() {
     expect(names(workspace.rows()).map((entry) => entry.$2), ['docs/', 'notes.txt', 'README.md']);
   });
 
-  test('git status and diff of the browsed repository', () async {
-    Future<void> git(List<String> args) async {
-      final result = await Process.run('git', [
-        '-c',
-        'user.name=Test',
-        '-c',
-        'user.email=test@example.com',
-        '-c',
-        'commit.gpgsign=false',
-        ...args,
-      ], workingDirectory: root);
-      expect(result.exitCode, 0, reason: '${result.stderr}');
-    }
+  test('a symbolic link is listed as a link and deleted as one, never what it points to', () async {
+    final outside = await Directory.systemTemp.createTemp('dock-files-outside-');
+    addTearDown(() => outside.delete(recursive: true));
+    File('${outside.path}/keep.txt').writeAsStringSync('keep\n');
+    Link('$root/shared').createSync(outside.path);
+    Link('$root/src/inner').createSync(outside.path);
+    Link('$root/gone').createSync('$root/missing');
 
+    await workspace.follow(root);
+    await workspace.toggle('$root/src');
+    expect(names(workspace.rows()), [
+      (0, 'docs/'),
+      (0, 'src/'),
+      (1, 'lib/'),
+      (1, 'inner@'),
+      (1, 'main.dart'),
+      (0, 'gone@'),
+      (0, 'README.md'),
+      (0, 'shared@'),
+    ]);
+
+    // Opening follows the link: it browses the directory it points to.
+    await workspace.open('$root/shared');
+    expect(names(workspace.rows()), [(0, 'keep.txt')]);
+    await workspace.openDir(root);
+
+    await workspace.delete('$root/shared');
+    expect(FileSystemEntity.typeSync('$root/shared', followLinks: false), FileSystemEntityType.notFound);
+    expect(File('${outside.path}/keep.txt').readAsStringSync(), 'keep\n');
+    await workspace.delete('$root/src');
+    expect(Directory('$root/src').existsSync(), isFalse);
+    expect(File('${outside.path}/keep.txt').readAsStringSync(), 'keep\n');
+    await workspace.delete('$root/gone');
+    expect(FileSystemEntity.typeSync('$root/gone', followLinks: false), FileSystemEntityType.notFound);
+    expect(names(workspace.rows()), [(0, 'docs/'), (0, 'README.md')]);
+  });
+
+  test('git status and diff of the browsed repository', () async {
     await git(['init', '-q']);
     await git(['add', 'README.md', 'src/main.dart']);
     await git(['commit', '-q', '-m', 'init']);
@@ -205,6 +247,27 @@ void main() {
     await workspace.openDir(Directory.systemTemp.path);
     await workspace.refreshGit();
     expect(workspace.git, isNull);
+  });
+
+  test('git gets paths inside an sh script, never on the command line the login shell parses', () async {
+    // fish reads \' inside single quotes as an escaped quote: sh quoting on its command line can be broken out of.
+    const name = r"it\'s;touch pwned;#";
+    File('$root/$name/notes.txt').createSync(recursive: true);
+    File('$root/$name/notes.txt').writeAsStringSync('one\n');
+    await git(['init', '-q']);
+    await git(['add', '.']);
+    await git(['commit', '-q', '-m', 'init']);
+    File('$root/$name/notes.txt').writeAsStringSync('two\n');
+    final recording = _RecordingLink(link);
+    final browser = FileWorkspace()..connect = () async => (recording, probe);
+    addTearDown(browser.dispose);
+
+    await browser.openDir('$root/$name');
+    await browser.refreshGit();
+    expect(browser.git?.changeOf('$root/$name/notes.txt'), GitChange.modified);
+    expect(await browser.diff('$root/$name/notes.txt'), contains('+two'));
+    expect(recording.commands, isNotEmpty);
+    expect(recording.commands, everyElement('sh -s'));
   });
 
   test('a transcript file is read line by line from an offset, and again from 0 after a rewrite', () async {
@@ -232,4 +295,33 @@ void main() {
     expect(missing.nextByte, 7);
     expect(missing.entries, isEmpty);
   });
+}
+
+/// Delegates to a real link and records every command it is asked to run.
+final class _RecordingLink implements HostLink {
+  _RecordingLink(this._inner);
+
+  final HostLink _inner;
+  final commands = <String>[];
+
+  @override
+  String get label => _inner.label;
+
+  @override
+  Future<HostProcess> exec(String command, {PtyRequest? pty}) {
+    commands.add(command);
+    return _inner.exec(command, pty: pty);
+  }
+
+  @override
+  Future<HostFiles> files() => _inner.files();
+
+  @override
+  Future<HostSocket> connect(String host, int port) => _inner.connect(host, port);
+
+  @override
+  Future<void> get done => _inner.done;
+
+  @override
+  Future<void> close() => _inner.close();
 }

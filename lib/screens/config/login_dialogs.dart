@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/config_target.dart';
 import '../../config/login.dart';
 import '../../i18n/strings.g.dart';
 import '../../utils/app_logger.dart';
+import '../external_links.dart';
 import 'config_widgets.dart';
 
 /// Forwards the loopback callback ports of an OAuth link from this device to a remote machine, so the
@@ -45,9 +45,10 @@ final class _CallbackForwards {
   }
 }
 
+/// Opens omp's authorization link in the browser when it is a web link; [_LinkBlock] says why when it is not.
 Future<void> _openInBrowser(String url) async {
-  final uri = Uri.parse(url);
-  if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) appLogger.w('no application opens $url');
+  final uri = Uri.tryParse(url);
+  if (uri == null || !await openWebLink(uri)) appLogger.w('not opening a login link that is not a web link: $url');
 }
 
 /// RPC `login` in the control process: omp sends `open_url` with the authorization link, then `input` for a
@@ -219,6 +220,8 @@ class _LinkBlock extends StatelessWidget {
     final t = context.t;
     final theme = Theme.of(context);
     final copyTarget = link.launchUrl ?? link.url;
+    final uri = Uri.tryParse(link.url);
+    final web = uri != null && isWebLink(uri);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -230,7 +233,7 @@ class _LinkBlock extends StatelessWidget {
           spacing: 8,
           children: [
             FilledButton.icon(
-              onPressed: () => _openInBrowser(link.url),
+              onPressed: web ? () => _openInBrowser(link.url) : null,
               icon: const Icon(Icons.open_in_browser),
               label: Text(t.config.accounts.openBrowser),
             ),
@@ -241,6 +244,14 @@ class _LinkBlock extends StatelessWidget {
             ),
           ],
         ),
+        if (!web)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              t.requests.notWebLink,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+            ),
+          ),
         if (link.instructions case final text?) Padding(padding: const EdgeInsets.only(top: 8), child: Text(text)),
         if (forwards.active.isNotEmpty)
           Padding(

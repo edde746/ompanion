@@ -90,8 +90,10 @@ class MachinesProvider extends ChangeNotifier {
     );
   }
 
-  /// Adds the machines of an export and trusts its host keys. Throws [FormatException] for invalid input.
-  Future<({int added, int skipped})> importJson(String text) async {
+  /// Adds the machines of an export and the host keys [importHostKeys] trusts without asking. The keys that would
+  /// change this device's trust come back in `hostKeyChanges`, for [trustImportedHostKeys] once the user confirms
+  /// them. Throws [FormatException] for invalid input.
+  Future<({int added, int skipped, List<HostKeyImportChange> hostKeyChanges})> importJson(String text) async {
     final export = decodeMachineExport(text);
     final keys = await _db.select(_db.sshKeys).get();
     final knownHosts = await _db.select(_db.knownHosts).get();
@@ -104,16 +106,24 @@ class MachinesProvider extends ChangeNotifier {
       now: now,
       newId: newId,
     );
-    final hostKeys = importHostKeys(export, existing: knownHosts, now: now);
+    final hostKeys = importHostKeys(export, added: machines, existing: knownHosts, now: now);
     await _db.transaction(() async {
       await _db.batch((batch) {
         batch.insertAll(_db.machines, [for (final machine in machines) machineRow(machine)]);
         batch.insertAll(_db.machineJumps, [for (final machine in machines) ...machineJumpRows(machine)]);
-        batch.insertAll(_db.knownHosts, hostKeys);
+        batch.insertAll(_db.knownHosts, hostKeys.trusted);
       });
     });
-    return (added: machines.length, skipped: export.machines.length - machines.length);
+    return (
+      added: machines.length,
+      skipped: export.machines.length - machines.length,
+      hostKeyChanges: hostKeys.changes,
+    );
   }
+
+  /// Trusts the imported keys of [change]'s host and port, replacing a key of the same type this device trusted.
+  Future<void> trustImportedHostKeys(HostKeyImportChange change) =>
+      _db.batch((batch) => batch.insertAllOnConflictUpdate(_db.knownHosts, change.imported));
 
   Selectable<TypedResult> _query() => _db.select(_db.machines).join([
     leftOuterJoin(_db.machineJumps, _db.machineJumps.machineId.equalsExp(_db.machines.id)),

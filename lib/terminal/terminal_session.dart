@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_pty2/flutter_pty2.dart';
@@ -24,15 +25,52 @@ abstract interface class TerminalBackend {
 
 /// A PTY channel on [HostLink.exec].
 final class SshTerminalBackend implements TerminalBackend {
-  SshTerminalBackend._(this._process);
+  SshTerminalBackend._(this._process, this.output);
 
-  static Future<SshTerminalBackend> start(HostLink link, String command, {required int columns, required int rows}) async =>
-      SshTerminalBackend._(await link.exec(command, pty: PtyRequest(columns: columns, rows: rows)));
+  /// Runs [launch] on a PTY. A launch with a start line completes once the machine's shell printed
+  /// [terminalReadyMarker] and got the line, so keystrokes typed meanwhile reach the shell after it; the process
+  /// ending first completes it too, with the output that explains why.
+  static Future<SshTerminalBackend> start(
+    HostLink link,
+    RemoteShellLaunch launch, {
+    required int columns,
+    required int rows,
+  }) async {
+    final process = await link.exec(launch.command, pty: PtyRequest(columns: columns, rows: rows));
+    final startLine = launch.startLine;
+    if (startLine == null) return SshTerminalBackend._(process, process.stdout);
+    final ready = Completer<void>();
+    final filter = TerminalReadyFilter();
+    final output = StreamController<Uint8List>();
+    final subscription = process.stdout.listen(
+      (chunk) {
+        final shown = filter.add(chunk);
+        if (filter.ready && !ready.isCompleted) {
+          process.write(utf8.encode(startLine));
+          ready.complete();
+        }
+        if (shown.isNotEmpty) output.add(shown);
+      },
+      onError: output.addError,
+      onDone: () {
+        final held = filter.close();
+        if (held.isNotEmpty) output.add(held);
+        unawaited(output.close());
+        if (!ready.isCompleted) ready.complete();
+      },
+    );
+    output
+      ..onPause = subscription.pause
+      ..onResume = subscription.resume
+      ..onCancel = subscription.cancel;
+    await ready.future;
+    return SshTerminalBackend._(process, output.stream);
+  }
 
   final HostProcess _process;
 
   @override
-  Stream<Uint8List> get output => _process.stdout;
+  final Stream<Uint8List> output;
 
   @override
   void write(Uint8List bytes) => _process.write(bytes);

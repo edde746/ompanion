@@ -83,6 +83,7 @@ class HostKeyDialog extends StatelessWidget {
         t.hostKey.changedOpenSshBody(host: host),
       ),
       HostKeyChanged() => (t.hostKey.changedTitle, t.hostKey.changedBody(host: host)),
+      HostKeyOtherTypesKnown() => (t.hostKey.otherTypesTitle, t.hostKey.otherTypesBody(host: host)),
       HostKeyRevoked() => (t.hostKey.revokedTitle, t.hostKey.revokedBody(host: host)),
     };
     final warning = verdict is! HostKeyUnknown;
@@ -107,12 +108,17 @@ class HostKeyDialog extends StatelessWidget {
               Text(t.hostKey.previouslyTrusted, style: theme.textTheme.labelMedium),
               for (final fingerprint in knownFingerprints) SelectableText(fingerprint, style: mono),
             ],
+            if (verdict case HostKeyOtherTypesKnown(:final knownKeys)) ...[
+              const SizedBox(height: 8),
+              Text(t.hostKey.knownToOpenSsh, style: theme.textTheme.labelMedium),
+              for (final key in knownKeys) SelectableText('${key.type} ${key.fingerprint}', style: mono),
+            ],
           ],
         ),
       ),
       actions: switch (verdict) {
         HostKeyRevoked() => [TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.common.close))],
-        HostKeyChanged() => [
+        HostKeyChanged() || HostKeyOtherTypesKnown() => [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.common.cancel)),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -120,7 +126,7 @@ class HostKeyDialog extends StatelessWidget {
               foregroundColor: theme.colorScheme.onError,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(t.hostKey.replace),
+            child: Text(verdict is HostKeyChanged ? t.hostKey.replace : t.hostKey.trust),
           ),
         ],
         HostKeyUnknown() || HostKeyTrusted() => [

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
+import '../../models/machine_export.dart';
 import '../../providers/machines_provider.dart';
 
 /// Exports stay small: machine records and host keys only.
@@ -96,6 +97,8 @@ class _ImportDialogState extends State<_ImportDialog> {
   String? _status;
   bool _failed = false;
   bool _busy = false;
+  List<HostKeyImportChange> _changes = const [];
+  final _confirmed = <HostKeyImportChange>{};
 
   @override
   void dispose() {
@@ -133,6 +136,8 @@ class _ImportDialogState extends State<_ImportDialog> {
         _busy = false;
         _failed = false;
         _status = t.transfer.imported(added: result.added, skipped: result.skipped);
+        _changes = result.hostKeyChanges;
+        _confirmed.clear();
       });
     } on FormatException catch (error) {
       if (!mounted) return;
@@ -140,8 +145,14 @@ class _ImportDialogState extends State<_ImportDialog> {
         _busy = false;
         _failed = true;
         _status = t.transfer.invalid(error: error.message);
+        _changes = const [];
       });
     }
+  }
+
+  Future<void> _trust(HostKeyImportChange change) async {
+    await context.read<MachinesProvider>().trustImportedHostKeys(change);
+    if (mounted) setState(() => _confirmed.add(change));
   }
 
   @override
@@ -152,36 +163,112 @@ class _ImportDialogState extends State<_ImportDialog> {
       title: Text(t.transfer.importTitle),
       content: SizedBox(
         width: 520,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(t.transfer.importHint),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _text,
-              minLines: 6,
-              maxLines: 12,
-              style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-            ),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                icon: const Icon(Icons.folder_open_outlined),
-                label: Text(t.common.chooseFile),
-                onPressed: _busy ? null : _chooseFile,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(t.transfer.importHint),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _text,
+                minLines: 6,
+                maxLines: 12,
+                style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                decoration: const InputDecoration(border: OutlineInputBorder()),
               ),
-            ),
-            if (_status case final status?)
-              Text(status, style: _failed ? TextStyle(color: theme.colorScheme.error) : null),
-          ],
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.folder_open_outlined),
+                  label: Text(t.common.chooseFile),
+                  onPressed: _busy ? null : _chooseFile,
+                ),
+              ),
+              if (_status case final status?)
+                Text(status, style: _failed ? TextStyle(color: theme.colorScheme.error) : null),
+              if (_changes.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(t.transfer.hostKeysTitle, style: theme.textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(t.transfer.hostKeysBody, style: theme.textTheme.bodySmall),
+                for (final change in _changes)
+                  _HostKeyChangeTile(
+                    change: change,
+                    confirmed: _confirmed.contains(change),
+                    onTrust: () => _trust(change),
+                  ),
+              ],
+            ],
+          ),
         ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(t.common.close)),
         FilledButton(onPressed: _busy ? null : _import, child: Text(t.transfer.importAction)),
       ],
+    );
+  }
+}
+
+/// Keys an import would add for one host, marked as a change: what this device trusts now, what the import holds,
+/// and a button that trusts them.
+class _HostKeyChangeTile extends StatelessWidget {
+  const _HostKeyChangeTile({required this.change, required this.confirmed, required this.onTrust});
+
+  final HostKeyImportChange change;
+  final bool confirmed;
+  final VoidCallback onTrust;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t.transfer;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final mono = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace');
+    final label = theme.textTheme.labelMedium;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: confirmed ? scheme.outlineVariant : scheme.error),
+        borderRadius: const BorderRadius.all(Radius.circular(8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.gpp_maybe_outlined, size: 18, color: scheme.error),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  change.port == 22 ? change.host : '${change.host}:${change.port}',
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(t.trustedHere, style: label),
+          if (change.trusted.isEmpty) Text(t.nothingTrusted, style: theme.textTheme.bodySmall),
+          for (final row in change.trusted) SelectableText('${row.keyType} ${row.fingerprint}', style: mono),
+          const SizedBox(height: 8),
+          Text(t.inImport, style: label),
+          for (final row in change.imported) SelectableText('${row.keyType} ${row.fingerprint}', style: mono),
+          const SizedBox(height: 8),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: confirmed
+                ? Text(t.keysTrusted, style: theme.textTheme.labelLarge)
+                : FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: scheme.error, foregroundColor: scheme.onError),
+                    onPressed: onTrust,
+                    child: Text(t.trustKeys),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -13,9 +13,9 @@ import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
 import '../machines/connect_dialogs.dart';
 
-/// Installs omp on [machine] (docs/PLAN.md D12): omp's own installer pinned to a release when the machine has
-/// curl or wget, otherwise the release asset downloaded here and uploaded, checked against its SHA-256 on the
-/// machine. Shows the manual command too.
+/// Installs omp on [machine] (docs/PLAN.md D12): a machine with curl or wget, and every Windows machine, downloads
+/// the pinned release asset itself; otherwise the app downloads it here and uploads it. Either way the machine checks
+/// its SHA-256 before installing it. Shows the manual script too.
 Future<void> showInstallOmpDialog(BuildContext context, Machine machine) => showDialog<void>(
   context: context,
   barrierDismissible: false,
@@ -49,8 +49,6 @@ final class _Failed extends _Phase {
   final String message;
 }
 
-enum _Method { installer, upload }
-
 class _InstallOmpDialog extends StatefulWidget {
   const _InstallOmpDialog({required this.machine});
 
@@ -68,9 +66,6 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
 
   MachineRuntime get _runtime => context.read<SessionsProvider>().runtimeFor(widget.machine);
 
-  static _Method _method(HostProbe probe) =>
-      probe.isWindows || probe.curl || probe.wget ? _Method.installer : _Method.upload;
-
   static String _manualCommand(HostProbe probe) =>
       probe.isWindows ? windowsInstallCommand(probe, _version) : posixInstallCommand(probe, _version);
 
@@ -80,14 +75,14 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
     final runtime = _runtime;
     try {
       final link = runtime.link;
-      switch (_method(probe)) {
-        case _Method.installer:
-          setState(() => _phase = _Running(t.install.runningInstaller));
+      switch (installRoute(probe)) {
+        case InstallRoute.download:
+          setState(() => _phase = _Running(t.install.installing));
           final result = probe.isWindows
               ? await runPowerShell(link, probe.commandShell, windowsInstallCommand(probe, _version))
               : await runPosixScript(link, posixInstallCommand(probe, _version));
-          if (result.exit.code != 0) throw result.failure(t.install.installerFailed);
-        case _Method.upload:
+          if (result.exit.code != 0) throw result.failure(t.install.installFailed);
+        case InstallRoute.upload:
           await _upload(link, probe);
       }
       setState(() => _phase = _Running(t.install.checking));
@@ -180,9 +175,9 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
                     style: theme.textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
-                  Text(switch (_method(probe)) {
-                    _Method.installer => t.install.viaInstaller,
-                    _Method.upload => t.install.viaUpload,
+                  Text(switch (installRoute(probe)) {
+                    InstallRoute.download => t.install.viaDownload,
+                    InstallRoute.upload => t.install.viaUpload,
                   }),
                   const SizedBox(height: 12),
                   Text(t.install.manual, style: theme.textTheme.labelMedium),

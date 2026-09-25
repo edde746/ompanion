@@ -45,7 +45,10 @@ final class EntryRow extends BrowserRow {
   final HostDirEntry entry;
   final bool expanded;
 
+  /// False for a link, whatever it points to.
   bool get isDirectory => entry.stat.isDirectory;
+
+  bool get isLink => entry.stat.isLink;
 }
 
 /// A directory being listed.
@@ -237,8 +240,9 @@ final class FileWorkspace extends ChangeNotifier {
     return rows;
   }
 
-  /// Opens [path] in the editor, or browses it when it is a directory (a symlink to one lists as a file). An open
-  /// document is reused; [line] (1-based) is revealed.
+  /// Opens [path] in the editor, or browses it when it is a directory. A link is followed: the tree lists it as a
+  /// link, and opening it opens or browses what it points to. An open document is reused; [line] (1-based) is
+  /// revealed.
   Future<void> open(String path, {int? line}) async {
     final normalized = normalizePath(path);
     final existing = _documents.where((document) => document.path == normalized).firstOrNull;
@@ -331,10 +335,11 @@ final class FileWorkspace extends ChangeNotifier {
     unawaited(refreshGit());
   }
 
-  /// Deletes [path]; a directory goes with everything in it. Open documents inside are closed.
+  /// Deletes [path]; a directory goes with everything in it. A symbolic link, at [path] or inside, is removed
+  /// itself, never what it points to. Open documents inside are closed.
   Future<void> delete(String path) async {
     final files = await this.files();
-    final stat = await files.stat(path);
+    final stat = await files.stat(path, followLinks: false);
     if (stat == null) throw HostLinkException('no such file: $path');
     if (stat.isDirectory) {
       await _deleteTree(files, path);
@@ -350,7 +355,8 @@ final class FileWorkspace extends ChangeNotifier {
     unawaited(refreshGit());
   }
 
-  /// Post-order removal without recursion: SFTP removes only empty directories.
+  /// Post-order removal without recursion: SFTP removes only empty directories. Listings describe links
+  /// themselves, so a link to a directory is removed like a file.
   Future<void> _deleteTree(HostFiles files, String root) async {
     final dirs = <String>[root];
     final order = <String>[];

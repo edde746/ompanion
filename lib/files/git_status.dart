@@ -10,8 +10,8 @@ import 'file_paths.dart';
 Future<GitStatus?> gitStatus(HostLink link, CommandShell shell, String dir) async {
   final quoted = _quote(shell, hostPath(dir));
   final (prefix, status) = await (
-    runCommand(link, 'git -C $quoted rev-parse --show-prefix'),
-    runCommand(link, 'git -C $quoted status --porcelain=v1 -z'),
+    _run(link, shell, 'git -C $quoted rev-parse --show-prefix'),
+    _run(link, shell, 'git -C $quoted status --porcelain=v1 -z'),
   ).wait;
   if (prefix.exit.code != 0 || status.exit.code != 0) return null;
   var root = normalizePath(dir);
@@ -27,11 +27,16 @@ Future<String> gitDiff(HostLink link, CommandShell shell, String path) async {
   final dir = _quote(shell, hostPath(parentPath(path)));
   final name = _quote(shell, baseName(path));
   final command = 'git -C $dir diff --no-color --no-ext-diff -U3';
-  var result = await runCommand(link, '$command HEAD -- $name');
-  if (result.exit.code != 0) result = await runCommand(link, '$command -- $name');
+  var result = await _run(link, shell, '$command HEAD -- $name');
+  if (result.exit.code != 0) result = await _run(link, shell, '$command -- $name');
   if (result.exit.code != 0) throw HostLinkException('git diff failed (${result.exit}): ${result.stderr.trim()}');
   return result.stdout;
 }
+
+/// A POSIX machine's login shell may be fish or csh, which parse [shQuote]'s quoting differently, so the command
+/// goes to `sh -s` as a script. cmd.exe and PowerShell parse it on the command line, quoted for them.
+Future<ScriptResult> _run(HostLink link, CommandShell shell, String command) =>
+    shell == CommandShell.posix ? runPosixScript(link, command) : runCommand(link, command);
 
 String _quote(CommandShell shell, String value) => switch (shell) {
   CommandShell.posix => shQuote(value),

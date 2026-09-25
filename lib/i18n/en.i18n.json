@@ -143,6 +143,8 @@
       "deleteTitle": "Delete $name?",
       "deleteFileBody": "The file is deleted from the machine.",
       "deleteFolderBody": "The folder and everything in it are deleted from the machine.",
+      "deleteLinkBody": "The symbolic link is deleted from the machine. What it points to stays.",
+      "link": "Symbolic link",
       "emptyFolder": "Empty folder",
       "listFailed": "Could not list: $error",
       "openDocuments": {
@@ -313,7 +315,15 @@
     "keyType": "Key type",
     "fingerprint": "Fingerprint",
     "trust": "Trust",
-    "replace": "Replace and connect"
+    "replace": "Replace and connect",
+    "otherTypesTitle": "Unexpected key type",
+    "otherTypesBody": "~/.ssh/known_hosts knows $host only with keys of other types. The server may have added a key type, or someone may be intercepting the connection. Compare the fingerprint with the server's key before you trust it.",
+    "knownToOpenSsh": "Known in ~/.ssh/known_hosts"
+  },
+  "links": {
+    "confirmTitle": "Open this link?",
+    "confirmBody": "This is a $scheme: link, not a web page. It opens whichever app handles $scheme: links on this device.",
+    "open": "Open"
   },
   "prompt": {
     "passwordTitle": "Password for $hop"
@@ -352,7 +362,14 @@
     "importHint": "Paste an export from another device, or choose its file.",
     "importAction": "Import",
     "imported": "Imported $added, skipped $skipped already present.",
-    "invalid": "Not a machine export: $error"
+    "invalid": "Not a machine export: $error",
+    "hostKeysTitle": "Host keys to confirm",
+    "hostKeysBody": "The import holds host keys that would change which servers this device trusts. Trust a host's keys only if you know they are right; the others are not imported.",
+    "trustedHere": "Trusted on this device",
+    "nothingTrusted": "Nothing yet",
+    "inImport": "In the import",
+    "trustKeys": "Trust these keys",
+    "keysTrusted": "Trusted"
   },
   "settings": {
     "theme": "Theme",
@@ -413,12 +430,12 @@
     "title": "Install omp on $machine",
     "notConnected": "Connect to the machine first.",
     "facts": "$os $arch · omp $version into $dir",
-    "viaInstaller": "The app runs omp's installer on the machine, pinned to this release.",
+    "viaDownload": "The machine downloads this release from GitHub and checks its SHA-256 before installing it.",
     "viaUpload": "The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.",
     "manual": "Or run this on the machine yourself:",
     "install": "Install",
-    "runningInstaller": "Running the installer…",
-    "installerFailed": "The installer failed",
+    "installing": "Downloading and installing on the machine…",
+    "installFailed": "Installing on the machine failed",
     "downloading": "Downloading $asset…",
     "downloadFailed": "Download failed with HTTP $status: $url",
     "transferring": "Transferring $asset: $done of $total MB",
@@ -525,7 +542,8 @@
     "answerFailed": "Could not send the answer: $error",
     "unsupportedTitle": "Unsupported request",
     "unsupportedBody": "The companion asked for \"$method\", which this app version cannot show.",
-    "secondsLeft": "$n s left"
+    "secondsLeft": "$n s left",
+    "notWebLink": "Not an http or https link, so it does not open from here."
   },
   "ask": {
     "title": "Question",
@@ -566,6 +584,7 @@
     "tokensCached": "$count cached",
     "seconds": "$value s",
     "image": "Image",
+    "loadImage": "Load image",
     "showMoreLines": {
       "one": "Show $n more line",
       "other": "Show $n more lines"

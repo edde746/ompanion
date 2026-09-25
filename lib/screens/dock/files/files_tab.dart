@@ -144,7 +144,7 @@ class _Browser extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(t.deleteTitle(name: row.entry.name)),
-        content: Text(row.isDirectory ? t.deleteFolderBody : t.deleteFileBody),
+        content: Text(row.isLink ? t.deleteLinkBody : (row.isDirectory ? t.deleteFolderBody : t.deleteFileBody)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.t.common.cancel)),
           FilledButton(
@@ -388,11 +388,17 @@ class _EntryTile extends StatelessWidget {
                   ? Icon(row.expanded ? Icons.expand_more : Icons.chevron_right, size: 18, color: scheme.outline)
                   : null,
             ),
-            Icon(
-              row.isDirectory ? (row.expanded ? Icons.folder_open : Icons.folder) : _fileIcon(name),
-              size: 16,
-              color: row.isDirectory ? scheme.primary : scheme.onSurfaceVariant,
-            ),
+            if (row.isLink)
+              Tooltip(
+                message: context.t.dock.fileBrowser.link,
+                child: Icon(Icons.link, size: 16, color: scheme.onSurfaceVariant),
+              )
+            else
+              Icon(
+                row.isDirectory ? (row.expanded ? Icons.folder_open : Icons.folder) : _fileIcon(name),
+                size: 16,
+                color: row.isDirectory ? scheme.primary : scheme.onSurfaceVariant,
+              ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -411,7 +417,7 @@ class _EntryTile extends StatelessWidget {
               )
             else if (dirty)
               Icon(Icons.circle, size: 6, color: scheme.tertiary)
-            else if (!row.isDirectory)
+            else if (!row.isDirectory && !row.isLink)
               Text(_size(row.entry.stat.size), style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline)),
           ],
         ),

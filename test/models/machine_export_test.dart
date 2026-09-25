@@ -110,15 +110,84 @@ void main() {
     expect(imported, isEmpty);
   });
 
-  test('imported host keys never replace a key this device already trusts', () {
-    final changed = generateEd25519Key().publicKey;
-    final rows = importHostKeys(
-      decodeMachineExport(exportJson()),
-      existing: [trusted('build.internal', 22, changed)],
-      now: now,
+  group('host keys', () {
+    final ecdsa = SshPublicKey.parse(
+      'ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFHCjHHkyHlZM7oIFdfJJ9SEHnTxNIdCaR87+lpDDrgJpK6FgI9mKZL4CPScjRW1Oz0t3HzAcKIENX2kagJKp0Y=',
     );
 
-    expect([for (final row in rows) (row.host, row.port, row.fingerprint)], [('bastion', 2222, jumpKey.fingerprint)]);
+    /// The export with [keys] appended to its host keys, as a crafted file could list them.
+    MachineExport withKeys(List<(String, int, SshPublicKey)> keys) {
+      final json = jsonDecode(exportJson()) as Map<String, Object?>;
+      (json['hostKeys'] as List<Object?>).addAll([
+        for (final (host, port, key) in keys)
+          {'host': host, 'port': port, 'keyType': key.type, 'keyBlob': base64.encode(key.blob)},
+      ]);
+      return decodeMachineExport(jsonEncode(json));
+    }
+
+    List<SshMachine> added(MachineExport export, {List<SshMachine> existing = const []}) =>
+        importMachines(export, existing: existing, keyIdsByFingerprint: const {}, now: now, newId: newId);
+
+    List<(String, int, String)> triples(Iterable<KnownHostRow> rows) => [
+      for (final row in rows) (row.host, row.port, row.fingerprint),
+    ];
+
+    test('keys of hops of machines the import adds are trusted when this device has none for them', () {
+      final export = decodeMachineExport(exportJson());
+      final keys = importHostKeys(export, added: added(export), existing: const [], now: now);
+
+      expect(
+        triples(keys.trusted),
+        unorderedEquals([('build.internal', 22, hostKey.fingerprint), ('bastion', 2222, jumpKey.fingerprint)]),
+      );
+      expect(keys.changes, isEmpty);
+    });
+
+    test('a key of another type for a host this device trusts waits for confirmation as a change', () {
+      final export = withKeys([('build.internal', 22, ecdsa)]);
+      final keys = importHostKeys(export, added: added(export), existing: [trusted('build.internal', 22, hostKey)], now: now);
+
+      expect(triples(keys.trusted), [('bastion', 2222, jumpKey.fingerprint)]);
+      final change = keys.changes.single;
+      expect((change.host, change.port), ('build.internal', 22));
+      expect(triples(change.trusted), [('build.internal', 22, hostKey.fingerprint)]);
+      expect(triples(change.imported), [('build.internal', 22, ecdsa.fingerprint)]);
+    });
+
+    test('a different key of the same type waits for confirmation instead of replacing the trusted one', () {
+      final changed = generateEd25519Key().publicKey;
+      final export = decodeMachineExport(exportJson());
+      final keys = importHostKeys(export, added: added(export), existing: [trusted('build.internal', 22, changed)], now: now);
+
+      expect(triples(keys.trusted), [('bastion', 2222, jumpKey.fingerprint)]);
+      expect(triples(keys.changes.single.trusted), [('build.internal', 22, changed.fingerprint)]);
+      expect(triples(keys.changes.single.imported), [('build.internal', 22, hostKey.fingerprint)]);
+    });
+
+    test('keys of hosts no added machine uses wait for confirmation, one change per host', () {
+      // The machine is here already, so the import adds nothing; a crafted file can also name unrelated hosts.
+      final export = withKeys([('unrelated', 22, otherHost), ('unrelated', 22, ecdsa)]);
+      final keys = importHostKeys(export, added: added(export, existing: [machine]), existing: const [], now: now);
+
+      expect(keys.trusted, isEmpty);
+      expect(
+        [for (final change in keys.changes) (change.host, change.port, change.trusted.length, change.imported.length)],
+        [('build.internal', 22, 0, 1), ('bastion', 2222, 0, 1), ('unrelated', 22, 0, 2)],
+      );
+    });
+
+    test('keys this device already trusts are neither added nor asked about', () {
+      final export = decodeMachineExport(exportJson());
+      final keys = importHostKeys(
+        export,
+        added: added(export),
+        existing: [trusted('build.internal', 22, hostKey), trusted('bastion', 2222, jumpKey)],
+        now: now,
+      );
+
+      expect(keys.trusted, isEmpty);
+      expect(keys.changes, isEmpty);
+    });
   });
 
   group('rejects', () {

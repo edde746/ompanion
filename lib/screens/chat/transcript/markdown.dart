@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../../utils/app_logger.dart';
+import '../../../i18n/strings.g.dart';
+import '../../external_links.dart';
 import 'code_block.dart';
 import 'highlighter.dart';
 import 'transcript_actions.dart';
@@ -98,15 +98,116 @@ Widget _fence(BuildContext context, MdCustomBlock node, GptMarkdownConfig config
 Widget _builtInFence(BuildContext context, String name, String code, bool closed) =>
     CodeBlock(code: code, language: languageForFence(name), label: name, closed: closed);
 
-Widget _image(BuildContext context, String url, double? width, double? height) {
+/// An image of the transcript's markdown: an inline `data:` image is drawn, a web image waits for a tap
+/// ([_RemoteImage]), and anything else shows its URL. [alt] is the image's alt text, empty when unknown.
+Widget _image(BuildContext context, String url, String alt, double? width, double? height) {
   final uri = Uri.tryParse(url);
-  if (uri == null || !(uri.isScheme('https') || uri.isScheme('http'))) return Text(url);
-  return Image.network(
-    url,
-    width: width,
-    height: height,
-    errorBuilder: (context, error, stack) => Text(url, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-  );
+  final data = uri != null && uri.isScheme('data') ? uri.data : null;
+  if (data != null && data.mimeType.startsWith('image/')) {
+    return Image.memory(
+      data.contentAsBytes(),
+      width: width,
+      height: height,
+      errorBuilder: (context, error, stack) => Text(alt.isEmpty ? context.t.transcript.image : alt),
+    );
+  }
+  if (uri == null || !isWebLink(uri)) return Text(url);
+  return _RemoteImage(url: url, host: uri.host, alt: alt, width: width, height: height);
+}
+
+/// A web image of model output, fetched only once the user taps it. Loading it on its own would send whatever its
+/// URL carries, such as file contents a prompt injection put there, to that server from every device showing the
+/// session.
+class _RemoteImage extends StatefulWidget {
+  const _RemoteImage({required this.url, required this.host, required this.alt, this.width, this.height});
+
+  final String url;
+  final String host;
+  final String alt;
+  final double? width;
+  final double? height;
+
+  @override
+  State<_RemoteImage> createState() => _RemoteImageState();
+}
+
+class _RemoteImageState extends State<_RemoteImage> {
+  var _load = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    if (_load) {
+      return Image.network(
+        widget.url,
+        width: widget.width,
+        height: widget.height,
+        errorBuilder: (context, error, stack) => Text(widget.url, style: TextStyle(color: scheme.error)),
+      );
+    }
+    final t = context.t.transcript;
+    return Tooltip(
+      message: widget.url,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
+        decoration: BoxDecoration(
+          border: Border.all(color: scheme.outlineVariant),
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.image_outlined, size: 18, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.alt.isEmpty ? t.image : widget.alt, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(widget.host, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(onPressed: () => setState(() => _load = true), child: Text(t.loadImage)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Alt text by URL of the images in [markdown]: the builder gpt_markdown calls for an image gets only its URL, the
+/// whole text between the parentheses, trimmed. Brackets and parentheses nest and a backslash escapes, as in
+/// gpt_markdown's own image rule; the first image with a URL gives its alt text.
+Map<String, String> markdownImageAlts(String markdown) {
+  final alts = <String, String>{};
+  for (var start = markdown.indexOf('!['); start >= 0; start = markdown.indexOf('![', start + 2)) {
+    final altEnd = _closing(markdown, start + 1, '[', ']');
+    if (altEnd < 0 || altEnd + 1 >= markdown.length || markdown[altEnd + 1] != '(') continue;
+    final urlEnd = _closing(markdown, altEnd + 1, '(', ')');
+    if (urlEnd < 0) continue;
+    alts.putIfAbsent(markdown.substring(altEnd + 2, urlEnd).trim(), () => markdown.substring(start + 2, altEnd));
+  }
+  return alts;
+}
+
+/// Index of the [close] matching the [open] at [from], or -1.
+int _closing(String text, int from, String open, String close) {
+  var depth = 0;
+  for (var i = from; i < text.length; i++) {
+    final char = text[i];
+    if (char == r'\') {
+      i++;
+    } else if (char == open) {
+      depth++;
+    } else if (char == close && --depth == 0) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 final _fenceLine = RegExp(r'^ {0,3}(`{3,}|~{3,})(.*)$');
@@ -249,9 +350,9 @@ int _inlineMathClose(String text, int open) {
 
 final _fileLink = RegExp(r'^(?:file://)?(.+?)(?:#L(\d+)(?:-L?\d+)?|:(\d+)(?::\d+)?)?$');
 
-/// Opens a link from the transcript. Web links and other URL schemes go to the system; a path (no scheme, `file:`,
-/// or `name.ext:12`, which parses as a scheme) opens as a file of the session's machine, with a `#L12` or `:12`
-/// suffix as the line.
+/// Opens a link from the transcript. A path (no scheme, `file:`, or `name.ext:12`, which parses as a scheme) opens
+/// as a file of the session's machine, with a `#L12` or `:12` suffix as the line; anything else goes to
+/// [openExternalLink].
 Future<void> openTranscriptLink(BuildContext context, String url) async {
   final target = url.trim();
   final uri = Uri.tryParse(target);
@@ -262,7 +363,7 @@ Future<void> openTranscriptLink(BuildContext context, String url) async {
     TranscriptScope.of(context).onOpenFile(match[1]!, line: int.tryParse(match[2] ?? match[3] ?? ''));
     return;
   }
-  if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) appLogger.w('No application opens $url');
+  await openExternalLink(context, uri);
 }
 
 /// [target] percent-decoded, or as written when it is not valid percent-encoding (`100%.md`).
@@ -290,16 +391,21 @@ class TranscriptMarkdown extends StatefulWidget {
 class _TranscriptMarkdownState extends State<TranscriptMarkdown> {
   String? _source;
   String _prepared = '';
+  Map<String, String> _alts = const {};
 
   // gpt_markdown keeps the spans of settled segments, taps included, across builds: the handler resolves the link
   // through this state's context when tapped rather than capturing anything from one build.
   void _onLinkTap(String url, String title) => openTranscriptLink(context, url);
+
+  Widget _buildImage(BuildContext context, String url, double? width, double? height) =>
+      _image(context, url, _alts[url] ?? '', width, height);
 
   @override
   Widget build(BuildContext context) {
     if (!identical(widget.text, _source)) {
       _source = widget.text;
       _prepared = rewriteDollarMath(widget.text);
+      _alts = markdownImageAlts(_prepared);
     }
     final theme = Theme.of(context);
     return GptMarkdown(
@@ -307,7 +413,7 @@ class _TranscriptMarkdownState extends State<TranscriptMarkdown> {
       style: widget.style ?? theme.textTheme.bodyMedium,
       blockComponents: _blockComponents,
       codeBuilder: _builtInFence,
-      imageBuilder: _image,
+      imageBuilder: _buildImage,
       onLinkTap: _onLinkTap,
       styleSheet: _styleSheet(theme.colorScheme),
     );

@@ -6,10 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../i18n/strings.g.dart';
 import '../../sessions/sessions_provider.dart';
+import '../external_links.dart';
 import '../shell/layout.dart';
 import 'ask_dialog.dart';
 import 'request_frame.dart';
@@ -474,7 +474,10 @@ class _RequestContentState extends State<RequestContent> {
           FilledButton.icon(
             icon: const Icon(Icons.open_in_new),
             label: Text(t.requests.openInBrowser),
-            onPressed: () => unawaited(launchUrl(Uri.parse(request.url), mode: LaunchMode.externalApplication)),
+            onPressed: switch (Uri.tryParse(request.url)) {
+              final uri? when isWebLink(uri) => () => unawaited(openWebLink(uri)),
+              _ => null,
+            },
           ),
         ],
       ),
@@ -591,6 +594,10 @@ class _OpenUrlBody extends StatelessWidget {
             ),
           ],
         ),
+        if (Uri.tryParse(request.url) case final uri when uri == null || !isWebLink(uri)) ...[
+          const SizedBox(height: 12),
+          Text(t.requests.notWebLink, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+        ],
         if (note != null) ...[const SizedBox(height: 12), Text(note, style: theme.textTheme.bodySmall)],
       ],
     );

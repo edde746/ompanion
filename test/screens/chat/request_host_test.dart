@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omp_app/database/app_database.dart';
@@ -312,5 +313,37 @@ void main() {
       {'type': 'extension_ui_response', 'id': 'c1', 'confirmed': false},
     ]);
     expect(find.byType(BottomSheet), findsNothing);
+  });
+
+  group('open_url', () {
+    const channel = MethodChannel('plugins.flutter.io/url_launcher');
+    late List<String> launched;
+
+    setUp(() {
+      launched = [];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'launch') launched.add((call.arguments as Map<Object?, Object?>)['url']! as String);
+        return true;
+      });
+    });
+
+    tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+
+    testWidgets('a web link opens in the browser', (tester) async {
+      const url = 'https://auth.example.com/authorize?client_id=omp';
+      await _pump(tester, _Session(SessionView(requests: const [OpenUrlRequest('u1', url: url)])));
+      await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+      await tester.pumpAndSettle();
+      expect(launched, [url]);
+    });
+
+    testWidgets('any other scheme is shown but never opened', (tester) async {
+      const url = 'ms-msdt:/id PCWDiagnostic /skip force';
+      await _pump(tester, _Session(SessionView(requests: const [OpenUrlRequest('u1', url: url)])));
+      expect(find.text(url), findsOneWidget);
+      expect(find.text('Not an http or https link, so it does not open from here.'), findsOneWidget);
+      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Open')).onPressed, isNull);
+      expect(launched, isEmpty);
+    });
   });
 }

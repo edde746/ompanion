@@ -3,23 +3,84 @@ import 'dart:typed_data';
 
 import 'package:omp_core/host.dart';
 
-/// The command an SSH channel with a PTY runs: the user's login shell, started in [cwd] (host-native). The
-/// machine's login shell parses it ([commandShell]); `cd` failing leaves the shell in the home directory with the
-/// error on screen. [shell] is the probed login shell (`$SHELL`), or on Windows the OpenSSH `DefaultShell`.
-String remoteShellCommand({required CommandShell commandShell, required String? shell, required String? cwd}) {
+/// The line [posixTerminalCommand] prints once the terminal neither echoes nor edits input.
+const terminalReadyMarker = 'OMPAPP_TERMINAL_READY';
+
+/// What an SSH channel with a PTY runs on a POSIX machine. The machine's login shell (fish, csh, …) parses it, so
+/// it holds no value: sh saves the terminal modes, switches to raw mode without echo, prints [terminalReadyMarker],
+/// reads the start directory as one stdin line, restores the modes, changes into the directory and replaces itself
+/// with the login shell. Raw mode keeps the line from being echoed, cut at the canonical line limit, or edited by
+/// control characters in the name. A `cd` that fails leaves the shell in the home directory with the error on
+/// screen.
+const posixTerminalCommand =
+    r"""sh -c 's=$(stty -g); stty raw -echo; echo """
+    '$terminalReadyMarker'
+    r"""; IFS= read -r d; stty "$s"; [ -z "$d" ] || cd "$d"; exec "${SHELL:-/bin/sh}" -l'""";
+
+/// How a terminal starts on a machine: [command] for an SSH channel with a PTY, and on POSIX machines the
+/// [startLine] to send once [terminalReadyMarker] arrives.
+typedef RemoteShellLaunch = ({String command, String? startLine});
+
+/// The user's login shell, started in [cwd] (host-native). [shell] is the OpenSSH `DefaultShell` of a Windows
+/// machine; a POSIX machine runs its own `$SHELL`. Windows shells get [cwd] quoted on the command line.
+RemoteShellLaunch remoteShellLaunch({required CommandShell commandShell, required String? shell, required String? cwd}) {
   switch (commandShell) {
     case CommandShell.posix:
-      final login = shell != null && shell.trim().isNotEmpty ? shell : '/bin/sh';
-      final cd = cwd == null ? '' : 'cd ${shQuote(cwd)}; ';
-      return '${cd}exec ${shQuote(login)} -l';
+      // `read` ends at the first newline, so a directory whose name holds one starts in the home directory.
+      final dir = cwd == null || cwd.contains('\n') ? '' : cwd;
+      return (command: posixTerminalCommand, startLine: '$dir\n');
     case CommandShell.cmd:
       final cd = cwd == null ? '' : 'cd /d "$cwd" & ';
-      return '${cd}cmd.exe';
+      return (command: '${cd}cmd.exe', startLine: null);
     case CommandShell.powershell:
       final program = shell != null && shell.trim().isNotEmpty ? shell : 'powershell.exe';
       final cd = cwd == null ? '' : 'Set-Location -LiteralPath ${psQuote(cwd)}; ';
-      return '$cd& ${psQuote(program)} -NoLogo';
+      return (command: '$cd& ${psQuote(program)} -NoLogo', startLine: null);
   }
+}
+
+/// Takes the [terminalReadyMarker] line out of PTY output that arrives in chunks. Output before the line is held
+/// until it arrives, then passed on with everything after it.
+final class TerminalReadyFilter {
+  static final _marker = ascii.encode(terminalReadyMarker);
+
+  final _held = BytesBuilder();
+  var _ready = false;
+
+  /// Whether the line arrived.
+  bool get ready => _ready;
+
+  /// The bytes to show for [chunk]: none while the line is still to come.
+  Uint8List add(List<int> chunk) {
+    if (_ready) return Uint8List.fromList(chunk);
+    _held.add(chunk);
+    final bytes = _held.toBytes();
+    for (var at = _indexOf(bytes, _marker, 0); at >= 0; at = _indexOf(bytes, _marker, at + 1)) {
+      var end = at + _marker.length;
+      // Raw mode ends the line with LF; a terminal still translating output sends CR LF.
+      if (end < bytes.length && bytes[end] == 0x0d) end++;
+      if (end == bytes.length) break;
+      if (bytes[end] != 0x0a) continue;
+      _ready = true;
+      _held.clear();
+      return Uint8List.fromList([...bytes.take(at), ...bytes.skip(end + 1)]);
+    }
+    return Uint8List(0);
+  }
+
+  /// Output held back when the stream ended before the line, such as the error of a shell that failed to start.
+  Uint8List close() => _held.takeBytes();
+}
+
+int _indexOf(Uint8List bytes, List<int> pattern, int from) {
+  for (var i = from; i + pattern.length <= bytes.length; i++) {
+    var j = 0;
+    while (j < pattern.length && bytes[i + j] == pattern[j]) {
+      j++;
+    }
+    if (j == pattern.length) return i;
+  }
+  return -1;
 }
 
 /// A local shell: program, arguments and extra environment for a PTY on this computer.

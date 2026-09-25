@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:xterm3/xterm.dart';
 
 import '../../../app/dev_overrides.dart';
@@ -16,6 +15,7 @@ import '../../../terminal/shell_launch.dart';
 import '../../../terminal/terminal_deck.dart';
 import '../../../terminal/terminal_session.dart';
 import '../../chat/transcript/code_style.dart';
+import '../../external_links.dart';
 import '../dock_controller.dart';
 import '../dock_empty_state.dart';
 import '../machine_access.dart';
@@ -58,8 +58,8 @@ class _TerminalTabState extends State<TerminalTab> {
           );
         }
         final (link, probe) = await machineAccess(runtime);
-        final command = remoteShellCommand(commandShell: probe.commandShell, shell: probe.shell, cwd: cwd);
-        return SshTerminalBackend.start(link, command, columns: columns, rows: rows);
+        final launch = remoteShellLaunch(commandShell: probe.commandShell, shell: probe.shell, cwd: cwd);
+        return SshTerminalBackend.start(link, launch, columns: columns, rows: rows);
       },
     );
   }
@@ -280,7 +280,10 @@ class _TerminalPaneState extends State<_TerminalPane> {
                   deleteDetection: Platform.isAndroid || Platform.isIOS,
                   readOnly: phase is! TerminalRunning && phase is! TerminalStarting,
                   onSecondaryTapDown: (details, _) => _menu(details.globalPosition),
-                  onHyperlinkTap: (uri) => unawaited(launchUrl(Uri.parse(uri))),
+                  onHyperlinkTap: (link) {
+                    final uri = Uri.tryParse(link);
+                    if (uri != null) unawaited(openExternalLink(context, uri));
+                  },
                 ),
               ),
             ),

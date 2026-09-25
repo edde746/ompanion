@@ -11,8 +11,7 @@ import '../models/machine.dart';
 
 /// Asks the user about a host key that is not trusted yet. Returns true to trust it and connect.
 ///
-/// Called for [HostKeyUnknown], [HostKeyChanged] and [HostKeyRevoked]; a revoked key is never accepted,
-/// whatever the answer.
+/// Called for every verdict but [HostKeyTrusted]; a revoked key is never accepted, whatever the answer.
 typedef HostKeyPrompt = Future<bool> Function(HostKeyCheck check, HostKeyVerdict verdict);
 
 /// The app's trusted host keys, plus a read-only view of `~/.ssh/known_hosts` on desktop.
@@ -41,7 +40,7 @@ class KnownHostsStore {
       final recorded = await (_db.select(
         _db.knownHosts,
       )..where((k) => k.host.equals(check.host) & k.port.equals(check.port))).get();
-      final verdict = judgeHostKey(check, recorded, openSsh: checkKnownHost(openSsh, check));
+      final verdict = judgeHostKey(check, recorded, openSsh: openSsh);
       if (verdict is HostKeyTrusted) return true;
       final accepted = await prompt(check, verdict);
       if (!accepted || verdict is HostKeyRevoked) return false;

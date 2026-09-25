@@ -181,25 +181,69 @@ List<SshMachine> importMachines(
   return machines;
 }
 
-/// Exported host keys this device does not have yet. A different key already trusted here for the same
-/// host, port and type is kept: an import never overrides local trust.
-List<KnownHostRow> importHostKeys(MachineExport export, {required Iterable<KnownHostRow> existing, required DateTime now}) {
-  final known = {for (final row in existing) (row.host, row.port, row.keyType)};
-  final rows = <KnownHostRow>[];
-  for (final key in export.hostKeys) {
-    if (!known.add((key.host, key.port, key.keyType))) continue;
-    rows.add(
-      KnownHostRow(
-        host: key.host,
-        port: key.port,
-        keyType: key.keyType,
-        keyBlob: key.keyBlob,
-        fingerprint: sha256Fingerprint(base64.decode(key.keyBlob)),
-        addedAt: now,
-      ),
-    );
+/// Exported host keys of one host and port that would change what this device trusts. They are imported only when
+/// the user confirms this host.
+final class HostKeyImportChange {
+  const HostKeyImportChange({required this.host, required this.port, required this.trusted, required this.imported});
+
+  final String host;
+  final int port;
+
+  /// What this device trusts for the host and port now; empty when nothing.
+  final List<KnownHostRow> trusted;
+
+  /// The export's keys for the host and port that this device does not trust.
+  final List<KnownHostRow> imported;
+}
+
+/// The host keys of an import. [trusted] are added without asking: keys of hops of machines the import adds
+/// ([added]), for host and port pairs this device has no key of any type for. Every other exported key this device
+/// does not trust yet is in [changes], one per host and port, for the user to confirm; an import never changes
+/// local trust on its own.
+typedef HostKeyImport = ({List<KnownHostRow> trusted, List<HostKeyImportChange> changes});
+
+HostKeyImport importHostKeys(
+  MachineExport export, {
+  required Iterable<SshMachine> added,
+  required Iterable<KnownHostRow> existing,
+  required DateTime now,
+}) {
+  final addedHops = {
+    for (final machine in added)
+      for (final hop in machine.hops) (hop.host, hop.port),
+  };
+  final recorded = <(String, int), List<KnownHostRow>>{};
+  for (final row in existing) {
+    (recorded[(row.host, row.port)] ??= []).add(row);
   }
-  return rows;
+  final seen = <(String, int, String)>{};
+  final trusted = <KnownHostRow>[];
+  final pending = <(String, int), List<KnownHostRow>>{};
+  for (final key in export.hostKeys) {
+    if (!seen.add((key.host, key.port, key.keyType))) continue;
+    final here = recorded[(key.host, key.port)] ?? const <KnownHostRow>[];
+    if (here.any((row) => row.keyType == key.keyType && row.keyBlob == key.keyBlob)) continue;
+    final row = KnownHostRow(
+      host: key.host,
+      port: key.port,
+      keyType: key.keyType,
+      keyBlob: key.keyBlob,
+      fingerprint: sha256Fingerprint(base64.decode(key.keyBlob)),
+      addedAt: now,
+    );
+    if (here.isEmpty && addedHops.contains((key.host, key.port))) {
+      trusted.add(row);
+    } else {
+      (pending[(key.host, key.port)] ??= []).add(row);
+    }
+  }
+  return (
+    trusted: trusted,
+    changes: [
+      for (final MapEntry(key: (host, port), value: imported) in pending.entries)
+        HostKeyImportChange(host: host, port: port, trusted: recorded[(host, port)] ?? const [], imported: imported),
+    ],
+  );
 }
 
 String _route(Iterable<(String, int, String)> hops) => [for (final (host, port, user) in hops) '$user@$host:$port'].join(' > ');
