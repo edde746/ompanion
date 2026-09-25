@@ -319,6 +319,27 @@ void main() {
       expect(await files.stat('$dir/b'), isNull);
     });
 
+    test('links: stat describes them unless following, list never follows, remove deletes only the link', () async {
+      final (_, stderr, exit) = await run(
+        link,
+        'mkdir $dir/target $dir/tree && touch $dir/target/keep && '
+        'ln -s $dir/target $dir/tree/dir-link && ln -s $dir/gone $dir/tree/dangling',
+      );
+      expect(exit.code, 0, reason: stderr);
+      expect((await files.stat('$dir/tree/dir-link'))!.isDirectory, isTrue);
+      final own = (await files.stat('$dir/tree/dir-link', followLinks: false))!;
+      expect((own.isLink, own.isDirectory), (true, false));
+      expect(await files.stat('$dir/tree/dangling'), isNull);
+      expect((await files.stat('$dir/tree/dangling', followLinks: false))!.isLink, isTrue);
+      final entries = {for (final entry in await files.list('$dir/tree')) entry.name: entry.stat};
+      expect((entries['dir-link']!.isLink, entries['dir-link']!.isDirectory), (true, false));
+      expect(entries['dangling']!.isLink, isTrue);
+      await files.remove('$dir/tree/dir-link');
+      await files.remove('$dir/tree/dangling');
+      expect(await files.list('$dir/tree'), isEmpty);
+      expect(await files.stat('$dir/target/keep'), isNotNull);
+    });
+
     test('errors name the path', () async {
       await expectLater(
         files.read('$dir/missing'),

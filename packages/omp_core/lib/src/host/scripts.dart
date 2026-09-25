@@ -164,7 +164,8 @@ Future<void> finishProcess(HostProcess process, Future<void> done, {Duration tim
 
 /// Runs [script] with Windows PowerShell, after [powershellPreamble]. Scripts too long for a cmd.exe line
 /// are uploaded to `~/.omp-app/tmp` as UTF-8 with a BOM (Windows PowerShell reads BOM-less files as ANSI)
-/// and run with `-File`.
+/// and run with `-File`; under a POSIX default shell that command goes through `sh -s`, as [runPosixScript]
+/// explains.
 Future<ScriptResult> runPowerShell(HostLink link, CommandShell shell, String script) async {
   final full = '$powershellPreamble$script';
   final command = encodedPowerShellCommand(shell, full);
@@ -176,12 +177,11 @@ Future<ScriptResult> runPowerShell(HostLink link, CommandShell shell, String scr
     await files.write(path, [0xEF, 0xBB, 0xBF, ...utf8.encode(full)]);
     try {
       final native = hostPath(path);
-      final quoted = switch (shell) {
-        CommandShell.cmd => '"$native"',
-        CommandShell.powershell => psQuote(native),
-        CommandShell.posix => shQuote(native),
+      return await switch (shell) {
+        CommandShell.cmd => runCommand(link, powershellCommand(shell, '-File "$native"')),
+        CommandShell.powershell => runCommand(link, powershellCommand(shell, '-File ${psQuote(native)}')),
+        CommandShell.posix => runPosixScript(link, powershellCommand(shell, '-File ${shQuote(native)}')),
       };
-      return await runCommand(link, powershellCommand(shell, '-File $quoted'));
     } finally {
       await files.remove(path);
     }

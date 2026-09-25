@@ -22,7 +22,6 @@ final class HostProbe {
     this.ompVersion,
     this.curl = false,
     this.wget = false,
-    this.sha256Tool,
     this.powershellVersion,
     this.localAppData,
     this.sshdVersion,
@@ -43,7 +42,6 @@ final class HostProbe {
     ompVersion: json.optString('ompVersion'),
     curl: json.optBool('curl') ?? false,
     wget: json.optBool('wget') ?? false,
-    sha256Tool: json.optString('sha256Tool'),
     powershellVersion: json.optString('powershellVersion'),
     localAppData: json.optString('localAppData'),
     sshdVersion: json.optString('sshdVersion'),
@@ -80,9 +78,6 @@ final class HostProbe {
   final bool curl;
   final bool wget;
 
-  /// `sha256sum`, `shasum`, `openssl` or `Get-FileHash`; null when the machine has none.
-  final String? sha256Tool;
-
   /// Windows only.
   final String? powershellVersion;
   final String? localAppData;
@@ -115,7 +110,6 @@ final class HostProbe {
     'ompVersion': ompVersion,
     'curl': curl,
     'wget': wget,
-    'sha256Tool': sha256Tool,
     'powershellVersion': powershellVersion,
     'localAppData': localAppData,
     'sshdVersion': sshdVersion,
@@ -195,13 +189,11 @@ if [ -z "$omp" ]; then
 fi
 ver=
 if [ -n "$omp" ]; then ver=$("$omp" --version </dev/null 2>/dev/null | head -n 1); fi
-sha=
-if has sha256sum; then sha=sha256sum; elif has shasum; then sha=shasum; elif has openssl; then sha=openssl; fi
 curl=; if has curl; then curl=1; fi
 wget=; if has wget; then wget=1; fi
 printf '\n%s:begin\n{"v":"1"' "$m"
 o kernel "$kernel"; o machine "$machine"; o arm64 "$arm64"; o libc "$libc"; o shell "$SHELL"; o home "$HOME"
-o agentDir "$agent"; o profile "$prof"; o omp "$omp"; o ompVersion "$ver"; o sha256 "$sha"; o curl "$curl"; o wget "$wget"
+o agentDir "$agent"; o profile "$prof"; o omp "$omp"; o ompVersion "$ver"; o curl "$curl"; o wget "$wget"
 printf '}\n%s:end\n' "$m"
 ''';
 
@@ -232,7 +224,6 @@ HostProbe parsePosixProbe(String payload) {
     ompVersion: parseOmpVersion(json.optString('ompVersion')),
     curl: json.optString('curl') == '1',
     wget: json.optString('wget') == '1',
-    sha256Tool: json.optString('sha256'),
   );
 }
 
@@ -273,7 +264,7 @@ $curl = $null
 if (Get-Command -Name 'curl.exe' -CommandType Application -ErrorAction SilentlyContinue) { $curl = '1' }
 $o = [ordered]@{
   v = '1'; kernel = 'Windows_NT'; machine = $arch; shell = $defaultShell; home = $env:USERPROFILE
-  agentDir = $agent; profile = $prof; omp = $omp; ompVersion = $ver; sha256 = 'Get-FileHash'; curl = $curl
+  agentDir = $agent; profile = $prof; omp = $omp; ompVersion = $ver; curl = $curl
   powershell = $PSVersionTable.PSVersion.ToString(); localAppData = $env:LOCALAPPDATA; sshd = $sshd
 }
 $json = ConvertTo-OmpAscii (ConvertTo-Json -InputObject $o -Compress)
@@ -295,7 +286,6 @@ HostProbe parseWindowsProbe(String payload, CommandShell commandShell) {
     ompPath: json.optString('omp'),
     ompVersion: parseOmpVersion(json.optString('ompVersion')),
     curl: json.optString('curl') == '1',
-    sha256Tool: json.optString('sha256'),
     powershellVersion: json.optString('powershell'),
     localAppData: json.optString('localAppData'),
     sshdVersion: json.optString('sshd'),

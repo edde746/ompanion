@@ -80,4 +80,43 @@ void main() {
     expect(await files.stat('$home/old'), isNull);
     expect(utf8.decode(await files.read('$home/new/inside')), 'x');
   });
+
+  group('symbolic links', () {
+    late HostFiles files;
+    late String home;
+
+    setUp(() async {
+      files = await link.files();
+      home = await files.home();
+      await Directory('$home/target').create();
+      await File('$home/target/keep').writeAsString('x');
+      await Link('$home/tree/dir-link').create('$home/target', recursive: true);
+      await Link('$home/tree/dangling').create('$home/gone');
+      await Directory('$home/tree/real').create();
+    });
+
+    test('stat follows a link unless told not to', () async {
+      expect((await files.stat('$home/tree/dir-link'))!.isDirectory, isTrue);
+      final own = (await files.stat('$home/tree/dir-link', followLinks: false))!;
+      expect((own.isLink, own.isDirectory), (true, false));
+      expect(await files.stat('$home/tree/dangling'), isNull);
+      expect((await files.stat('$home/tree/dangling', followLinks: false))!.isLink, isTrue);
+      final real = (await files.stat('$home/tree/real', followLinks: false))!;
+      expect((real.isLink, real.isDirectory), (false, true));
+    });
+
+    test('list reports links as links, not as what they point to', () async {
+      final entries = {for (final entry in await files.list('$home/tree')) entry.name: entry.stat};
+      expect((entries['dir-link']!.isLink, entries['dir-link']!.isDirectory), (true, false));
+      expect(entries['dangling']!.isLink, isTrue);
+      expect((entries['real']!.isLink, entries['real']!.isDirectory), (false, true));
+    });
+
+    test('remove deletes the link itself and leaves its target', () async {
+      await files.remove('$home/tree/dir-link');
+      await files.remove('$home/tree/dangling');
+      expect(await files.list('$home/tree'), [isA<HostDirEntry>().having((entry) => entry.name, 'name', 'real')]);
+      expect(await File('$home/target/keep').readAsString(), 'x');
+    });
+  });
 }

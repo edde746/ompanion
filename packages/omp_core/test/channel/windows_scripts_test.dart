@@ -27,6 +27,33 @@ Future<ScriptResult> runPwsh(String script, Map<String, String> environment) asy
   return ScriptResult(result.stdout as String, result.stderr as String, HostExit(code: result.exitCode));
 }
 
+/// A machine whose login shell is [_shell]: it parses every exec command, as sshd's `$SHELL -c` does.
+final class _LoginShellLink implements HostLink {
+  _LoginShellLink(this._local, this._shell);
+
+  final LocalLink _local;
+  final String _shell;
+
+  @override
+  String get label => _local.label;
+
+  @override
+  Future<HostProcess> exec(String command, {PtyRequest? pty}) =>
+      _local.exec('exec $_shell -c ${shQuote(command)}', pty: pty);
+
+  @override
+  Future<HostFiles> files() => _local.files();
+
+  @override
+  Future<HostSocket> connect(String host, int port) => _local.connect(host, port);
+
+  @override
+  Future<void> get done => _local.done;
+
+  @override
+  Future<void> close() => _local.close();
+}
+
 void main() {
   test('Windows arguments are quoted for CommandLineToArgvW and refused when cmd.exe would misread them', () {
     expect(windowsArg('--mode'), '--mode');
@@ -113,6 +140,42 @@ void main() {
       expect(probe.ompVersion, '18.3.1');
       expect(probe.releaseAsset, 'omp-windows-arm64.exe');
       expect(probe.shell, isNull);
+    });
+
+    test('the install script refuses a tampered download and removes it, also pasted without the preamble', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) => request.response
+        ..write('not omp')
+        ..close());
+      const windows = HostProbe(
+        commandShell: CommandShell.powershell,
+        os: HostOs.windows,
+        kernel: 'Windows_NT',
+        arch: 'x64',
+        home: '/unused',
+        agentDir: '/unused',
+      );
+      final dir = '${temp.path}/omp';
+      final script = windowsInstallCommand(windows, '18.3.1', installDir: dir, assetBase: Uri.parse('http://127.0.0.1:${server.port}/'));
+      final result = await Process.run(pwsh!, ['-NoProfile', '-NonInteractive', '-Command', script]);
+      expect(result.exitCode, isNot(0));
+      expect('${result.stderr}', contains('SHA-256 mismatch'));
+      expect(Directory(dir).listSync(), isEmpty);
+    });
+
+    test('a script too long for one command line runs from a file whose path never reaches a POSIX login shell', () async {
+      // csh stands in for login shells that misread sh quoting (fish, csh): a newline inside '…' is an error there.
+      final home = Directory('${temp.path}/home\nwith a newline')..createSync();
+      final bin = Directory('${temp.path}/bin')..createSync();
+      Link('${bin.path}/powershell.exe').createSync(pwsh!);
+      final link = _LoginShellLink(LocalLink(environment: {'HOME': home.path, 'PATH': '${bin.path}:/usr/bin:/bin'}), '/bin/csh');
+      final script = "# ${'x' * windowsCommandLineLimit}\n[Console]::Out.Write('ran')";
+      expect(encodedPowerShellCommand(CommandShell.posix, '$powershellPreamble$script'), isNull);
+      final result = await runPowerShell(link, CommandShell.posix, script);
+      expect(result.exit.code, 0, reason: result.stderr);
+      expect(result.stdout, 'ran');
+      expect(Directory('${home.path}/.omp-app/tmp').listSync(), isEmpty, reason: 'the uploaded script is removed');
     });
   });
 }

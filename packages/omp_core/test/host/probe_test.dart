@@ -52,7 +52,6 @@ void main() {
       expect(result.ompPath, '${home.path}/.local/bin/omp');
       expect(result.ompVersion, '18.3.1');
       expect(result.curl, File('/usr/bin/curl').existsSync());
-      expect(result.sha256Tool, isNotNull);
       if (Platform.isMacOS) expect(result.arch, anyOf('arm64', 'x64'));
     });
 
@@ -89,7 +88,7 @@ void main() {
     final probe = parseWindowsProbe(
       r'{"v":"1","kernel":"Windows_NT","machine":"AMD64","shell":null,"home":"C:\\Users\\Jos\u00e9",'
       r'"agentDir":"C:\\Users\\Jos\u00e9\\.omp\\agent","profile":null,"omp":"C:\\Users\\Jos\u00e9\\AppData\\Local\\omp\\omp.exe",'
-      r'"ompVersion":"omp/18.3.1","sha256":"Get-FileHash","curl":"1","powershell":"5.1.26100.1","localAppData":"C:\\Users\\Jos\u00e9\\AppData\\Local","sshd":"9.5.0.0"}',
+      r'"ompVersion":"omp/18.3.1","curl":"1","powershell":"5.1.26100.1","localAppData":"C:\\Users\\Jos\u00e9\\AppData\\Local","sshd":"9.5.0.0"}',
       CommandShell.cmd,
     );
     expect(probe.os, HostOs.windows);

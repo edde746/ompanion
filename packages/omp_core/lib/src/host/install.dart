@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:meta/meta.dart';
+
 import '../transport/host_link.dart';
 import 'probe.dart';
 import 'scripts.dart';
@@ -47,35 +49,53 @@ String defaultInstallDir(HostProbe probe) {
   return '$local\\omp';
 }
 
-/// The shell command that installs [version] on a POSIX host, for manual mode and for automatic installs.
-/// With curl it is omp's own installer, pinned and forced to the prebuilt binary (without `--binary`
-/// install.sh prefers `bun install -g`, and `--ref` alone means a source build). install.sh itself needs
-/// curl, so hosts with only wget download the pinned asset directly and check it against [ompReleases].
-String posixInstallCommand(HostProbe probe, String version, {String? installDir}) {
-  final release = _release(version);
-  final asset = _asset(probe, release);
-  final dir = shQuote(installDir ?? defaultInstallDir(probe));
-  final url = shQuote(release.assetUrl(asset).toString());
-  final check = switch (probe.sha256Tool) {
-    'shasum' => 'shasum -a 256 "\$d/omp.download"',
-    'openssl' => 'openssl dgst -sha256 -r "\$d/omp.download"',
-    _ => 'sha256sum "\$d/omp.download"',
-  };
-  return 'd=$dir; mkdir -p "\$d" && '
-      'if command -v curl >/dev/null 2>&1; then '
-      'curl -fsSL https://omp.sh/install | PI_INSTALL_DIR="\$d" sh -s -- --binary --ref v$version; '
-      'else wget -qO "\$d/omp.download" $url && '
-      '[ "\$($check | cut -d" " -f1)" = ${release.assets[asset]} ] && '
-      'chmod 755 "\$d/omp.download" && "\$d/omp.download" --version && mv -f "\$d/omp.download" "\$d/omp"; fi';
+/// How omp gets onto a machine.
+enum InstallRoute {
+  /// The machine downloads the pinned release asset itself: [posixInstallCommand], [windowsInstallCommand].
+  download,
+
+  /// The app downloads the release asset and uploads it over SFTP: [uploadOmp].
+  upload,
 }
 
-/// The PowerShell command that installs [version] on a Windows host with omp's install.ps1. `-Binary` is
-/// required: `-Ref` alone means a source install.
-String windowsInstallCommand(HostProbe probe, String version, {String? installDir}) {
-  _release(version);
-  final dir = installDir ?? defaultInstallDir(probe);
-  return '\$env:PI_INSTALL_DIR = ${psQuote(dir)}; '
-      '& ([scriptblock]::Create((Invoke-RestMethod -UseBasicParsing https://omp.sh/install.ps1))) -Binary -Ref v$version';
+/// Windows always has `Invoke-WebRequest`; a POSIX machine needs curl or wget, which stock Debian and Ubuntu
+/// images lack.
+InstallRoute installRoute(HostProbe probe) =>
+    probe.isWindows || probe.curl || probe.wget ? InstallRoute.download : InstallRoute.upload;
+
+/// The `sh` script that installs [version] on a POSIX host, shown in manual mode and run by automatic installs:
+/// curl or wget downloads the pinned release asset next to the target, then it is checked and moved into
+/// place as [uploadOmp] does. It runs in a subshell, so a failure in a pasted copy ends the script, not the
+/// terminal. [assetBase] replaces the GitHub release URL in tests.
+String posixInstallCommand(HostProbe probe, String version, {String? installDir, @visibleForTesting Uri? assetBase}) {
+  final release = _release(version);
+  final asset = _asset(probe, release);
+  final url = assetBase?.resolve(asset) ?? release.assetUrl(asset);
+  return '''
+(
+d=${shQuote(installDir ?? defaultInstallDir(probe))}; f="\$d/.omp-download-\$\$"; t="\$d/omp"
+url=${shQuote('$url')}
+want=${shQuote(release.assets[asset]!)}; v=${shQuote(version)}
+$_posixFail$_posixDownloadBody$_posixPlaceBody)
+''';
+}
+
+/// The PowerShell script that installs [version] on a Windows host, shown in manual mode and run by
+/// automatic installs: `Invoke-WebRequest` downloads the pinned release asset next to the target, then it is
+/// checked and moved into place as [uploadOmp] does. It runs in a script block, so its preferences do not
+/// leak into a terminal it is pasted into. [assetBase] replaces the GitHub release URL in tests.
+String windowsInstallCommand(HostProbe probe, String version, {String? installDir, @visibleForTesting Uri? assetBase}) {
+  final release = _release(version);
+  final asset = _asset(probe, release);
+  final url = assetBase?.resolve(asset) ?? release.assetUrl(asset);
+  return '''
+& {
+\$ErrorActionPreference = 'Stop'; \$ProgressPreference = 'SilentlyContinue'
+\$d = ${psQuote(installDir ?? defaultInstallDir(probe))}; \$m = "\$PID"; \$f = Join-Path \$d ".omp-download-\$m.exe"; \$t = Join-Path \$d 'omp.exe'
+\$url = ${psQuote('$url')}
+\$want = ${psQuote(release.assets[asset]!)}; \$v = ${psQuote(version)}
+$_windowsDownloadBody$_windowsPlaceBody}
+''';
 }
 
 /// Installs omp [version] from a release asset the app already downloaded ([asset], the bytes of
@@ -142,10 +162,30 @@ Future<void> _upload(HostFiles files, String path, Stream<List<int>> bytes) asyn
 String _posixPlaceScript(String marker, String upload, String target, String digest, String version) =>
     '''
 m=${shQuote(marker)}; f=${shQuote(upload)}; t=${shQuote(target)}; want=${shQuote(digest)}; v=${shQuote(version)}
-$_posixPlaceBody''';
+$_posixFail$_posixPlaceBody$_posixReport''';
 
-const _posixPlaceBody = r'''
+/// The installed path between marker lines: the reply [uploadOmp] reads.
+const _posixReport = r'''
+printf '%s:begin\n%s\n%s:end\n' "$m" "$t" "$m"
+''';
+
+const _posixFail = r'''
 fail() { echo "$1" >&2; rm -f "$f"; exit 1; }
+''';
+
+const _posixDownloadBody = r'''
+mkdir -p "$d" || fail "cannot create $d"
+if command -v curl >/dev/null 2>&1; then
+  curl -fsSL --connect-timeout 10 --speed-limit 1024 --speed-time 30 -o "$f" "$url" || fail "downloading $url failed"
+elif command -v wget >/dev/null 2>&1; then
+  wget -q -T 30 -O "$f" "$url" || fail "downloading $url failed"
+else
+  fail 'no curl or wget on this machine'
+fi
+''';
+
+/// Checks the new binary `$f` against `$want`, runs it, and moves it to `$t`.
+const _posixPlaceBody = r'''
 if command -v sha256sum >/dev/null 2>&1; then got=$(sha256sum "$f")
 elif command -v shasum >/dev/null 2>&1; then got=$(shasum -a 256 "$f")
 elif command -v openssl >/dev/null 2>&1; then got=$(openssl dgst -sha256 -r "$f")
@@ -153,26 +193,40 @@ else fail 'no sha256sum, shasum or openssl on this machine'; fi
 got=${got%% *}
 [ "$got" = "$want" ] || fail "SHA-256 mismatch: expected $want, got $got"
 chmod 755 "$f" || fail "chmod failed"
-out=$("$f" --version </dev/null 2>&1) || fail "the uploaded binary does not start: $out"
-case $out in *"$v"*) ;; *) fail "the uploaded binary reports $out, expected $v" ;; esac
+out=$("$f" --version </dev/null 2>&1) || fail "the new binary does not start: $out"
+case $out in *"$v"*) ;; *) fail "the new binary reports $out, expected $v" ;; esac
 mv -f "$f" "$t" || fail "cannot move the binary to $t"
-printf '%s:begin\n%s\n%s:end\n' "$m" "$t" "$m"
 ''';
 
 String _windowsPlaceScript(String marker, String upload, String target, String digest, String version) =>
     '''
 \$m = ${psQuote(marker)}; \$f = ${psQuote(upload)}; \$t = ${psQuote(target)}; \$want = ${psQuote(digest)}; \$v = ${psQuote(version)}
-$_windowsPlaceBody''';
+$_windowsPlaceBody$_windowsReport''';
 
-/// A running omp.exe cannot be overwritten but can be renamed, so an existing target is moved aside first
-/// (omp's own `omp update` does the same).
+const _windowsReport = r'''
+[Console]::Out.Write($m + ":begin`n" + (ConvertTo-OmpAscii $t) + "`n" + $m + ":end`n")
+''';
+
+const _windowsDownloadBody = r'''
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+try {
+  Invoke-WebRequest -UseBasicParsing -TimeoutSec 900 -Uri $url -OutFile $f
+} catch {
+  Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
+  throw
+}
+''';
+
+/// Checks the new binary `$f` against `$want`, runs it, and moves it to `$t`. A running omp.exe cannot be
+/// overwritten but can be renamed, so an existing target is moved aside first (omp's own `omp update` does
+/// the same).
 const _windowsPlaceBody = r'''
 try {
   $got = (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant()
   if ($got -ne $want) { throw "SHA-256 mismatch: expected $want, got $got" }
   $out = (& $f --version 2>&1 | Out-String)
-  if ($LASTEXITCODE -ne 0) { throw "the uploaded binary does not start: $out" }
-  if (-not $out.Contains($v)) { throw "the uploaded binary reports $out, expected $v" }
+  if ($LASTEXITCODE -ne 0) { throw "the new binary does not start: $out" }
+  if (-not $out.Contains($v)) { throw "the new binary reports $out, expected $v" }
   if (Test-Path -LiteralPath $t) {
     $old = "$t.old-$m"
     Move-Item -LiteralPath $t -Destination $old -Force
@@ -183,7 +237,6 @@ try {
   Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
   throw
 }
-[Console]::Out.Write($m + ":begin`n" + (ConvertTo-OmpAscii $t) + "`n" + $m + ":end`n")
 ''';
 
 OmpRelease _release(String version) =>

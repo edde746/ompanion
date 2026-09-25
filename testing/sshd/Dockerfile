@@ -1,8 +1,10 @@
 # SSH test machine for omp_core: bastion and target run this image with different names.
 FROM ubuntu:24.04
 
+# curl and wget serve the download install route. Stock Ubuntu has neither; tests that need that machine
+# hide them from PATH.
 RUN apt-get update \
- && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server ca-certificates \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server ca-certificates curl wget \
  && rm -rf /var/lib/apt/lists/* \
  && rm -f /etc/ssh/ssh_host_* \
  && mkdir -p /run/sshd

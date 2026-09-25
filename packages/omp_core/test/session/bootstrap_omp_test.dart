@@ -44,7 +44,7 @@ void main() {
     final files = await runtime.link.files();
     final String keyFile;
     try {
-      keyFile = '${await ensureAppDir(files, 'tmp')}/${newMarker()}.key';
+      keyFile = '${await ensureAppDir(files, 'tmp')}/${newMarker()}.secret';
       await files.write(keyFile, utf8.encode('fake-key\n'), mode: 0x180);
     } finally {
       await files.close();

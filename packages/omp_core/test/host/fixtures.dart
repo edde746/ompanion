@@ -11,7 +11,6 @@ const macArm = HostProbe(
   arch: 'arm64',
   home: '/unused',
   agentDir: '/unused',
-  sha256Tool: 'shasum',
 );
 
 /// A session file as omp 18.3.1 writes it: the 256-byte title slot, the header, then entries.

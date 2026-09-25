@@ -610,9 +610,9 @@ final class _SftpFiles implements HostFiles {
   var _closed = false;
 
   @override
-  Future<HostFileStat?> stat(String path) async {
+  Future<HostFileStat?> stat(String path, {bool followLinks = true}) async {
     try {
-      return _toStat(await _sftp.stat(path));
+      return _toStat(await _sftp.stat(path, followLink: followLinks));
     } on SftpStatusError catch (error) {
       if (error.code == SftpStatusCode.noSuchFile) return null;
       throw _error('stat', path, error);
@@ -621,6 +621,7 @@ final class _SftpFiles implements HostFiles {
     }
   }
 
+  /// OpenSSH's sftp-server describes READDIR entries with lstat, so links arrive as links.
   @override
   Future<List<HostDirEntry>> list(String path) => _run('list', path, () async {
         return [
@@ -731,6 +732,7 @@ final class _SftpFiles implements HostFiles {
   static HostFileStat _toStat(SftpFileAttrs attrs) => HostFileStat(
         size: attrs.size ?? 0,
         isDirectory: attrs.isDirectory,
+        isLink: attrs.isSymbolicLink,
         modified: attrs.modifyTime == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(attrs.modifyTime! * 1000, isUtc: true),

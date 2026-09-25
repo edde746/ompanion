@@ -33,21 +33,20 @@ void main() {
     expect(Directory(dir).listSync().map((e) => e.path), ['$dir/omp']);
   });
 
-  test('the wget fallback installs a download whose digest matches', () async {
-    final tools = Directory('${temp.path}/tools')..createSync();
-    for (final tool in ['cut', 'shasum']) {
-      Link('${tools.path}/$tool').createSync('/usr/bin/$tool');
-    }
-    File('${tools.path}/wget').writeAsStringSync('#!/bin/sh\ncp "$ompBinary" "\$2"\n');
-    await Process.run('chmod', ['755', '${tools.path}/wget']);
+  test('the install script, run as one command line (the manual route), downloads, checks and installs omp', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((request) async {
+      final response = request.response..contentLength = File(ompBinary).lengthSync();
+      await response.addStream(File(ompBinary).openRead());
+      await response.close();
+    });
     final dir = '${temp.path}/bin';
-    final result = await Process.run(
-      '/bin/sh',
-      ['-c', posixInstallCommand(macArm, '18.3.1', installDir: dir)],
-      environment: {'PATH': '${tools.path}:/bin', 'HOME': temp.path},
-    );
+    final script = posixInstallCommand(macArm, '18.3.1', installDir: dir, assetBase: Uri.parse('http://127.0.0.1:${server.port}/'));
+    final result = await Process.run('/bin/sh', ['-c', script], environment: {'HOME': temp.path});
     expect(result.exitCode, 0, reason: '${result.stderr}');
     final version = await Process.run('$dir/omp', ['--version'], environment: {'HOME': temp.path});
     expect((version.stdout as String).trim(), 'omp/18.3.1');
+    expect(Directory(dir).listSync().map((e) => e.path), ['$dir/omp']);
   });
 }

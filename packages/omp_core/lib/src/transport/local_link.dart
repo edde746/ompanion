@@ -94,11 +94,16 @@ final class _LocalFiles implements HostFiles {
   }
 
   @override
-  Future<HostFileStat?> stat(String path) async {
-    final stat = await FileStat.stat(_native(path));
+  Future<HostFileStat?> stat(String path, {bool followLinks = true}) async {
+    final native = _native(path);
+    if (!followLinks && await FileSystemEntity.isLink(native)) return _linkStat;
+    final stat = await FileStat.stat(native);
     if (stat.type == FileSystemEntityType.notFound) return null;
     return _toStat(stat);
   }
+
+  /// dart:io has no lstat, so a link's own size, time and mode are unknown.
+  static const _linkStat = HostFileStat(size: 0, isDirectory: false, isLink: true);
 
   HostFileStat _toStat(FileStat stat) => HostFileStat(
         size: stat.size,
@@ -112,7 +117,7 @@ final class _LocalFiles implements HostFiles {
     final entries = <HostDirEntry>[];
     await for (final entity in Directory(_native(path)).list(followLinks: false)) {
       final name = entity.uri.pathSegments.lastWhere((segment) => segment.isNotEmpty);
-      entries.add(HostDirEntry(name, _toStat(await entity.stat())));
+      entries.add(HostDirEntry(name, entity is Link ? _linkStat : _toStat(await entity.stat())));
     }
     return entries;
   }
@@ -167,7 +172,15 @@ final class _LocalFiles implements HostFiles {
   }
 
   @override
-  Future<void> remove(String path) => File(_native(path)).delete();
+  Future<void> remove(String path) async {
+    final native = _native(path);
+    // File.delete resolves a link first and refuses a link to a directory or a dangling one.
+    if (await FileSystemEntity.isLink(native)) {
+      await Link(native).delete();
+    } else {
+      await File(native).delete();
+    }
+  }
 
   @override
   Future<void> removeDir(String path) => Directory(_native(path)).delete();

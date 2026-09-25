@@ -323,7 +323,9 @@ Future<({DetachedRun run, bool launched})> _openPosixRun(HostLink link, HostProb
 /// The launch recipe. `run.sh` feeds omp with `tail -f in.jsonl` and appends its stdout to `out.jsonl`; it is
 /// started in a new session (`setsid`, or Perl's on macOS, which has no `setsid` binary) so neither a
 /// terminal hangup nor a Ctrl-C in the launching process group reaches omp, and every descriptor points at
-/// run-directory files, so the launching channel can close.
+/// run-directory files, so the launching channel can close. `umask 077` is for the run directory only:
+/// `run.sh` starts with the launching shell's umask, so the files omp and its tools create get the same
+/// permissions as under an attached omp.
 String posixLaunchScript(String marker, String root, String id, RunSpec spec) {
   final dir = '$root/$id';
   final args = spec.ompArgs('$dir/overlay.yml');
@@ -371,6 +373,7 @@ const _runTail = r'''
 ''';
 
 const _launchBody = r'''
+u=$(umask)
 umask 077
 mkdir -p "$R" || exit 1
 chmod 700 "${R%/*}" "$R"
@@ -390,7 +393,7 @@ fi
 mkdir "$D" || exit 1
 printf '%s' "$overlay" > "$D/overlay.yml"
 printf '%s\n' "$meta" > "$D/meta.json"
-printf '%s' "$runsh" > "$D/run.sh"
+printf 'umask %s\n%s' "$u" "$runsh" > "$D/run.sh"
 : > "$D/in.jsonl"; : > "$D/out.jsonl"; : > "$D/err.log"
 if command -v setsid >/dev/null 2>&1; then
   setsid sh "$D/run.sh" </dev/null >/dev/null 2>&1 &

@@ -60,7 +60,6 @@ void main() {
     expect(probe.libc, 'glibc');
     expect(probe.ompPath, '${probe.home}/.local/bin/omp');
     expect(probe.ompVersion, '18.3.1');
-    expect(probe.sha256Tool, 'sha256sum');
     expect(probe.releaseAsset, 'omp-linux-arm64');
   });
 

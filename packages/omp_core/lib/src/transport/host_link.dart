@@ -70,9 +70,11 @@ final class HostExit {
 }
 
 abstract interface class HostFiles {
-  /// Null when [path] does not exist.
-  Future<HostFileStat?> stat(String path);
+  /// Null when [path] does not exist. With [followLinks] false a symbolic link describes itself (SFTP LSTAT):
+  /// [HostFileStat.isLink] is true and [HostFileStat.isDirectory] false, whatever the link points to.
+  Future<HostFileStat?> stat(String path, {bool followLinks = true});
 
+  /// Entries describe themselves without following links, as [stat] with `followLinks: false` does.
   Future<List<HostDirEntry>> list(String path);
 
   /// Reads [length] bytes from [offset], or to the end when [length] is null.
@@ -84,6 +86,7 @@ abstract interface class HostFiles {
   /// Throws [HostFileExists] when [path] already exists; used as an atomic lock.
   Future<void> mkdir(String path, {int? mode});
 
+  /// Deletes a file or a symbolic link. A link is removed itself, never what it points to.
   Future<void> remove(String path);
 
   Future<void> removeDir(String path);
@@ -97,10 +100,11 @@ abstract interface class HostFiles {
 }
 
 final class HostFileStat {
-  const HostFileStat({required this.size, required this.isDirectory, this.modified, this.mode});
+  const HostFileStat({required this.size, required this.isDirectory, this.isLink = false, this.modified, this.mode});
 
   final int size;
   final bool isDirectory;
+  final bool isLink;
   final DateTime? modified;
   final int? mode;
 }

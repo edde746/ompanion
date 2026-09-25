@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:omp_core/channel.dart';
 import 'package:omp_core/host.dart';
+import 'package:omp_core/src/channel/detached_run.dart' show newRunId, posixLaunchScript;
 import 'package:test/test.dart';
 
 import 'support.dart';
@@ -153,6 +154,21 @@ void main() {
     expect(runs.map((r) => (r.state, r.exitCode)), [(RunState.exited, 0), (RunState.exited, 143)]);
     expect((await removeDeadRuns(host.link, probe)).toSet(), {graceful.id, forced.id});
     expect(await listRuns(host.link, probe), isEmpty);
+  });
+
+  test('omp and its user bash get the umask of the launching shell, not the 077 of the run directory', () async {
+    final id = newRunId();
+    final launched = await runPosixScript(host.link, 'umask 027\n${posixLaunchScript(newMarker(), runRoot(probe), id, spec())}');
+    expect(launched.exit.code, 0, reason: launched.stderr);
+    final run = (await listRuns(host.link, probe)).singleWhere((r) => r.id == id);
+    final channel = await attachRun(host.link, probe, run);
+    final frames = Frames(channel.lines);
+    await frames.next((f) => f['type'] == 'ready');
+    await channel.send(jsonEncode({'id': 'u:1', 'type': 'bash', 'command': 'mkdir made-by-bash && umask'}));
+    final reply = await frames.response('u:1');
+    expect(((reply['data'] as Map<String, Object?>)['output'] as String).trim(), '0027', reason: '$reply');
+    expect(FileStat.statSync('${host.work}/made-by-bash').mode & 0x1ff, 0x1e8, reason: '0750 under umask 027');
+    await channel.close();
   });
 }
 
