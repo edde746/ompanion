@@ -21,6 +21,12 @@ const minimumOmpVersion = '18.3.1';
 /// `out.jsonl` size from which a settled run's log is rotated.
 const rotateOutputAt = 8 << 20;
 
+/// The model of a bootstrap control process (`MachineRuntime.controlIsBootstrap`). omp's bundled catalog has it, and
+/// its provider has no model manager (`MODEL_MANAGER_FACTORIES` in `catalog/src/provider-models/descriptors.ts`), so
+/// `--model` resolves it offline and omp never runs discovery against minimax. It is a plain API-key provider, so
+/// `--api-key` makes it usable without touching stored credentials.
+const bootstrapModel = 'minimax/MiniMax-M2';
+
 /// Connection state of one machine.
 sealed class MachineStatus {
   const MachineStatus();
@@ -129,6 +135,7 @@ final class MachineRuntime {
   final _opens = <String, Future<RunSession>>{};
   final _sessions = <RunSession>{};
   RunSession? _control;
+  _ControlAccess? _controlAccess;
   Future<RunSession>? _controlStarting;
   final _forwards = <_Forward>{};
   bool _disposed = false;
@@ -209,12 +216,25 @@ final class MachineRuntime {
 
   /// The machine-level `omp --mode rpc-ui --no-session` on the link itself, for settings, roles, accounts, login,
   /// models and session lists: started on first use, restarted after it exits, shared by every caller. Throws like
-  /// [open]; [OmpStartFailed.stderr] carries omp's reason (for example no usable model on the machine).
+  /// [open]; [OmpStartFailed.stderr] carries omp's reason.
+  ///
+  /// On a machine where omp finds no usable model, omp refuses rpc mode; the control then runs in bootstrap mode
+  /// ([controlIsBootstrap]) so settings, `accounts.setKey` and `login` still work. Once a key was stored or a login
+  /// succeeded there, the next call ends it and starts a normal one.
   Future<LiveSession> control() {
     final current = _control;
-    if (current != null && current.linkState is! LinkClosed) return Future.value(current);
+    if (current != null && current.linkState is! LinkClosed) {
+      if (!(_controlAccess?.credentialsChanged ?? false)) return Future.value(current);
+      _control = null;
+      return _controlStarting ??= current.stop().then((_) => _startControl()).whenComplete(() => _controlStarting = null);
+    }
     return _controlStarting ??= _startControl().whenComplete(() => _controlStarting = null);
   }
+
+  /// True while the control session runs in bootstrap mode: omp found no usable model on the machine, so the control
+  /// runs on [bootstrapModel] with a placeholder key and refuses anything that makes a model call. The UI should say
+  /// that no model works yet and offer sign-in or an API key.
+  bool get controlIsBootstrap => _control != null && (_controlAccess?.bootstrap ?? false);
 
   /// Listens on 127.0.0.1:[localPort] (0 picks a free port) and forwards each connection to 127.0.0.1:[remotePort]
   /// on the machine, over the link current at that moment.
@@ -331,14 +351,28 @@ final class MachineRuntime {
     return session;
   }
 
+  /// A normal control process, or on a machine where omp finds no usable model (it refuses rpc mode then), one in
+  /// bootstrap mode.
   Future<RunSession> _startControl() async {
     final ready = await _ready();
-    final session = RunSession(runId: 'control', cwd: ready.probe.home, access: _ControlAccess(this), deviceId: deviceId);
+    try {
+      return await _launchControl(ready, bootstrap: false);
+    } on OmpStartFailed catch (error) {
+      // omp prints this with every variant of its no-model exit (`main.ts`, the `!session.model` check).
+      if (!error.stderr.contains('Set an API key environment variable')) rethrow;
+    }
+    return _launchControl(ready, bootstrap: true);
+  }
+
+  Future<RunSession> _launchControl(_Ready ready, {required bool bootstrap}) async {
+    final access = _ControlAccess(this, bootstrap: bootstrap);
+    final session = RunSession(runId: 'control', cwd: ready.probe.home, access: access, deviceId: deviceId);
     session.onClosed = () {
       if (identical(_control, session)) _control = null;
     };
     await session.start();
     _control = session;
+    _controlAccess = access;
     return session;
   }
 
@@ -521,12 +555,17 @@ final class _DetachedAccess implements RunAccess {
   }
 }
 
-/// The control process: omp on an exec channel of the link, restarted by a new attach.
+/// The control process: omp on an exec channel of the link, restarted by a new attach. In [bootstrap] mode it runs
+/// on [bootstrapModel] with a placeholder key, and its channel refuses every model call.
 final class _ControlAccess implements RunAccess {
-  _ControlAccess(this._machine);
+  _ControlAccess(this._machine, {required this.bootstrap});
 
   final MachineRuntime _machine;
+  final bool bootstrap;
   AttachedChannel? _channel;
+
+  /// A credential was stored (`accounts.setKey`) or a login succeeded while in [bootstrap] mode.
+  bool credentialsChanged = false;
 
   @override
   bool get persistent => false;
@@ -543,10 +582,14 @@ final class _ControlAccess implements RunAccess {
       cwd: ready.probe.home,
       companion: ready.companion,
       overlay: _machine._overlay,
-      args: const ['--no-session'],
+      args: [
+        '--no-session',
+        // `--api-key` is a runtime override for the model's provider (`keys.setRuntime`), never persisted.
+        if (bootstrap) ...['--model', bootstrapModel, '--api-key', 'omp-app-bootstrap'],
+      ],
     );
     final channel = _channel = await AttachedChannel.start(ready.link, ready.probe, spec);
-    return _ProcessChannel(channel);
+    return _ProcessChannel(channel, bootstrap ? this : null);
   }
 
   @override
@@ -568,17 +611,67 @@ final class _ControlAccess implements RunAccess {
   Future<String> errorLog() async => _channel?.stderr ?? '';
 }
 
-/// An attached omp process as a [RunChannel]: its output starts at `ready` and cannot be resumed.
+/// An attached omp process as a [RunChannel]: its output starts at `ready` and cannot be resumed. With a [_bootstrap]
+/// access it refuses commands that make a model call, which would reach [bootstrapModel]'s provider with a
+/// placeholder key, and watches for a stored credential or a finished login.
 final class _ProcessChannel implements RunChannel {
-  _ProcessChannel(this._channel);
+  _ProcessChannel(this._channel, this._bootstrap);
 
   final AttachedChannel _channel;
+  final _ControlAccess? _bootstrap;
+
+  /// Ids of `accounts.setKey` calls and `login` requests in flight.
+  final _credentialCalls = <String>{};
+
+  static const _modelCommands = {'prompt', 'steer', 'follow_up', 'abort_and_prompt', 'compact', 'handoff'};
+
+  /// Companion verbs that make a model call.
+  static const _modelVerbs = {'btw', 'tree.navigate'};
 
   @override
-  Stream<String> get lines => _channel.lines;
+  late final Stream<String> lines = _bootstrap == null ? _channel.lines : _channel.lines.map(_watch);
 
   @override
-  Future<void> send(String line) => _channel.send(line);
+  Future<void> send(String line) {
+    if (_bootstrap != null) _check(line);
+    return _channel.send(line);
+  }
+
+  void _check(String line) {
+    final command = jsonDecode(line);
+    if (command is! Map<String, Object?>) return;
+    final type = command['type'];
+    if (command case {'type': 'login', 'id': final String id}) _credentialCalls.add(id);
+    if (!_modelCommands.contains(type)) return;
+    final message = command['message'];
+    if (type == 'prompt' && message is String && message.startsWith('/ompx ')) {
+      final call = jsonDecode(message.substring(6));
+      if (call is Map<String, Object?> && !_modelVerbs.contains(call['verb'])) {
+        if (call case {'verb': 'accounts.setKey', 'callId': final String callId}) _credentialCalls.add(callId);
+        return;
+      }
+    }
+    throw StateError('omp has no usable model on this machine yet; the control session refuses $type');
+  }
+
+  String _watch(String line) {
+    if (_credentialCalls.isEmpty || !_credentialCalls.any(line.contains)) return line;
+    final Object? frame;
+    try {
+      frame = jsonDecode(line);
+    } on FormatException {
+      return line;
+    }
+    switch (frame) {
+      case {'type': 'ompx', 'kind': 'reply', 'callId': final String id, 'ok': final bool ok}
+          when _credentialCalls.remove(id):
+        if (ok) _bootstrap!.credentialsChanged = true;
+      case {'type': 'response', 'command': 'login', 'id': final String id, 'success': final bool ok}
+          when _credentialCalls.remove(id):
+        if (ok) _bootstrap!.credentialsChanged = true;
+    }
+    return line;
+  }
 
   @override
   Future<void> close() => _channel.close();

@@ -74,6 +74,35 @@ final class FakeProvider {
   }
 }
 
+/// An HTTP proxy that forwards nothing: it records the first line of every request (`CONNECT host:443 …` for HTTPS)
+/// and closes the connection. omp (Bun's fetch) honours the proxy variables, so a machine with [environment] cannot
+/// reach any host outside this computer's loopback.
+final class ProxyRecorder {
+  ProxyRecorder._(this._server) {
+    _server.listen((socket) {
+      socket
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .first
+          .then(requests.add, onError: (Object error) => requests.add('unreadable request: $error'))
+          .whenComplete(socket.destroy);
+    });
+  }
+
+  static Future<ProxyRecorder> start() async => ProxyRecorder._(await ServerSocket.bind(InternetAddress.loopbackIPv4, 0));
+
+  final ServerSocket _server;
+  final requests = <String>[];
+
+  Map<String, String> get environment => {
+    for (final name in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']) name: 'http://127.0.0.1:${_server.port}',
+    for (final name in ['NO_PROXY', 'no_proxy']) name: '127.0.0.1,localhost',
+  };
+
+  Future<void> close() => _server.close();
+}
+
 /// A machine on this computer: an isolated omp home from `testing/dev-machine.sh` (the fake provider, the pinned omp
 /// at `~/.local/bin/omp`, `modelRoles.default: fake/fake-1`, `~/demo-project`).
 final class DevMachine {
@@ -107,8 +136,13 @@ final class DevMachine {
     'XDG_CACHE_HOME': '',
   };
 
-  MachineRuntime runtime(String deviceId, {Map<String, String> overlay = const {}}) => MachineRuntime(
-    connect: () async => LocalLink(environment: environment),
+  /// [extraEnvironment] adds variables to every process on the machine, e.g. [ProxyRecorder.environment].
+  MachineRuntime runtime(
+    String deviceId, {
+    Map<String, String> overlay = const {},
+    Map<String, String> extraEnvironment = const {},
+  }) => MachineRuntime(
+    connect: () async => LocalLink(environment: {...environment, ...extraEnvironment}),
     deviceId: deviceId,
     companionBytes: companionBytes,
     overlay: overlay,

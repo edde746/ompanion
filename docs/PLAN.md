@@ -186,8 +186,11 @@ Run directory `~/.omp-app/run/<runId>/`, mode 0700:
 
 Settings, roles, accounts, login and model lists need no session. One `omp --mode rpc-ui --no-session -e
 <companion>` per machine runs on an exec channel of the link, started on first use and again after it
-exits. omp refuses rpc mode on a machine with no usable model at all ("No models available"), so the first
-login there needs another route.
+exits. omp refuses rpc mode on a machine with no usable model ("No models available"); the control then runs
+in bootstrap mode: `--model minimax/MiniMax-M2 --api-key omp-app-bootstrap`. The model is bundled in omp's
+catalog and has no discovery. `--api-key` is a runtime override that is never persisted. The channel refuses
+every model call (prompts other than `/ompx`, `btw` and `tree.navigate` calls, `compact`, `handoff`). After
+`accounts.setKey` or a successful `login`, the next `control()` starts a normal process.
 
 ### Windows hosts (and this computer on Windows)
 

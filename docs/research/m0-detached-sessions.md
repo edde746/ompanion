@@ -150,5 +150,6 @@ Not verified, because no Windows machine is available:
   marker, and readers mis-attribute it to the old generation. Rotation is only done while settled.
 - A half-open SSH connection keeps its follower scripts until sshd notices; `ClientAliveInterval` defaults
   to 0.
-- `meta.json` records the session the run was launched with; after `new_session` or `open_session` inside
-  omp the run holds another file, and a device looking for that file launches a second omp.
+- `meta.json` records the session the run holds. `MachineRuntime` rewrites it (`recordRunSession`) after every
+  session switch it sees; a switch made while no device is attached is recorded only when a device attaches
+  and reads `get_state`, so until then a device looking for the new file launches a second omp.

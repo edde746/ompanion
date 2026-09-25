@@ -116,9 +116,10 @@ what stock lacks.
 |---|---|---|---|---|
 | Settings (global) | `/settings` | CE registry with schema, `set`/`unset`, provenance | settings page | M5 |
 | Settings (project scope) | `/settings` | FS edit `.omp/config.yml` (no companion writer; rpc-ui reloads it) | settings page | M5 |
-| MCP servers | `/mcp …` | TXT (all subcommands); FS `mcp.json` | MCP page | M5 |
-| Plugins, marketplace | `/plugins`, `/marketplace` | CLI `plugin --json`; TXT | plugins page | M5 |
-| Skills registry | `/skills` | CLI `skill --json` | skills page | M5 |
+| MCP servers | `/mcp …` | TXT add/remove/enable/disable/test/reload/resources/prompts/smithery-search; FS `mcp.json` | MCP page | M5 |
+| MCP OAuth (reauth, unauth, reconnect, smithery login/logout) | `/mcp reauth` … | none: omp 18.3.1 answers these in RPC with "only available in the TUI client"; the app says so | MCP page | — |
+| Plugins, marketplace | `/plugins`, `/marketplace` | CLI `plugin --json` (npm plugins need `bun` on the machine's PATH); TXT marketplace | plugins page | M5 |
+| Skills registry | `/skills` | CLI `skill search/info --json`; installed list from FS `skills.json` + `skills.lock.json` (no CLI lists them) | skills page | M5 |
 | Invoke skill | `/skill:<name>` | RPC prompt | palette | M2 |
 | Extensions control center | `/extensions` | CE-R (list loaded, persist disable, `reload`) | extensions page | M5 |
 | Memory | `/memory …` | TXT; CE settings | memory page | M5 |
