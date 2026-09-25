@@ -7,6 +7,7 @@ environment:
   sdk: ^3.12.0
 
 dependencies:
+  crypto: ^3.0.7
   # Exact pin: 3.1.0 and 4.0.1 fixed channel-stall and flow-control bugs; bump only with a transport soak test.
   dartssh2: 4.1.0
   meta: ^1.16.0

@@ -1,0 +1,3 @@
+[test]
+# E2E files spawn omp; `bun run test:e2e` runs them.
+pathIgnorePatterns = ["**/*.e2e.test.ts"]

@@ -9,7 +9,8 @@
     "noEmit": true,
     "types": ["bun"],
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true
   },
   "include": ["src", "test"]
 }

@@ -1,5 +1,15 @@
 tags:
   omp:
     description: Starts a real omp binary from .tools/ with an isolated HOME.
+    skip: "integration test; run with -P integration or -t omp"
   docker:
     description: Needs Docker (colima) and the SSH test containers from testing/sshd.
+    skip: "integration test; run with -P integration or -t docker"
+
+presets:
+  integration:
+    tags:
+      omp:
+        skip: false
+      docker:
+        skip: false
