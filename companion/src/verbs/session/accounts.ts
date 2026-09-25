@@ -1,9 +1,8 @@
-import * as fs from "node:fs/promises";
 import type { AuthCredential } from "@oh-my-pi/pi-coding-agent";
 import { toLogoutAccounts } from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/logout";
 import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import { isEnoent } from "@oh-my-pi/pi-utils";
 import { expectKeys, optionalInteger, requireString } from "../../args.ts";
+import { takeSecretFile } from "../../paths.ts";
 import { VerbError, type VerbTable } from "../../protocol.ts";
 
 function requireCredentialId(args: Record<string, unknown>): number {
@@ -106,22 +105,13 @@ export const accountVerbs: VerbTable = {
 		return { provider, credentialId };
 	},
 
-	// RPC `login` refuses secret prompts (rpc-mode.ts:1665-1670), so the app uploads the key as a 0600
-	// file and the companion stores it the way a successful /login stores a pasted key
-	// (pool.ts:145-153). The key never appears in a frame, an error or a log line.
+	// RPC `login` refuses secret prompts (rpc-mode.ts:1665-1670), so the app uploads the key as a secret file and
+	// the companion stores it the way a successful /login stores a pasted key (pool.ts:145-153). The key never
+	// appears in a frame, an error or a log line.
 	"accounts.setKey": async (args, { session }) => {
 		expectKeys(args, ["provider", "keyFile"]);
 		const provider = requireString(args, "provider");
-		const keyFile = requireString(args, "keyFile");
-		let key: string;
-		try {
-			key = (await fs.readFile(keyFile, "utf8")).trim();
-		} catch (error) {
-			if (isEnoent(error)) throw new VerbError("not_found", `no key file ${keyFile}`);
-			throw error;
-		} finally {
-			await fs.rm(keyFile, { force: true });
-		}
+		const key = (await takeSecretFile(requireString(args, "keyFile"))).trim();
 		if (!key) throw new VerbError("bad_request", "the key file is empty");
 		const stored = await session.modelRegistry.authStorage.credentials.upsert(provider, {
 			type: "api_key",

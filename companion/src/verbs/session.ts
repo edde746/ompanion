@@ -27,6 +27,7 @@ import {
 	requireString,
 } from "../args.ts";
 import { emitEvent } from "../channel.ts";
+import { isSessionFilePath } from "../paths.ts";
 import { VerbError, type VerbTable } from "../protocol.ts";
 import { accountVerbs } from "./session/accounts.ts";
 import { agentVerbs, installAgentRoster } from "./session/agents.ts";
@@ -98,15 +99,13 @@ function sessionRow(info: SessionInfo, pinned: ReadonlySet<string>) {
 }
 
 /**
- * `deleteSessionWithArtifacts` also removes the sibling directory named after the file, so only
- * files where omp keeps sessions are accepted: `<sessions root>/<project>/<file>.jsonl`, or the
- * open session's directory when it was moved with `--session-dir`.
+ * `deleteSessionWithArtifacts` also removes the sibling directory named after the file, so only files where omp
+ * keeps sessions are accepted. A session that is not persisted (`--no-session`, the machine's control process)
+ * has no directory of its own.
  */
 async function assertDeletableSession(file: string, session: AgentSession): Promise<void> {
-	const dir = path.dirname(file);
-	const inSessionsRoot = path.dirname(dir) === path.resolve(getSessionsDir());
-	const inSessionDir = dir === path.resolve(session.sessionManager.getSessionDir());
-	if (!file.endsWith(".jsonl") || !(inSessionsRoot || inSessionDir)) {
+	const sessionDir = session.sessionFile === undefined ? "" : session.sessionManager.getSessionDir();
+	if (!isSessionFilePath(file, getSessionsDir(), sessionDir)) {
 		throw new VerbError("bad_request", `${file} is not a session file in omp's session directories`);
 	}
 	try {

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, realpath, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { isRecord } from "../src/args.ts";
 import { type Frame, OmpDriver } from "./driver.ts";
@@ -404,5 +404,31 @@ describe("session.delete", () => {
 		expect(await Bun.file(current.sessionFile).exists()).toBe(false);
 		expect(await changed(since)).toMatchObject({ reason: "delete", sessionFile: dropped.sessionFile });
 		expect(await state()).toMatchObject({ sessionFile: dropped.sessionFile, messageCount: 0 });
+	});
+
+	test("a --no-session process deletes only in the sessions root, never next to its cwd", async () => {
+		const current = await state();
+		const listed = (await omp.call("sessions.list")) as SessionsPage;
+		const other = listed.sessions.find(row => row.path !== current.sessionFile);
+		if (!other) throw new Error("expected another session in the list");
+		// The machine's control process: `omp --no-session --cwd <home>`, started in <home>. omp's cwd is the
+		// resolved path (/private/var/… for a macOS temp dir), so the stray file uses it too.
+		const home = await realpath(omp.home);
+		const control = await OmpDriver.start({ home: omp.home, cwd: home, fake: omp.fake, args: ["--cwd", home] });
+		try {
+			const stray = path.join(home, "notes.jsonl");
+			const artifacts = path.join(home, "notes");
+			await writeFile(stray, "{}\n");
+			await mkdir(artifacts);
+			await writeFile(path.join(artifacts, "draft.txt"), "draft");
+			expect((await control.callError("session.delete", { path: stray })).code).toBe("bad_request");
+			expect(await Bun.file(stray).exists()).toBe(true);
+			expect(await Bun.file(path.join(artifacts, "draft.txt")).exists()).toBe(true);
+
+			expect(await control.call("session.delete", { path: other.path })).toEqual({ deleted: other.path, current: false });
+			expect(await Bun.file(other.path).exists()).toBe(false);
+		} finally {
+			await control.close();
+		}
 	});
 });

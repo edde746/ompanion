@@ -1,5 +1,3 @@
-import { readFile, rm } from "node:fs/promises";
-import { isAbsolute } from "node:path";
 import { agentPauseGate } from "@oh-my-pi/pi-agent-core";
 import type { AgentSession, Settings } from "@oh-my-pi/pi-coding-agent";
 import { orderedSettings } from "@oh-my-pi/pi-coding-agent/config/all-settings";
@@ -17,6 +15,7 @@ import {
 	requireString,
 } from "../args.ts";
 import { channel, emitEvent } from "../channel.ts";
+import { takeSecretFile } from "../paths.ts";
 import { VerbError, type VerbHandler, type VerbTable } from "../protocol.ts";
 
 /** Events pushed by the core verbs' watchers and the channel. */
@@ -147,8 +146,8 @@ function rolesState(settings: Settings): Record<string, unknown> {
 }
 
 /**
- * `value` travels through `in.jsonl` on the host, so credentials must come as `valueFile`: a host
- * file holding the JSON value, deleted as soon as it is read (docs/PLAN.md §5, secrets).
+ * `value` travels through `in.jsonl` on the host, so credentials must come as `valueFile`: a secret file the
+ * app uploaded, deleted as soon as it is read (docs/PLAN.md §5, secrets).
  */
 async function incomingValue(args: Record<string, unknown>, setting: AnySetting): Promise<unknown> {
 	if ("value" in args === "valueFile" in args) {
@@ -158,14 +157,7 @@ async function incomingValue(args: Record<string, unknown>, setting: AnySetting)
 		if (setting.isCredential) throw new VerbError("bad_request", `${setting.id} is a credential: send it as valueFile`);
 		return args.value;
 	}
-	const file = requireString(args, "valueFile");
-	if (!isAbsolute(file)) throw new VerbError("bad_request", "valueFile must be an absolute path");
-	let text: string;
-	try {
-		text = await readFile(file, "utf8");
-	} finally {
-		await rm(file, { force: true });
-	}
+	const text = await takeSecretFile(requireString(args, "valueFile"));
 	try {
 		return JSON.parse(text);
 	} catch {

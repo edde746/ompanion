@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { readdir, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, readFile, symlink, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth/sqlite-credential-store";
 import { type Frame, OmpDriver } from "./driver.ts";
@@ -316,11 +316,9 @@ describe("accounts", () => {
 		expect((await omp.callError("accounts.pin", { credentialId: id })).code).toBe("not_found");
 	});
 
-	test("accounts.setKey stores a key from a 0600 file, deletes the file and keeps the key out of frames", async () => {
+	test("accounts.setKey stores a key from an uploaded file, deletes the file and keeps the key out of frames", async () => {
 		const secret = "sk-test-secret-value-123";
-		const keyFile = path.join(omp.home, "upload.key");
-		await writeFile(keyFile, `${secret}\n`, { mode: 0o600 });
-		expect((await stat(keyFile)).mode & 0o777).toBe(0o600);
+		const keyFile = await omp.uploadSecret(`${secret}\n`);
 		const since = omp.mark();
 		const stored = (await omp.call("accounts.setKey", { provider: "openai", keyFile })) as {
 			provider: string;
@@ -342,10 +340,28 @@ describe("accounts", () => {
 			store.close();
 		}
 		expect((await omp.callError("accounts.setKey", { provider: "openai", keyFile })).code).toBe("not_found");
-		const empty = path.join(omp.home, "empty.key");
-		await writeFile(empty, "\n", { mode: 0o600 });
+		const empty = await omp.uploadSecret("\n");
 		expect((await omp.callError("accounts.setKey", { provider: "openai", keyFile: empty })).code).toBe("bad_request");
 		expect(await Bun.file(empty).exists()).toBe(false);
+	});
+
+	test("accounts.setKey refuses a keyFile the app did not upload, and neither reads nor deletes it", async () => {
+		const victim = path.join(omp.home, "id_ed25519");
+		await writeFile(victim, "private key\n", { mode: 0o600 });
+		const tmp = path.join(omp.home, ".omp-app", "tmp");
+		await mkdir(tmp, { recursive: true, mode: 0o700 });
+		const link = path.join(tmp, "OMPAPP_0123456789abcdef.secret");
+		await symlink(victim, link);
+		// A relative path would resolve against omp's cwd, the home directory in the machine's control process.
+		const relative = path.join(omp.cwd, "id_ed25519");
+		await writeFile(relative, "private key\n", { mode: 0o600 });
+		for (const keyFile of [victim, link, "id_ed25519"]) {
+			expect((await omp.callError("accounts.setKey", { provider: "fake", keyFile })).code).toBe("bad_request");
+		}
+		expect(await readFile(victim, "utf8")).toBe("private key\n");
+		expect(await readFile(relative, "utf8")).toBe("private key\n");
+		expect((await lstat(link)).isSymbolicLink()).toBe(true);
+		expect((await providers()).find(row => row.provider === "fake")?.credentials).toEqual([]);
 	});
 
 	test("accounts.logout removes one stored credential", async () => {

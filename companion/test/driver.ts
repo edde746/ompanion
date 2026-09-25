@@ -7,8 +7,9 @@
  *   const hello = await omp.call("hello");
  *   await omp.close();
  */
+import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import type { Subprocess } from "bun";
@@ -313,6 +314,15 @@ export class OmpDriver {
 
 	cancel(id: string): void {
 		this.send({ type: "extension_ui_response", id, cancelled: true });
+	}
+
+	/** Writes `content` where and as the app's `ConfigTarget.uploadSecret` does; returns the file's path. */
+	async uploadSecret(content: string): Promise<string> {
+		const dir = path.join(this.home, ".omp-app", "tmp");
+		await mkdir(dir, { recursive: true, mode: 0o700 });
+		const file = path.join(dir, `OMPAPP_${randomBytes(8).toString("hex")}.secret`);
+		await writeFile(file, content, { mode: 0o600 });
+		return file;
 	}
 
 	/** Stops omp and starts a new process on the same home, cwd and fake provider. */

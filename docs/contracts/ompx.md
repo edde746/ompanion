@@ -29,6 +29,17 @@ resolves with the whole response frame; the main session is
   argument's `callId` when that is a non-empty string, otherwise `null`. Unknown `args` keys are
   `bad_request` too.
 
+## Secret files
+
+Calls travel through `in.jsonl` on the host, so a secret travels as a file: the app uploads it over SFTP as a
+new file `<home>/.omp-app/tmp/OMPAPP_<16 lowercase hex digits>.secret` with mode 0600 and names it in the call
+(`settings.set` `valueFile`, `accounts.setKey` `keyFile`). The companion accepts only an absolute path of a
+regular file, not a symbolic link, with that name, whose real path lies directly in the real path of
+`<home>/.omp-app/tmp` (`<home>` is omp's home directory), and, except on Windows, whose mode is exactly 0600.
+Anything else is `bad_request`, and that file is neither read nor deleted. A missing file is `not_found`. An
+accepted file is deleted once read, also when the call then fails. The app deletes its upload after every call,
+so a refused file does not stay behind.
+
 ## Frames (companion → app)
 
 Every frame has `"type": "ompx"` and a `kind`.
@@ -181,8 +192,8 @@ every setting, in schema order, when `paths` is absent. Unknown path: `not_found
 
 - `global` persists to the profile's `config.yml`, on disk before the reply. `override` holds for this
   omp process only (`provenance: "runtime"`).
-- `valueFile` is an absolute host path of a file holding the JSON value; the companion reads and
-  deletes it. Credentials (`isCredential`) must use it, because calls travel through `in.jsonl`.
+- `valueFile` names a secret file (see "Secret files") holding the JSON value. Credentials (`isCredential`)
+  must use it. A file without a JSON value is `bad_request`.
 - A value omp rejects (type, enum, validation) is `bad_request` with omp's message.
 - omp has no writer for project settings: edit `<cwd>/.omp/config.yml` over SFTP; omp watches it and
   `settings.changed` follows.
@@ -261,8 +272,10 @@ user bash or user Python runs. Emits `session.changed {reason: "clear"}`.
 
 `args: {path: string, dropCurrent?: boolean}`.
 - Another session: `result: {deleted: string, current: false}`. Deletes the file, its artifact directory and
-  its `.bak` copies. Only `<sessions root>/<project>/<file>.jsonl` or files in the open session's directory are
-  accepted (`bad_request` otherwise); a missing file is `not_found`.
+  its `.bak` copies. Only `<sessions root>/<project>/<file>.jsonl`, or a `.jsonl` file directly in the open
+  session's directory, is accepted (`bad_request` otherwise); a missing file is `not_found`. A process whose
+  session is not persisted (`--no-session`, such as the machine's control process) has no session directory:
+  it accepts the sessions root only.
 - The open session: needs `dropCurrent: true` (`bad_request` otherwise). The TUI's `/delete`: starts a new
   session and deletes the old file. `result: {deleted, current: true} & SessionState` (the new session).
   `busy` while streaming; `failed` when an extension cancelled the new session or the file survived. Emits
@@ -399,11 +412,11 @@ unknown id, `failed` without a model or when an `--api-key` / `models.yml` key o
 
 ### accounts.setKey
 
-`args: {provider: string, keyFile: string}` → `result: {provider, credentialId: number}`. The app uploads the
-API key over SFTP as a mode 0600 file; the companion reads it, deletes it (always, also on failure), stores
-the trimmed key as omp's `/login` stores a pasted key (`api_key`, `source: "login"`) and refreshes the
-provider's models. `not_found` for a missing file, `bad_request` for an empty one. The key never appears in a
-frame, an error or a log line. Provider-specific key validation that some `/login` flows do is skipped.
+`args: {provider: string, keyFile: string}` → `result: {provider, credentialId: number}`. `keyFile` names a
+secret file (see "Secret files") holding the API key. The companion stores the trimmed key as omp's `/login`
+stores a pasted key (`api_key`, `source: "login"`) and refreshes the provider's models; an empty key is
+`bad_request`. The key never appears in a frame, an error or a log line. Provider-specific key validation that
+some `/login` flows do is skipped.
 
 ### btw
 

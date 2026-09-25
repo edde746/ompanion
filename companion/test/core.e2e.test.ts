@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import pkg from "../package.json" with { type: "json" };
 import { OMP_VERSION, OmpDriver } from "./driver.ts";
@@ -203,8 +203,7 @@ describe("settings", () => {
 			(await omp.callError("settings.set", { path: "mnemopi.llmApiKey", value: secret, scope: "global" })).message,
 		).toContain("valueFile");
 
-		const file = path.join(omp.cwd, "secret.json");
-		await writeFile(file, JSON.stringify(secret), { mode: 0o600 });
+		const file = await omp.uploadSecret(JSON.stringify(secret));
 		const since = omp.mark();
 		expect(
 			await omp.call("settings.set", { path: "mnemopi.llmApiKey", valueFile: file, scope: "global" }),
@@ -218,6 +217,23 @@ describe("settings", () => {
 		expect(omp.frames.some(frame => JSON.stringify(frame).includes(secret))).toBe(false);
 
 		await omp.call("settings.unset", { path: "mnemopi.llmApiKey", scope: "global" });
+		expect((await globalConfig()).mnemopi).toBeUndefined();
+	});
+
+	test("a valueFile the app did not upload is refused, and neither read nor deleted", async () => {
+		const victim = path.join(omp.home, "thesis.json");
+		await writeFile(victim, JSON.stringify("thesis"), { mode: 0o600 });
+		const tmp = path.join(omp.home, ".omp-app", "tmp");
+		await mkdir(tmp, { recursive: true, mode: 0o700 });
+		const link = path.join(tmp, "OMPAPP_0123456789abcdef.secret");
+		await symlink(victim, link);
+		for (const valueFile of [victim, link]) {
+			expect(
+				(await omp.callError("settings.set", { path: "mnemopi.llmApiKey", valueFile, scope: "global" })).code,
+			).toBe("bad_request");
+		}
+		expect(await readFile(victim, "utf8")).toBe(JSON.stringify("thesis"));
+		expect((await lstat(link)).isSymbolicLink()).toBe(true);
 		expect((await globalConfig()).mnemopi).toBeUndefined();
 	});
 });
