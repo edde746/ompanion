@@ -1,0 +1,150 @@
+# testing
+
+A deterministic model backend for real omp processes: a fake OpenAI-compatible provider, isolated omp
+homes that point at it, and RPC fixtures recorded from omp 18.3.1. No test here reaches a paid
+provider. `sshd/` (SSH test containers) is documented separately.
+
+| Path | Contents |
+|---|---|
+| `fake-provider/server.ts` | the provider: scripted turns in, OpenAI chat-completions SSE out |
+| `fake-provider/client.ts` | `FakeProvider`: starts the server as a child process, drives its control API |
+| `omp-home.sh`, `omp-home.ts` | isolated omp home (shell and Bun), environment for omp children |
+| `record.ts` | records a scenario from a real omp into `fixtures/` |
+| `fixtures/` | `<scenario>.out.jsonl` (omp stdout) and `<scenario>.in.jsonl` (lines sent) |
+
+Typecheck: `companion/node_modules/.bin/tsc -p testing` (borrows the companion's Bun types).
+
+## Fake provider
+
+```sh
+bun testing/fake-provider/server.ts --port 0    # first stdout line: listening <port>
+```
+
+| Route | Purpose |
+|---|---|
+| `POST /v1/chat/completions` | answers with the next eligible queued turn; SSE when `stream: true`, JSON otherwise |
+| `GET /v1/models` | lists `fake-1`, `fake-think` |
+| `POST /control/enqueue` | appends one turn or an array of turns |
+| `POST /control/reset` | clears the queue and the request log |
+| `GET /control/requests` | every completions request: `{path, body, served: "queue" \| "default"}` |
+| `GET /control/health` | `{ok, queued, requests}` |
+
+A turn answers one model request:
+
+```ts
+type Turn =
+  | { steps: Step[]; finish?: "stop" | "tool_calls" | "length"; usage?: Usage; match?: string }
+  | { error: { status: number; message?: string; headers?: Record<string, string> }; match?: string }
+  | { wait: true; match?: string };
+type Step =
+  | { text: string }            // delta.content
+  | { thinking: string }        // delta.reasoning_content
+  | { toolCall: { id?: string; name: string; arguments: object } }  // delta.tool_calls, arguments in two halves
+  | { delayMs: number }
+  | { hang: true };             // keep the stream open until the client disconnects
+```
+
+- Requests take the first queued turn they are eligible for. A turn with `match` only answers a request
+  whose raw JSON body contains that text. `'"name":"yield"'` selects subagent requests: only
+  subagents are offered the `yield` tool.
+- `wait` parks the request until another eligible turn is enqueued, which then answers it. Use it when
+  the model's output depends on what omp did first, e.g. quoting the hashline tag a `read` returned.
+- With nothing eligible queued the server answers `ok`, so side calls never hang; `served: "default"`
+  in the request log shows it.
+- `finish` defaults to `tool_calls` when a step calls a tool, else `stop`. `usage` defaults to
+  characters / 4 for the request messages and the output; it is sent when the request asks for
+  `stream_options.include_usage`, which omp does.
+- Tool ids default to `call_<request number>_<index>`.
+
+Bun tests:
+
+```ts
+import { FakeProvider } from "../testing/fake-provider/client.ts";
+import { createOmpHome, ompEnv } from "../testing/omp-home.ts";
+
+const fake = await FakeProvider.start();          // fake.port, fake.baseUrl
+await createOmpHome(home, fake.port);             // optional third argument: extra config YAML
+await fake.enqueue([{ steps: [{ text: "hi" }] }]);
+Bun.spawn([omp, "--mode", "rpc-ui", "--model", "fake/fake-1"], { cwd, env: ompEnv(home), ... });
+const sent = await fake.requests();               // also: fake.health(), fake.reset()
+await fake.stop();
+```
+
+What omp 18.3.1 does with scripted output:
+
+- Every built-in tool requires the string argument `i` (intent), e.g.
+  `{name: "bash", arguments: {i: "Printing hi", command: "echo hi"}}`. `yield` takes none.
+- An HTTP 500 is retried inside one model call: 6 transport attempts, then the whole call once more.
+  The session sees the error only after 12 failing requests, then auto-retries (`error-retry`). The
+  transport retries 408, 429 and other 5xx the same way. A `retry-after-ms: 0` header skips its
+  backoff.
+- A stream that repeats an exact cycle (the same line many times) is aborted as "Thinking loop
+  detected" and retried. Long generated text needs varying lines, e.g. numbered ones.
+- The session file keeps at most 500,000 characters per string; longer text comes back truncated
+  after a resume.
+
+## Isolated omp home
+
+```sh
+testing/omp-home.sh <home-dir> <port> [extra-config.yml]
+```
+
+Writes `<home-dir>/.omp/agent/models.yml` (provider `fake` at `http://127.0.0.1:<port>/v1`, models
+`fake-1` and `fake-think` (`reasoning: true`), both with a 128000-token context) and
+`<home-dir>/.omp/agent/config.yml`. Prints nothing on success. A top-level key in the extra file
+replaces the same key of the base config wholesale; other keys are added.
+
+| Base setting | Why |
+|---|---|
+| `startup.checkUpdate: false` | no release check over the network |
+| `marketplace.autoUpdate: "off"` | no plugin update check |
+| `power.sleepPrevention: "off"` | no sleep assertion on the host |
+| `lsp.enabled: false` | no language servers started by tests |
+| `ttsr.enabled: false` | no stream rules interrupting scripted output |
+| `dev.autoqa: false` | no issue-reporting tool note in the system prompt |
+
+RPC mode itself turns off title generation, the advisor and memory.
+
+Run omp with `HOME=<home-dir>` and nothing else from the caller's environment that omp reads:
+`ompEnv(home)` passes only `PATH`, `TMPDIR`, `USER`, `SHELL` and `LANG`, so `PI_*`/`XDG_*` overrides
+and provider API keys never reach omp. Launch with `--model fake/fake-1` (or `fake/fake-think`) and a
+working directory outside the repository. A fresh home grows to ~160 MB (omp unpacks its natives) and
+omp needs ~2.4 s to `ready`; delete the home afterwards.
+
+## Recording fixtures
+
+```sh
+bun testing/record.ts <scenario|all> testing/fixtures
+```
+
+Needs `.tools/omp/18.3.1/omp-<platform>-<arch>`. Each scenario gets its own fake provider, home and
+working directory in the system temp directory. The recorder fails, and keeps that directory with
+`out.jsonl`, `in.jsonl` and `requests.json`, when a model request got the default reply, a scripted
+turn went unused, a command failed, or omp exited non-zero. After writing it re-reads the pair: every
+line decodes (protocol v2 chunks reassembled) and every command id has exactly one `response`.
+
+Every fixture starts at omp's `ready` line. The first line sent is
+`{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}`, the last, after the session
+settled, `{"id":"final-messages","type":"get_messages"}`: its response is omp's own transcript to
+compare a replayed view against. Before the `negotiate` response omp emits
+`extension_ui_request setWidget` (key `autoresearch`, from omp's bundled extension, repeated after
+each run), `advisor_cost_changed` and `available_commands_update`. Timestamps, ids, temp paths,
+ports, durations and `auto_retry_start.delayMs` change between recordings; the frame sequence does
+not.
+
+| Fixture | Contents |
+|---|---|
+| `text-stream` | one prompt; a markdown answer sent in 5 chunks, which omp re-splits into 14 `text_delta` |
+| `thinking` | `fake/fake-think`; `thinking_start`, 2 `thinking_delta`, `thinking_end`, then "The answer is **42**."; the message has a thinking block with `thinkingSignature: "reasoning_content"` |
+| `tool-bash` | text plus a `bash` call `echo hi`; `tool_execution_start`, 2 `tool_execution_update`, `tool_execution_end` (`hi`); answer "The command printed \`hi\`." |
+| `tool-read-edit` | `read notes.md` (tag `850C`), a hashline `edit` replacing line 4 (`beta` → `gamma`), answer; 3 assistant and 2 toolResult messages |
+| `approval` | `tools.approvalMode: always-ask`; `bash echo approved` waits on `select` "Allow tool: bash…" [Approve, Deny] between `tool_execution_start` and its updates; answered Approve |
+| `ask` | `ask` with two questions: `select` [Red, Blue (Recommended), Other (type your own)] → Blue; `select` → Other; `editor` → "omp-app"; result `color: Blue`, `text: "omp-app"` |
+| `todo` | `todo` init (one phase, two tasks) and two `done` calls over three tool turns; then `get_state` with `todoPhases` |
+| `subagent` | subscription `events`; `task` starts background subagent `Echo`; parent `agent_end` `isTerminal: false` and `prompt_result` `sessionSettled: false`; `get_subagents` while Echo runs; `subagent_lifecycle`/`subagent_progress`/`subagent_event`; Echo calls `yield`; a second parent run on the `custom` async-result message; `session_settled`; `get_subagent_messages` |
+| `abort` | the answer hangs after one delta; `abort`; assistant `stopReason: "aborted"`, `prompt_result` `status: "aborted"`; a second prompt completes |
+| `steer-followup` | `steer` and `follow_up` sent while the first answer streams; one run with 3 turns and 3 user messages |
+| `compaction` | two prompts, then `compact`; two scripted model calls write the summary and short summary; the transcript becomes `compactionSummary` plus the kept second turn |
+| `error-retry` | 12 HTTP 500 replies: an empty assistant message with `stopReason: "error"`, `auto_retry_start`, a second `agent_start` without an `agent_end` in between, the answer; `auto_retry_end` arrives after `session_settled` |
+| `big-frame` | resumed session with three ~420 KB answers; the `get_messages` response (1,286,652 bytes) arrives as 5 `rpc_chunk` lines |
+| `session-resume` | resumed two-prompt session: `get_state`, two `get_messages_page` (limit 2, then the cursor), `get_entries` (all, then `since`), `get_tree`, one new prompt |

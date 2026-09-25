@@ -1,0 +1,3 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"prompt-1","type":"prompt","message":"Replace beta with gamma in notes.md."}
+{"id":"final-messages","type":"get_messages"}

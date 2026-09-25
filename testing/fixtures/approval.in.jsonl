@@ -1,0 +1,4 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"prompt-1","type":"prompt","message":"Run echo approved."}
+{"type":"extension_ui_response","id":"158da8557bcef89f","value":"Approve"}
+{"id":"final-messages","type":"get_messages"}

@@ -1,0 +1,5 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"prompt-1","type":"prompt","message":"Write a very long answer."}
+{"id":"abort","type":"abort"}
+{"id":"prompt-2","type":"prompt","message":"Try again, short this time."}
+{"id":"final-messages","type":"get_messages"}

@@ -1,0 +1,5 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"prompt-1","type":"prompt","message":"Do step one."}
+{"id":"steer","type":"steer","message":"Also mention the steer."}
+{"id":"follow-up","type":"follow_up","message":"Then write a summary."}
+{"id":"final-messages","type":"get_messages"}

@@ -1,0 +1,6 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"subscribe","type":"set_subagent_subscription","level":"events"}
+{"id":"prompt-1","type":"prompt","message":"Ask a subagent for the word done."}
+{"id":"subagents","type":"get_subagents"}
+{"id":"subagent-messages","type":"get_subagent_messages","sessionFile":"/var/folders/6_/nx546n_s3clfgyb54slcg9hh0000gn/T/omp-record-subagent-C0uUoU/home/.omp/agent/sessions/-tmp-omp-record-subagent-C0uUoU-work/2026-09-25T16-35-36-029Z_01a0d96c-1bdd-70c7-9737-57faf2783e50/Echo.jsonl"}
+{"id":"final-messages","type":"get_messages"}

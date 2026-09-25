@@ -1,0 +1,9 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"state","type":"get_state"}
+{"id":"page-1","type":"get_messages_page","limit":2}
+{"id":"page-2","type":"get_messages_page","cursor":"eyJ2ZXJzaW9uIjoxLCJzZXNzaW9uSWQiOiIwMWEwZDk2Yy01NTg0LTc1MDAtYmY2OS02Mzk1Mzg5OWY3NWEiLCJsZWFmSWQiOiJjMDA1ZDVkOSIsIm1lc3NhZ2VDb3VudCI6NCwib2Zmc2V0IjoyfQ","limit":2}
+{"id":"entries","type":"get_entries"}
+{"id":"entries-since","type":"get_entries","since":"fa89df9e"}
+{"id":"tree","type":"get_tree"}
+{"id":"prompt-3","type":"prompt","message":"And now?"}
+{"id":"final-messages","type":"get_messages"}

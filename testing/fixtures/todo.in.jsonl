@@ -1,0 +1,4 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"prompt-1","type":"prompt","message":"Plan and do the fixture work with todos."}
+{"id":"state","type":"get_state"}
+{"id":"final-messages","type":"get_messages"}

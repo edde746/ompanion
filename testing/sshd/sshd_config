@@ -1,0 +1,18 @@
+# Read before Ubuntu's /etc/ssh/sshd_config body; sshd keeps the first value it sees.
+LogLevel VERBOSE
+PermitRootLogin no
+PubkeyAuthentication yes
+PasswordAuthentication yes
+KbdInteractiveAuthentication yes
+UsePAM yes
+AllowTcpForwarding yes
+AllowStreamLocalForwarding yes
+# MaxSessions stays at the OpenSSH default of 10: tests exercise connection pooling against it.
+
+# Password only through PAM keyboard-interactive, like servers with PasswordAuthentication off.
+Match User kbd
+  PasswordAuthentication no
+
+# `none` authentication succeeds for an empty password, standing in for Tailscale SSH.
+Match User nopw
+  PermitEmptyPasswords yes

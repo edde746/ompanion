@@ -1,0 +1,6 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"prompt-1","type":"prompt","message":"Design a badge; ask me what you need."}
+{"type":"extension_ui_response","id":"158da85757609d06","value":"Blue (Recommended)"}
+{"type":"extension_ui_response","id":"158da85757a09d07","value":"Other (type your own)"}
+{"type":"extension_ui_response","id":"158da85757a09d08","value":"omp-app"}
+{"id":"final-messages","type":"get_messages"}
