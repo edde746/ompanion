@@ -152,6 +152,11 @@ class OmpProcess {
 		return this.frames[index]!;
 	}
 
+	/** First matching frame anywhere in the stream; unlike `next`, leaves the cursor alone. */
+	async find(match: Match, what: string, timeoutMs = WAIT_MS): Promise<Frame> {
+		return this.frames[await this.#await(match, what, 0, timeoutMs)]!;
+	}
+
 	send(command: Frame): void {
 		const line = `${JSON.stringify(command)}\n`;
 		this.#sent.push(line);
@@ -225,6 +230,35 @@ function choose(omp: OmpProcess, request: Frame, label: string): void {
 	if (option === undefined) throw new Error(`no option starting with ${label} in ${JSON.stringify(options)}`);
 	omp.send({ type: "extension_ui_response", id: request.id, value: option });
 }
+
+const COMPANION = path.join(import.meta.dir, "..", "companion", "dist", "ompx.js");
+
+/**
+ * Loads the built companion (`cd companion && bun run build`) into the recorded omp from where the
+ * app uploads it on a host (docs/PLAN.md §6), so fixtures carry temp paths only.
+ */
+async function withCompanion({ home }: Context): Promise<string[]> {
+	if (!fs.existsSync(COMPANION)) throw new Error(`companion not built: run \`cd companion && bun run build\` (${COMPANION})`);
+	const target = path.join(home, ".omp-app", "companion", "18.3.1", "ompx.js");
+	fs.mkdirSync(path.dirname(target), { recursive: true });
+	fs.copyFileSync(COMPANION, target);
+	return ["-e", target];
+}
+
+/** Runs `/ompx <verb>` as prompt `id` (call id `recorder:<id>`) and returns the reply's `result`. */
+async function ompx(omp: OmpProcess, id: string, verb: string, args: Frame = {}): Promise<unknown> {
+	const callId = `recorder:${id}`;
+	await omp.request({ id, type: "prompt", message: `/ompx ${JSON.stringify({ callId, verb, args })}` });
+	const reply = await omp.find(f => f.type === "ompx" && f.kind === "reply" && f.callId === callId, `ompx reply ${id}`);
+	if (reply.ok !== true) throw new Error(`${verb} failed: ${JSON.stringify(reply)}`);
+	return reply.result;
+}
+
+const ompxEvent =
+	(event: string, where: (data: Frame) => boolean = () => true): Match =>
+	f =>
+		f.type === "ompx" && f.kind === "event" && f.event === event && isRecord(f.data) && where(f.data);
+const assistantEnd: Match = f => f.type === "message_end" && isRecord(f.message) && f.message.role === "assistant";
 
 interface Context {
 	fake: FakeProvider;
@@ -600,6 +634,127 @@ const SCENARIOS: Record<string, Scenario> = {
 			await omp.request({ id: "tree", type: "get_tree" });
 			await fake.enqueue({ steps: [{ text: "Still fixture." }] });
 			await prompt(omp, "prompt-3", "And now?");
+		},
+	},
+
+	"companion-ask": {
+		summary:
+			"companion loaded: `ask` with two questions reaches the app as an `ompx` `request`; `state.snapshot` lists it; answered with a note and a multi-select",
+		setup: withCompanion,
+		async run(omp, { fake }) {
+			await fake.enqueue([
+				{
+					steps: [
+						{
+							toolCall: {
+								name: "ask",
+								arguments: {
+									i: "Asking badge details",
+									questions: [
+										{
+											id: "color",
+											header: "Badge",
+											question: "Which color should the badge use?",
+											options: [
+												{ label: "Red" },
+												{ label: "Blue", description: "Matches the app icon", preview: "[ omp-app ]" },
+											],
+											recommended: 1,
+										},
+										{
+											id: "extras",
+											question: "What else goes on the badge?",
+											options: [{ label: "Version" }, { label: "Build date" }, { label: "Commit" }],
+											multi: true,
+										},
+									],
+								},
+							},
+						},
+					],
+				},
+				{ steps: [{ text: "A dark blue badge with the version and the commit." }] },
+			]);
+			omp.send({ id: "prompt-1", type: "prompt", message: "Design a badge; ask me what you need." });
+			const request = await omp.next(f => f.type === "ompx" && f.kind === "request" && f.method === "ask", "ompx ask request");
+			await ompx(omp, "snapshot", "state.snapshot");
+			const answer = {
+				kind: "submit",
+				results: [
+					{ id: "color", selectedOptions: ["Blue"], note: "Dark blue if possible" },
+					{ id: "extras", selectedOptions: ["Version", "Commit"] },
+				],
+			};
+			omp.send({ type: "extension_ui_response", id: request.id, value: JSON.stringify(answer) });
+			await omp.next(ompxEvent("request.settled", data => data.id === request.id), "request.settled");
+			await omp.next(toolEnd("ask"), "ask result");
+			await settled(omp, "prompt-1");
+		},
+	},
+
+	"companion-pause": {
+		summary:
+			"companion `pause.set` while the answer streams: the stream finishes, the `bash` call waits (`get_state`, `state.snapshot`) until `pause.set false`",
+		setup: withCompanion,
+		async run(omp, { fake }) {
+			await fake.enqueue([
+				{
+					steps: [
+						{ text: "Checking the build first." },
+						{ delayMs: 500 },
+						{ toolCall: { name: "bash", arguments: { i: "Checking the build", command: "echo build-ok" } } },
+					],
+				},
+				{ steps: [{ text: "The build is fine." }] },
+			]);
+			omp.send({ id: "prompt-1", type: "prompt", message: "Check the build." });
+			await omp.next(textDelta, "first text delta");
+			await ompx(omp, "pause", "pause.set", { paused: true });
+			await omp.next(ompxEvent("pause.changed", data => data.paused === true), "pause.changed paused");
+			await omp.next(assistantEnd, "assistant message with the bash call");
+			// The loop parks before the tool starts: the session still streams, nothing else happens.
+			await omp.request({ id: "state", type: "get_state" });
+			await ompx(omp, "snapshot", "state.snapshot");
+			if (omp.frames.some(eventType("tool_execution_start"))) throw new Error("bash started while paused");
+			await ompx(omp, "resume", "pause.set", { paused: false });
+			await omp.next(ompxEvent("pause.changed", data => data.paused === false), "pause.changed resumed");
+			await omp.next(toolEnd("bash"), "bash result");
+			await settled(omp, "prompt-1");
+		},
+	},
+
+	"companion-queue": {
+		summary:
+			"companion loaded: `follow_up` while the answer streams; `queue.changed` shows it, `queue.get` reads it, `queue.changed` empties when it is delivered",
+		setup: withCompanion,
+		async run(omp, { fake }) {
+			// The pause in the answer holds the stream while the queue is pushed and read.
+			await fake.enqueue([
+				{ steps: [{ text: "Drafting the plan." }, { delayMs: 1000 }, { text: " Plan drafted." }] },
+				{ steps: [{ text: "Summary: the plan is drafted." }] },
+			]);
+			omp.send({ id: "prompt-1", type: "prompt", message: "Draft a plan." });
+			await omp.next(textDelta, "first text delta");
+			await omp.request({ id: "follow-up", type: "follow_up", message: "Then summarize it." });
+			await omp.next(ompxEvent("queue.changed", data => data.count === 1), "queue.changed with the follow-up");
+			await ompx(omp, "queue", "queue.get");
+			await omp.next(ompxEvent("queue.changed", data => data.count === 0), "queue.changed after delivery");
+			await settled(omp, "prompt-1");
+		},
+	},
+
+	"companion-exec": {
+		summary: "companion `exec.bash` (the TUI's `!`): three `exec.chunk` events, then the reply; no model call",
+		setup: withCompanion,
+		async run(omp) {
+			// omp sends at most one chunk per 50 ms, so the sleeps make one chunk per line.
+			const command = "echo one; sleep 0.2; echo two; sleep 0.2; echo three";
+			const result = await ompx(omp, "exec", "exec.bash", { command });
+			if (!isRecord(result) || result.output !== "one\ntwo\nthree\n" || result.exitCode !== 0) {
+				throw new Error(`exec.bash returned ${JSON.stringify(result)}`);
+			}
+			const chunks = omp.frames.filter(ompxEvent("exec.chunk"));
+			if (chunks.length !== 3) throw new Error(`expected 3 exec.chunk events, got ${chunks.length}`);
 		},
 	},
 };

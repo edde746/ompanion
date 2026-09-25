@@ -1,0 +1,7 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"prompt-1","type":"prompt","message":"Check the build."}
+{"id":"pause","type":"prompt","message":"/ompx {\"callId\":\"recorder:pause\",\"verb\":\"pause.set\",\"args\":{\"paused\":true}}"}
+{"id":"state","type":"get_state"}
+{"id":"snapshot","type":"prompt","message":"/ompx {\"callId\":\"recorder:snapshot\",\"verb\":\"state.snapshot\",\"args\":{}}"}
+{"id":"resume","type":"prompt","message":"/ompx {\"callId\":\"recorder:resume\",\"verb\":\"pause.set\",\"args\":{\"paused\":false}}"}
+{"id":"final-messages","type":"get_messages"}

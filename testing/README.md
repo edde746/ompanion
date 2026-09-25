@@ -132,6 +132,13 @@ each run), `advisor_cost_changed` and `available_commands_update`. Timestamps, i
 ports, durations and `auto_retry_start.delayMs` change between recordings; the frame sequence does
 not.
 
+`companion-*` scenarios need the built companion (`cd companion && bun run build`). The recorder copies
+`companion/dist/ompx.js` to `<home>/.omp-app/companion/18.3.1/ompx.js`, where the app uploads it on a
+host, and starts omp with `-e` on that copy. `available_commands_update` then also lists `ompx`
+(`source: "extension"`). Companion calls are prompts `/ompx {"callId":"recorder:<id>",…}` with RPC id
+`<id>`; each gets its `response`, the `ompx` `reply` and a `prompt_result` with `agentInvoked: false`.
+Frames are specified in `docs/contracts/ompx.md`.
+
 | Fixture | Contents |
 |---|---|
 | `text-stream` | one prompt; a markdown answer sent in 5 chunks, which omp re-splits into 14 `text_delta` |
@@ -139,7 +146,7 @@ not.
 | `tool-bash` | text plus a `bash` call `echo hi`; `tool_execution_start`, 2 `tool_execution_update`, `tool_execution_end` (`hi`); answer "The command printed \`hi\`." |
 | `tool-read-edit` | `read notes.md` (tag `850C`), a hashline `edit` replacing line 4 (`beta` → `gamma`), answer; 3 assistant and 2 toolResult messages |
 | `approval` | `tools.approvalMode: always-ask`; `bash echo approved` waits on `select` "Allow tool: bash…" [Approve, Deny] between `tool_execution_start` and its updates; answered Approve |
-| `ask` | `ask` with two questions: `select` [Red, Blue (Recommended), Other (type your own)] → Blue; `select` → Other; `editor` → "omp-app"; result `color: Blue`, `text: "omp-app"` |
+| `ask` | omp without the companion (with `-e companion/dist/ompx.js` the companion's `askDialog` sends an `ompx` `request` instead; see `docs/contracts/ompx.md`): `ask` with two questions: `select` [Red, Blue (Recommended), Other (type your own)] → Blue; `select` → Other; `editor` → "omp-app"; result `color: Blue`, `text: "omp-app"` |
 | `todo` | `todo` init (one phase, two tasks) and two `done` calls over three tool turns; then `get_state` with `todoPhases` |
 | `subagent` | subscription `events`; `task` starts background subagent `Echo`; parent `agent_end` `isTerminal: false` and `prompt_result` `sessionSettled: false`; `get_subagents` while Echo runs; `subagent_lifecycle`/`subagent_progress`/`subagent_event`; Echo calls `yield`; a second parent run on the `custom` async-result message; `session_settled`; `get_subagent_messages` |
 | `abort` | the answer hangs after one delta; `abort`; assistant `stopReason: "aborted"`, `prompt_result` `status: "aborted"`; a second prompt completes |
@@ -148,3 +155,7 @@ not.
 | `error-retry` | 12 HTTP 500 replies: an empty assistant message with `stopReason: "error"`, `auto_retry_start`, a second `agent_start` without an `agent_end` in between, the answer; `auto_retry_end` arrives after `session_settled` |
 | `big-frame` | resumed session with three ~420 KB answers; the `get_messages` response (1,286,652 bytes) arrives as 5 `rpc_chunk` lines |
 | `session-resume` | resumed two-prompt session: `get_state`, two `get_messages_page` (limit 2, then the cursor), `get_entries` (all, then `since`), `get_tree`, one new prompt |
+| `companion-ask` | companion loaded; `ask` with two questions (a header, an option description and preview, one multi-select) arrives as `ompx` `request` `ask` after the tool call's `message_end`, before `tool_execution_start`; `state.snapshot` lists it under `requests`; the `extension_ui_response` answers Blue with a note plus Version and Commit; `request.settled`; `tool_execution_end` "User answers:\ncolor: Blue (note: Dark blue if possible)\nextras: [Version, Commit]"; the final answer |
+| `companion-pause` | companion loaded; `pause.set true` after the first text delta (`pause.changed` precedes the reply); the stream still finishes with the `bash` call, which does not start; `get_state` (`isStreaming: true`) and `state.snapshot` (paused) while parked; `pause.set false`; `pause.changed`, then `tool_execution_start` and the rest of the run |
+| `companion-queue` | companion loaded; `follow_up` during a 1 s pause in the answer; `queue.changed` `{followUp: ["Then summarize it."], count: 1}`; `queue.get`; after the first turn's `turn_end`, `queue.changed` empty and the follow-up turn |
+| `companion-exec` | companion loaded; `exec.bash` `echo one; sleep 0.2; echo two; sleep 0.2; echo three`: three `exec.chunk` events with the call's `callId`, then the reply (`output: "one\ntwo\nthree\n"`, `exitCode: 0`); no model request |

@@ -1,0 +1,5 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"prompt-1","type":"prompt","message":"Draft a plan."}
+{"id":"follow-up","type":"follow_up","message":"Then summarize it."}
+{"id":"queue","type":"prompt","message":"/ompx {\"callId\":\"recorder:queue\",\"verb\":\"queue.get\",\"args\":{}}"}
+{"id":"final-messages","type":"get_messages"}

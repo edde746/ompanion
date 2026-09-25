@@ -1,0 +1,3 @@
+{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}
+{"id":"exec","type":"prompt","message":"/ompx {\"callId\":\"recorder:exec\",\"verb\":\"exec.bash\",\"args\":{\"command\":\"echo one; sleep 0.2; echo two; sleep 0.2; echo three\"}}"}
+{"id":"final-messages","type":"get_messages"}
