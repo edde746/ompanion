@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:omp_core/companion.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:test/test.dart';
+
+import 'scripted_channel.dart';
 
 /// Recorded omp 18.3.1 sessions (testing/fixtures): `<scenario>.out.jsonl` is omp's stdout from
 /// byte 0, `<scenario>.in.jsonl` the commands that produced it.
@@ -40,7 +43,12 @@ void main() {
       final commands = sent.where((line) => line['type'] != 'extension_ui_response');
       final commandIds = [for (final command in commands) command['id']];
       expect(commandIds.where((id) => !answered.contains(id)), isEmpty, reason: 'every command gets a response');
-      final dialogs = {for (final request in frames.whereType<ExtensionUiRequest>()) request.id};
+      // omp's own dialogs and companion requests are both answered with `extension_ui_response`.
+      final dialogs = {
+        for (final request in frames.whereType<ExtensionUiRequest>()) request.id,
+        for (final frame in frames.whereType<UnknownFrame>())
+          if (frame.raw case {'type': 'ompx', 'kind': 'request', 'id': final String id}) id,
+      };
       final answers = [for (final line in sent) if (line['type'] == 'extension_ui_response') line['id']];
       expect(answers.where((id) => !dialogs.contains(id)), isEmpty, reason: 'every UI answer names a request');
 
@@ -48,6 +56,47 @@ void main() {
         expect(lines.where((line) => line.startsWith('{"type":"rpc_chunk"')).length, greaterThan(1));
         final messages = frames.whereType<ResponseFrame>().lastWhere((frame) => frame.command == 'get_messages');
         expect(utf8.encode(jsonEncode(messages.raw)).length, greaterThan(1024 * 1024));
+      }
+    });
+
+    if (!scenario.startsWith('companion-')) continue;
+    test('$scenario: CompanionClient parses every recorded ompx frame', () async {
+      final lines = const LineSplitter().convert(output.readAsStringSync());
+      final channel = ScriptedChannel();
+      final rpc = RpcClient(channel, deviceId: 'replay');
+      final companion = CompanionClient(rpc);
+      addTearDown(() async {
+        await companion.close();
+        await rpc.close();
+      });
+      final events = <CompanionEvent>[];
+      final requests = <CompanionRequest>[];
+      final errors = <Object>[];
+      companion.events.listen(events.add, onError: errors.add);
+      companion.requests.listen(requests.add, onError: errors.add);
+      final negotiate = channel.next('negotiate_protocol');
+      lines.forEach(channel.emitLine);
+      final started = rpc.start();
+      // Answered after the recording, so every recorded frame goes by before start() returns.
+      channel.respond(await negotiate, {'protocolVersion': 2});
+      await started;
+      await pumpEventQueue();
+
+      int count(String kind) => lines.where((line) => line.startsWith('{"type":"ompx","kind":"$kind"')).length;
+      expect(errors, isEmpty);
+      expect(events, hasLength(count('event')));
+      expect(requests, hasLength(count('request')));
+      switch (scenario) {
+        case 'companion-exec':
+          final chunks = events.where((event) => event.event == 'exec.chunk');
+          expect(chunks, hasLength(3));
+          expect(chunks.map((event) => event.callId).toSet(), hasLength(1));
+          expect(chunks.first.callId, startsWith('recorder:'));
+        case 'companion-ask':
+          final ask = requests.single;
+          expect(ask.method, 'ask');
+          final settled = events.singleWhere((event) => event.event == 'request.settled');
+          expect(settled.data, {'id': ask.id});
       }
     });
   }
