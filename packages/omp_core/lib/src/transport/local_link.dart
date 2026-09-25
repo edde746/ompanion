@@ -137,13 +137,27 @@ final class _LocalFiles implements HostFiles {
   Future<void> mkdir(String path, {int? mode}) async {
     final native = _native(path);
     // dart:io's Directory.create succeeds when the directory exists, so it cannot serve as a lock.
-    // The mkdir command fails on an existing path on both POSIX and Windows.
-    final result = Platform.isWindows
-        ? await Process.run('cmd.exe', ['/d', '/c', 'mkdir', native])
-        : await Process.run('mkdir', [if (mode != null) ...['-m', mode.toRadixString(8)], native]);
-    if (result.exitCode == 0) return;
-    if (await FileSystemEntity.type(native) != FileSystemEntityType.notFound) throw HostFileExists(path);
-    throw HostLinkException('mkdir $path', cause: '${result.stderr}'.trim());
+    // The mkdir command fails on an existing path. A holder can release the lock between our failed
+    // mkdir and any later check, so POSIX classifies by mkdir's own message (C locale), and Windows,
+    // whose cmd messages are localized, retries when the path is gone.
+    for (var attempt = 1;; attempt++) {
+      if (Platform.isWindows) {
+        final result = await Process.run('cmd.exe', ['/d', '/c', 'mkdir', native]);
+        if (result.exitCode == 0) return;
+        if (await FileSystemEntity.type(native) != FileSystemEntityType.notFound) throw HostFileExists(path);
+        if (attempt == 5) throw HostLinkException('mkdir $path', cause: '${result.stderr}'.trim());
+        continue;
+      }
+      final result = await Process.run(
+        'mkdir',
+        [if (mode != null) ...['-m', mode.toRadixString(8)], native],
+        environment: const {'LC_ALL': 'C'},
+      );
+      if (result.exitCode == 0) return;
+      final stderr = '${result.stderr}'.trim();
+      if (stderr.endsWith('File exists')) throw HostFileExists(path);
+      throw HostLinkException('mkdir $path', cause: stderr);
+    }
   }
 
   @override
