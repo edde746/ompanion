@@ -8,7 +8,9 @@ provider. `sshd/` (SSH test containers) is documented separately.
 |---|---|
 | `fake-provider/server.ts` | the provider: scripted turns in, OpenAI chat-completions SSE out |
 | `fake-provider/client.ts` | `FakeProvider`: starts the server as a child process, drives its control API |
+| `fake-provider/demo.ts` | `--demo`: canned turns for running the app without a model |
 | `omp-home.sh`, `omp-home.ts` | isolated omp home (shell and Bun), environment for omp children |
+| `dev-machine.sh` | a local dev machine for the app: omp home, `<home>/.local/bin/omp`, demo project |
 | `record.ts` | records a scenario from a real omp into `fixtures/` |
 | `fixtures/` | `<scenario>.out.jsonl` (omp stdout) and `<scenario>.in.jsonl` (lines sent) |
 
@@ -17,7 +19,8 @@ Typecheck: `companion/node_modules/.bin/tsc -p testing` (borrows the companion's
 ## Fake provider
 
 ```sh
-bun testing/fake-provider/server.ts --port 0    # first stdout line: listening <port>
+bun testing/fake-provider/server.ts --port 0           # first stdout line: listening <port>
+bun testing/fake-provider/server.ts --port 0 --demo    # unscripted requests get the demo rotation
 ```
 
 | Route | Purpose |
@@ -26,7 +29,7 @@ bun testing/fake-provider/server.ts --port 0    # first stdout line: listening <
 | `GET /v1/models` | lists `fake-1`, `fake-think` |
 | `POST /control/enqueue` | appends one turn or an array of turns |
 | `POST /control/reset` | clears the queue and the request log |
-| `GET /control/requests` | every completions request: `{path, body, served: "queue" \| "default"}` |
+| `GET /control/requests` | every completions request: `{path, body, served: "queue" \| "default" \| "demo", demo?}` |
 | `GET /control/health` | `{ok, queued, requests}` |
 
 A turn answers one model request:
@@ -50,7 +53,7 @@ type Step =
 - `wait` parks the request until another eligible turn is enqueued, which then answers it. Use it when
   the model's output depends on what omp did first, e.g. quoting the hashline tag a `read` returned.
 - With nothing eligible queued the server answers `ok`, so side calls never hang; `served: "default"`
-  in the request log shows it.
+  in the request log shows it. With `--demo` the demo rotation answers instead (see Dev machine).
 - `finish` defaults to `tool_calls` when a step calls a tool, else `stop`. `usage` defaults to
   characters / 4 for the request messages and the output; it is sent when the request asks for
   `stream_options.include_usage`, which omp does.
@@ -110,6 +113,51 @@ Run omp with `HOME=<home-dir>` and nothing else from the caller's environment th
 and provider API keys never reach omp. Launch with `--model fake/fake-1` (or `fake/fake-think`) and a
 working directory outside the repository. A fresh home grows to ~160 MB (omp unpacks its natives) and
 omp needs ~2.4 s to `ready`; delete the home afterwards.
+
+## Dev machine
+
+A local machine for running the app without a model: the demo provider plus an isolated home with the
+pinned omp.
+
+```sh
+bun testing/fake-provider/server.ts --port 18999 --demo    # keep it running
+testing/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
+flutter run -d macos --dart-define=OMP_APP_LOCAL_HOME=/tmp/omp-dev-home
+```
+
+`dev-machine.sh <home> <port>` runs `omp-home.sh <home> <port>`, adds `modelRoles.default: fake/fake-1`
+so an omp started without `--model` uses the fake provider, links `<home>/.local/bin/omp` to
+`.tools/omp/18.3.1/omp-<darwin-arm64|linux-arm64|linux-x64>` and creates `<home>/demo-project/README.md`
+unless it exists. It prints `HOME=<home>` and `OMP=<home>/.local/bin/omp` as absolute paths and can run
+again, e.g. after changing the port. Open sessions in `<home>/demo-project`: demo scenario 3 edits the
+`README.md` of the session's directory.
+
+omp also reads provider API keys from the environment it inherits. Start the app without them: with a
+key set, picking a real model in the app makes a paid call.
+
+With `--demo`, a request that finds no eligible queued turn is answered by the demo (`demo.ts`); queued
+turns still come first. Each user prompt, steer or follow-up starts the next scenario of one cycle
+shared by all sessions:
+
+| # | Label | The model |
+|---|---|---|
+| 1 | `markdown` | streams headings, nested and numbered lists, a task list, a table, a ```` ```dart ```` and a `~~~sh` fence, inline code, a link, `$…$` and `$$…$$` math |
+| 2 | `bash` | runs `ls -la`, then answers |
+| 3 | `read` | reads `README.md`, then `edit`s its first non-empty line of at most 200 characters, adding or removing " (edited by the omp-app demo)", then answers |
+| 4 | `todo` | creates three tasks in phase "Demo", then asks whether to start |
+| 5 | `thinking` | streams three `reasoning_content` chunks, then the answer; on `fake/fake-think` omp shows a thinking block |
+| 6 | `ask` | calls `ask` with one question and the options Option A and Option B, then repeats the answer |
+| 7 | `slow` | streams 40 lines 500 ms apart (~20 s): time to pause, abort or steer |
+
+- A tool result continues the scenario of the call it answers (labels `bash-answer`, `edit`,
+  `edit-answer`, `todo-answer`, `todo-closed`, `ask-answer`).
+- Requests without tools are side requests (compaction summaries and the like): they get `ok`
+  (`served: "default"`) and do not advance the cycle.
+- omp sends a todo reminder after the first answer that follows scenario 4 and does not end in a
+  question (scenario 5's). The demo answers it by marking every task done (`todo-close`, then
+  `todo-closed`), so the reminder comes once a cycle. Other injected messages get "Noted."
+  (`continue`).
+- `GET /control/requests` names the step behind every request: `served: "demo"`, `demo: "<label>"`.
 
 ## Recording fixtures
 

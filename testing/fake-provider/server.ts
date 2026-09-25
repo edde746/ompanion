@@ -1,16 +1,18 @@
 /**
  * OpenAI-compatible chat-completions server that answers from scripted turns, so a real omp can run
- * agent turns in tests without a paid provider.
+ * agent turns without a paid provider.
  *
- *   bun testing/fake-provider/server.ts --port <port>     (0 picks a free port)
+ *   bun testing/fake-provider/server.ts --port <port> [--demo]     (port 0 picks a free port)
  *
  * The first stdout line is `listening <port>`. Model API: `POST /v1/chat/completions` (SSE when
  * `stream: true`), `GET /v1/models`. Control API: `POST /control/enqueue`, `POST /control/reset`,
  * `GET /control/requests`, `GET /control/health`. Every model request consumes the first queued turn
- * it is eligible for (see `match`); with none queued it answers "ok", so side calls never hang.
+ * it is eligible for (see `match`). With none queued it answers "ok", so side calls never hang, or,
+ * with `--demo`, the next step of the demo rotation (`demo.ts`).
  */
 import type { Server } from "bun";
 import { isRecord } from "../json.ts";
+import { createDemo } from "./demo.ts";
 
 export type Step =
 	| { text: string }
@@ -74,8 +76,10 @@ export interface RecordedRequest {
 	path: string;
 	/** The parsed JSON request body as omp sent it. */
 	body: unknown;
-	/** `default` when no queued turn was eligible and the default "ok" turn answered. */
-	served: "queue" | "default";
+	/** `default`: no queued turn was eligible and "ok" answered; `demo`: the `--demo` rotation answered. */
+	served: "queue" | "default" | "demo";
+	/** The demo step that answered, e.g. `read` or `edit-answer`. */
+	demo?: string;
 }
 
 const DEFAULT_TURN: StreamTurn = { steps: [{ text: "ok" }] };
@@ -343,13 +347,14 @@ export interface FakeProviderServer {
 	port: number;
 }
 
-/** Starts the server on 127.0.0.1. Queue and request log live in this closure. */
-export function startServer(port: number): FakeProviderServer {
+/** Starts the server on 127.0.0.1. Queue, request log and demo rotation live in this closure. */
+export function startServer(port: number, options: { demo?: boolean } = {}): FakeProviderServer {
 	let queue: Turn[] = [];
 	let requests: RecordedRequest[] = [];
 	let requestSeq = 0;
 	/** Wake-ups for requests parked on a wait turn; every enqueue fires them. */
 	let waiters: Array<() => void> = [];
+	const demo = options.demo ? createDemo() : undefined;
 
 	const completions = async (req: Request, server: Server<undefined>): Promise<Response> => {
 		const raw = await req.text();
@@ -362,7 +367,13 @@ export function startServer(port: number): FakeProviderServer {
 			return index === -1 ? undefined : queue.splice(index, 1)[0];
 		};
 		let turn = take();
-		requests.push({ path: new URL(req.url).pathname, body, served: turn ? "queue" : "default" });
+		const reply = turn || !demo ? undefined : demo(body);
+		requests.push({
+			path: new URL(req.url).pathname,
+			body,
+			served: turn ? "queue" : reply ? "demo" : "default",
+			...(reply ? { demo: reply.label } : {}),
+		});
 		while (turn && "wait" in turn) {
 			turn = take();
 			while (!turn) {
@@ -375,7 +386,7 @@ export function startServer(port: number): FakeProviderServer {
 				turn = take();
 			}
 		}
-		turn ??= DEFAULT_TURN;
+		turn ??= reply?.turn ?? DEFAULT_TURN;
 		if ("error" in turn) {
 			const { status, message = `fake provider error ${status}`, headers = {} } = turn.error;
 			const type = status >= 500 ? "server_error" : "invalid_request_error";
@@ -442,7 +453,7 @@ if (import.meta.main) {
 	const raw = flag === -1 ? "0" : argv[flag + 1];
 	const port = Number(raw);
 	if (raw === undefined || !Number.isInteger(port) || port < 0 || port > 65535) {
-		throw new Error(`usage: bun testing/fake-provider/server.ts --port <0-65535>, got ${raw}`);
+		throw new Error(`usage: bun testing/fake-provider/server.ts --port <0-65535> [--demo], got ${raw}`);
 	}
-	console.log(`listening ${startServer(port).port}`);
+	console.log(`listening ${startServer(port, { demo: argv.includes("--demo") }).port}`);
 }
