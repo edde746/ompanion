@@ -31,17 +31,24 @@ import { VerbError, type VerbTable } from "../protocol.ts";
 import { accountVerbs } from "./session/accounts.ts";
 import { agentVerbs, installAgentRoster } from "./session/agents.ts";
 import { btwVerbs } from "./session/btw.ts";
-import { execVerbs } from "./session/exec.ts";
+import { execVerbs, installExecMessageEvents } from "./session/exec.ts";
 import { historyVerbs, installHistoryRecording } from "./session/history.ts";
 
 /** Wire contract: docs/contracts/ompx.md, sections `sessions.list` through `btw`. */
 
-export const sessionEvents: readonly string[] = ["agents.changed", "session.changed", "exec.chunk", "btw.delta"];
+export const sessionEvents: readonly string[] = [
+	"agents.changed",
+	"session.changed",
+	"exec.chunk",
+	"message.appended",
+	"btw.delta",
+];
 
 /** Called once per process from the main session's `session_start`, after the channel is bound. */
 export function installSessionHooks(pi: ExtensionAPI): void {
 	installAgentRoster();
 	installHistoryRecording(pi);
+	installExecMessageEvents(pi);
 }
 
 type ChangeReason = "fork" | "clear" | "delete" | "tree" | "label";

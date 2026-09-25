@@ -333,7 +333,8 @@ the user's shell, without a PTY. Output streams as events `exec.chunk {text: str
 `callId` (omp throttles chunks to one per 50 ms), then the reply:
 `result: {output, exitCode: number | null, cancelled, timedOut, truncated, totalLines, totalBytes,
 outputLines, outputBytes, artifactId: string | null, workingDir: string | null, images: ImageContent[]}`.
-The run is recorded in the transcript as a `bashExecution` message and `!command` in prompt history.
+The run is recorded in the transcript as a `bashExecution` message, pushed as `message.appended`, and
+`!command` goes into prompt history.
 
 ### exec.python
 
@@ -341,13 +342,28 @@ The run is recorded in the transcript as a `bashExecution` message and `!command
 Streams `exec.chunk {text}` like `exec.bash`, then `result: {output, exitCode: number | null, cancelled,
 truncated, totalLines, totalBytes, outputLines, outputBytes, artifactId: string | null, displayOutputs:
 ({type: "json", data} | {type: "image", data, mimeType} | {type: "markdown"} | {type: "status", event})[],
-stdinRequested: boolean}`. Recorded as a `pythonExecution` message and `$code` in prompt history.
+stdinRequested: boolean}`. Recorded as a `pythonExecution` message, pushed as `message.appended`, and `$code`
+goes into prompt history.
 
 ### exec.abort
 
 `args: {}` → `result: {bash: boolean, python: boolean}` (what was running). Cancels user bash and user Python,
 like Esc; aborting Python also stops the agent's own eval tool runs, as in the TUI. The cancelled call still
 replies, with `cancelled: true`.
+
+### message.appended
+
+Event `{message: AgentMessage}`, no `callId` (every device applies it): the `bashExecution` or
+`pythonExecution` message an `exec.bash` / `exec.python` call recorded, exactly as omp stores it and as
+`get_messages` returns it. omp itself sends no frame for these messages. `excludeFromContext` runs are
+recorded too, with `excludeFromContext: true`.
+- Idle session: pushed right after omp appends the message, before the call's reply.
+- Session streaming: omp holds the message until the next prompt starts and appends it right before that
+  prompt's messages. The push comes then, before that run's `agent_start`; the call's reply came earlier.
+- A session change before that prompt (new, switch, fork, branch, tree navigation) can put the message in
+  another session or branch; then no push follows, and devices resync for the session change anyway.
+
+Devices append it to the transcript, deduplicated by `role` + `timestamp`.
 
 ### history.search
 

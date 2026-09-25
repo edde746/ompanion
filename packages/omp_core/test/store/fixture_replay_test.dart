@@ -121,7 +121,9 @@ final checks = <String, void Function(Replay)>{
     expect(ask.params['questions'], hasLength(2));
   },
   'companion-exec': (replay) {
-    expect(replay.view.transcript, isEmpty);
+    expect(replay.announced, isTrue);
+    final execution = replay.view.transcript.single as ExecutionItem;
+    expect((execution.kind, execution.output), (ExecutionKind.bash, 'one\ntwo\nthree\n'));
   },
   'companion-pause': (replay) {
     expect(replay.views.any((view) => view.run.paused && view.run.pausedAt != null), isTrue);

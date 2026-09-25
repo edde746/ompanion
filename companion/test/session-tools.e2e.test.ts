@@ -124,8 +124,19 @@ describe("subagents", () => {
 	});
 });
 
+/** `message.appended` frames from `since` on, in wire order. */
+function appended(since: number): Frame[] {
+	return omp.frames
+		.slice(since)
+		.filter(frame => frame.type === "ompx" && frame.kind === "event" && frame.event === "message.appended");
+}
+
+async function transcript(): Promise<Frame[]> {
+	return ((await omp.command({ type: "get_messages" })).data as { messages: Frame[] }).messages;
+}
+
 describe("exec", () => {
-	test("exec.bash streams chunks under the call's callId, then replies and records the run", async () => {
+	test("exec.bash streams chunks under the call's callId, pushes the recorded message, then replies", async () => {
 		const since = omp.mark();
 		const reply = await omp.reply("exec.bash", { command: "printf 'one\\n'; sleep 0.3; printf 'two\\n'" });
 		expect(reply).toMatchObject({
@@ -133,12 +144,44 @@ describe("exec", () => {
 			result: { output: "one\ntwo\n", exitCode: 0, cancelled: false, timedOut: false, workingDir: omp.cwd },
 		});
 		expect(streamed(since, "exec.chunk", reply.callId ?? "")).toEqual(["one\n", "two\n"]);
-		const messages = ((await omp.command({ type: "get_messages" })).data as { messages: Frame[] }).messages;
-		expect(messages.at(-1)).toMatchObject({ role: "bashExecution", output: "one\ntwo\n", excludeFromContext: false });
+		const recorded = (await transcript()).at(-1);
+		expect(recorded).toMatchObject({ role: "bashExecution", output: "one\ntwo\n", excludeFromContext: false });
+		const [event] = appended(since);
+		// Every device applies it, so it carries no callId; it precedes the reply.
+		expect(event).toEqual({ type: "ompx", kind: "event", event: "message.appended", data: { message: recorded } });
+		const replyAt = omp.frames.findIndex(frame => frame.kind === "reply" && frame.callId === reply.callId);
+		expect(omp.frames.indexOf(event ?? {})).toBeLessThan(replyAt);
 	});
 
-	test("exec.bash with excludeFromContext keeps the output out of the model's context", async () => {
+	test("a command run while a turn streams is pushed when the next prompt records it", async () => {
+		await omp.fake.enqueue({ wait: true });
+		const count = (await omp.fake.requests()).length;
+		let since = omp.mark();
+		const running = await omp.command({ type: "prompt", message: "a long turn" });
+		await requestsReceived(count + 1);
+		expect(await omp.call("exec.bash", { command: "echo deferred-run" })).toMatchObject({ output: "deferred-run\n" });
+		await omp.fake.enqueue({ steps: [{ text: "long answer" }] });
+		await omp.waitFor(frame => frame.type === "prompt_result" && frame.id === running.id, { since });
+		// omp holds the result until the next prompt; it is not in the transcript yet.
+		expect(appended(since)).toEqual([]);
+		expect((await transcript()).some(message => message.command === "echo deferred-run")).toBe(false);
+
+		since = omp.mark();
+		await turn("the next prompt", "next answer");
+		const messages = await transcript();
+		const index = messages.findIndex(message => message.command === "echo deferred-run");
+		expect(messages[index + 1]).toMatchObject({ role: "user" });
+		const events = appended(since);
+		expect(events.map(frame => frame.data)).toEqual([{ message: messages[index] }]);
+		const agentStart = omp.frames.findIndex((frame, at) => at >= since && frame.type === "agent_start");
+		expect(omp.frames.indexOf(events[0] ?? {})).toBeLessThan(agentStart);
+	});
+
+	test("exec.bash with excludeFromContext is still recorded and pushed, but kept from the model", async () => {
+		const since = omp.mark();
 		await omp.call("exec.bash", { command: "echo hidden-marker", excludeFromContext: true });
+		expect(appended(since).map(frame => frame.data)).toEqual([{ message: (await transcript()).at(-1) }]);
+		expect((await transcript()).at(-1)).toMatchObject({ command: "echo hidden-marker", excludeFromContext: true });
 		await turn("after the hidden command", "fine");
 		expect(await lastRequestText()).not.toContain("hidden-marker");
 	});
@@ -160,6 +203,9 @@ describe("exec", () => {
 			result: { output: "py-one\n2\n", exitCode: 0, cancelled: false, stdinRequested: false },
 		});
 		expect(streamed(since, "exec.chunk", reply.callId ?? "").join("")).toBe("py-one\n2\n");
+		const recorded = (await transcript()).at(-1);
+		expect(recorded).toMatchObject({ role: "pythonExecution", code: "print('py-one')\n1+1", output: "py-one\n2\n" });
+		expect(appended(since).map(frame => frame.data)).toEqual([{ message: recorded }]);
 	});
 });
 
