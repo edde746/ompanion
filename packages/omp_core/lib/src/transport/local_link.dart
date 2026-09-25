@@ -136,14 +136,14 @@ final class _LocalFiles implements HostFiles {
   @override
   Future<void> mkdir(String path, {int? mode}) async {
     final native = _native(path);
+    // dart:io's Directory.create succeeds when the directory exists, so it cannot serve as a lock.
+    // The mkdir command fails on an existing path on both POSIX and Windows.
+    final result = Platform.isWindows
+        ? await Process.run('cmd.exe', ['/d', '/c', 'mkdir', native])
+        : await Process.run('mkdir', [if (mode != null) ...['-m', mode.toRadixString(8)], native]);
+    if (result.exitCode == 0) return;
     if (await FileSystemEntity.type(native) != FileSystemEntityType.notFound) throw HostFileExists(path);
-    try {
-      await Directory(native).create();
-    } on FileSystemException catch (error) {
-      if (await FileSystemEntity.type(native) != FileSystemEntityType.notFound) throw HostFileExists(path);
-      throw HostLinkException('mkdir $path', cause: error);
-    }
-    if (mode != null && !Platform.isWindows) await Process.run('chmod', [mode.toRadixString(8), native]);
+    throw HostLinkException('mkdir $path', cause: '${result.stderr}'.trim());
   }
 
   @override

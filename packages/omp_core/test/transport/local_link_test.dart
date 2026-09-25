@@ -45,6 +45,21 @@ void main() {
     await files.mkdir(lock);
   });
 
+  test('concurrent mkdir admits exactly one locker', () async {
+    final files = await link.files();
+    final lock = '${await files.home()}/race.lock';
+    final outcomes = await Future.wait(List.generate(8, (_) async {
+      try {
+        await files.mkdir(lock, mode: 0x1c0);
+        return true;
+      } on HostFileExists {
+        return false;
+      }
+    }));
+    expect(outcomes.where((won) => won), hasLength(1));
+    expect((await files.stat(lock))!.mode! & 0x1ff, 0x1c0);
+  });
+
   test('write appends and read honours offset and length', () async {
     final files = await link.files();
     final path = '${await files.home()}/log.jsonl';
