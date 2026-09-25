@@ -1,0 +1,198 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import '../transport/host_link.dart';
+import 'probe.dart';
+import 'scripts.dart';
+
+/// One omp release: SHA-256 digests of its assets, copied from the release's `SHA256SUMS.txt`.
+final class OmpRelease {
+  const OmpRelease(this.version, this.assets);
+
+  final String version;
+
+  /// Asset name → lowercase hex SHA-256.
+  final Map<String, String> assets;
+
+  Uri assetUrl(String asset) => Uri.https('github.com', '/can1357/oh-my-pi/releases/download/v$version/$asset');
+}
+
+/// Every omp release the app supports, oldest first.
+const ompReleases = [
+  OmpRelease('18.3.1', {
+    'omp-darwin-arm64': '67b807a99454a4d8e1cf982dce7b3343b2c2fc148f33e403dbfb3f1049b22570',
+    'omp-darwin-x64': 'f7ee52cc4d97c0c3af4b271dff940e2be31fe1e22d4fd125eda6e0c1bb97d5b0',
+    'omp-linux-arm64': '95b9e3dc3c2096885be2c9c923bd45bb3bf81d172367db7e7090936729261e2c',
+    'omp-linux-musl-arm64': 'f9fae7ccd077a0c386af6b979931c2875afcf79e53e230d3cbd1e19cfe6b3a8f',
+    'omp-linux-musl-x64': '32a053aaabd3f0e24c513c52714594285cccc1c83057ebc7585c7b358a566db4',
+    'omp-linux-x64': '0806df602bf2bb9b202d152204b1bef6450eb6bcbfbf31d66e3767d1bbb3b3a7',
+    'omp-windows-arm64.exe': '401cab4f1f21ecff0952123103715976c0bdb115d676e74496a68bf012214537',
+    'omp-windows-x64.exe': '66d1f0b193749782f119a776a2b02b0b71909c36ee12e8f1d310a3c53e66da26',
+  }),
+];
+
+OmpRelease? ompRelease(String version) {
+  for (final release in ompReleases) {
+    if (release.version == version) return release;
+  }
+  return null;
+}
+
+/// Where omp's installers put the binary: `$HOME/.local/bin` (install.sh), `%LOCALAPPDATA%\omp`
+/// (install.ps1). Host-native.
+String defaultInstallDir(HostProbe probe) {
+  if (!probe.isWindows) return '${probe.home}/.local/bin';
+  final local = probe.localAppData;
+  if (local == null) throw HostLinkException('LOCALAPPDATA is not set on ${probe.home}');
+  return '$local\\omp';
+}
+
+/// The shell command that installs [version] on a POSIX host, for manual mode and for automatic installs.
+/// With curl it is omp's own installer, pinned and forced to the prebuilt binary (without `--binary`
+/// install.sh prefers `bun install -g`, and `--ref` alone means a source build). install.sh itself needs
+/// curl, so hosts with only wget download the pinned asset directly and check it against [ompReleases].
+String posixInstallCommand(HostProbe probe, String version, {String? installDir}) {
+  final release = _release(version);
+  final asset = _asset(probe, release);
+  final dir = shQuote(installDir ?? defaultInstallDir(probe));
+  final url = shQuote(release.assetUrl(asset).toString());
+  final check = switch (probe.sha256Tool) {
+    'shasum' => 'shasum -a 256 "\$d/omp.download"',
+    'openssl' => 'openssl dgst -sha256 -r "\$d/omp.download"',
+    _ => 'sha256sum "\$d/omp.download"',
+  };
+  return 'd=$dir; mkdir -p "\$d" && '
+      'if command -v curl >/dev/null 2>&1; then '
+      'curl -fsSL https://omp.sh/install | PI_INSTALL_DIR="\$d" sh -s -- --binary --ref v$version; '
+      'else wget -qO "\$d/omp.download" $url && '
+      '[ "\$($check | cut -d" " -f1)" = ${release.assets[asset]} ] && '
+      'chmod 755 "\$d/omp.download" && "\$d/omp.download" --version && mv -f "\$d/omp.download" "\$d/omp"; fi';
+}
+
+/// The PowerShell command that installs [version] on a Windows host with omp's install.ps1. `-Binary` is
+/// required: `-Ref` alone means a source install.
+String windowsInstallCommand(HostProbe probe, String version, {String? installDir}) {
+  _release(version);
+  final dir = installDir ?? defaultInstallDir(probe);
+  return '\$env:PI_INSTALL_DIR = ${psQuote(dir)}; '
+      '& ([scriptblock]::Create((Invoke-RestMethod -UseBasicParsing https://omp.sh/install.ps1))) -Binary -Ref v$version';
+}
+
+/// Installs omp [version] from a release asset the app already downloaded ([asset], the bytes of
+/// [HostProbe.releaseAsset]). Under a `mkdir` lock at `~/.omp-app/install.lock` it uploads the bytes next
+/// to the target over SFTP, checks their SHA-256 on the host against [ompReleases], marks the file
+/// executable, runs `--version`, and moves it over the target, so running omp processes keep their old
+/// binary. Returns the installed binary's host-native path.
+Future<String> uploadOmp(
+  HostLink link,
+  HostProbe probe,
+  String version, {
+  required Stream<List<int>> asset,
+  String? installDir,
+  Duration lockTimeout = const Duration(minutes: 2),
+  Duration staleLock = const Duration(hours: 1),
+}) async {
+  final release = _release(version);
+  final assetName = _asset(probe, release);
+  final digest = release.assets[assetName]!;
+  final dir = installDir ?? defaultInstallDir(probe);
+  final target = probe.isWindows ? '$dir\\omp.exe' : '$dir/omp';
+  final files = await link.files();
+  try {
+    final lock = '${await ensureAppDir(files, '')}/install.lock';
+    await acquireDirLock(files, lock, timeout: lockTimeout, stale: staleLock);
+    try {
+      final marker = newMarker();
+      final upload = probe.isWindows ? '$dir\\.omp-upload-$marker.exe' : '$dir/.omp-upload-$marker';
+      final prepare = probe.isWindows
+          ? await runPowerShell(link, probe.commandShell, 'New-Item -ItemType Directory -Force -Path ${psQuote(dir)} | Out-Null')
+          : await runPosixScript(link, 'mkdir -p ${shQuote(dir)}');
+      if (prepare.exit.code != 0) throw prepare.failure('cannot create $dir');
+      await _upload(files, toSftpPath(upload), asset);
+      final result = probe.isWindows
+          ? await runPowerShell(link, probe.commandShell, _windowsPlaceScript(marker, upload, target, digest, version))
+          : await runPosixScript(link, _posixPlaceScript(marker, upload, target, digest, version));
+      if (result.exit.code != 0) throw result.failure('installing omp $version failed');
+      return result.payload(marker);
+    } finally {
+      await files.removeDir(lock);
+    }
+  } finally {
+    await files.close();
+  }
+}
+
+/// Streams [bytes] to [path] in 4 MiB appends, so a 200 MB binary is never held in memory at once.
+Future<void> _upload(HostFiles files, String path, Stream<List<int>> bytes) async {
+  const chunkSize = 4 << 20;
+  final chunk = BytesBuilder(copy: false);
+  var first = true;
+  Future<void> flush() async {
+    await files.write(path, chunk.takeBytes(), append: !first, mode: first ? 0x1C0 : null);
+    first = false;
+  }
+
+  await for (final part in bytes) {
+    chunk.add(part);
+    if (chunk.length >= chunkSize) await flush();
+  }
+  if (first || chunk.length > 0) await flush();
+}
+
+String _posixPlaceScript(String marker, String upload, String target, String digest, String version) =>
+    '''
+m=${shQuote(marker)}; f=${shQuote(upload)}; t=${shQuote(target)}; want=${shQuote(digest)}; v=${shQuote(version)}
+$_posixPlaceBody''';
+
+const _posixPlaceBody = r'''
+fail() { echo "$1" >&2; rm -f "$f"; exit 1; }
+if command -v sha256sum >/dev/null 2>&1; then got=$(sha256sum "$f")
+elif command -v shasum >/dev/null 2>&1; then got=$(shasum -a 256 "$f")
+elif command -v openssl >/dev/null 2>&1; then got=$(openssl dgst -sha256 -r "$f")
+else fail 'no sha256sum, shasum or openssl on this machine'; fi
+got=${got%% *}
+[ "$got" = "$want" ] || fail "SHA-256 mismatch: expected $want, got $got"
+chmod 755 "$f" || fail "chmod failed"
+out=$("$f" --version </dev/null 2>&1) || fail "the uploaded binary does not start: $out"
+case $out in *"$v"*) ;; *) fail "the uploaded binary reports $out, expected $v" ;; esac
+mv -f "$f" "$t" || fail "cannot move the binary to $t"
+printf '%s:begin\n%s\n%s:end\n' "$m" "$t" "$m"
+''';
+
+String _windowsPlaceScript(String marker, String upload, String target, String digest, String version) =>
+    '''
+\$m = ${psQuote(marker)}; \$f = ${psQuote(upload)}; \$t = ${psQuote(target)}; \$want = ${psQuote(digest)}; \$v = ${psQuote(version)}
+$_windowsPlaceBody''';
+
+/// A running omp.exe cannot be overwritten but can be renamed, so an existing target is moved aside first
+/// (omp's own `omp update` does the same).
+const _windowsPlaceBody = r'''
+try {
+  $got = (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($got -ne $want) { throw "SHA-256 mismatch: expected $want, got $got" }
+  $out = (& $f --version 2>&1 | Out-String)
+  if ($LASTEXITCODE -ne 0) { throw "the uploaded binary does not start: $out" }
+  if (-not $out.Contains($v)) { throw "the uploaded binary reports $out, expected $v" }
+  if (Test-Path -LiteralPath $t) {
+    $old = "$t.old-$m"
+    Move-Item -LiteralPath $t -Destination $old -Force
+    Remove-Item -LiteralPath $old -Force -ErrorAction SilentlyContinue
+  }
+  Move-Item -LiteralPath $f -Destination $t -Force
+} catch {
+  Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
+  throw
+}
+[Console]::Out.Write($m + ":begin`n" + (ConvertTo-OmpAscii $t) + "`n" + $m + ":end`n")
+''';
+
+OmpRelease _release(String version) =>
+    ompRelease(version) ?? (throw ArgumentError.value(version, 'version', 'no digests for this omp release'));
+
+String _asset(HostProbe probe, OmpRelease release) {
+  final asset = probe.releaseAsset;
+  if (asset == null || !release.assets.containsKey(asset)) {
+    throw HostLinkException('omp ${release.version} has no build for ${probe.kernel} ${probe.arch}');
+  }
+  return asset;
+}

@@ -1,0 +1,136 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:omp_core/channel.dart';
+import 'package:omp_core/src/channel/detached_channel.dart' show inlineAppendLimit;
+import 'package:omp_core/transport.dart';
+import 'package:test/test.dart';
+
+import 'support.dart';
+
+/// Both channel transports against a run directory whose "omp" is the test itself: POSIX exec (`tail -F`
+/// and the shell appender, as on macOS and Linux hosts) and SFTP polling (as on Windows hosts).
+void main() {
+  for (final kind in ['exec', 'sftp']) {
+    group('$kind channel', () {
+      late Directory root;
+      late String dir;
+      late LocalLink link;
+
+      setUp(() async {
+        root = await Directory.systemTemp.createTemp('run channel ');
+        dir = '${root.path}/run 1';
+        await Directory(dir).create();
+        final meta = RunMeta(
+          id: 'run 1',
+          cwd: root.path,
+          omp: '/bin/omp',
+          ompVersion: '18.3.1',
+          args: const [],
+          generation: 1,
+          created: DateTime.now(),
+        );
+        await File('$dir/meta.json').writeAsString('${jsonEncode(meta.toJson())}\n');
+        for (final name in ['in.jsonl', 'out.jsonl']) {
+          await File('$dir/$name').create();
+        }
+        link = LocalLink(environment: {'HOME': root.path});
+      });
+
+      tearDown(() async {
+        await link.close();
+        await root.delete(recursive: true);
+      });
+
+      Future<RunChannel> attach({int? generation, int offset = 0, int? inboxOffset}) => kind == 'exec'
+          ? DetachedChannel.attach(link, dir, generation: generation, offset: offset, inboxOffset: inboxOffset)
+          : SftpRunChannel.attach(link, dir, generation: generation, offset: offset, inboxOffset: inboxOffset,
+              poll: const Duration(milliseconds: 20));
+
+      Future<void> omp(String text) => File('$dir/out.jsonl').writeAsString(text, mode: FileMode.append, flush: true);
+
+      test('delivers whole lines with their offsets and resumes after the saved one', () async {
+        final channel = await attach();
+        final frames = Frames(channel.lines);
+        await omp('{"id":"1"}\n{"id":');
+        await frames.next((f) => f['id'] == '1');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(frames.raw, ['{"id":"1"}'], reason: 'the unfinished line waits for its newline');
+        expect(channel.offset, 11);
+        await omp('"2"}\n');
+        await frames.next((f) => f['id'] == '2');
+        expect(channel.offset, 22);
+        await channel.close();
+
+        await omp('{"id":"3"}\n');
+        final again = await attach(generation: 1, offset: 11);
+        final more = Frames(again.lines);
+        await more.next((f) => f['id'] == '3');
+        expect(more.raw, ['{"id":"2"}', '{"id":"3"}']);
+        await again.close();
+
+        final otherGeneration = await attach(generation: 7, offset: 11);
+        final all = Frames(otherGeneration.lines);
+        await all.next((f) => f['id'] == '3');
+        expect(all.raw, hasLength(3), reason: 'an offset from another generation is not used');
+        await otherGeneration.close();
+      });
+
+      test('appends small and large lines whole and in order', () async {
+        final channel = await attach();
+        final large = jsonEncode({'id': 'big', 'data': 'é' * inlineAppendLimit});
+        await Future.wait([channel.send('{"id":"a"}'), channel.send(large), channel.send('@not-a-file')]);
+        expect(await File('$dir/in.jsonl').readAsString(), '{"id":"a"}\n$large\n@not-a-file\n');
+        expect(Directory(dir).listSync().map((e) => e.path.split('/').last).toSet(), {'meta.json', 'in.jsonl', 'out.jsonl'});
+        await channel.close();
+      });
+
+      test('two channels append concurrently without interleaving and see each other in their inboxes', () async {
+        final a = await attach(inboxOffset: 0);
+        final b = await attach(inboxOffset: 0);
+        final seenByB = <InboxLine>[];
+        final listening = b.inbox.listen(seenByB.add);
+        final payload = 'x' * 3000;
+        await Future.wait([
+          for (var i = 0; i < 30; i++) a.send(jsonEncode({'id': 'a$i', 'p': payload})),
+          for (var i = 0; i < 30; i++) b.send(jsonEncode({'id': 'b$i', 'p': payload})),
+        ]);
+        final lines = const LineSplitter().convert(await File('$dir/in.jsonl').readAsString());
+        expect(lines, hasLength(60));
+        expect(lines.map((l) => (jsonDecode(l) as Map<String, Object?>)['p']), everyElement(payload));
+        final deadline = DateTime.now().add(const Duration(seconds: 10));
+        while (seenByB.length < 60 && DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+        String id(InboxLine l) => (jsonDecode(l.line) as Map<String, Object?>)['id']! as String;
+        expect(seenByB.where((l) => l.own).map(id).toSet(), {for (var i = 0; i < 30; i++) 'b$i'});
+        expect(seenByB.where((l) => !l.own).map(id).toSet(), {for (var i = 0; i < 30; i++) 'a$i'});
+        expect(b.inboxOffset, File('$dir/in.jsonl').lengthSync());
+        await listening.cancel();
+        await a.close();
+        await b.close();
+      });
+
+      test('ends with the exit code after the exit marker, also when attaching after the end', () async {
+        final channel = await attach();
+        final frames = Frames(channel.lines);
+        // Windows writes the marker with cmd.exe's echo: CRLF line ends.
+        await omp(kind == 'exec' ? '{"id":"1"}\n\n{"type":"omp_app_exit","code":0}\n' : '{"id":"1"}\r\n\r\n{"type":"omp_app_exit","code":0}\r\n');
+        await File('$dir/exit').writeAsString('0\n');
+        await frames.ended();
+        expect(frames.raw, ['{"id":"1"}']);
+        expect(frames.error, isNull);
+        expect(channel.exitCode, 0);
+        final end = File('$dir/out.jsonl').lengthSync();
+        await channel.close();
+
+        final late = await attach(generation: 1, offset: end);
+        final nothing = Frames(late.lines);
+        await nothing.ended();
+        expect(nothing.raw, isEmpty);
+        expect(late.exitCode, 0);
+        await late.close();
+      });
+    });
+  }
+}
