@@ -183,6 +183,58 @@ describe("queue", () => {
 		await omp.waitFor(frame => frame.type === "session_settled", { since: mark });
 	});
 
+	test("take removes one queued message by its index in the pushed list", async () => {
+		await omp.fake.enqueue({ steps: [{ text: "working" }, { hang: true }] });
+		await startStreaming("start working");
+		let mark = omp.mark();
+		for (const message of ["first", "second", "third"]) await omp.command({ type: "follow_up", message });
+		await omp.waitEvent("queue.changed", { since: mark, where: data => (data as { count: number }).count === 3 });
+
+		mark = omp.mark();
+		expect(await omp.call("queue.take", { mode: "followUp", index: 1 })).toEqual({ text: "second" });
+		const event = await omp.waitEvent("queue.changed", { since: mark });
+		expect(event.data).toEqual({ steering: [], followUp: ["first", "third"], count: 2 });
+		expect(await omp.call("queue.take", { mode: "followUp", index: 2 })).toBeNull();
+		expect(await omp.call("queue.take", { mode: "steering", index: 0 })).toBeNull();
+		expect((await omp.callError("queue.take", { mode: "followUp", index: -1 })).code).toBe("bad_request");
+		expect(await omp.call("queue.take", { mode: "followUp", index: 1 })).toEqual({ text: "third" });
+		expect(await omp.call("queue.take", { mode: "followUp", index: 0 })).toEqual({ text: "first" });
+		expect(await omp.call("queue.get")).toEqual({ steering: [], followUp: [], count: 0 });
+
+		mark = omp.mark();
+		await omp.command({ type: "abort" });
+		await omp.waitFor(frame => frame.type === "session_settled", { since: mark });
+	});
+
+	test("stop the TUI's way: interrupt clear, abort and resume end a paused run without delivering the queue", async () => {
+		await omp.fake.enqueue([bash("echo never"), { steps: [{ text: "next run" }] }]);
+		const since = await startStreaming("run a command");
+		await pause(since);
+		await omp.waitFor(isAssistantEnd, { since });
+		let mark = omp.mark();
+		await omp.command({ type: "follow_up", message: "queued before stop" });
+		await omp.waitEvent("queue.changed", { since: mark, where: data => (data as { count: number }).count === 1 });
+
+		mark = omp.mark();
+		expect(await omp.call("queue.clear", { interrupt: true })).toEqual({
+			steering: [],
+			followUp: [{ text: "queued before stop" }],
+		});
+		await omp.command({ type: "abort" });
+		await omp.waitFor(frame => frame.type === "agent_end", { since: mark });
+		await omp.call("pause.set", { paused: false });
+		await omp.waitFor(frame => frame.type === "session_settled", { since: mark });
+		const output = omp.frames.slice(since).filter(frame => frame.type === "tool_execution_end");
+		expect(JSON.stringify(output)).not.toContain("never\\n");
+		expect(await omp.fake.requests()).toHaveLength(1);
+
+		mark = await startRun("after the stop");
+		await omp.waitFor(frame => frame.type === "session_settled", { since: mark });
+		const requests = await omp.fake.requests();
+		expect(requests).toHaveLength(2);
+		expect(JSON.stringify(requests[1]?.body)).not.toContain("queued before stop");
+	});
+
 	test("a message queued while paused is pushed although no session event flows", async () => {
 		await omp.fake.enqueue([bash("echo first"), { steps: [{ text: "tool done" }] }, { steps: [{ text: "follow-up done" }] }]);
 		const since = await startStreaming("run a command");

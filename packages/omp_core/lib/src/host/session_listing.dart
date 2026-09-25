@@ -19,6 +19,7 @@ final class SessionSummary {
     this.created,
     this.parentSession,
     this.version,
+    this.firstMessage,
     this.runId,
   });
 
@@ -48,6 +49,10 @@ final class SessionSummary {
   /// Session format version; null for v1 files.
   final int? version;
 
+  /// Text of the first user message, on one line and at most [firstMessageLength] characters; null when the
+  /// file's first 16 KiB hold none.
+  final String? firstMessage;
+
   /// The live run holding this session on the machine; set by `MachineRuntime.listSessions`, null from the plain
   /// listing and for sessions no omp process holds.
   final String? runId;
@@ -66,6 +71,7 @@ final class SessionSummary {
     created: created,
     parentSession: parentSession,
     version: version,
+    firstMessage: firstMessage,
     runId: runId,
   );
 }
@@ -82,13 +88,13 @@ Future<List<SessionSummary>> listSessions(HostLink link, HostProbe probe, {List<
   return parseSessionList(result.payload(marker));
 }
 
-/// Prints one `F<TAB>size<TAB>mtime<TAB>profile<TAB>path` record per file, then its first line, then its
-/// second line when the first is the title slot (only then is the header on line 2), and turns the records
-/// into JSON lines with a single awk. Shell builtins read the lines, so each file costs no process.
+/// Prints one `F<TAB>size<TAB>mtime<TAB>profile<TAB>path` record per file, then the first 16 KiB of every file
+/// under `==> path <==` headers (one `head` for many files), and turns them into JSON lines with a single awk:
+/// the title slot, the header, and the start of the first user message's text.
 String posixSessionListScript(String marker, List<String> sessionDirs) =>
     'm=${shQuote(marker)}\nset --${sessionDirs.map((d) => ' ${shQuote(d)}').join()}\n$_posixListBody';
 
-const _posixListBody = r'''
+const _posixListBody = r"""
 LC_ALL=C; export LC_ALL
 if stat -c %s / >/dev/null 2>&1; then gnu=1; else gnu=0; fi
 seen='
@@ -106,10 +112,12 @@ $1
     find "$1" -mindepth "$3" -maxdepth "$3" -name '*.jsonl' -type f -exec stat -f '%z %m %N' {} + 2>/dev/null
   fi | while IFS= read -r rec; do
     size=${rec%% *}; rest=${rec#* }; mtime=${rest%% *}; f=${rest#* }
-    l1=; l2=
-    { IFS= read -r l1 || :; case $l1 in '{"type":"title"'*) IFS= read -r l2 || : ;; esac; } < "$f" 2>/dev/null
-    printf 'F\t%s\t%s\t%s\t%s\n%s\n%s\n' "$size" "$mtime" "$2" "$f" "$l1" "$l2"
+    printf 'F\t%s\t%s\t%s\t%s\n' "$size" "$mtime" "$2" "$f"
   done
+  # /dev/null first: head prints the `==> path <==` headers only for two files or more.
+  find "$1" -mindepth "$3" -maxdepth "$3" -name '*.jsonl' -type f -exec head -c 16384 /dev/null {} + 2>/dev/null
+  # Ends a prefix cut mid-line, so the next record starts a line.
+  printf '\n'
 }
 {
   cfg="$HOME/${PI_CONFIG_DIR:-.omp}"
@@ -135,25 +143,38 @@ function esc(s,   out, i, n, c) {
 }
 function str(s) { return s == "" ? "null" : "\"" esc(s) "\"" }
 function num(s) { return s ~ /^[0-9]+$/ ? s : "0" }
+function flush() {
+  if (cur != "" && (cur in size))
+    printf "{\"path\":%s,\"size\":%s,\"mtime\":%s,\"profile\":%s,\"title\":%s,\"header\":%s,\"first\":%s}\n", str(cur), num(size[cur]), num(mtime[cur]), str(prof[cur]), str(slot), str(header), str(first)
+  cur = ""
+}
 BEGIN { printf "\n%s:begin\n", m }
-state == 0 {
+/^F\t/ {
   split($0, a, "\t")
-  size = a[2]; mtime = a[3]; prof = a[4]
-  path = substr($0, length(a[1]) + length(a[2]) + length(a[3]) + length(a[4]) + 5)
-  state = 1; next
+  p = substr($0, length(a[2]) + length(a[3]) + length(a[4]) + 6)
+  size[p] = a[2]; mtime[p] = a[3]; prof[p] = a[4]
+  next
 }
-state == 1 { l1 = $0; state = 2; next }
-state == 2 {
-  state = 0
-  if (index(l1, "{\"type\":\"title\"") == 1) { slot = l1; header = $0 } else { slot = ""; header = l1 }
-  # A first line this long is not a session header; skip it rather than escape megabytes.
-  if (length(header) > 65536) header = ""
-  printf "{\"path\":%s,\"size\":%s,\"mtime\":%s,\"profile\":%s,\"title\":%s,\"header\":%s}\n", str(path), num(size), num(mtime), str(prof), str(slot), str(header)
+/^==> .* <==$/ {
+  flush()
+  cur = substr($0, 5, length($0) - 8); n = 0; slot = ""; header = ""; first = ""
+  next
 }
-END { printf "%s:end\n", m }'
-''';
+cur == "" || $0 == "" { next }
+{
+  n++
+  if (n == 1 && index($0, "{\"type\":\"title\"") == 1) { slot = $0; next }
+  if (header == "") { header = $0; next }
+  # The escaped JSON text of the first user message: string content or its first text part, cut to 1 KiB.
+  if (first == "" && index($0, "{\"type\":\"message\"") == 1 && (u = index($0, "\"message\":{\"role\":\"user\"")) > 0) {
+    rest = substr($0, u)
+    if (match(rest, /"(content|text)":"/)) first = substr(rest, RSTART + RLENGTH, 1024)
+  }
+}
+END { flush(); printf "%s:end\n", m }'
+""";
 
-/// Windows PowerShell equivalent of [posixSessionListScript]: reads up to 64 KiB of each file with
+/// Windows PowerShell equivalent of [posixSessionListScript]: reads up to 16 KiB of each file with
 /// `ReadWrite, Delete` sharing, so files omp is writing stay readable.
 String windowsSessionListScript(String marker, List<String> sessionDirs) =>
     '\$m = ${psQuote(marker)}\n\$extra = @(${sessionDirs.map(psQuote).join(', ')})\n$_windowsListBody';
@@ -176,23 +197,34 @@ if (Test-Path -LiteralPath $profiles -PathType Container) {
   foreach ($p in Get-ChildItem -LiteralPath $profiles -Directory) { Add-Root (Join-Path $p.FullName 'agent\sessions') $p.Name 2 }
 }
 foreach ($d in $extra) { Add-Root $d $null 1 }
-$buf = New-Object byte[] 65536
+$buf = New-Object byte[] 16384
 $out = New-Object System.Text.StringBuilder
 foreach ($r in $roots) {
   if ($r.Depth -eq 2) { $dirs = @(Get-ChildItem -LiteralPath $r.Dir -Directory) } else { $dirs = @(Get-Item -LiteralPath $r.Dir) }
   foreach ($dir in $dirs) {
     foreach ($f in Get-ChildItem -LiteralPath $dir.FullName -Filter '*.jsonl' -File) {
       if (-not $f.Name.EndsWith('.jsonl')) { continue }
-      $slot = $null; $header = $null
+      $slot = $null; $header = $null; $first = $null
       try {
         $fs = [System.IO.File]::Open($f.FullName, 'Open', 'Read', 'ReadWrite, Delete')
         try { $n = $fs.Read($buf, 0, $buf.Length) } finally { $fs.Dispose() }
         $lines = [System.Text.Encoding]::UTF8.GetString($buf, 0, $n).Split([char]10)
-        if ($lines[0].StartsWith('{"type":"title"')) { if ($lines.Length -gt 1) { $header = $lines[1] }; $slot = $lines[0] } else { $header = $lines[0] }
+        $next = 1
+        if ($lines[0].StartsWith('{"type":"title"')) { if ($lines.Length -gt 1) { $header = $lines[1] }; $slot = $lines[0]; $next = 2 } else { $header = $lines[0] }
+        for ($i = $next; $i -lt $lines.Length -and $null -eq $first; $i++) {
+          $l = $lines[$i]
+          $u = $l.IndexOf('"message":{"role":"user"', [System.StringComparison]::Ordinal)
+          if (-not $l.StartsWith('{"type":"message"', [System.StringComparison]::Ordinal) -or $u -lt 0) { continue }
+          $t = [regex]::Match($l.Substring($u), '"(content|text)":"')
+          if ($t.Success) {
+            $rest = $l.Substring($u + $t.Index + $t.Length)
+            $first = $rest.Substring(0, [Math]::Min(1024, $rest.Length))
+          }
+        }
       } catch { $header = $null }
       $rec = [ordered]@{
         path = $f.FullName; size = $f.Length; mtime = [DateTimeOffset]::new($f.LastWriteTimeUtc).ToUnixTimeSeconds()
-        profile = $r.ProfileName; title = $slot; header = $header
+        profile = $r.ProfileName; title = $slot; header = $header; first = $first
       }
       [void]$out.Append((ConvertTo-OmpAscii (ConvertTo-Json -InputObject $rec -Compress))).Append("`n")
     }
@@ -234,6 +266,7 @@ List<SessionSummary> parseSessionList(String payload) {
         created: created is String ? DateTime.tryParse(created) : null,
         parentSession: parent is String ? parent : null,
         version: version is int ? version : null,
+        firstMessage: _firstMessage(record.optString('first')),
       ),
     );
   }
@@ -251,6 +284,38 @@ Map<String, Object?>? _jsonLine(String? line) {
     // A header still being written, or a slot overwritten mid-read, is a partial line.
     return null;
   }
+}
+
+/// Longest [SessionSummary.firstMessage].
+const firstMessageLength = 200;
+
+/// Decodes the escaped JSON text both scripts cut from the first user message (up to its closing quote, or
+/// wherever the cut fell), collapses whitespace and caps it at [firstMessageLength].
+String? _firstMessage(String? escaped) {
+  if (escaped == null) return null;
+  var end = escaped.length;
+  for (var i = 0; i < escaped.length; i++) {
+    final c = escaped[i];
+    if (c == '"') {
+      end = i;
+      break;
+    }
+    if (c == '\\') i++;
+  }
+  // A cut inside an escape leaves `\` or a short `\u` sequence; drop characters until the rest decodes.
+  var decoded = '';
+  for (var cut = end; cut > end - 6 && cut >= 0; cut--) {
+    try {
+      decoded = jsonDecode('"${escaped.substring(0, cut)}"') as String;
+      break;
+    } on FormatException {
+      continue;
+    }
+  }
+  // U+FFFD: a multi-byte character the byte-bounded read cut in half.
+  final text = decoded.replaceAll('\uFFFD', '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (text.isEmpty) return null;
+  return String.fromCharCodes(text.runes.take(firstMessageLength));
 }
 
 String? _text(Object? value) => value is String && value.isNotEmpty ? value : null;

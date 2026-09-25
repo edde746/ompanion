@@ -567,6 +567,31 @@ const SCENARIOS: Record<string, Scenario> = {
 		},
 	},
 
+	"compaction-prompt": {
+		summary:
+			"companion loaded: two prompts, then the prompt `/compact` (the composer's path): `agentInvoked: false` at once, companion `compaction.started`, `compaction.ended` with the entry, then `command_output`; no `auto_compaction_*`",
+		config: "compaction:\n  keepRecentTokens: 40\n",
+		setup: withCompanion,
+		async run(omp, { fake }) {
+			const usage = { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 };
+			const detail = "Each fixture pairs the lines omp printed with the commands that caused them. ";
+			await fake.enqueue([
+				{ steps: [{ text: `Fixtures are recorded omp frames. ${detail.repeat(6)}` }], usage },
+				{ steps: [{ text: "They replay without a model." }], usage },
+			]);
+			await prompt(omp, "prompt-1", "What are fixtures?");
+			await prompt(omp, "prompt-2", "Why use them?");
+			await fake.enqueue([
+				{ steps: [{ delayMs: 300 }, { text: "## Summary\nThe user asked about fixtures: recorded omp frames that replay without a model." }] },
+				{ steps: [{ text: "I explained that fixtures are recorded omp frames and why they replay without a model." }] },
+			]);
+			await omp.request({ id: "compact", type: "prompt", message: "/compact" });
+			await omp.next(ompxEvent("compaction.started"), "compaction.started");
+			await omp.next(ompxEvent("compaction.ended", data => isRecord(data.entry)), "compaction.ended", 60_000);
+			await omp.next(f => f.type === "command_output" && String(f.text).startsWith("Compaction complete"), "compaction output");
+		},
+	},
+
 	"error-retry": {
 		summary: "HTTP 500 until omp's own request retries give up; the turn fails, session auto-retry succeeds",
 		async run(omp, { fake }) {

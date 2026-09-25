@@ -5,11 +5,19 @@ import { getKnownRoleIds, getRoleInfo } from "@oh-my-pi/pi-coding-agent/config/m
 import { cfgModelRoleStorage } from "@oh-my-pi/pi-coding-agent/config/model-settings";
 import { type AnySetting, all, lookup } from "@oh-my-pi/pi-coding-agent/config/registry";
 import { createSettingsHost } from "@oh-my-pi/pi-coding-agent/config/settings-ui";
+import type { RestoredQueuedMessage } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
+import {
+	isHiddenUserCompanion,
+	isUserQueuedMessage,
+	toRestoredQueuedMessage,
+} from "@oh-my-pi/pi-coding-agent/session/queued-messages";
 import pkg from "../../package.json" with { type: "json" };
 import {
 	expectKeys,
+	optionalBoolean,
 	optionalStringArray,
 	requireBoolean,
+	requireInteger,
 	requireNullableString,
 	requireOneOf,
 	requireString,
@@ -55,6 +63,34 @@ function checkQueue(session: AgentSession): void {
 	if (key === lastQueue) return;
 	lastQueue = key;
 	emitEvent("queue.changed", state);
+}
+
+/**
+ * Removes the `index`-th user-queued message of one queue with the hidden companions queued right before it,
+ * as `popLastQueuedMessage` removes the last one.
+ */
+function takeQueued(session: AgentSession, mode: "steering" | "followUp", index: number): RestoredQueuedMessage | undefined {
+	const steering = [...session.agent.peekSteeringQueue()];
+	const followUp = [...session.agent.peekFollowUpQueue()];
+	const queue = mode === "steering" ? steering : followUp;
+	let position = -1;
+	for (let i = 0, seen = 0; i < queue.length; i++) {
+		if (!isUserQueuedMessage(queue[i]!)) continue;
+		if (seen++ === index) {
+			position = i;
+			break;
+		}
+	}
+	if (position < 0) return undefined;
+	const taken = queue[position]!;
+	let start = position;
+	while (start > 0 && isHiddenUserCompanion(queue[start - 1]!)) start--;
+	queue.splice(start, position - start + 1);
+	// clearQueue() also resets omp's private drain block once the queues are empty; it drops exactly what is
+	// left then (user messages and their companions), which is nothing.
+	if (steering.length === 0 && followUp.length === 0) session.clearQueue();
+	else session.agent.replaceQueues(steering, followUp);
+	return toRestoredQueuedMessage(taken);
 }
 
 /** The settings panel's order (omp's domain order), then anything registered outside it. */
@@ -213,9 +249,18 @@ export const coreVerbs: VerbTable = {
 		return message ?? null;
 	},
 
+	"queue.take": async (args, { session }) => {
+		expectKeys(args, ["mode", "index"]);
+		const mode = requireOneOf(args, "mode", ["steering", "followUp"]);
+		const index = requireInteger(args, "index", 0, Number.MAX_SAFE_INTEGER);
+		const message = takeQueued(session, mode, index);
+		checkQueue(session);
+		return message ?? null;
+	},
+
 	"queue.clear": async (args, { session }) => {
-		expectKeys(args, []);
-		const cleared = session.clearQueue();
+		expectKeys(args, ["interrupt"]);
+		const cleared = session.clearQueue({ forInterrupt: optionalBoolean(args, "interrupt") ?? false });
 		checkQueue(session);
 		return cleared;
 	},

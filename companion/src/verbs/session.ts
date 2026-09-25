@@ -32,6 +32,7 @@ import { VerbError, type VerbTable } from "../protocol.ts";
 import { accountVerbs } from "./session/accounts.ts";
 import { agentVerbs, installAgentRoster } from "./session/agents.ts";
 import { btwVerbs } from "./session/btw.ts";
+import { installCompactionEvents } from "./session/compaction.ts";
 import { execVerbs, installExecMessageEvents } from "./session/exec.ts";
 import { historyVerbs, installHistoryRecording } from "./session/history.ts";
 
@@ -43,13 +44,16 @@ export const sessionEvents: readonly string[] = [
 	"exec.chunk",
 	"message.appended",
 	"btw.delta",
+	"compaction.started",
+	"compaction.ended",
 ];
 
 /** Called once per process from the main session's `session_start`, after the channel is bound. */
-export function installSessionHooks(pi: ExtensionAPI): void {
+export function installSessionHooks(pi: ExtensionAPI, session: AgentSession): void {
 	installAgentRoster();
 	installHistoryRecording(pi);
 	installExecMessageEvents(pi);
+	installCompactionEvents(pi, session);
 }
 
 type ChangeReason = "fork" | "clear" | "delete" | "tree" | "label";

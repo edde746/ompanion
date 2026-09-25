@@ -100,7 +100,7 @@ String? _text(TranscriptItem item) => switch (item) {
 
 /// Recordings whose final `get_messages` is omp's rewritten context rather than everything that was shown: a
 /// compaction drops the summarized turns, an auto-retry drops the failed attempt.
-const rewritten = {'compaction', 'error-retry'};
+const rewritten = {'compaction', 'compaction-prompt', 'error-retry'};
 
 /// Recordings without session frames: nothing is shown live, the transcript only comes from seeding.
 const seededOnly = {'big-frame'};
@@ -161,6 +161,14 @@ final checks = <String, void Function(Replay)>{
     final summary = replay.reference.whereType<CompactionItem>().single;
     expect(replay.view.transcript.whereType<CompactionItem>().single.summary, summary.summary);
     expect(replay.view.transcript.whereType<UserItem>(), hasLength(2), reason: 'the summarized turn stays visible');
+  },
+  'compaction-prompt': (replay) {
+    expect(replay.statuses.whereType<RunCompacting>(), hasLength(1), reason: 'compacting shows before it ends');
+    final summary = replay.reference.whereType<CompactionItem>().single;
+    final divider = replay.view.transcript.whereType<CompactionItem>().single;
+    expect(divider.summary, summary.summary);
+    expect(divider.entryId, isNotNull, reason: 'built from the committed entry');
+    expect(replay.view.status, isA<RunIdle>());
   },
   'error-retry': (replay) {
     final retrying = replay.statuses.whereType<RunRetrying>().single;

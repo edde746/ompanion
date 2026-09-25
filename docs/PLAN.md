@@ -127,8 +127,9 @@ omp version, and for Windows the OpenSSH default shell and PowerShell version.
 Liveness: dartssh2's keepalive never declares a peer dead, so the app pings with a timeout (3 × 15 s),
 probes on app resume and network change, reconnects with jittered backoff, and stops on auth failure.
 
-Session listing is one exec round trip on POSIX: a script prints `{path, size, mtime, header}` for every
-`~/.omp/agent/sessions/*/*.jsonl`, reading only the fixed title slot and the header line. When the
+Session listing is one exec round trip on POSIX: a script prints `{path, size, mtime, title, header, first}` for
+every `~/.omp/agent/sessions/*/*.jsonl`, reading only the first 16 KiB of each file: the fixed title slot, the
+header line and the start of the first user message's text (for untitled sessions). When the
 session is open, the companion's `listAllSessions()` gives titles, message counts and status. Both honour
 `--profile`, `PI_CODING_AGENT_DIR` and `--session-dir`.
 

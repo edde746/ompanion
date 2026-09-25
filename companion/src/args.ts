@@ -60,18 +60,21 @@ export function optionalBoolean(args: Record<string, unknown>, key: string): boo
 	return args[key] === undefined ? undefined : requireBoolean(args, key);
 }
 
+export function requireInteger(args: Record<string, unknown>, key: string, min: number, max: number): number {
+	const value = args[key];
+	if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) {
+		throw new VerbError("bad_request", `${key} must be an integer from ${min} to ${max}`);
+	}
+	return value;
+}
+
 export function optionalInteger(
 	args: Record<string, unknown>,
 	key: string,
 	min: number,
 	max: number,
 ): number | undefined {
-	const value = args[key];
-	if (value === undefined) return undefined;
-	if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) {
-		throw new VerbError("bad_request", `${key} must be an integer from ${min} to ${max}`);
-	}
-	return value;
+	return args[key] === undefined ? undefined : requireInteger(args, key, min, max);
 }
 
 export function requireOneOf<const T extends string>(

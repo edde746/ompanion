@@ -13,7 +13,7 @@ void main() {
 
   tearDown(() => root.delete(recursive: true));
 
-  test('lists every profile and directory from the title slot and header alone, newest first', () async {
+  test('lists every profile and directory from the first 16 KiB of each file, newest first', () async {
     final home = '${root.path}/home';
     await writeSessionFixtures(home, root.path);
     final link = LocalLink(environment: {'HOME': home, 'PI_CODING_AGENT_DIR': '${root.path}/custom agent', 'PI_CONFIG_DIR': ''});

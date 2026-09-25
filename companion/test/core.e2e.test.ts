@@ -45,6 +45,7 @@ describe("calls", () => {
 				"pause.set",
 				"queue.get",
 				"queue.pop",
+				"queue.take",
 				"queue.clear",
 				"settings.schema",
 				"settings.get",

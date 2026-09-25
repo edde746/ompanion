@@ -262,8 +262,8 @@ final class RunStreaming extends RunStatus {
   const RunStreaming();
 }
 
-/// Automatic context maintenance (`auto_compaction_start`); [reason] and [action] are null when only `get_state`
-/// reported it.
+/// Context maintenance: automatic (`auto_compaction_start`) or manual (the companion's `compaction.started`).
+/// [reason] and [action] are null for a manual one and when only `get_state` reported it.
 final class RunCompacting extends RunStatus {
   const RunCompacting({this.reason, this.action});
 

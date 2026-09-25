@@ -15,7 +15,8 @@ import 'transcript.dart';
 /// Every device sees every response, so responses that change the session without an event count too:
 /// `new_session`, `switch_session`, `branch`, `open_session` and `handoff` set [SessionView.resyncReason], `compact`
 /// adds its divider, `set_todos` sets the phases, and settings commands set [SessionView.stateStale]. Companion
-/// replies and unknown frame types return [view] unchanged.
+/// replies and unknown frame types return [view] unchanged. A manual compaction (the `/compact` prompt or `compact`)
+/// has no omp frame until it ends; the companion's `compaction.started` and `compaction.ended` report it.
 ///
 /// Frames from before the seed are safe for messages and requests (rows dedupe by [TranscriptItem.identity], a
 /// finished message ignores a replayed start or update, a closed request stays closed) but not for settings, change
@@ -362,6 +363,14 @@ SessionView _compactionEnd(SessionView view, Map<String, Object?> frame) {
     if (action == 'handoff') return next.copyWith(resyncReason: 'handoff');
   }
   return _notice(next, (seq) => CompactionNotice(seq, action: action, aborted: aborted, errorMessage: errorMessage));
+}
+
+/// Ends a compaction the companion reported; a committed one brings its `compaction` entry. A failed or cancelled
+/// one only ends: the RPC `compact` response, `auto_compaction_end` or `command_output` tell why.
+SessionView _companionCompactionEnd(SessionView view, Map<String, Object?>? entry) {
+  final next = view.copyWith(run: view.run.copyWith(compacting: null));
+  if (entry == null) return next;
+  return _insertIfAbsent(next.copyWith(stateStale: true), decodeEntry(entry));
 }
 
 /// Adds the divider of a `CompactionResult` (`packages/agent/src/compaction/compaction.ts`).
@@ -898,6 +907,12 @@ SessionView _companionFrame(SessionView view, Map<String, Object?> frame) {
         'session.changed' => view.copyWith(resyncReason: data().string('reason')),
         // A message omp appended without a frame, such as a user bash or Python execution.
         'message.appended' => _insertIfAbsent(view, decodeMessage(data().object('message'))),
+        // omp has no frame for a manual compaction (`/compact`, RPC `compact`) until it ends; an automatic one
+        // already reported its reason and action.
+        'compaction.started' => view.copyWith(
+          run: view.run.copyWith(compacting: view.run.compacting ?? const RunCompacting()),
+        ),
+        'compaction.ended' => _companionCompactionEnd(view, data().optObject('entry')),
         // Streaming verb output (`exec.chunk`) belongs to the caller; newer events are ignored.
         _ => view,
       };
@@ -1222,7 +1237,12 @@ SessionView _seed(SessionView view, List<TranscriptItem> run) {
 
 /// The live marker [change], a model or thinking change from an entry, stands for: the first unclaimed marker of its
 /// kind and value from [from] on. A marker goes where its change was seen live, at or after its entry's place.
-int? _liveMarker(List<TranscriptItem> transcript, TranscriptItem change, {required int from, required Set<int> claimed}) {
+int? _liveMarker(
+  List<TranscriptItem> transcript,
+  TranscriptItem change, {
+  required int from,
+  required Set<int> claimed,
+}) {
   for (var i = from; i < transcript.length; i++) {
     final item = transcript[i];
     if (item.entryId != null || claimed.contains(i)) continue;

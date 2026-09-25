@@ -46,7 +46,7 @@ function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): void {
 	mainBound = true;
 	if (bindChannel(ui).kind === "output") ui.askDialog = askDialog;
 	watchCore(session);
-	installSessionHooks(pi);
+	installSessionHooks(pi, session);
 }
 
 async function dispatch(call: CallRequest, pi: ExtensionAPI, ctx: ExtensionCommandContext, out: Channel): Promise<void> {

@@ -126,13 +126,22 @@ What a device needs on attach besides RPC `get_state`. `requests` are companion 
 - RPC `abort` unwinds a parked run; the gate stays engaged until someone resumes.
 - Setting the state the gate already has changes nothing and emits nothing.
 
-### queue.get, queue.pop, queue.clear
+### queue.get, queue.pop, queue.take, queue.clear
 
 - `queue.get` `args: {}` → `result: Queue`.
 - `queue.pop` `args: {}` → `result: Restored | null`: removes the last user-queued message, steering
   first, for restoring into the composer (the TUI's dequeue). `null` when there is none.
-- `queue.clear` `args: {}` → `result: {steering: Restored[], followUp: Restored[]}`: removes every
-  user-queued message and returns them. Queued messages omp itself authored stay.
+- `queue.take` `args: {mode: "steering" | "followUp", index: number}` → `result: Restored | null`: removes
+  the message at `index` of `Queue.steering` or `Queue.followUp`, with the hidden notices queued right
+  before it, as `queue.pop` does for the last one. `null` when `index` is past the end.
+- `queue.clear` `args: {interrupt?: boolean}` → `result: {steering: Restored[], followUp: Restored[]}`:
+  removes every user-queued message and returns them. Queued messages omp itself authored stay, unless
+  `interrupt` is true: then only advisor cards stay, so the RPC `abort` that follows cannot deliver an
+  internal steer and restart the run.
+
+Stop, as the TUI's Esc does it: `queue.clear {interrupt: true}`, restore what it returns into the
+composer, RPC `abort`, then `pause.set {paused: false}` when paused, because `abort` leaves the gate
+engaged and the next run would park again.
 
 `Queue.steering` and `Queue.followUp` are the texts of user-queued messages (`"[Image]"` for an
 image-only one). `count` is omp's `queuedMessageCount`, which also counts messages omp queued itself, so
@@ -377,6 +386,21 @@ recorded too, with `excludeFromContext: true`.
   another session or branch; then no push follows, and devices resync for the session change anyway.
 
 Devices append it to the transcript, deduplicated by `role` + `timestamp`.
+
+### compaction.started, compaction.ended
+
+Events, no `callId`. omp sends no frame for a manual compaction (the `/compact` prompt, RPC `compact`) until it
+ends: the prompt's response is `{agentInvoked: false}` at once and `command_output` "Compaction complete…" or
+"Compaction failed: …" comes last; `auto_compaction_*` covers only automatic compactions.
+- `compaction.started` `{}`: a compaction began making its summary (omp's `session.compacting` hook, which
+  fires after omp's no-op checks, so "Nothing to compact" starts nothing). Background speculation is left out.
+- `compaction.ended` `{entry: CompactionEntry | null}`: the committed `compaction` entry, as `get_entries`
+  returns it without `details` and `preserveData`; or `null` when the compaction that started failed or was
+  cancelled (seen within 250 ms). A committed compaction always ends with its entry, also an automatic one
+  and one an extension supplied, with or without a start.
+
+Devices show the run as compacting between the two and add the entry's divider, deduplicated like the
+`compact` response's.
 
 ### history.search
 

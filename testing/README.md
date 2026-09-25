@@ -207,6 +207,7 @@ Frames are specified in `docs/contracts/ompx.md`.
 | `abort` | the answer hangs after one delta; `abort`; assistant `stopReason: "aborted"`, `prompt_result` `status: "aborted"`; a second prompt completes |
 | `steer-followup` | `steer` and `follow_up` sent while the first answer streams; one run with 3 turns and 3 user messages |
 | `compaction` | two prompts, then `compact`; two scripted model calls write the summary and short summary; the transcript becomes `compactionSummary` plus the kept second turn |
+| `compaction-prompt` | companion loaded; the `compaction` setup, then the prompt `/compact`: response `{agentInvoked: false}`, `ompx` `compaction.started`, `compaction.ended` with the committed `compaction` entry, then `command_output` "Compaction complete. Tokens: …"; no `auto_compaction_*` frame |
 | `error-retry` | 12 HTTP 500 replies: an empty assistant message with `stopReason: "error"`, `auto_retry_start`, a second `agent_start` without an `agent_end` in between, the answer; `auto_retry_end` arrives after `session_settled` |
 | `big-frame` | resumed session with three ~420 KB answers; the `get_messages` response (1,286,652 bytes) arrives as 5 `rpc_chunk` lines |
 | `session-resume` | resumed two-prompt session: `get_state`, two `get_messages_page` (limit 2, then the cursor), `get_entries` (all, then `since`), `get_tree`, one new prompt |

@@ -547,6 +547,60 @@ void main() {
       expect(view.transcript.single, isA<CompactionItem>().having((item) => item.summary, 'summary', 'S'));
     });
 
+    test('a manual compaction the companion reports shows while it runs and adds its entry once', () {
+      final entry = {
+        'type': 'compaction',
+        'id': 'c1',
+        'parentId': 'm4',
+        'timestamp': '2026-09-25T23:23:10.348Z',
+        'summary': 'S',
+        'shortSummary': 'Short',
+        'firstKeptEntryId': 'u3',
+        'tokensBefore': 20,
+      };
+      var view = apply(SessionView(), [
+        {
+          'id': 'compact',
+          'type': 'response',
+          'command': 'prompt',
+          'success': true,
+          'data': {'agentInvoked': false},
+        },
+        ompxEvent('compaction.started', {}),
+      ]);
+      expect(view.status, isA<RunCompacting>());
+
+      view = reduce(view, ompxEvent('compaction.ended', {'entry': entry}));
+      expect(view.status, isA<RunIdle>());
+      final divider = view.transcript.single as CompactionItem;
+      expect((divider.entryId, divider.summary, divider.shortSummary), ('c1', 'S', 'Short'));
+      expect(view.stateStale, isTrue, reason: 'context usage changed');
+      // The same compaction reported again by the `compact` response.
+      view = reduce(view, {
+        'id': 'compact',
+        'type': 'response',
+        'command': 'compact',
+        'success': true,
+        'data': {'summary': 'S', 'firstKeptEntryId': 'u3', 'tokensBefore': 20},
+      });
+      expect(view.transcript, hasLength(1));
+
+      final failed = apply(SessionView(), [
+        ompxEvent('compaction.started', {}),
+        ompxEvent('compaction.ended', {'entry': null}),
+      ]);
+      expect(failed.status, isA<RunIdle>());
+      expect(failed.transcript, isEmpty);
+    });
+
+    test('the companion keeps the reason of an automatic compaction', () {
+      final view = apply(SessionView(), [
+        {'type': 'auto_compaction_start', 'reason': 'overflow', 'action': 'context-full'},
+        ompxEvent('compaction.started', {}),
+      ]);
+      expect((view.status as RunCompacting).reason, 'overflow');
+    });
+
     test('prompt_result and session_settled end the run', () {
       final failed = apply(SessionView(), [
         running,
