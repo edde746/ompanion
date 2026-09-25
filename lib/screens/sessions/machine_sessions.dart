@@ -6,9 +6,12 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../providers/shell_provider.dart';
+import '../../sessions/session_name.dart';
+import '../../sessions/session_reads.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../config/machine_config_screen.dart';
@@ -115,7 +118,6 @@ class _MachineSectionState extends State<MachineSection> {
     }
     return [for (final MapEntry(:key, :value) in byCwd.entries) (key, value)];
   }
-
   @override
   Widget build(BuildContext context) {
     final t = context.t;
@@ -148,6 +150,7 @@ class _MachineSectionState extends State<MachineSection> {
               onToggle: _toggle,
             ),
             if (_expanded) ...[
+              // The header's dot and tooltip carry the status; these say what to do about it.
               if (status is MachineNeedsOmp)
                 _Notice(
                   icon: Icons.download_outlined,
@@ -180,11 +183,15 @@ class _MachineSectionState extends State<MachineSection> {
                 ),
               if (status is MachineOnline && listing.loadedAt != null && listing.sessions.isEmpty && !_hasOpen(sessions))
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(44, 4, 16, 8),
-                  child: Text(t.sessions.none, style: theme.textTheme.bodySmall),
+                  padding: const EdgeInsets.fromLTRB(_sessionIndent + 8, 4, 16, 8),
+                  child: Text(
+                    t.sessions.none,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
                 ),
               for (final (cwd, entries) in _projects(sessions))
                 _Project(
+                  machineId: machine.id,
                   cwd: cwd,
                   home: home,
                   entries: entries,
@@ -196,6 +203,7 @@ class _MachineSectionState extends State<MachineSection> {
                       ? () => unawaited(showNewSessionDialog(context, machine, cwd: cwd))
                       : null,
                 ),
+              const SizedBox(height: 4),
             ],
           ],
         );
@@ -207,7 +215,94 @@ class _MachineSectionState extends State<MachineSection> {
       sessions.openSessions.any((session) => sessions.machineOf(session)?.id == widget.machine.id);
 }
 
-class _MachineHeader extends StatelessWidget {
+/// Left insets of the sidebar's levels, from the row's rounded tone.
+const double _projectIndent = 26;
+const double _sessionIndent = 40;
+
+/// Phones and tablets have no hover: row actions stay visible there.
+bool _touch(BuildContext context) => switch (Theme.of(context).platform) {
+  TargetPlatform.android || TargetPlatform.iOS || TargetPlatform.fuchsia => true,
+  TargetPlatform.linux || TargetPlatform.macOS || TargetPlatform.windows => false,
+};
+
+/// A dense sidebar row, [AppSizes.rowHeight] tall on desktop: a rounded hover and selection tone, no divider.
+class SidebarRow extends StatefulWidget {
+  const SidebarRow({super.key, required this.builder, this.indent = 8, this.selected = false, this.onTap});
+
+  /// Builds the content; `hovered` is true while a pointer is over the row, and always on touch screens.
+  final Widget Function(BuildContext context, bool hovered) builder;
+  final double indent;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  State<SidebarRow> createState() => _SidebarRowState();
+}
+
+class _SidebarRowState extends State<SidebarRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final touch = _touch(context);
+    const radius = BorderRadius.all(Radius.circular(AppSizes.radius));
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: Material(
+          color: widget.selected ? scheme.surfaceContainerHighest : Colors.transparent,
+          borderRadius: radius,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: widget.onTap,
+            child: SizedBox(
+              height: touch ? AppSizes.rowHeightTouch : AppSizes.rowHeight,
+              child: Padding(
+                padding: EdgeInsets.only(left: widget.indent, right: 4),
+                child: widget.builder(context, _hovered || touch),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A 24 px icon button that fits a dense row.
+class _RowButton extends StatelessWidget {
+  const _RowButton({super.key, required this.icon, required this.tooltip, required this.onPressed});
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: tooltip,
+    icon: Icon(icon),
+    iconSize: 16,
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+    style: IconButton.styleFrom(minimumSize: const Size.square(24), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+    onPressed: onPressed,
+  );
+}
+
+class _Spinner extends StatelessWidget {
+  const _Spinner();
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 10,
+    child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.of(context).running),
+  );
+}
+
+class _MachineHeader extends StatefulWidget {
   const _MachineHeader({
     required this.machine,
     required this.status,
@@ -227,68 +322,78 @@ class _MachineHeader extends StatelessWidget {
   final VoidCallback onToggle;
 
   @override
+  State<_MachineHeader> createState() => _MachineHeaderState();
+}
+
+class _MachineHeaderState extends State<_MachineHeader> {
+  /// The actions stay while their menu is open, though the pointer left the row for the menu.
+  bool _menuOpen = false;
+
+  @override
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
     final sessions = context.read<SessionsProvider>();
+    final machine = widget.machine;
+    final status = widget.status;
     final icon = switch (machine) {
       LocalMachine() => Icons.computer,
       SshMachine(:final tailscale) => tailscale ? Icons.lan_outlined : Icons.dns_outlined,
     };
-    final busy = loading || status is MachineConnecting;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: ListTile(
-        dense: true,
-        selected: selected,
-        contentPadding: const EdgeInsets.only(left: 4, right: 0),
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              iconSize: 18,
-              tooltip: expanded ? t.sessions.collapse : t.sessions.expand,
-              icon: Icon(expanded ? Icons.expand_more : Icons.chevron_right),
-              onPressed: onToggle,
+    final busy = widget.loading || status is MachineConnecting;
+    final touch = _touch(context);
+    return SidebarRow(
+      indent: 2,
+      selected: widget.selected,
+      onTap: widget.onTap,
+      builder: (context, hovered) => Row(
+        children: [
+          _RowButton(
+            icon: widget.expanded ? Icons.expand_more : Icons.chevron_right,
+            tooltip: widget.expanded ? t.sessions.collapse : t.sessions.expand,
+            onPressed: widget.onToggle,
+          ),
+          const SizedBox(width: 2),
+          Tooltip(
+            message: machineStatusText(t, status),
+            child: Badge(
+              smallSize: 7,
+              backgroundColor: machineStatusColor(context, status),
+              child: Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
             ),
-            Badge(
-              smallSize: 8,
-              backgroundColor: machineStatusColor(theme.colorScheme, status),
-              child: Icon(icon),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              machine.name,
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ),
-        title: Text(machine.name, overflow: TextOverflow.ellipsis),
-        subtitle: Text(machineStatusText(t, status), maxLines: 1, overflow: TextOverflow.ellipsis),
-        onTap: onTap,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (busy)
-              const Padding(
-                padding: EdgeInsets.all(8),
-                child: SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-              )
-            else
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                iconSize: 18,
-                tooltip: t.sessions.refresh,
-                icon: const Icon(Icons.refresh),
-                onPressed: () => unawaited(sessions.refresh(machine)),
-              ),
-            IconButton(
+          ),
+          if (busy) const Padding(padding: EdgeInsets.symmetric(horizontal: 7), child: _Spinner()),
+          if ((hovered || _menuOpen) && !touch)
+            _RowButton(
               key: ValueKey('new-session-${machine.id}'),
-              visualDensity: VisualDensity.compact,
-              iconSize: 18,
+              icon: Icons.add,
               tooltip: t.sessions.newSession,
-              icon: const Icon(Icons.add_comment_outlined),
               onPressed: () => unawaited(showNewSessionDialog(context, machine)),
             ),
+          if (hovered || _menuOpen)
             MenuAnchor(
+              onOpen: () => setState(() => _menuOpen = true),
+              onClose: () => setState(() => _menuOpen = false),
               menuChildren: [
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.add),
+                  onPressed: () => unawaited(showNewSessionDialog(context, machine)),
+                  child: Text(t.sessions.newSession),
+                ),
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.refresh),
+                  onPressed: busy ? null : () => unawaited(sessions.refresh(machine)),
+                  child: Text(t.sessions.refresh),
+                ),
                 MenuItemButton(
                   leadingIcon: const Icon(Icons.tune),
                   onPressed: () => unawaited(openMachineConfig(context, machine)),
@@ -301,16 +406,13 @@ class _MachineHeader extends StatelessWidget {
                     child: Text(t.sessions.install),
                   ),
               ],
-              builder: (context, controller, _) => IconButton(
-                visualDensity: VisualDensity.compact,
-                iconSize: 18,
+              builder: (context, controller, _) => _RowButton(
+                icon: Icons.more_horiz,
                 tooltip: t.sidebar.more,
-                icon: const Icon(Icons.more_vert),
                 onPressed: () => controller.isOpen ? controller.close() : controller.open(),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -328,13 +430,13 @@ class _Notice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = error ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant;
+    final color = error ? AppColors.of(context).error : theme.colorScheme.onSurfaceVariant;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(44, 0, 12, 4),
+      padding: const EdgeInsets.fromLTRB(_projectIndent + 8, 2, 12, 2),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
           Expanded(
             child: Text(
               text,
@@ -352,6 +454,7 @@ class _Notice extends StatelessWidget {
 
 class _Project extends StatelessWidget {
   const _Project({
+    required this.machineId,
     required this.cwd,
     required this.home,
     required this.entries,
@@ -364,6 +467,7 @@ class _Project extends StatelessWidget {
 
   static const _collapsedCount = 5;
 
+  final String machineId;
   final String cwd;
   final String? home;
   final List<_Entry> entries;
@@ -377,53 +481,54 @@ class _Project extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
-    final shown = showAll || entries.length <= _collapsedCount ? entries : entries.sublist(0, _collapsedCount);
+    // Sessions open here (the selected one, one waiting for an answer) stay visible in a collapsed project.
+    final shown = showAll
+        ? entries
+        : [
+            for (final (index, entry) in entries.indexed)
+              if (index < _collapsedCount || entry.session != null) entry,
+          ];
     final newSession = onNewSession;
+    final muted = theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(40, 6, 8, 0),
-          child: Row(
+        SidebarRow(
+          indent: _projectIndent,
+          builder: (context, hovered) => Row(
             children: [
-              Icon(Icons.folder_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+              Icon(Icons.folder_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 6),
               Expanded(
                 child: Tooltip(
                   message: cwd,
                   child: Text(
                     cwd.isEmpty ? t.sessions.unknownDirectory : shortPath(cwd, home),
-                    style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: muted,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              if (newSession != null && cwd.isNotEmpty)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  iconSize: 16,
-                  tooltip: t.sessions.newSessionHere,
-                  icon: const Icon(Icons.add),
-                  onPressed: newSession,
-                ),
+              if (hovered && newSession != null && cwd.isNotEmpty)
+                _RowButton(icon: Icons.add, tooltip: t.sessions.newSessionHere, onPressed: newSession),
             ],
           ),
         ),
         for (final entry in shown)
           _SessionTile(
+            machineId: machineId,
             entry: entry,
             opening: entry.summary != null && opening.contains(entry.summary!.path),
             onTap: () => onOpen(entry),
           ),
         if (shown.length < entries.length)
-          Padding(
-            padding: const EdgeInsets.only(left: 52),
-            child: Align(
+          SidebarRow(
+            indent: _sessionIndent,
+            onTap: onShowAll,
+            builder: (context, _) => Align(
               alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: onShowAll,
-                child: Text(t.sessions.showMore(n: entries.length - shown.length)),
-              ),
+              child: Text(t.sessions.showMore(n: entries.length - shown.length), style: muted),
             ),
           ),
       ],
@@ -431,9 +536,13 @@ class _Project extends StatelessWidget {
   }
 }
 
-class _SessionTile extends StatelessWidget {
-  const _SessionTile({required this.entry, required this.opening, required this.onTap});
+/// What a session row says about its session, beside unread.
+enum _Status { none, opening, working, needsInput, failed, disconnected, runningOnMachine }
 
+class _SessionTile extends StatelessWidget {
+  const _SessionTile({required this.machineId, required this.entry, required this.opening, required this.onTap});
+
+  final String machineId;
   final _Entry entry;
   final bool opening;
   final VoidCallback onTap;
@@ -443,69 +552,141 @@ class _SessionTile extends StatelessWidget {
     final t = context.t;
     final sessions = context.watch<SessionsProvider>();
     final shell = context.watch<ShellProvider>();
+    final reads = context.watch<SessionReads>();
     final session = entry.session;
-    final selected = session != null && identical(sessions.active, session) && shell.selection is SessionSelection;
-    final modified = entry.modified;
     final summary = entry.summary;
-    Widget tile({required String title, required bool running, required bool waiting, required bool closed}) => Padding(
-      padding: const EdgeInsets.only(left: 44, right: 8),
-      child: ListTile(
-        dense: true,
-        visualDensity: VisualDensity.compact,
-        selected: selected,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
-        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: modified == null ? null : Text(relativeTime(t, modified, DateTime.now())),
-        leading: opening
-            ? const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2))
-            : session != null
-            ? Icon(closed ? Icons.link_off : Icons.chat_bubble, size: 14)
-            : const Icon(Icons.chat_bubble_outline, size: 14),
-        minLeadingWidth: 14,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (waiting)
-              Tooltip(
-                message: t.sessions.waiting,
-                child: Icon(Icons.help, size: 16, color: Theme.of(context).colorScheme.tertiary),
-              ),
-            if (running)
-              Tooltip(
-                message: t.sessions.running,
-                child: const Padding(
-                  padding: EdgeInsets.only(left: 4),
-                  child: SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
-              ),
-          ],
-        ),
-        onTap: opening ? null : onTap,
-      ),
+    final selected = session != null && identical(sessions.active, session) && shell.selection is SessionSelection;
+    Widget tile(String title, _Status status, bool unread) => _SessionRow(
+      title: title,
+      status: opening ? _Status.opening : status,
+      unread: unread && !selected,
+      modified: entry.modified,
+      selected: selected,
+      onTap: opening ? null : onTap,
     );
-    final fallbackTitle = summary?.title ?? t.sessions.untitled;
     if (session == null) {
-      return tile(title: fallbackTitle, running: summary?.running ?? false, waiting: false, closed: false);
+      return tile(
+        sessionName(t, title: summary?.title, firstMessage: summary?.firstMessage),
+        summary?.running ?? false ? _Status.runningOnMachine : _Status.none,
+        summary != null && reads.isListedUnread(machineId, summary),
+      );
     }
     return LinkStateBuilder(
       session: session,
-      builder: (context, link) => SessionViewSelector<(String?, bool, bool)>(
+      builder: (context, link) => SessionViewSelector<(String, _Status)>(
         session: session,
-        select: (view) => (view.config.sessionName, view.run.running, view.requests.any(_needsAnswer)),
+        select: (view) => (liveSessionName(t, view, summary), _liveStatus(view)),
         builder: (context, data) {
-          final (name, running, waiting) = data;
-          return tile(
-            title: name ?? fallbackTitle,
-            running: running,
-            waiting: waiting,
-            closed: link is LinkClosed,
-          );
+          final (name, status) = data;
+          return tile(name, link is LinkClosed ? _Status.disconnected : status, reads.isLiveUnread(session));
         },
       ),
     );
   }
 
-  static bool _needsAnswer(UiRequest request) => request is! EditorTextRequest;
+  static _Status _liveStatus(SessionView view) {
+    if (view.requests.any((request) => request is! EditorTextRequest)) return _Status.needsInput;
+    return switch (view.run.status) {
+      RunStreaming() || RunCompacting() || RunRetrying() => _Status.working,
+      RunFailed() => _Status.failed,
+      RunIdle() || RunAborted() => _Status.none,
+    };
+  }
+}
+
+class _SessionRow extends StatelessWidget {
+  const _SessionRow({
+    required this.title,
+    required this.status,
+    required this.unread,
+    required this.modified,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final _Status status;
+  final bool unread;
+  final DateTime? modified;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final colors = AppColors.of(context);
+    final modified = this.modified;
+    final (Widget? indicator, String? words) = switch (status) {
+      _Status.none => (null, null),
+      _Status.opening => (const _Spinner(), t.sessions.opening),
+      _Status.working => (const _Spinner(), t.sessions.working),
+      _Status.needsInput => (Icon(Icons.help, size: 14, color: colors.warning), t.sessions.needsInput),
+      _Status.failed => (Icon(Icons.error, size: 14, color: colors.error), t.sessions.failed),
+      _Status.disconnected => (Icon(Icons.link_off, size: 14, color: scheme.onSurfaceVariant), t.sessions.disconnected),
+      _Status.runningOnMachine => (_Dot(color: scheme.onSurfaceVariant), t.sessions.runningOnMachine),
+    };
+    return SidebarRow(
+      indent: _sessionIndent - 12,
+      selected: selected,
+      onTap: onTap,
+      builder: (context, _) => Row(
+        children: [
+          SizedBox(
+            width: 12,
+            child: unread
+                ? Tooltip(
+                    message: t.sessions.unread,
+                    child: _Dot(color: scheme.onSurface),
+                  )
+                : null,
+          ),
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: unread ? FontWeight.w700 : FontWeight.w400,
+                color: unread || selected ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.85),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (indicator != null && words != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: Tooltip(
+                message: words,
+                child: SizedBox.square(dimension: 14, child: Center(child: indicator)),
+              ),
+            ),
+          if (modified != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 6, right: 4),
+              child: Text(
+                relativeTime(t, modified, DateTime.now()),
+                style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Dot extends StatelessWidget {
+  const _Dot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: DecoratedBox(
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: const SizedBox.square(dimension: 6),
+    ),
+  );
 }
 
 /// [path] with the machine's home directory as `~`.

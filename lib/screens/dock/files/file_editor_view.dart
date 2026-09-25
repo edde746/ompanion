@@ -10,6 +10,7 @@ import '../../../files/file_language.dart';
 import '../../../files/file_paths.dart';
 import '../../../files/file_workspace.dart';
 import '../../../files/git_status.dart';
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../chat/transcript/code_style.dart';
 import '../../chat/transcript/diff.dart';
@@ -190,7 +191,7 @@ class _FileEditorViewState extends State<FileEditorView> {
                         children: [
                           TextSpan(text: baseName(document.path)),
                           if (document.dirty)
-                            TextSpan(text: ' ●', style: TextStyle(color: theme.colorScheme.primary)),
+                            TextSpan(text: ' ●', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
                         ],
                       ),
                       maxLines: 1,
@@ -242,21 +243,24 @@ class _FileEditorViewState extends State<FileEditorView> {
           ),
           if (workspace.documents.length > 1) _DocumentStrip(workspace: workspace, current: document),
           if (document.readOnlyReason case final reason?)
-            Material(
-              color: theme.colorScheme.secondaryContainer,
+            Container(
+              margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(AppSizes.radius),
+              ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Text(
                   switch (reason) {
                     ReadOnlyReason.tooLarge => t.tooLarge(mb: maxEditableBytes ~/ (1024 * 1024)),
                     ReadOnlyReason.binary => t.binary,
                     ReadOnlyReason.notUtf8 => t.notUtf8,
                   },
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ),
             ),
-          const Divider(height: 1),
           Expanded(
             child: _showDiff
                 ? _GitDiff(diff: _diff!, onRetry: () => setState(() => _diff = workspace.diff(document.path)))
@@ -316,10 +320,10 @@ class _Editor extends StatelessWidget {
         fontHeight: 1.35,
         textColor: scheme.onSurface,
         backgroundColor: scheme.surfaceContainerLowest,
-        selectionColor: scheme.primary.withValues(alpha: 0.25),
-        highlightColor: scheme.tertiary.withValues(alpha: 0.25),
-        cursorColor: scheme.primary,
-        cursorLineColor: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
+        selectionColor: scheme.onSurface.withValues(alpha: 0.2),
+        highlightColor: scheme.onSurfaceVariant.withValues(alpha: 0.35),
+        cursorColor: scheme.onSurface,
+        cursorLineColor: scheme.surfaceContainer,
         codeTheme: CodeHighlightTheme(
           languages: {if (mode != null) language!: CodeHighlightThemeMode(mode: mode)},
           theme: colors,
@@ -330,7 +334,7 @@ class _Editor extends StatelessWidget {
           DefaultCodeLineNumber(
             controller: editingController,
             notifier: notifier,
-            textStyle: code.copyWith(color: scheme.outline, fontSize: (code.fontSize ?? 12) - 1),
+            textStyle: code.copyWith(color: scheme.onSurfaceVariant, fontSize: (code.fontSize ?? 12) - 1),
             focusedTextStyle: code.copyWith(color: scheme.onSurface, fontSize: (code.fontSize ?? 12) - 1),
           ),
           const SizedBox(width: 6),
@@ -341,14 +345,16 @@ class _Editor extends StatelessWidget {
   }
 }
 
-/// The editor's find (and replace) bar.
+/// The editor's find (and replace) bar. [CodeEditor] stacks it over the text unpositioned, so it must size itself to
+/// [preferredSize]: a bar that fills the loose height it gets covers the whole editor.
 class _FindPanel extends StatelessWidget implements PreferredSizeWidget {
   const _FindPanel({required this.controller, required this.readOnly});
 
   final CodeFindController controller;
   final bool readOnly;
 
-  static const _rowHeight = 40.0;
+  /// A control-height field plus 4 px above and below.
+  static const _rowHeight = AppSizes.control + 8;
 
   @override
   Size get preferredSize {
@@ -365,82 +371,80 @@ class _FindPanel extends StatelessWidget implements PreferredSizeWidget {
     final theme = Theme.of(context);
     final result = value.result;
     final count = result == null || result.matches.isEmpty ? t.noMatches : '${result.index + 1}/${result.matches.length}';
-    return Material(
-      color: theme.colorScheme.surfaceContainer,
-      child: Column(
-        children: [
-          SizedBox(
-            height: _rowHeight,
-            child: Row(
-              children: [
-                if (!readOnly)
-                  IconButton(
-                    tooltip: t.replace,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: controller.toggleMode,
-                    icon: Icon(value.replaceMode ? Icons.expand_more : Icons.chevron_right, size: 18),
-                  )
-                else
-                  const SizedBox(width: 8),
+    Widget row(List<Widget> children) => SizedBox(
+      height: _rowHeight,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Row(children: children),
+      ),
+    );
+    return SizedBox(
+      height: preferredSize.height,
+      child: Material(
+        color: theme.colorScheme.surfaceContainer,
+        child: Column(
+          children: [
+            row([
+              if (!readOnly)
+                IconButton(
+                  tooltip: t.replace,
+                  onPressed: controller.toggleMode,
+                  icon: Icon(value.replaceMode ? Icons.expand_more : Icons.chevron_right, size: 18),
+                )
+              else
+                const SizedBox(width: 4),
+              Expanded(
+                child: TextField(
+                  controller: controller.findInputController,
+                  focusNode: controller.findInputFocusNode,
+                  style: theme.textTheme.bodyMedium,
+                  decoration: InputDecoration(hintText: t.find),
+                  onSubmitted: (_) => controller.nextMatch(),
+                ),
+              ),
+              const SizedBox(width: AppSizes.gap),
+              Text(count, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              IconButton(
+                tooltip: t.caseSensitive,
+                isSelected: value.option.caseSensitive,
+                onPressed: controller.toggleCaseSensitive,
+                icon: const Icon(Icons.format_size, size: 18),
+              ),
+              IconButton(
+                tooltip: t.previousMatch,
+                onPressed: controller.previousMatch,
+                icon: const Icon(Icons.keyboard_arrow_up, size: 18),
+              ),
+              IconButton(
+                tooltip: t.nextMatch,
+                onPressed: controller.nextMatch,
+                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+              ),
+              IconButton(
+                tooltip: context.t.common.close,
+                onPressed: controller.close,
+                icon: const Icon(Icons.close, size: 18),
+              ),
+            ]),
+            if (value.replaceMode && !readOnly)
+              row([
+                const SizedBox(width: 40),
                 Expanded(
                   child: TextField(
-                    controller: controller.findInputController,
-                    focusNode: controller.findInputFocusNode,
-                    style: theme.textTheme.bodySmall,
-                    decoration: InputDecoration(isDense: true, hintText: t.find, border: InputBorder.none),
-                    onSubmitted: (_) => controller.nextMatch(),
+                    controller: controller.replaceInputController,
+                    focusNode: controller.replaceInputFocusNode,
+                    style: theme.textTheme.bodyMedium,
+                    decoration: InputDecoration(hintText: t.replace),
+                    onSubmitted: (_) => controller.replaceMatch(),
                   ),
                 ),
-                Text(count, style: theme.textTheme.labelSmall),
-                IconButton(
-                  tooltip: t.caseSensitive,
-                  visualDensity: VisualDensity.compact,
-                  isSelected: value.option.caseSensitive,
-                  onPressed: controller.toggleCaseSensitive,
-                  icon: const Icon(Icons.format_size, size: 18),
-                ),
-                IconButton(
-                  tooltip: t.previousMatch,
-                  visualDensity: VisualDensity.compact,
-                  onPressed: controller.previousMatch,
-                  icon: const Icon(Icons.keyboard_arrow_up, size: 18),
-                ),
-                IconButton(
-                  tooltip: t.nextMatch,
-                  visualDensity: VisualDensity.compact,
-                  onPressed: controller.nextMatch,
-                  icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                ),
-                IconButton(
-                  tooltip: context.t.common.close,
-                  visualDensity: VisualDensity.compact,
-                  onPressed: controller.close,
-                  icon: const Icon(Icons.close, size: 18),
-                ),
-              ],
-            ),
-          ),
-          if (value.replaceMode && !readOnly)
-            SizedBox(
-              height: _rowHeight,
-              child: Row(
-                children: [
-                  const SizedBox(width: 40),
-                  Expanded(
-                    child: TextField(
-                      controller: controller.replaceInputController,
-                      focusNode: controller.replaceInputFocusNode,
-                      style: theme.textTheme.bodySmall,
-                      decoration: InputDecoration(isDense: true, hintText: t.replace, border: InputBorder.none),
-                      onSubmitted: (_) => controller.replaceMatch(),
-                    ),
-                  ),
-                  TextButton(onPressed: controller.replaceMatch, child: Text(t.replace)),
-                  TextButton(onPressed: controller.replaceAllMatches, child: Text(t.replaceAll)),
-                ],
-              ),
-            ),
-        ],
+                const SizedBox(width: AppSizes.gap),
+                FilledButton.tonal(onPressed: controller.replaceMatch, child: Text(t.replace)),
+                const SizedBox(width: AppSizes.gap),
+                FilledButton.tonal(onPressed: controller.replaceAllMatches, child: Text(t.replaceAll)),
+              ]),
+          ],
+        ),
       ),
     );
   }
@@ -455,8 +459,9 @@ class _DocumentStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
-      height: 40,
+      height: AppSizes.control + 8,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -464,11 +469,13 @@ class _DocumentStrip extends StatelessWidget {
           for (final document in workspace.documents)
             Padding(
               padding: const EdgeInsets.only(right: 4),
-              child: ChoiceChip(
-                visualDensity: VisualDensity.compact,
-                label: Text(document.dirty ? '${baseName(document.path)} ●' : baseName(document.path)),
-                selected: identical(document, current),
-                onSelected: (_) => workspace.show(document),
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  backgroundColor: identical(document, current) ? scheme.surfaceContainerHighest : null,
+                  foregroundColor: identical(document, current) ? scheme.onSurface : scheme.onSurfaceVariant,
+                ),
+                onPressed: () => workspace.show(document),
+                child: Text(document.dirty ? '${baseName(document.path)} ●' : baseName(document.path)),
               ),
             ),
         ],

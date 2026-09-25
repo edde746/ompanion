@@ -14,13 +14,12 @@ import 'chat_header.dart';
 import 'composer.dart';
 import 'exec_panel.dart';
 import 'link_banner.dart';
-import 'queue_bar.dart';
-import 'request_host.dart';
+import 'request_panel.dart';
 import 'status_strip.dart';
 import 'transcript/transcript_view.dart';
 
-/// One open session: header, transcript, the panels above the composer, and the composer. Requests open as
-/// dialogs (sheets on phones) and toasts as snack bars.
+/// One open session: header, transcript, the panels above the composer, the open requests inline, and the
+/// composer. Nothing in the chat is modal; toasts show as snack bars.
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key, required this.session, this.leading, this.trailing, this.compact = false});
 
@@ -47,22 +46,18 @@ class ChatScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ChatHeader(session: session, leading: leading, trailing: trailing, compact: compact),
-          const Divider(height: 1),
           LinkBanner(session: session),
           StatusStrip(session: session),
           Expanded(
-            child: RequestHost(
+            child: SessionViewBuilder(
               session: session,
-              child: SessionViewBuilder(
-                session: session,
-                builder: (context, view) => TranscriptView(view: view, actions: actions),
-              ),
+              builder: (context, view) => TranscriptView(view: view, actions: actions),
             ),
           ),
           CommandOutputs(key: ObjectKey(session), session: session),
           ExecPanel(session: session),
           ExtensionWidgets(session: session, placement: WidgetPlacement.aboveEditor),
-          QueueBar(session: session),
+          RequestPanel(session: session),
           SafeArea(top: false, child: Composer(session: session)),
           ExtensionWidgets(session: session, placement: WidgetPlacement.belowEditor),
         ],

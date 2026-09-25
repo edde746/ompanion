@@ -51,13 +51,18 @@ final class StickToBottomPhysics extends ScrollPhysics {
 /// sliver, which grows downward: a reply streaming below does not move what the reader scrolled up to. At the bottom,
 /// [StickToBottomPhysics] follows the growth.
 ///
+/// With [alignTop] every row sits in the center sliver at `anchor: 0.0`: a short transcript starts at the top and
+/// grows downward, and once it overflows, [StickToBottomPhysics] follows the growth as before. Earlier pages then
+/// insert above what is on screen, so it suits transcripts that load whole (a subagent's).
+///
 /// Rows are rebuilt only when what they render changed: a row's widget is reused while its item, block or tool result
 /// is the same instance (the reducer keeps unchanged parts identical), so a streaming update rebuilds one row.
 class TranscriptView extends StatefulWidget {
-  const TranscriptView({super.key, required this.view, required this.actions});
+  const TranscriptView({super.key, required this.view, required this.actions, this.alignTop = false});
 
   final SessionView view;
   final TranscriptActions actions;
+  final bool alignTop;
 
   @override
   State<TranscriptView> createState() => _TranscriptViewState();
@@ -106,7 +111,7 @@ class _TranscriptViewState extends State<TranscriptView> {
   static const _bottomGap = 16.0;
 
   // Offset 0 is the top of the center sliver, whose bottom gap is all it holds at first: start below the gap.
-  final _scroll = ScrollController(initialScrollOffset: _bottomGap);
+  late final _scroll = ScrollController(initialScrollOffset: widget.alignTop ? 0 : _bottomGap);
   final _atBottom = ValueNotifier<bool>(true);
   final _thinking = _ThinkingClock();
   final _widgets = <String, _CachedRow>{};
@@ -136,6 +141,12 @@ class _TranscriptViewState extends State<TranscriptView> {
   void initState() {
     super.initState();
     _update(initial: true);
+    // Opened on a long transcript, a top-aligned view starts at its newest row like the bottom-anchored one.
+    if (widget.alignTop) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      });
+    }
   }
 
   @override
@@ -159,12 +170,12 @@ class _TranscriptViewState extends State<TranscriptView> {
     final previous = _lastItem;
     _lastItem = newest;
 
-    var split = _splitIndex(transcript);
+    var split = widget.alignTop ? 0 : _splitIndex(transcript);
     if (split == null) {
       _firstLiveItem = null;
       split = transcript.length;
     }
-    if (_firstLiveItem == null && _overflowing && previous != null && newest != null) {
+    if (!widget.alignTop && _firstLiveItem == null && _overflowing && previous != null && newest != null) {
       if (newest.key != previous.key) {
         // The transcript overflowed before these items arrived: they grow downward from here on.
         final at = _indexFromEnd(transcript, previous.key);
@@ -301,7 +312,7 @@ class _TranscriptViewState extends State<TranscriptView> {
                   child: CustomScrollView(
                     controller: _scroll,
                     center: _centerKey,
-                    anchor: 1.0,
+                    anchor: widget.alignTop ? 0.0 : 1.0,
                     physics: const StickToBottomPhysics(),
                     slivers: [
                       if (canLoad)
@@ -344,6 +355,13 @@ class _TranscriptViewState extends State<TranscriptView> {
                     duration: const Duration(milliseconds: 150),
                     child: FloatingActionButton.small(
                       heroTag: null,
+                      elevation: 0,
+                      focusElevation: 0,
+                      hoverElevation: 0,
+                      highlightElevation: 0,
+                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      foregroundColor: Theme.of(context).colorScheme.onSurface,
+                      shape: const CircleBorder(),
                       tooltip: context.t.transcript.jumpToLatest,
                       onPressed: atBottom ? null : _jumpToLatest,
                       child: const Icon(Icons.arrow_downward),

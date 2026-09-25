@@ -32,25 +32,29 @@ class Sidebar extends StatelessWidget {
               child: Row(
                 children: [
                   const SizedBox(width: 16),
-                  Expanded(child: Text(t.sidebar.machines, style: theme.textTheme.titleMedium)),
+                  Expanded(child: Text(t.sidebar.machines, style: theme.textTheme.titleSmall)),
                   const SidebarActions(),
                   const SizedBox(width: 4),
                 ],
               ),
             ),
-          if (showHeader) const Divider(height: 1),
           Expanded(
             child: machines.loaded && machines.machines.isEmpty
-                ? Center(child: Text(t.sidebar.noMachines, style: theme.textTheme.bodyMedium))
+                ? Center(
+                    child: Text(
+                      t.sidebar.noMachines,
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  )
                 : ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.only(bottom: 8),
                     children: [
                       for (final machine in machines.machines)
                         MachineSection(key: ValueKey(machine.id), machine: machine),
                     ],
                   ),
           ),
-          const Divider(height: 1),
+          const SizedBox(height: 4),
           _NavTile(
             icon: Icons.key_outlined,
             label: t.sidebar.keys,
@@ -119,15 +123,16 @@ class _NavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: ListTile(
-        dense: true,
-        selected: selected,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-        leading: Icon(icon),
-        title: Text(label),
-        onTap: onTap,
+    final theme = Theme.of(context);
+    return SidebarRow(
+      selected: selected,
+      onTap: onTap,
+      builder: (context, _) => Row(
+        children: [
+          Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 10),
+          Expanded(child: Text(label, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        ],
       ),
     );
   }

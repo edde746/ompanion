@@ -87,6 +87,28 @@ void main() {
     variant: TargetPlatformVariant.only(TargetPlatform.macOS),
   );
 
+  testWidgets('the find bar covers only its own rows: the text below it stays on screen and reachable', (tester) async {
+    final path = '$root/main.dart';
+    File(path).writeAsStringSync([for (var i = 1; i <= 40; i++) 'line $i'].join('\n'));
+    await pumpEditor(tester, path);
+    final t = tester.element(find.byType(FileEditorView)).t.dock.fileBrowser;
+
+    await tester.tap(find.byTooltip(t.more));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(t.find));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, t.find), 'line 1');
+    await tester.pumpAndSettle();
+    final bar = tester.getRect(find.widgetWithText(TextField, t.find));
+    final editor = tester.getRect(find.byType(CodeEditor));
+
+    // A tap well below the bar lands in the text and moves the cursor off the first line.
+    await tester.tapAt(Offset(editor.center.dx, bar.bottom + (editor.bottom - bar.bottom) / 2));
+    await tester.pumpAndSettle();
+    expect(workspace.current!.controller.selection.baseIndex, greaterThan(0));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('reloading from disk while the git diff shows keeps the editor usable', (tester) async {
     Future<void> git(List<String> args) async {
       final result = await Process.run('git', [

@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../../app/build_channel.dart';
 import '../../database/app_database.dart';
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../providers/keys_provider.dart';
 
@@ -166,7 +167,7 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
                 ),
                 if (_error case final error?) ...[
                   const SizedBox(height: 12),
-                  Text(error, style: TextStyle(color: theme.colorScheme.error)),
+                  Text(error, style: TextStyle(color: AppColors.of(context).error)),
                 ],
               ],
             ),
@@ -270,7 +271,7 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
               ),
               if (_error case final error?) ...[
                 const SizedBox(height: 12),
-                Text(error, style: TextStyle(color: theme.colorScheme.error)),
+                Text(error, style: TextStyle(color: AppColors.of(context).error)),
               ],
             ],
           ),

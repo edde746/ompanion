@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:xterm3/xterm.dart';
 
 import '../../../app/dev_overrides.dart';
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../models/machine.dart';
 import '../../../sessions/sessions_provider.dart';
@@ -45,9 +46,13 @@ class _TerminalTabState extends State<TerminalTab> {
       title: machine.name,
       open: (columns, rows) async {
         if (machine is LocalMachine) {
+          final environment = Platform.environment;
           final shell = localShell(
             windows: Platform.isWindows,
-            environment: Platform.environment,
+            environment: environment,
+            accountShell: Platform.isWindows || (environment['SHELL'] ?? '').startsWith('/')
+                ? null
+                : await accountLoginShell(macos: Platform.isMacOS, environment: environment),
             isolation: devLocalEnvironment,
           );
           return LocalTerminalBackend.start(
@@ -86,7 +91,7 @@ class _TerminalTabState extends State<TerminalTab> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
-              height: 40,
+              height: AppSizes.control + 8,
               child: Row(
                 children: [
                   Expanded(
@@ -97,17 +102,12 @@ class _TerminalTabState extends State<TerminalTab> {
                         for (final (index, session) in deck.sessions.indexed)
                           Padding(
                             padding: const EdgeInsets.only(right: 4),
-                            child: InputChip(
-                              visualDensity: VisualDensity.compact,
-                              label: ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 140),
-                                child: Text(session.title, overflow: TextOverflow.ellipsis),
-                              ),
+                            child: _TerminalTabButton(
+                              title: session.title,
                               selected: index == deck.selectedIndex,
-                              showCheckmark: false,
-                              onSelected: (_) => deck.select(index),
-                              deleteButtonTooltipMessage: t.close,
-                              onDeleted: () => deck.close(session),
+                              closeTooltip: t.close,
+                              onSelect: () => deck.select(index),
+                              onClose: () => deck.close(session),
                             ),
                           ),
                       ],
@@ -127,7 +127,6 @@ class _TerminalTabState extends State<TerminalTab> {
                 ],
               ),
             ),
-            const Divider(height: 1),
             Expanded(
               child: current == null
                   ? DockEmptyState(
@@ -151,6 +150,64 @@ class _TerminalTabState extends State<TerminalTab> {
           ],
         );
       },
+    );
+  }
+}
+
+/// One terminal in the tab strip: its title, selected by a lighter tone, and a close button.
+class _TerminalTabButton extends StatelessWidget {
+  const _TerminalTabButton({
+    required this.title,
+    required this.selected,
+    required this.closeTooltip,
+    required this.onSelect,
+    required this.onClose,
+  });
+
+  final String title;
+  final bool selected;
+  final String closeTooltip;
+  final VoidCallback onSelect;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final foreground = selected ? scheme.onSurface : scheme.onSurfaceVariant;
+    return Material(
+      color: selected ? scheme.surfaceContainerHighest : Colors.transparent,
+      borderRadius: BorderRadius.circular(AppSizes.radius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSizes.radius),
+        onTap: onSelect,
+        child: SizedBox(
+          height: AppSizes.control,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(width: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(color: foreground),
+                ),
+              ),
+              IconButton(
+                tooltip: closeTooltip,
+                onPressed: onClose,
+                iconSize: 16,
+                style: IconButton.styleFrom(minimumSize: const Size.square(28), fixedSize: const Size.square(28)),
+                color: foreground,
+                icon: const Icon(Icons.close),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -246,7 +303,7 @@ class _TerminalPaneState extends State<_TerminalPane> {
           children: [
             if (phase is TerminalExited || phase is TerminalFailed)
               MaterialBanner(
-                backgroundColor: phase is TerminalFailed ? theme.colorScheme.errorContainer : null,
+                backgroundColor: phase is TerminalFailed ? AppColors.of(context).errorSurface : null,
                 content: Text(
                   switch (phase) {
                     TerminalFailed(:final error) => t.failed(error: error.toString()),
@@ -296,17 +353,17 @@ class _TerminalPaneState extends State<_TerminalPane> {
 
 enum _PaneAction { copy, paste, selectAll, clear }
 
-/// The terminal's colours: Material 3 surface, text, cursor and selection; an ANSI palette that reads on the
-/// surface's brightness.
+/// The terminal's colours: the app's grey scale for background, text, cursor, selection and search hits; an ANSI
+/// palette that reads on the surface's brightness.
 TerminalTheme terminalTheme(ThemeData theme) {
   final scheme = theme.colorScheme;
   final dark = theme.brightness == Brightness.dark;
   Color c(int value) => Color(value);
   return TerminalTheme(
-    cursor: scheme.primary,
-    selection: scheme.primary.withValues(alpha: 0.35),
+    cursor: scheme.onSurface,
+    selection: scheme.onSurface.withValues(alpha: 0.25),
     foreground: scheme.onSurface,
-    background: scheme.surfaceContainerLowest,
+    background: scheme.surface,
     black: dark ? c(0xFF1E1E1E) : c(0xFF000000),
     red: dark ? c(0xFFF14C4C) : c(0xFFCD3131),
     green: dark ? c(0xFF23D18B) : c(0xFF107C10),
@@ -323,8 +380,8 @@ TerminalTheme terminalTheme(ThemeData theme) {
     brightMagenta: dark ? c(0xFFE58FE5) : c(0xFFBC05BC),
     brightCyan: dark ? c(0xFF5FD7F5) : c(0xFF0598BC),
     brightWhite: dark ? c(0xFFFFFFFF) : c(0xFFA5A5A5),
-    searchHitBackground: scheme.tertiaryContainer,
-    searchHitBackgroundCurrent: scheme.tertiary,
-    searchHitForeground: scheme.onTertiaryContainer,
+    searchHitBackground: scheme.surfaceContainerHighest,
+    searchHitBackgroundCurrent: scheme.onSurfaceVariant,
+    searchHitForeground: scheme.onSurface,
   );
 }

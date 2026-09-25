@@ -58,7 +58,7 @@ void main() {
     final project = FakeSession(cwd: '/work/p', runId: 'run', reply: _replies);
     await project.attach();
     await pumpPage(tester, project: project);
-    await tester.tap(find.text('Project p'));
+    await tester.tap(find.text('Project'));
     await tester.pump();
 
     // The first edit's write is still on its way when the second edit starts.

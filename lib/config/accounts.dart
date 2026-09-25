@@ -29,7 +29,6 @@ final class ProviderAccounts {
         final kind => throw FormatException('unknown auth source kind "$kind"'),
       },
       envVar = json.optObject('source')?.optString('envVar'),
-      sourceText = json.optString('sourceText'),
       credentials = [for (final row in json.objects('credentials')) StoredCredential.fromJson(row)];
 
   final String provider;
@@ -38,10 +37,109 @@ final class ProviderAccounts {
   /// Null when nothing authenticates the provider.
   final AuthSourceKind? sourceKind;
   final String? envVar;
-
-  /// omp's own description of the source, e.g. "config override (models.yml)".
-  final String? sourceText;
   final List<StoredCredential> credentials;
+
+  /// A models.yml key, an environment variable or a runtime override wins over the stored credentials.
+  bool get storedOverridden =>
+      credentials.isNotEmpty &&
+      (sourceKind == AuthSourceKind.config || sourceKind == AuthSourceKind.env || sourceKind == AuthSourceKind.runtime);
+}
+
+/// How a provider authenticates, as the accounts list names it.
+enum ProviderKind {
+  /// In omp's `/login` list: a browser sign-in or omp's key page.
+  account,
+
+  /// Only reachable with a pasted API key.
+  apiKey,
+
+  /// A server on the machine or the network (omp names these "Local").
+  local,
+}
+
+/// One provider of the accounts list: omp's login providers, the providers of the available models and every
+/// provider with stored credentials, merged by id.
+final class ProviderRow {
+  const ProviderRow({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.canSignIn,
+    required this.current,
+    this.accounts,
+    this.authenticated = false,
+  });
+
+  final String id;
+  final String name;
+  final ProviderKind kind;
+
+  /// omp's `login` takes this id.
+  final bool canSignIn;
+
+  /// The provider of the current model.
+  final bool current;
+
+  /// Stored credentials and the working source; null when `accounts.list` does not name the provider.
+  final ProviderAccounts? accounts;
+
+  /// `get_login_providers` reports a working credential.
+  final bool authenticated;
+
+  List<StoredCredential> get credentials => accounts?.credentials ?? const [];
+  bool get signedIn => authenticated || accounts?.sourceKind != null || credentials.isNotEmpty;
+  bool get inUse => current || credentials.any((credential) => credential.active);
+  bool get pinned => credentials.any((credential) => credential.sticky);
+}
+
+/// The rows of the accounts list: providers in use first, then signed-in ones, then the rest, each group by
+/// name. [hidden] is a placeholder provider (the bootstrap model's) that stays out unless it has stored
+/// credentials.
+List<ProviderRow> providerRows({
+  required AccountsState accounts,
+  required List<RpcLoginProvider> login,
+  required Iterable<String> modelProviders,
+  String? hidden,
+}) {
+  final stored = {for (final row in accounts.providers) row.provider: row};
+  final logins = {
+    for (final provider in login)
+      if (provider.available) provider.id: provider,
+  };
+  final rows = [
+    for (final id in {...logins.keys, ...stored.keys, ...modelProviders})
+      if (id != hidden || (stored[id]?.credentials.isNotEmpty ?? false))
+        ProviderRow(
+          id: id,
+          name: logins[id]?.name ?? stored[id]?.name ?? id,
+          kind: switch ((logins[id], stored[id])) {
+            (final login?, _) when login.name.contains('Local') => ProviderKind.local,
+            (_?, _) => ProviderKind.account,
+            (null, final row?) when row.credentials.isNotEmpty && row.credentials.every((credential) => credential.oauth) =>
+              ProviderKind.account,
+            _ => ProviderKind.apiKey,
+          },
+          canSignIn: logins.containsKey(id),
+          current: id == accounts.currentProvider && id != hidden,
+          accounts: stored[id],
+          authenticated: logins[id]?.authenticated ?? false,
+        ),
+  ];
+  int rank(ProviderRow row) => row.inUse ? 0 : (row.signedIn ? 1 : 2);
+  return rows..sort((a, b) {
+    final byRank = rank(a).compareTo(rank(b));
+    return byRank != 0 ? byRank : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  });
+}
+
+/// The rows whose name or id contains every word of [query], case-insensitively.
+List<ProviderRow> filterProviderRows(List<ProviderRow> rows, String query) {
+  final words = query.toLowerCase().split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
+  if (words.isEmpty) return rows;
+  return [
+    for (final row in rows)
+      if (words.every('${row.name} ${row.id}'.toLowerCase().contains)) row,
+  ];
 }
 
 final class StoredCredential {

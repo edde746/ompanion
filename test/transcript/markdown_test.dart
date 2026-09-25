@@ -84,6 +84,50 @@ void main() {
     });
   });
 
+  List<MdNode> parseBlocks(String markdown) => Plusparse.parse(
+    markdown,
+    blockRegistry: MarkdownBlockRegistry([const PipeTable(), TaskList.dash, TaskList.star, TaskList.plus]),
+  ).children;
+
+  group('PipeTable', () {
+    test('header, alignments and body rows up to the first line without a pipe', () {
+      final nodes = parseBlocks('| a | b | c |\n|:--|:-:|--:|\n| 1 | 2 |\n| x \\| y | z | w | extra |\nafter');
+      final table = (nodes.first as MdCustomBlock).data! as MarkdownTable;
+      expect(table.aligns, [TextAlign.left, TextAlign.center, TextAlign.right]);
+      expect(table.rows, [
+        ['a', 'b', 'c'],
+        ['1', '2', ''],
+        ['x | y', 'z', 'w'],
+      ]);
+      expect(nodes.last, isA<MdParagraph>());
+    });
+
+    test('without a complete delimiter row, as while it streams, it is not a table yet', () {
+      expect(parseBlocks('| a | b |\n|---|:').first, isNot(isA<MdCustomBlock>()));
+      expect(parseBlocks('| a | b |').first, isNot(isA<MdCustomBlock>()));
+    });
+  });
+
+  group('TaskList', () {
+    test('consecutive items of one marker with their continuation lines', () {
+      final nodes = parseBlocks('- [x] done\n- [ ] open\n  more\n- plain');
+      expect((nodes[0] as MdCustomBlock).data, [(true, 'done'), (false, 'open more')]);
+      expect(nodes[1], isA<MdUnorderedList>());
+      expect((parseBlocks('* [X] star').single as MdCustomBlock).data, [(true, 'star')]);
+    });
+
+    test('a bracketed link after a bullet is an ordinary list item', () {
+      expect(parseBlocks('- [omp](https://example.com) docs').single, isA<MdUnorderedList>());
+    });
+
+    testWidgets('an item renders its inline markdown beside a box, without a bullet', (tester) async {
+      await pumpMarkdown(tester, '- [x] **bold** task\n- [ ] open');
+      expect(find.byIcon(Icons.check_box), findsOneWidget);
+      expect(find.byIcon(Icons.check_box_outline_blank), findsOneWidget);
+      expect(find.textContaining('bold task', findRichText: true), findsOneWidget);
+    });
+  });
+
   group('rewriteDollarMath', () {
     test('inline and display math', () {
       expect(rewriteDollarMath(r'Euler: $e^{i\pi}+1=0$.'), r'Euler: \(e^{i\pi}+1=0\).');

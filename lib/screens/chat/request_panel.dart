@@ -7,39 +7,40 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../sessions/sessions_provider.dart';
 import '../external_links.dart';
-import '../shell/layout.dart';
 import 'ask.dart';
-import 'ask_dialog.dart';
+import 'ask_form.dart';
 import 'request_frame.dart';
+import 'transcript/code_style.dart';
 
-/// Shows [session]'s open requests one at a time: dialogs on wide layouts, bottom sheets on phones.
+/// [session]'s open requests, inline above the composer: one in full, with its position, previous and next when
+/// several are open. Nothing here is modal; the transcript, the composer and the rest of the app stay usable.
 ///
-/// A dialog closes when its request leaves the view: answered here, answered by another device, cancelled by
-/// omp, settled by the companion, or timed out. Closing one without answering hides it; hidden requests stay
-/// listed in a bar at the bottom of [child] until answered. `set_editor_text` fills the composer instead.
-class RequestHost extends StatefulWidget {
-  const RequestHost({super.key, required this.session, required this.child});
+/// A request leaves the panel when it leaves the view: answered here, answered by another device, cancelled by omp,
+/// settled by the companion, or timed out. `set_editor_text` fills the composer instead.
+class RequestPanel extends StatefulWidget {
+  const RequestPanel({super.key, required this.session});
 
   final LiveSession session;
-  final Widget child;
 
   @override
-  State<RequestHost> createState() => _RequestHostState();
+  State<RequestPanel> createState() => _RequestPanelState();
 }
 
-class _RequestHostState extends State<RequestHost> {
+class _RequestPanelState extends State<RequestPanel> {
   StreamSubscription<SessionView>? _subscription;
-  final Set<String> _hidden = {};
-
-  /// What the user entered into each open request's dialog, so a hidden dialog comes back as it was left.
-  final Map<String, RequestDraft> _drafts = {};
-  Route<void>? _route;
-  String? _showing;
   List<UiRequest>? _lastRequests;
-  late NavigatorState _navigator;
+  List<UiRequest> _requests = const [];
+
+  /// What the user entered into each open request, so one navigated away from comes back as it was left.
+  final Map<String, RequestDraft> _drafts = {};
+
+  /// The shown request; when it settles, the one that takes its place is shown.
+  String? _shownId;
+  int _shownIndex = 0;
 
   @override
   void initState() {
@@ -48,50 +49,30 @@ class _RequestHostState extends State<RequestHost> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _navigator = Navigator.of(context, rootNavigator: true);
-  }
-
-  @override
-  void didUpdateWidget(RequestHost oldWidget) {
+  void didUpdateWidget(RequestPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.session, widget.session)) {
-      _reset();
+      unawaited(_subscription?.cancel());
+      _lastRequests = null;
+      _requests = const [];
+      _drafts.clear();
+      _shownId = null;
+      _shownIndex = 0;
       _subscribe();
     }
   }
 
   @override
   void dispose() {
-    _reset();
+    unawaited(_subscription?.cancel());
     super.dispose();
   }
 
   void _subscribe() {
-    // Timed dialogs count down from their arrival, also while this chat is not on screen.
-    context.read<SessionsProvider>().deadlinesOf(widget.session);
     _subscription = widget.session.views.listen(_onView);
+    // `set_editor_text` fills the composer, which may be building right now.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _onView(widget.session.view);
-    });
-  }
-
-  /// Forgets this session's dialogs; an open one goes away with it.
-  void _reset() {
-    unawaited(_subscription?.cancel());
-    _subscription = null;
-    _hidden.clear();
-    _drafts.clear();
-    _lastRequests = null;
-    final route = _route;
-    _route = null;
-    _showing = null;
-    if (route == null) return;
-    // Called while the tree builds or unmounts; the navigator may only change afterwards.
-    final navigator = _navigator;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (route.isActive) navigator.removeRoute(route);
     });
   }
 
@@ -99,115 +80,105 @@ class _RequestHostState extends State<RequestHost> {
     // The reducer keeps an unchanged request list identical; most views are streamed tokens.
     if (!mounted || identical(view.requests, _lastRequests)) return;
     _lastRequests = view.requests;
-    final open = {for (final request in view.requests) request.id};
-    _hidden.removeWhere((id) => !open.contains(id));
+    final shown = [
+      for (final request in view.requests)
+        if (request is! EditorTextRequest) request,
+    ];
+    final open = {for (final request in shown) request.id};
     _drafts.removeWhere((id, _) => !open.contains(id));
-    final editorTexts = view.requests.whereType<EditorTextRequest>().toList();
-    setState(() {});
-    for (final request in editorTexts) {
-      context.read<SessionsProvider>().setDraft(widget.session, request.text);
+    final hadRequests = _requests.isNotEmpty;
+    setState(() {
+      _requests = shown;
+      final index = shown.indexWhere((request) => request.id == _shownId);
+      if (index >= 0) {
+        _shownIndex = index;
+      } else if (shown.isNotEmpty) {
+        _shownIndex = _shownIndex.clamp(0, shown.length - 1);
+        _shownId = shown[_shownIndex].id;
+      } else {
+        _shownId = null;
+        _shownIndex = 0;
+      }
+    });
+    final sessions = context.read<SessionsProvider>();
+    for (final request in view.requests.whereType<EditorTextRequest>()) {
+      sessions.setDraft(widget.session, request.text);
       widget.session.dismissRequest(request.id);
     }
-    _pump();
+    // Back to typing once no request is left, as the TUI returns to its editor.
+    if (hadRequests && shown.isEmpty) sessions.draftOf(widget.session).requestFocus();
   }
 
-  void _pump() {
-    if (_showing != null || !mounted) return;
-    final request = _nextRequest(widget.session.view);
-    if (request == null) return;
-    unawaited(_show(request));
-  }
+  void _show(int index) => setState(() {
+    _shownIndex = index;
+    _shownId = _requests[index].id;
+  });
 
-  UiRequest? _nextRequest(SessionView view) {
-    for (final request in view.requests) {
-      if (request is EditorTextRequest || _hidden.contains(request.id)) continue;
-      return request;
-    }
-    return null;
-  }
-
-  Future<void> _show(UiRequest request) async {
+  @override
+  Widget build(BuildContext context) {
+    final requests = _requests;
+    if (requests.isEmpty) return const SizedBox.shrink();
+    final index = _shownIndex.clamp(0, requests.length - 1);
+    final request = requests[index];
     final session = widget.session;
-    _showing = request.id;
-    final deadline = context.read<SessionsProvider>().deadlinesOf(session).of(request.id);
-    final draft = _drafts.putIfAbsent(request.id, () => RequestDraft(request));
-    Widget content(BuildContext context, bool sheet) => _ClosesWhenSettled(
-      session: session,
-      requestId: request.id,
-      child: RequestContent(session: session, request: request, draft: draft, deadline: deadline, sheet: sheet),
-    );
-    final Route<void> route = isCompact(context)
-        ? ModalBottomSheetRoute<void>(
-            builder: (context) => content(context, true),
-            isScrollControlled: true,
-            showDragHandle: true,
-            useSafeArea: true,
-          )
-        : DialogRoute<void>(context: context, builder: (context) => content(context, false));
-    _route = route;
-    await _navigator.push(route);
-    if (!identical(_route, route)) return; // the session changed meanwhile
-    _route = null;
-    _showing = null;
-    if (!mounted) return;
-    if (session.view.requests.any((open) => open.id == request.id)) {
-      setState(() => _hidden.add(request.id));
-    }
-    _pump();
-    // Back to typing once no dialog is left, as the TUI returns to its editor.
-    if (_showing == null) context.read<SessionsProvider>().draftOf(session).requestFocus();
-  }
-
-  void _unhide(String id) {
-    setState(() => _hidden.remove(id));
-    _pump();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final hidden = [
-      for (final request in widget.session.view.requests)
-        if (_hidden.contains(request.id)) request,
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(child: widget.child),
-        for (final request in hidden) _HiddenRequestBar(request: request, onShow: () => _unhide(request.id)),
-      ],
-    );
-  }
-}
-
-class _HiddenRequestBar extends StatelessWidget {
-  const _HiddenRequestBar({required this.request, required this.onShow});
-
-  final UiRequest request;
-  final VoidCallback onShow;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.tertiaryContainer,
-      child: ListTile(
-        dense: true,
-        leading: Icon(Icons.help_outline, color: scheme.onTertiaryContainer),
-        title: Text(
-          t.requests.waiting(title: requestTitle(t, request)),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: scheme.onTertiaryContainer),
-        ),
-        trailing: FilledButton.tonal(onPressed: onShow, child: Text(t.requests.answer)),
-        onTap: onShow,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: RequestContent(
+        key: ValueKey(request.id),
+        session: session,
+        request: request,
+        draft: _drafts.putIfAbsent(request.id, () => RequestDraft(request)),
+        deadline: context.read<SessionsProvider>().deadlinesOf(session).of(request.id),
+        navigation: requests.length < 2
+            ? null
+            : _Navigation(
+                index: index,
+                count: requests.length,
+                onPrevious: index == 0 ? null : () => _show(index - 1),
+                onNext: index == requests.length - 1 ? null : () => _show(index + 1),
+              ),
       ),
     );
   }
 }
 
-/// A one-line title for [request], for the hidden-request bar and the sidebar.
+class _Navigation extends StatelessWidget {
+  const _Navigation({required this.index, required this.count, required this.onPrevious, required this.onNext});
+
+  final int index;
+  final int count;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          key: const ValueKey('request-previous'),
+          tooltip: t.requests.previous,
+          icon: const Icon(Icons.chevron_left),
+          onPressed: onPrevious,
+        ),
+        Text(
+          t.requests.position(index: index + 1, count: count),
+          style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        IconButton(
+          key: const ValueKey('request-next'),
+          tooltip: t.requests.next,
+          icon: const Icon(Icons.chevron_right),
+          onPressed: onNext,
+        ),
+      ],
+    );
+  }
+}
+
+/// A one-line title for [request].
 String requestTitle(Translations t, UiRequest request) => switch (request) {
   ApprovalRequest(:final toolName) => t.requests.approvalTitle(tool: toolName),
   SelectRequest(:final title) || ConfirmRequest(:final title) || InputRequest(:final title) => title,
@@ -218,58 +189,7 @@ String requestTitle(Translations t, UiRequest request) => switch (request) {
   CompanionRequest(:final method) => method,
 };
 
-/// Closes the surrounding route once request [requestId] is no longer open in [session]'s view.
-class _ClosesWhenSettled extends StatefulWidget {
-  const _ClosesWhenSettled({required this.session, required this.requestId, required this.child});
-
-  final LiveSession session;
-  final String requestId;
-  final Widget child;
-
-  @override
-  State<_ClosesWhenSettled> createState() => _ClosesWhenSettledState();
-}
-
-class _ClosesWhenSettledState extends State<_ClosesWhenSettled> {
-  late final StreamSubscription<SessionView> _subscription;
-  bool _closing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _subscription = widget.session.views.listen(_check);
-    // The request may have settled between the host picking it and this route building.
-    _check(widget.session.view);
-  }
-
-  @override
-  void dispose() {
-    unawaited(_subscription.cancel());
-    super.dispose();
-  }
-
-  void _check(SessionView view) {
-    if (_closing || view.requests.any((request) => request.id == widget.requestId)) return;
-    _closing = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final route = ModalRoute.of(context);
-      if (route == null || !route.isActive) return;
-      final navigator = Navigator.of(context);
-      if (route.isCurrent) {
-        navigator.pop();
-      } else {
-        navigator.removeRoute(route);
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
-}
-
-/// What the user entered into one request's dialog so far. [RequestHost] keeps it while the dialog is hidden, so the
-/// dialog comes back as it was left.
+/// What the user entered into one request so far. [RequestPanel] keeps it while another request is shown.
 final class RequestDraft {
   RequestDraft(UiRequest request)
     : text = switch (request) {
@@ -284,16 +204,15 @@ final class RequestDraft {
   final List<AskDraft> ask = [];
 }
 
-/// The body of one request's dialog or sheet. Answers go out through [session]; the dialog then closes
-/// because the request leaves the view.
+/// One request, inline. Answers go out through [session]; the request then leaves the view and the panel.
 class RequestContent extends StatefulWidget {
   const RequestContent({
     super.key,
     required this.session,
     required this.request,
     required this.draft,
-    required this.sheet,
     this.deadline,
+    this.navigation,
   });
 
   final LiveSession session;
@@ -302,11 +221,9 @@ class RequestContent extends StatefulWidget {
   /// What the user entered so far; edits land here.
   final RequestDraft draft;
 
-  /// Render as a bottom sheet (phones) rather than a dialog.
-  final bool sheet;
-
   /// When omp stops waiting for the answer.
   final DateTime? deadline;
+  final Widget? navigation;
 
   @override
   State<RequestContent> createState() => _RequestContentState();
@@ -372,45 +289,47 @@ class _RequestContentState extends State<RequestContent> {
     () => widget.session.rpc.respondToUi(widget.request.id, value: value, confirmed: confirmed, cancelled: cancelled),
   );
 
-  void _hide() => Navigator.of(context).pop();
-
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final theme = Theme.of(context);
     final request = widget.request;
     if (request case CompanionRequest(method: 'ask', :final params)) {
-      return AskContent(
+      return AskForm(
         params: params,
         drafts: widget.draft.ask,
-        sheet: widget.sheet,
         busy: _busy,
         error: _error,
+        navigation: widget.navigation,
         onSubmit: (answer) => _answer(() => widget.session.companion.respond(request.id, answer)),
         onCancel: () => _answer(() => widget.session.companion.cancel(request.id)),
-        onHide: _hide,
       );
     }
-    final hide = TextButton(onPressed: _busy ? null : _hide, child: Text(t.requests.hide));
-    final (String title, Widget body, List<Widget> actions) = switch (request) {
+    final cancel = TextButton(onPressed: _busy ? null : () => _respond(cancelled: true), child: Text(t.common.cancel));
+    final submit = FilledButton(
+      onPressed: _busy ? null : () => _respond(value: _text.text),
+      child: Text(t.requests.submit),
+    );
+    final (Widget body, List<Widget> actions) = switch (request) {
       ApprovalRequest() => (
-        t.requests.approvalTitle(tool: request.toolName),
         _ApprovalBody(request: request, view: widget.session.view),
         [
-          hide,
           for (final option in request.options)
             _isApprove(option)
                 ? FilledButton(onPressed: _busy ? null : () => _respond(value: option), child: Text(option))
-                : OutlinedButton(onPressed: _busy ? null : () => _respond(value: option), child: Text(option)),
+                : FilledButton.tonal(onPressed: _busy ? null : () => _respond(value: option), child: Text(option)),
         ],
       ),
       SelectRequest() => (
-        request.title,
         Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final (index, option) in request.options.indexed)
               ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(AppSizes.radius))),
                 title: Text(option),
                 subtitle: switch (request.descriptions.elementAtOrNull(index)) {
                   final description? => Text(description),
@@ -421,58 +340,39 @@ class _RequestContentState extends State<RequestContent> {
               ),
           ],
         ),
-        [hide, TextButton(onPressed: _busy ? null : () => _respond(cancelled: true), child: Text(t.common.cancel))],
+        [cancel],
       ),
       ConfirmRequest() => (
-        request.title,
         Text(request.message),
         [
-          hide,
-          OutlinedButton(onPressed: _busy ? null : () => _respond(confirmed: false), child: Text(t.requests.no)),
+          FilledButton.tonal(onPressed: _busy ? null : () => _respond(confirmed: false), child: Text(t.requests.no)),
           FilledButton(onPressed: _busy ? null : () => _respond(confirmed: true), child: Text(t.requests.yes)),
         ],
       ),
       InputRequest() => (
-        request.title,
         TextField(
           controller: _text,
-          autofocus: true,
           decoration: InputDecoration(hintText: request.placeholder),
           onSubmitted: _busy ? null : (value) => _respond(value: value),
         ),
-        [
-          hide,
-          TextButton(onPressed: _busy ? null : () => _respond(cancelled: true), child: Text(t.common.cancel)),
-          FilledButton(onPressed: _busy ? null : () => _respond(value: _text.text), child: Text(t.requests.submit)),
-        ],
+        [cancel, submit],
       ),
       EditorRequest() => (
-        request.title,
         TextField(
           controller: _text,
-          autofocus: true,
           minLines: 6,
           maxLines: 16,
           keyboardType: TextInputType.multiline,
-          style: const TextStyle(fontFamily: 'monospace'),
-          decoration: const InputDecoration(border: OutlineInputBorder()),
+          style: codeTextStyle(theme),
         ),
-        [
-          hide,
-          TextButton(onPressed: _busy ? null : () => _respond(cancelled: true), child: Text(t.common.cancel)),
-          FilledButton(onPressed: _busy ? null : () => _respond(value: _text.text), child: Text(t.requests.submit)),
-        ],
+        [cancel, submit],
       ),
       OpenUrlRequest() => (
-        t.requests.openUrlTitle,
         _OpenUrlBody(request: request, forwardNote: _forwardNote),
         [
-          TextButton(
-            onPressed: () => widget.session.dismissRequest(request.id),
-            child: Text(t.common.close),
-          ),
+          TextButton(onPressed: () => widget.session.dismissRequest(request.id), child: Text(t.common.close)),
           FilledButton.icon(
-            icon: const Icon(Icons.open_in_new),
+            icon: const Icon(Icons.open_in_new, size: 18),
             label: Text(t.requests.openInBrowser),
             onPressed: switch (Uri.tryParse(request.url)) {
               final uri? when isWebLink(uri) => () => unawaited(openWebLink(uri)),
@@ -482,32 +382,33 @@ class _RequestContentState extends State<RequestContent> {
         ],
       ),
       CompanionRequest(:final method, :final params) => (
-        t.requests.unsupportedTitle,
         Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(t.requests.unsupportedBody(method: method)),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSizes.gap),
             SelectableText(
               const JsonEncoder.withIndent('  ').convert(params),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              style: codeTextStyle(theme),
             ),
           ],
         ),
         [
-          hide,
           TextButton(
             onPressed: _busy ? null : () => _answer(() => widget.session.companion.cancel(request.id)),
             child: Text(t.common.cancel),
           ),
         ],
       ),
-      EditorTextRequest() => throw StateError('set_editor_text fills the composer; it has no dialog'),
+      EditorTextRequest() => throw StateError('set_editor_text fills the composer; it is never shown'),
     };
     return RequestFrame(
-      sheet: widget.sheet,
-      title: title,
+      title: switch (request) {
+        CompanionRequest(method: != 'ask') => t.requests.unsupportedTitle,
+        _ => requestTitle(t, request),
+      },
+      navigation: widget.navigation,
       deadline: widget.deadline,
       error: _error,
       body: body,
@@ -535,29 +436,46 @@ class _ApprovalBody extends StatelessWidget {
     final command = args is Map<String, Object?> && args['command'] is String ? args['command']! as String : null;
     // `i` is the intent every built-in tool takes; it shows as the heading instead.
     final shownArgs = args is Map<String, Object?> ? (Map.of(args)..remove('i')) : args;
+    final shown = command ?? (shownArgs == null ? null : const JsonEncoder.withIndent('  ').convert(shownArgs));
     final intent = call?.intent;
+    // omp's detail lines repeat the arguments ("Command: ls -la"); the block above shows those already.
+    final argValues = {
+      if (args is Map<String, Object?>)
+        for (final value in args.values)
+          if (value is String) value.trim(),
+    };
+    final details = [
+      for (final line in request.details)
+        if (line.trim().isNotEmpty && !_repeatsArgument(line, argValues)) line,
+    ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (intent != null) ...[Text(intent, style: theme.textTheme.titleSmall), const SizedBox(height: 8)],
-        if (command != null || shownArgs != null)
+        if (intent != null) ...[
+          Text(intent, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: AppSizes.gap),
+        ],
+        if (shown != null)
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: const BorderRadius.all(Radius.circular(8)),
+              color: theme.colorScheme.surfaceContainerHigh,
+              borderRadius: const BorderRadius.all(Radius.circular(AppSizes.radius)),
             ),
-            child: SelectableText(
-              command ?? const JsonEncoder.withIndent('  ').convert(shownArgs),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-            ),
+            child: SelectableText(shown, style: codeTextStyle(theme)),
           ),
-        for (final line in request.details)
-          if (line.trim().isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 8), child: Text(line)),
+        for (final line in details) Padding(padding: const EdgeInsets.only(top: AppSizes.gap), child: Text(line)),
       ],
     );
+  }
+
+  /// True when [line] is `Label: value` (or just `value`) for one of the call's string arguments.
+  static bool _repeatsArgument(String line, Set<String> values) {
+    final trimmed = line.trim();
+    if (values.contains(trimmed)) return true;
+    final colon = trimmed.indexOf(': ');
+    return colon > 0 && values.contains(trimmed.substring(colon + 2).trim());
   }
 }
 
@@ -584,21 +502,24 @@ class _OpenUrlBody extends StatelessWidget {
               child: SelectableText(
                 request.url,
                 maxLines: 3,
-                style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                style: codeTextStyle(theme),
               ),
             ),
             IconButton(
               tooltip: t.common.copy,
-              icon: const Icon(Icons.copy),
+              icon: const Icon(Icons.copy, size: 18),
               onPressed: () => unawaited(Clipboard.setData(ClipboardData(text: request.url))),
             ),
           ],
         ),
         if (Uri.tryParse(request.url) case final uri when uri == null || !isWebLink(uri)) ...[
           const SizedBox(height: 12),
-          Text(t.requests.notWebLink, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+          Text(t.requests.notWebLink, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.of(context).error)),
         ],
-        if (note != null) ...[const SizedBox(height: 12), Text(note, style: theme.textTheme.bodySmall)],
+        if (note != null) ...[
+          const SizedBox(height: 12),
+          Text(note, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ],
       ],
     );
   }

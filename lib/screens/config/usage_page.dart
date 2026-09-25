@@ -6,6 +6,7 @@ import 'package:omp_core/rpc.dart';
 import '../../config/cli_results.dart';
 import '../../config/config_target.dart';
 import '../../config/omp_cli.dart';
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import 'config_widgets.dart';
 
@@ -68,22 +69,19 @@ class _UsagePageState extends State<UsagePage> {
               icon: const Icon(Icons.cloud_sync_outlined),
               label: Text(t.config.usage.fetchAgain),
             ),
-            IconButton(tooltip: t.config.refresh, onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
+            RefreshAction(loading: _loading, onPressed: _load),
           ],
         ),
-        if (_loading) const LinearProgressIndicator(),
-        const Divider(height: 1),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
               if (_error != null) ConfigError(_error!, onRetry: _load),
               if (usage != null && usage.isEmpty) Text(t.config.usage.none),
               for (final report in usage?.reports ?? const <UsageReport>[])
-                Card.outlined(
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: ConfigBlock(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -98,8 +96,7 @@ class _UsagePageState extends State<UsagePage> {
                   ),
                 ),
               if (usage != null && usage.capacity.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(t.config.usage.capacity, style: theme.textTheme.titleMedium),
+                ConfigSectionTitle(t.config.usage.capacity),
                 for (final MapEntry(key: provider, value: windows) in usage.capacity.entries)
                   for (final window in windows)
                     ListTile(
@@ -114,18 +111,16 @@ class _UsagePageState extends State<UsagePage> {
                     ),
               ],
               if (usage != null && usage.accountsWithoutUsage.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(t.config.usage.withoutUsage, style: theme.textTheme.titleMedium),
+                ConfigSectionTitle(t.config.usage.withoutUsage),
                 for (final account in usage.accountsWithoutUsage)
                   ListTile(dense: true, title: Text(account.provider), subtitle: Text([?account.type, ?account.label].join(' · '))),
               ],
               if (usage != null && usage.disabledCredentials.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(t.config.usage.disabled, style: theme.textTheme.titleMedium),
+                ConfigSectionTitle(t.config.usage.disabled),
                 for (final account in usage.disabledCredentials)
                   ListTile(
                     dense: true,
-                    leading: Icon(Icons.block, color: theme.colorScheme.error),
+                    leading: Icon(Icons.block, color: AppColors.of(context).error),
                     title: Text([account.provider, ?account.label].join(' · ')),
                     subtitle: account.cause == null ? null : Text(account.cause!),
                   ),
@@ -149,11 +144,12 @@ class _LimitRow extends StatelessWidget {
     final t = context.t;
     final theme = Theme.of(context);
     final fraction = limit.usedFraction;
+    final colors = AppColors.of(context);
     final color = switch (fraction) {
-      null => theme.colorScheme.outline,
-      >= 1 => theme.colorScheme.error,
-      >= 0.8 => theme.colorScheme.tertiary,
-      _ => theme.colorScheme.primary,
+      null => theme.colorScheme.onSurfaceVariant,
+      >= 1 => colors.error,
+      >= 0.8 => colors.warning,
+      _ => theme.colorScheme.onSurface,
     };
     final title = [
       limit.label,
@@ -173,7 +169,13 @@ class _LimitRow extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.bodyMedium),
           const SizedBox(height: 4),
-          LinearProgressIndicator(value: fraction?.clamp(0, 1).toDouble() ?? 0, color: color, minHeight: 6, borderRadius: BorderRadius.circular(3)),
+          LinearProgressIndicator(
+            value: fraction?.clamp(0, 1).toDouble() ?? 0,
+            color: color,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            minHeight: 6,
+            borderRadius: BorderRadius.circular(3),
+          ),
           const SizedBox(height: 2),
           Text(amounts.isEmpty ? t.config.usage.noData : amounts, style: theme.textTheme.bodySmall),
           for (final note in limit.notes) Text(note, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),

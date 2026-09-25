@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:omp_core/store.dart';
 
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
-import 'ansi.dart';
 import 'code_block.dart';
 import 'diff.dart';
 import 'highlighter.dart';
@@ -404,10 +404,10 @@ class _TodoRow extends StatelessWidget {
     final scheme = theme.colorScheme;
     final (icon, color) = switch (task.status) {
       TodoStatus.pending => (Icons.radio_button_unchecked, scheme.onSurfaceVariant),
-      TodoStatus.inProgress => (Icons.play_circle_outline, scheme.primary),
-      TodoStatus.completed => (Icons.check_circle, AnsiPalette.of(scheme).foreground(2)),
+      TodoStatus.inProgress => (Icons.play_circle_outline, scheme.onSurface),
+      TodoStatus.completed => (Icons.check_circle, AppColors.of(context).success),
       TodoStatus.abandoned => (Icons.cancel_outlined, scheme.onSurfaceVariant),
-      TodoStatus.blocked => (Icons.block, scheme.error),
+      TodoStatus.blocked => (Icons.block, AppColors.of(context).error),
     };
     final crossed = task.status == TodoStatus.completed || task.status == TodoStatus.abandoned;
     return Padding(
@@ -430,7 +430,7 @@ class _TodoRow extends StatelessWidget {
                   ),
                 ),
                 if (task.blocker != null)
-                  Text(task.blocker!, style: theme.textTheme.bodySmall?.copyWith(color: scheme.error)),
+                  Text(task.blocker!, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.of(context).error)),
               ],
             ),
           ),
@@ -556,9 +556,9 @@ class _AgentRow extends StatelessWidget {
     final t = context.t.transcript.tool;
     final (label, color) = switch (agent.status) {
       SubagentStatus.pending => (t.agentPending, scheme.onSurfaceVariant),
-      SubagentStatus.running => (t.agentRunning, scheme.primary),
-      SubagentStatus.completed => (t.agentCompleted, AnsiPalette.of(scheme).foreground(2)),
-      SubagentStatus.failed => (t.agentFailed, scheme.error),
+      SubagentStatus.running => (t.agentRunning, scheme.onSurface),
+      SubagentStatus.completed => (t.agentCompleted, AppColors.of(context).success),
+      SubagentStatus.failed => (t.agentFailed, AppColors.of(context).error),
       SubagentStatus.aborted => (t.agentAborted, scheme.onSurfaceVariant),
     };
     final facts = [
@@ -720,7 +720,7 @@ class _QuestionView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (question.header != null)
-            Text(question.header!, style: theme.textTheme.labelSmall?.copyWith(color: scheme.primary)),
+            Text(question.header!, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
           Text(question.question, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
           for (final (index, (label, description)) in question.options.indexed)
             Padding(
@@ -733,7 +733,7 @@ class _QuestionView extends StatelessWidget {
                     child: Icon(
                       question.selected.contains(label) ? Icons.check_circle : Icons.circle_outlined,
                       size: 16,
-                      color: question.selected.contains(label) ? scheme.primary : scheme.outline,
+                      color: question.selected.contains(label) ? scheme.onSurface : scheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -750,7 +750,7 @@ class _QuestionView extends StatelessWidget {
                           if (index == question.recommended)
                             TextSpan(
                               text: '  ${t.recommended}',
-                              style: TextStyle(color: scheme.tertiary, fontSize: theme.textTheme.labelSmall?.fontSize),
+                              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: theme.textTheme.labelSmall?.fontSize),
                             ),
                           if (description != null)
                             TextSpan(text: '\n$description', style: TextStyle(color: scheme.onSurfaceVariant)),
@@ -768,7 +768,7 @@ class _QuestionView extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.edit_note, size: 16, color: scheme.primary),
+                  Icon(Icons.edit_note, size: 16, color: scheme.onSurface),
                   const SizedBox(width: 8),
                   Expanded(child: Text('“${question.custom}”', style: theme.textTheme.bodySmall)),
                 ],
@@ -828,7 +828,7 @@ class _SourceRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(color: scheme.primary)),
+            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(decoration: TextDecoration.underline, decorationColor: scheme.onSurfaceVariant)),
             if (host.isNotEmpty)
               Text(host, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
             if (snippet != null)

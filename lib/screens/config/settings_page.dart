@@ -10,7 +10,10 @@ import '../../config/config_target.dart';
 import '../../config/config_yaml.dart';
 import '../../config/settings_schema.dart';
 import '../../config/settings_view.dart';
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../widgets/app_search_field.dart';
+import '../../widgets/app_segmented.dart';
 import 'config_widgets.dart';
 import 'setting_editors.dart';
 
@@ -42,7 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Object? _error;
   bool _loading = true;
   String? _tab;
-  final _search = TextEditingController();
+  String _query = '';
   final Set<String> _busy = {};
   StreamSubscription<CompanionEvent>? _events;
   StreamSubscription<LinkState>? _links;
@@ -60,7 +63,6 @@ class _SettingsPageState extends State<SettingsPage> {
     unawaited(_events?.cancel());
     unawaited(_links?.cancel());
     _fileReload?.cancel();
-    _search.dispose();
     super.dispose();
   }
 
@@ -237,13 +239,14 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final theme = Theme.of(context);
     final schema = _schema;
     if (schema == null) {
       if (_error != null) return Center(child: ConfigError(_error!, onRetry: _load));
       return const Center(child: CircularProgressIndicator());
     }
     final project = widget.target.projectSession;
-    final query = _search.text;
+    final query = _query.trim();
     final tab = _tab ?? advancedTab;
     final effective = _effective;
     final sections = settingsSections(
@@ -252,103 +255,91 @@ class _SettingsPageState extends State<SettingsPage> {
       query: query,
       conditions: effective?.conditions ?? schema.conditions,
     );
-    final rows = <Widget>[];
-    for (final section in sections) {
-      rows.add(_SectionHeader(section: section, showTab: query.trim().isNotEmpty));
-      for (final setting in section.settings) {
-        rows.add(_row(context, setting));
-      }
-    }
+    final notes = [
+      if (_globalError != null) ConfigBanner(t.config.settings.fileError(path: _globalPath ?? 'config.yml', error: '$_globalError'), error: true),
+      if (_projectError != null)
+        ConfigBanner(t.config.settings.fileError(path: _projectPath ?? '.omp/config.yml', error: '$_projectError'), error: true),
+      if (_error != null) ConfigBanner('$_error', error: true),
+      if (query.isEmpty && tab == 'appearance') ConfigBanner(t.config.settings.themeNote),
+      if (query.isEmpty && tab == advancedTab) ConfigBanner(t.config.settings.advancedNote),
+    ];
+    final rows = <Widget>[
+      for (final note in notes) Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), child: note),
+      for (final section in sections) ...[
+        _SectionHeader(section: section, showTab: query.isNotEmpty),
+        for (final setting in section.settings) _row(context, setting),
+      ],
+      if (sections.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Center(child: Text(t.config.settings.noMatches))),
+    ];
+    // A phone keeps the search field wide: the scope shows its icons only.
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    final scope = AppSegmented<SettingsScope>(
+      value: _scope,
+      segments: [
+        (SettingsScope.global, compact ? '' : t.config.scope.global, Icons.public),
+        (SettingsScope.project, compact ? '' : t.config.scope.project, Icons.folder_outlined),
+      ],
+      disabled: {if (project == null) SettingsScope.project},
+      onChanged: _setScope,
+    );
+    final path = switch (_scope) {
+      SettingsScope.global => _globalPath,
+      SettingsScope.project => _projectPath,
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ConfigHeader(
-          title: t.config.sections.settings,
-          subtitle: switch (_scope) {
-            SettingsScope.global => t.config.settings.editing(path: _globalPath ?? '…'),
-            SettingsScope.project => t.config.settings.editing(path: _projectPath ?? '…'),
-          },
-          actions: [
-            if (_loading) const Padding(padding: EdgeInsets.all(12), child: SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))),
-            IconButton(tooltip: t.config.refresh, onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
-          ],
-        ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          padding: const EdgeInsets.fromLTRB(16, 12, 12, 0),
+          child: Row(
             children: [
-              SegmentedButton<SettingsScope>(
-                segments: [
-                  ButtonSegment(value: SettingsScope.global, label: Text(t.config.scope.global), icon: const Icon(Icons.public)),
-                  ButtonSegment(
-                    value: SettingsScope.project,
-                    enabled: project != null,
-                    label: Text(project == null ? t.config.scope.projectNone : t.config.scope.project(name: _basename(project.cwd))),
-                    icon: const Icon(Icons.folder_outlined),
-                  ),
-                ],
-                selected: {_scope},
-                onSelectionChanged: (selection) => _setScope(selection.single),
+              Tooltip(
+                message: switch ((project, _scope)) {
+                  (null, _) => t.config.scope.projectNone,
+                  (_, SettingsScope.global) => t.config.scope.global,
+                  (_, SettingsScope.project) => t.config.scope.project,
+                },
+                child: scope,
               ),
-              SizedBox(
-                width: 320,
-                child: TextField(
+              const SizedBox(width: AppSizes.gap),
+              Expanded(
+                child: AppSearchField(
                   key: const ValueKey('settings-search'),
-                  controller: _search,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: t.config.settings.search,
-                    border: const OutlineInputBorder(),
-                    suffixIcon: query.isEmpty
-                        ? null
-                        : IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => setState(_search.clear),
-                          ),
-                  ),
-                  onChanged: (_) => setState(() {}),
+                  hint: t.config.settings.search,
+                  onChanged: (text) => setState(() => _query = text),
                 ),
               ),
+              const SizedBox(width: 4),
+              RefreshAction(loading: _loading, onPressed: _load),
             ],
           ),
         ),
-        if (_globalError != null) _Banner(t.config.settings.fileError(path: _globalPath ?? 'config.yml', error: '$_globalError')),
-        if (_projectError != null) _Banner(t.config.settings.fileError(path: _projectPath ?? '.omp/config.yml', error: '$_projectError')),
-        if (_error != null) _Banner('$_error'),
-        if (query.trim().isEmpty)
-          SizedBox(
-            height: 52,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              children: [
-                for (final id in [...schema.tabs, advancedTab])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(_tabLabel(context, id)),
-                      selected: id == tab,
-                      onSelected: (_) => setState(() => _tab = id),
-                    ),
-                  ),
-              ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+          child: Text(
+            t.config.settings.editing(path: path ?? '…'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+        if (query.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: ConfigPills<String>(
+              value: tab,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              items: [for (final id in [...schema.tabs, advancedTab]) (id, _tabLabel(context, id), null)],
+              onChanged: (id) => setState(() => _tab = id),
             ),
           ),
-        if (query.trim().isEmpty && tab == 'appearance') _Banner(t.config.settings.themeNote, info: true),
-        if (query.trim().isEmpty && tab == advancedTab) _Banner(t.config.settings.advancedNote, info: true),
-        const Divider(height: 1),
+        const SizedBox(height: 4),
         Expanded(
-          child: rows.isEmpty
-              ? Center(child: Text(t.config.settings.noMatches))
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 32),
-                  itemCount: rows.length,
-                  itemBuilder: (context, index) => rows[index],
-                ),
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 32),
+            itemCount: rows.length,
+            itemBuilder: (context, index) => rows[index],
+          ),
         ),
       ],
     );
@@ -373,11 +364,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
-String _basename(String path) {
-  final parts = path.split(RegExp(r'[\\/]')).where((part) => part.isNotEmpty);
-  return parts.isEmpty ? path : parts.last;
-}
-
 String _tabLabel(BuildContext context, String id) {
   if (id == advancedTab) return context.t.config.settings.advancedTab;
   return id.isEmpty ? id : '${id[0].toUpperCase()}${id.substring(1)}';
@@ -397,36 +383,8 @@ class _SectionHeader extends StatelessWidget {
     final title = [if (showTab) tab, ?group].join(' · ');
     if (title.isEmpty) return const SizedBox(height: 8);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
-      child: Text(title, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.primary)),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner(this.text, {this.info = false});
-
-  final String text;
-  final bool info;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: info ? scheme.secondaryContainer : scheme.errorContainer,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Text(
-            text,
-            style: TextStyle(color: info ? scheme.onSecondaryContainer : scheme.onErrorContainer),
-          ),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Text(title, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     );
   }
 }
@@ -457,60 +415,69 @@ class _SettingTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
+    final warning = AppColors.of(context).warning;
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final effective = display.effective;
     final overriddenBy = display.overriddenBy;
-    final trailing = trailingEditor(context, editor, display.value, enabled: enabled, onChanged: onChanged);
+    final trailing = trailingEditor(context, setting, editor, display, enabled: enabled, onChanged: onChanged);
     final block = blockEditor(context, setting, editor, display, enabled: enabled, onChanged: onChanged);
     final ui = setting.ui;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 16, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // A one-line field fits at the end of a wide row; on a phone it takes the row's width below.
+        final fieldInline = block != null && isFieldEditor(editor) && constraints.maxWidth >= 640;
+        final control = trailing ?? (fieldInline ? SizedBox(width: 280, child: block) : null);
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(setting.label, style: theme.textTheme.titleSmall),
-                    if (effective != null) ProvenanceBadge(effective.provenance, envName: setting.env?.name),
-                    if (overriddenBy != null && effective is KnownValue)
-                      Tooltip(
-                        message: t.config.settings.overridden(value: describeValue(effective.value)),
-                        child: Icon(Icons.info_outline, size: 16, color: theme.colorScheme.tertiary),
-                      ),
-                    if (busy) const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-                  ],
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(setting.label, style: theme.textTheme.titleSmall),
+                            if (effective != null) ProvenanceBadge(effective.provenance, envName: setting.env?.name),
+                            if (busy) const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                          ],
+                        ),
+                        if (ui != null && ui.description.isNotEmpty) Text(ui.description, style: muted),
+                        if (ui?.warning case final text?) Text(text, style: theme.textTheme.bodySmall?.copyWith(color: warning)),
+                        if (overriddenBy != null && effective is KnownValue)
+                          Text(
+                            t.config.settings.overriddenLine(value: describeValue(effective.value)),
+                            style: theme.textTheme.bodySmall?.copyWith(color: warning),
+                          ),
+                        if (note != null) Text(note!, style: muted),
+                        Text(
+                          setting.path,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontFamily: 'monospace',
+                            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (control != null) ...[const SizedBox(width: 12), control],
+                  if (onReset != null)
+                    IconButton(tooltip: t.config.settings.reset, onPressed: onReset, icon: const Icon(Icons.restart_alt, size: 18))
+                  else
+                    const SizedBox(width: 40),
+                ],
               ),
-              ?trailing,
-              if (onReset != null)
-                IconButton(tooltip: t.config.settings.reset, onPressed: onReset, icon: const Icon(Icons.restart_alt, size: 20))
-              else
-                const SizedBox(width: 40),
+              if (block != null && !fieldInline) Padding(padding: const EdgeInsets.only(top: 8, right: 40), child: block),
             ],
           ),
-          if (ui != null && ui.description.isNotEmpty) Text(ui.description, style: muted),
-          if (ui?.warning case final warning?)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(warning, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
-            ),
-          if (overriddenBy != null && effective is KnownValue)
-            Text(
-              t.config.settings.overriddenLine(value: describeValue(effective.value)),
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.tertiary),
-            ),
-          if (note != null) Text(note!, style: muted),
-          Text(setting.path, style: theme.textTheme.labelSmall?.copyWith(fontFamily: 'monospace', color: theme.colorScheme.outline)),
-          if (block != null) Padding(padding: const EdgeInsets.only(top: 8, right: 40), child: block),
-        ],
-      ),
+        );
+      },
     );
   }
 }

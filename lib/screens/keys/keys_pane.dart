@@ -52,7 +52,7 @@ class KeysPane extends StatelessWidget {
               label: Text(t.keys.import),
               onPressed: () => showImportKeyDialog(context),
             ),
-            OutlinedButton.icon(
+            FilledButton.tonalIcon(
               icon: const Icon(Icons.auto_awesome_outlined),
               label: Text(t.keys.generate),
               onPressed: () => showGenerateKeyDialog(context),
@@ -62,7 +62,7 @@ class KeysPane extends StatelessWidget {
         const SizedBox(height: 16),
         if (keys.isEmpty) Text(t.keys.empty),
         for (final key in keys)
-          Card.outlined(
+          Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
               leading: const Icon(Icons.key_outlined),

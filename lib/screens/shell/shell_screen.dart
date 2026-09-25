@@ -234,10 +234,8 @@ class _WideShellState extends State<_WideShell> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (sidebarOpen) ...[
-                const SizedBox(width: 300, child: Sidebar(showHeader: true)),
-                const VerticalDivider(width: 1),
-              ],
+              // Panes are told apart by surface tone: sidebar and dock sit on surfaceContainerLow.
+              if (sidebarOpen) const SizedBox(width: 300, child: Sidebar(showHeader: true)),
               Expanded(
                 child: _CenterPane(
                   sidebarOpen: sidebarOpen,
@@ -246,7 +244,7 @@ class _WideShellState extends State<_WideShell> {
                   onTogglePanels: _togglePanels,
                 ),
               ),
-              if (dockOpen) ...[const VerticalDivider(width: 1), const SizedBox(width: 340, child: DockPanel())],
+              if (dockOpen) const SizedBox(width: 340, child: DockPanel()),
             ],
           ),
         ),
@@ -330,7 +328,7 @@ class _CenterPane extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(height: 1),
+        const SizedBox(height: 4),
         Expanded(child: selectionBody(selection, machine)),
       ],
     );
@@ -512,7 +510,7 @@ class _HomePane extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.dns_outlined, size: 48, color: theme.colorScheme.outline),
+            Icon(Icons.dns_outlined, size: 48, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
             Text(t.shell.homeTitle, style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),

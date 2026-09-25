@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:omp_core/store.dart';
 
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 
 final _bytes = Expando<Uint8List>();
@@ -74,7 +75,6 @@ class TranscriptImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final size = imageSize(image);
     var width = maxWidth, height = maxHeight;
     if (size != null && size.width > 0 && size.height > 0) {
@@ -98,8 +98,8 @@ class TranscriptImage extends StatelessWidget {
               fit: BoxFit.contain,
               gaplessPlayback: true,
               errorBuilder: (context, error, stack) => ColoredBox(
-                color: scheme.errorContainer,
-                child: Center(child: Icon(Icons.broken_image_outlined, color: scheme.onErrorContainer)),
+                color: AppColors.of(context).errorSurface,
+                child: Center(child: Icon(Icons.broken_image_outlined, color: AppColors.of(context).error)),
               ),
             ),
           ),

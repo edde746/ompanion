@@ -8,6 +8,7 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../models/machine.dart';
 import '../../../sessions/session_view_builder.dart';
@@ -232,7 +233,7 @@ class _RosterTile extends StatelessWidget {
                       style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                   if (usage.isNotEmpty)
-                    Text(usage, style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline)),
+                    Text(usage, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -294,19 +295,20 @@ class StatusIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final colors = AppColors.of(context);
     final t = context.t.dock.hub.status;
     final (Widget icon, String label) = switch (status) {
       RosterStatus.running => (
-        SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2, color: scheme.primary)),
+        SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2, color: colors.running)),
         t.running,
       ),
-      RosterStatus.pending => (Icon(Icons.schedule, size: 16, color: scheme.outline), t.pending),
-      RosterStatus.idle => (Icon(Icons.pause_circle_outline, size: 16, color: scheme.secondary), t.idle),
-      RosterStatus.parked => (Icon(Icons.bedtime_outlined, size: 16, color: scheme.outline), t.parked),
-      RosterStatus.completed => (Icon(Icons.check_circle, size: 16, color: scheme.tertiary), t.completed),
-      RosterStatus.failed => (Icon(Icons.error, size: 16, color: scheme.error), t.failed),
-      RosterStatus.aborted => (Icon(Icons.cancel, size: 16, color: scheme.outline), t.aborted),
+      RosterStatus.pending => (Icon(Icons.schedule, size: 16, color: muted), t.pending),
+      RosterStatus.idle => (Icon(Icons.pause_circle_outline, size: 16, color: muted), t.idle),
+      RosterStatus.parked => (Icon(Icons.bedtime_outlined, size: 16, color: muted), t.parked),
+      RosterStatus.completed => (Icon(Icons.check_circle, size: 16, color: colors.success), t.completed),
+      RosterStatus.failed => (Icon(Icons.error, size: 16, color: colors.error), t.failed),
+      RosterStatus.aborted => (Icon(Icons.cancel, size: 16, color: muted), t.aborted),
     };
     return Tooltip(message: label, child: SizedBox.square(dimension: 16, child: Center(child: icon)));
   }
@@ -396,7 +398,6 @@ class _AgentDetailState extends State<_AgentDetail> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.t.common.cancel)),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             onPressed: () => Navigator.pop(context, true),
             child: Text(t.kill),
           ),
@@ -466,7 +467,7 @@ class _AgentDetailState extends State<_AgentDetail> {
             children: [
               if (details.isNotEmpty)
                 Text(details, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-              if (usage.isNotEmpty) Text(usage, style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline)),
+              if (usage.isNotEmpty) Text(usage, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
               if (agent.task case final task?)
                 GestureDetector(
                   onTap: () => setState(() => _taskExpanded = !_taskExpanded),
@@ -483,7 +484,6 @@ class _AgentDetailState extends State<_AgentDetail> {
             ],
           ),
         ),
-        const Divider(height: 1),
         Expanded(
           child: ListenableBuilder(
             listenable: widget.transcript,
@@ -503,20 +503,21 @@ class _AgentDetailState extends State<_AgentDetail> {
                 children: [
                   if (transcript.error case final error?)
                     Material(
-                      color: scheme.errorContainer,
+                      color: AppColors.of(context).errorSurface,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         child: Text(
                           t.transcriptFailed(error: error.toString()),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(color: scheme.onErrorContainer),
+                          style: theme.textTheme.bodySmall?.copyWith(color: AppColors.of(context).error),
                         ),
                       ),
                     ),
                   Expanded(
                     child: TranscriptView(
                       view: transcript.view,
+                      alignTop: true,
                       actions: TranscriptActions(
                         onCopy: (text) async {
                           await Clipboard.setData(ClipboardData(text: text));
@@ -545,11 +546,11 @@ class _AgentDetailState extends State<_AgentDetail> {
             padding: const EdgeInsets.all(12),
             child: Text(t.noCompanion, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
           )
-        else if (agent.canSteer) ...[
-          const Divider(height: 1),
+        else if (agent.canSteer)
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
                   child: TextField(
@@ -560,21 +561,19 @@ class _AgentDetailState extends State<_AgentDetail> {
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _sendSteer(),
                     decoration: InputDecoration(
-                      isDense: true,
                       hintText: agent.status == RosterStatus.parked ? t.steerParkedHint : t.steerHint,
-                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ),
-                IconButton(
+                const SizedBox(width: AppSizes.gap),
+                IconButton.filled(
                   tooltip: t.steer,
                   onPressed: _busy ? null : _sendSteer,
-                  icon: const Icon(Icons.send),
+                  icon: const Icon(Icons.arrow_upward, size: 20),
                 ),
               ],
             ),
           ),
-        ],
       ],
     );
   }

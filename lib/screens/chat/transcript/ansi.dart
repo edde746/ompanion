@@ -342,8 +342,9 @@ AnsiColor? _colonColour(List<String> sub) {
 }
 
 /// The 16 base terminal colours adapted to a Material 3 [ColorScheme]: each chromatic xterm colour becomes the
-/// primary (text) and primary-container (background) tone of a fidelity scheme seeded with it, so every colour has
-/// the scheme's contrast against its surface; black, white and grey map to the scheme's neutral roles. Indexes
+/// primary (text) and primary-container (background) tone of a tonal-spot scheme seeded with it, so every colour keeps
+/// its hue at the scheme's contrast against its surface, muted beside the monochrome chrome; black, white and grey
+/// map to the scheme's neutral roles. Indexes
 /// 16–255 and 24-bit colours are used as given.
 final class AnsiPalette {
   AnsiPalette._(this._foreground, this._background);
@@ -389,7 +390,7 @@ final class AnsiPalette {
           final seeded = ColorScheme.fromSeed(
             seedColor: _xterm16[index],
             brightness: scheme.brightness,
-            dynamicSchemeVariant: DynamicSchemeVariant.fidelity,
+            dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
           );
           foreground[index] = seeded.primary;
           background[index] = seeded.primaryContainer;

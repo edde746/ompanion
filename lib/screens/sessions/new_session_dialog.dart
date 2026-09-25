@@ -6,6 +6,7 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../providers/shell_provider.dart';
@@ -143,8 +144,12 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
       context: context,
       builder: (_) => _DirectoryPicker(runtime: runtime, start: start.isEmpty ? null : start),
     );
-    if (picked != null) _cwd.text = picked;
+    if (picked != null) _setCwd(picked);
   }
+
+  /// Puts [path] in the directory field with the caret at its end, ready to type a subdirectory.
+  void _setCwd(String path) =>
+      _cwd.value = TextEditingValue(text: path, selection: TextSelection.collapsed(offset: path.length));
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +177,9 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
               key: const ValueKey('new-session-cwd'),
               controller: _cwd,
               autofocus: true,
+              // Desktop fields select everything when the focus comes back from the directory picker; a typed key
+              // would then replace the picked path.
+              selectAllOnFocus: false,
               decoration: InputDecoration(
                 labelText: t.sessions.directory,
                 hintText: t.sessions.directoryHint,
@@ -195,7 +203,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
                     ActionChip(
                       label: Text(shortPath(cwd, _probe?.home)),
                       tooltip: cwd,
-                      onPressed: () => _cwd.text = cwd,
+                      onPressed: () => _setCwd(cwd),
                     ),
                 ],
               ),
@@ -208,7 +216,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
             ),
             if (error != null) ...[
               const SizedBox(height: 12),
-              Text(error, style: TextStyle(color: theme.colorScheme.error)),
+              Text(error, style: TextStyle(color: AppColors.of(context).error)),
             ],
           ],
         ),
@@ -362,7 +370,7 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
                 ),
               ],
             ),
-            const Divider(height: 1),
+            const SizedBox(height: 4),
             Expanded(
               child: error != null
                   ? Center(child: Text(error))

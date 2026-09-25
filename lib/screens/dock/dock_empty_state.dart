@@ -17,7 +17,7 @@ class DockEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 32, color: theme.colorScheme.outline),
+            Icon(icon, size: 32, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 12),
             Text(
               message,

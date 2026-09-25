@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
+import '../../app/theme.dart';
 import '../../config/config_target.dart';
 import '../../config/login.dart';
 import '../../i18n/strings.g.dart';
@@ -194,12 +195,12 @@ class _RpcLoginDialogState extends State<RpcLoginDialog> {
                 if (_done)
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
-                    child: Text(t.config.accounts.loggedIn, style: TextStyle(color: theme.colorScheme.primary)),
+                    child: Text(t.config.accounts.loggedIn, style: TextStyle(color: AppColors.of(context).success)),
                   ),
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
-                    child: SelectableText('$_error', style: TextStyle(color: theme.colorScheme.error)),
+                    child: SelectableText('$_error', style: TextStyle(color: AppColors.of(context).error)),
                   ),
               ],
             ),
@@ -240,7 +241,7 @@ class _LinkBlock extends StatelessWidget {
       children: [
         Text(t.config.accounts.openLink),
         const SizedBox(height: 8),
-        SelectableText(link.url, maxLines: 3, style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace')),
+        SelectableText(link.url, minLines: 1, maxLines: 3, style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace')),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -250,7 +251,7 @@ class _LinkBlock extends StatelessWidget {
               icon: const Icon(Icons.open_in_browser),
               label: Text(t.config.accounts.openBrowser),
             ),
-            OutlinedButton.icon(
+            FilledButton.tonalIcon(
               onPressed: () => Clipboard.setData(ClipboardData(text: copyTarget)),
               icon: const Icon(Icons.copy),
               label: Text(t.config.accounts.copyLink),
@@ -262,7 +263,7 @@ class _LinkBlock extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               t.requests.notWebLink,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.of(context).error),
             ),
           ),
         if (link.instructions case final text?) Padding(padding: const EdgeInsets.only(top: 8), child: Text(text)),
@@ -279,7 +280,7 @@ class _LinkBlock extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               t.config.accounts.forwardFailed(port: '$port', error: '$error'),
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.of(context).error),
             ),
           ),
       ],
@@ -305,14 +306,20 @@ class _Question extends StatelessWidget {
           children: [
             Text(title),
             const SizedBox(height: 8),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: InputDecoration(border: const OutlineInputBorder(), hintText: placeholder),
-              onSubmitted: (text) => onAnswer(request, value: text),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    autofocus: true,
+                    decoration: InputDecoration(hintText: placeholder),
+                    onSubmitted: (text) => onAnswer(request, value: text),
+                  ),
+                ),
+                const SizedBox(width: AppSizes.gap),
+                FilledButton(onPressed: () => onAnswer(request, value: controller.text), child: Text(t.config.accounts.submit)),
+              ],
             ),
-            const SizedBox(height: 8),
-            FilledButton(onPressed: () => onAnswer(request, value: controller.text), child: Text(t.config.accounts.submit)),
           ],
         );
       case SelectRequest(:final title, :final options):
@@ -324,7 +331,7 @@ class _Question extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [for (final option in options) OutlinedButton(onPressed: () => onAnswer(request, value: option), child: Text(option))],
+              children: [for (final option in options) FilledButton.tonal(onPressed: () => onAnswer(request, value: option), child: Text(option))],
             ),
           ],
         );
@@ -339,7 +346,7 @@ class _Question extends StatelessWidget {
               spacing: 8,
               children: [
                 FilledButton(onPressed: () => onAnswer(request, confirmed: true), child: Text(t.config.accounts.yes)),
-                OutlinedButton(onPressed: () => onAnswer(request, confirmed: false), child: Text(t.config.accounts.no)),
+                FilledButton.tonal(onPressed: () => onAnswer(request, confirmed: false), child: Text(t.config.accounts.no)),
               ],
             ),
           ],

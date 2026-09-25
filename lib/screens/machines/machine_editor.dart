@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/build_channel.dart';
+import '../../app/theme.dart';
 import '../../database/app_database.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
@@ -11,6 +12,8 @@ import '../../providers/machines_provider.dart';
 import '../../providers/shell_provider.dart';
 import '../../services/secret_store.dart';
 import '../../utils/ids.dart';
+import '../../widgets/app_segmented.dart';
+import '../../widgets/app_select.dart';
 import '../keys/key_dialogs.dart';
 import '../shell/layout.dart';
 import 'ssh_config_picker.dart';
@@ -297,7 +300,6 @@ class _MachineEditorState extends State<MachineEditor> {
               ],
             ),
           ),
-          const Divider(height: 1),
           Expanded(
             // Not a ListView: validate() checks only mounted fields, and a lazy list unmounts the hops scrolled
             // out of view.
@@ -307,21 +309,16 @@ class _MachineEditorState extends State<MachineEditor> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (canChooseKind) ...[
-                    SegmentedButton<MachineKind>(
-                      segments: [
-                        ButtonSegment(
-                          value: MachineKind.local,
-                          icon: const Icon(Icons.computer),
-                          label: Text(t.machines.thisComputer),
-                        ),
-                        ButtonSegment(
-                          value: MachineKind.ssh,
-                          icon: const Icon(Icons.dns_outlined),
-                          label: Text(t.editor.kindSsh),
-                        ),
-                      ],
-                      selected: {_kind},
-                      onSelectionChanged: (selection) => setState(() => _kind = selection.single),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: AppSegmented<MachineKind>(
+                        value: _kind,
+                        segments: [
+                          (MachineKind.local, t.machines.thisComputer, Icons.computer),
+                          (MachineKind.ssh, t.editor.kindSsh, Icons.dns_outlined),
+                        ],
+                        onChanged: (kind) => setState(() => _kind = kind),
+                      ),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -352,8 +349,10 @@ class _MachineEditorState extends State<MachineEditor> {
                     const SizedBox(height: 4),
                     Text(t.editor.jumpHostsHelp, style: theme.textTheme.bodySmall),
                     for (final (index, jump) in _jumps.indexed)
-                      Card.outlined(
+                      Card(
                         key: ObjectKey(jump),
+                        // One tone below the dialog, so its fields and buttons keep their own tone.
+                        color: theme.colorScheme.surfaceContainerLow,
                         margin: const EdgeInsets.only(top: 12),
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 8, 16),
@@ -410,7 +409,6 @@ class _MachineEditorState extends State<MachineEditor> {
               ),
             ),
           ),
-          const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -481,45 +479,57 @@ class _HopEditor extends StatelessWidget {
           validator: (value) => _required(t, value),
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<AuthMethod>(
-          key: ValueKey(hop.auth),
-          initialValue: hop.auth,
-          decoration: InputDecoration(labelText: t.editor.auth),
-          items: [
-            for (final method in AuthMethod.values)
-              if (method != AuthMethod.agent || isDesktop || hop.auth == AuthMethod.agent)
-                DropdownMenuItem(value: method, child: Text(authLabel(t, method))),
-          ],
-          onChanged: (method) {
-            if (method == null) return;
-            hop.auth = method;
-            onChanged();
-          },
+        _Labeled(
+          label: t.editor.auth,
+          child: AppSelect<AuthMethod>(
+            expand: true,
+            value: hop.auth,
+            options: [
+              for (final method in AuthMethod.values)
+                if (method != AuthMethod.agent || isDesktop || hop.auth == AuthMethod.agent) (method, authLabel(t, method)),
+            ],
+            onChanged: (method) {
+              hop.auth = method;
+              onChanged();
+            },
+          ),
         ),
         if (hop.auth == AuthMethod.key) ...[
           const SizedBox(height: 12),
           if (keys.isEmpty)
             Text(t.editor.noKeys)
           else
-            DropdownButtonFormField<String>(
-              key: ValueKey(hop.keyId),
-              initialValue: keys.any((k) => k.id == hop.keyId) ? hop.keyId : null,
-              decoration: InputDecoration(labelText: t.editor.key),
-              items: [
-                for (final key in keys)
-                  DropdownMenuItem(value: key.id, child: Text('${key.name} · ${key.type}', overflow: TextOverflow.ellipsis)),
-              ],
-              validator: (value) => value == null ? t.editor.chooseKey : null,
-              onChanged: (keyId) {
-                hop.keyId = keyId;
-                onChanged();
+            FormField<String>(
+              validator: (_) => keys.any((k) => k.id == hop.keyId) ? null : t.editor.chooseKey,
+              builder: (field) {
+                final chosen = keys.any((k) => k.id == hop.keyId) ? hop.keyId : null;
+                return _Labeled(
+                  label: t.editor.key,
+                  error: field.errorText,
+                  child: AppSelect<String?>(
+                    expand: true,
+                    value: chosen,
+                    options: [
+                      if (chosen == null) (null, t.editor.chooseKey),
+                      for (final key in keys) (key.id, '${key.name} · ${key.type}'),
+                    ],
+                    onChanged: (keyId) {
+                      if (keyId == null) return;
+                      hop.keyId = keyId;
+                      field.didChange(keyId);
+                      onChanged();
+                    },
+                  ),
+                );
               },
             ),
+          const SizedBox(height: AppSizes.gap),
           Wrap(
-            spacing: 4,
+            spacing: AppSizes.gap,
+            runSpacing: AppSizes.gap,
             children: [
-              TextButton(onPressed: () => onAddKey(false), child: Text(t.editor.importKey)),
-              TextButton(onPressed: () => onAddKey(true), child: Text(t.editor.generateKey)),
+              FilledButton.tonal(onPressed: () => onAddKey(false), child: Text(t.editor.importKey)),
+              FilledButton.tonal(onPressed: () => onAddKey(true), child: Text(t.editor.generateKey)),
             ],
           ),
         ],
@@ -556,6 +566,33 @@ String authLabel(Translations t, AuthMethod method) => switch (method) {
   AuthMethod.none => t.auth.none,
   AuthMethod.keyboardInteractive => t.auth.keyboardInteractive,
 };
+
+/// A control with its label above it, and an error below when there is one.
+class _Labeled extends StatelessWidget {
+  const _Labeled({required this.label, required this.child, this.error});
+
+  final String label;
+  final Widget child;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(label, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 4),
+        child,
+        if (error case final error?)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 12),
+            child: Text(error, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.of(context).error)),
+          ),
+      ],
+    );
+  }
+}
 
 class _Note extends StatelessWidget {
   const _Note({required this.icon, required this.text});

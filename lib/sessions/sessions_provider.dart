@@ -221,6 +221,17 @@ class SessionsProvider extends ChangeNotifier {
 
   SessionListing listingOf(Machine machine) => _listings[machine.id] ?? const SessionListing();
 
+  /// [session]'s file in its machine's last listing: the same file, or the run holding it.
+  SessionSummary? summaryOf(LiveSession session) {
+    final id = _machineIds[session];
+    if (id == null) return null;
+    return _listings[id]?.sessions.where((summary) => holds(session, summary)).firstOrNull;
+  }
+
+  /// Whether [session] is the one in [summary]'s file.
+  static bool holds(LiveSession session, SessionSummary summary) =>
+      session.sessionPath == summary.path || (summary.runId != null && session.runId == summary.runId);
+
   /// Connects when needed, probes, and lists the machine's sessions and live runs. A machine that lacked omp is probed
   /// again: omp may have been installed since, by hand or through the install dialog. Failures land in
   /// [listingOf]`.error` and in the runtime's status.

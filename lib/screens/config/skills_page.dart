@@ -7,6 +7,7 @@ import '../../config/cli_results.dart';
 import '../../config/config_target.dart';
 import '../../config/omp_cli.dart';
 import '../../i18n/strings.g.dart';
+import '../../widgets/app_search_field.dart';
 import 'config_widgets.dart';
 
 /// Registry skills (skills.omp.sh): search and info through `omp skill … --json`, the installed ones from
@@ -30,7 +31,7 @@ class _SkillsPageState extends State<SkillsPage> {
   bool _running = false;
   String? _command;
   String? _output;
-  final _query = TextEditingController();
+  String _query = '';
 
   String? get _cwd => widget.target.projectSession?.cwd;
 
@@ -38,12 +39,6 @@ class _SkillsPageState extends State<SkillsPage> {
   void initState() {
     super.initState();
     unawaited(_loadInstalled());
-  }
-
-  @override
-  void dispose() {
-    _query.dispose();
-    super.dispose();
   }
 
   Future<void> _loadInstalled() async {
@@ -73,22 +68,30 @@ class _SkillsPageState extends State<SkillsPage> {
     }
   }
 
-  Future<void> _search() async {
-    final query = _query.text.trim();
-    if (query.isEmpty) return;
+  /// `omp skill search` as the query changes; a reply to an older query is dropped.
+  Future<void> _search(String text) async {
+    final query = text.trim();
     setState(() {
-      _searching = true;
+      _query = query;
       _searchError = null;
+      _results = null;
+      _searching = query.isNotEmpty;
     });
+    if (query.isEmpty) return;
+    SkillSearch? search;
+    Object? failure;
     try {
       final result = await widget.target.omp(['skill', 'search', query, '--json']);
-      final search = SkillSearch.fromJson(asJsonObject(cliJson(result.stdout), 'skill search'));
-      if (mounted) setState(() => _results = search);
+      search = SkillSearch.fromJson(asJsonObject(cliJson(result.stdout), 'skill search'));
     } on Object catch (error) {
-      if (mounted) setState(() => _searchError = error);
-    } finally {
-      if (mounted) setState(() => _searching = false);
+      failure = error;
     }
+    if (!mounted || query != _query) return;
+    setState(() {
+      _results = search;
+      _searchError = failure;
+      _searching = false;
+    });
   }
 
   Future<void> _info(String id) async {
@@ -162,6 +165,7 @@ class _SkillsPageState extends State<SkillsPage> {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final results = _results;
     final installed = _installed;
     return Column(
@@ -172,115 +176,109 @@ class _SkillsPageState extends State<SkillsPage> {
           subtitle: t.config.skills.registry,
           actions: [IconButton(tooltip: t.config.refresh, onPressed: _loadInstalled, icon: const Icon(Icons.refresh))],
         ),
-        const Divider(height: 1),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
             children: [
-              Text(t.config.skills.installed, style: theme.textTheme.titleMedium),
+              ConfigSectionTitle(t.config.skills.installed),
               if (_error != null) ConfigError(_error!, onRetry: _loadInstalled),
-              if (installed == null && _error == null) const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
-              if (installed != null && installed.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(t.config.skills.none)),
+              if (installed == null && _error == null) const LinearProgressIndicator(),
+              if (installed != null && installed.isEmpty) Text(t.config.skills.none, style: muted),
               for (final skill in installed ?? const <InstalledSkill>[])
-                Card.outlined(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    title: Text(skill.id),
-                    subtitle: Text(
-                      [
-                        skill.version ?? t.config.skills.notInstalled,
-                        if (skill.range != null) t.config.skills.range(range: skill.range!),
-                        skill.scope == 'user' ? t.config.mcp.userScope : t.config.mcp.projectScope,
-                      ].join(' · '),
+                _SkillRow(
+                  title: skill.id,
+                  subtitle: [
+                    skill.version ?? t.config.skills.notInstalled,
+                    if (skill.range != null) t.config.skills.range(range: skill.range!),
+                    skill.scope == 'user' ? t.config.mcp.userScope : t.config.mcp.projectScope,
+                  ].join(' · '),
+                  actions: [
+                    TextButton(onPressed: () => _info(skill.id), child: Text(t.config.skills.info)),
+                    TextButton(
+                      onPressed: _running ? null : () => _run(['update', skill.id], user: skill.scope == 'user'),
+                      child: Text(t.config.plugins.update),
                     ),
-                    trailing: Wrap(
-                      spacing: 4,
-                      children: [
-                        TextButton(onPressed: () => _info(skill.id), child: Text(t.config.skills.info)),
-                        TextButton(
-                          onPressed: _running ? null : () => _run(['update', skill.id], user: skill.scope == 'user'),
-                          child: Text(t.config.plugins.update),
-                        ),
-                        TextButton(
-                          onPressed: _running || (skill.scope == 'project' && _cwd == null)
-                              ? null
-                              : () => _run(['uninstall', skill.id], user: skill.scope == 'user'),
-                          child: Text(t.config.plugins.uninstall),
-                        ),
-                      ],
+                    TextButton(
+                      onPressed: _running || (skill.scope == 'project' && _cwd == null)
+                          ? null
+                          : () => _run(['uninstall', skill.id], user: skill.scope == 'user'),
+                      child: Text(t.config.plugins.uninstall),
                     ),
-                  ),
-                ),
-              const SizedBox(height: 24),
-              Text(t.config.skills.search, style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _query,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.search),
-                        hintText: t.config.skills.searchHint,
-                      ),
-                      onSubmitted: (_) => _search(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(onPressed: _searching ? null : _search, child: Text(t.config.skills.searchAction)),
-                ],
-              ),
-              if (_searching) const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
-              if (_searchError != null) ConfigError(_searchError!, onRetry: _search),
-              if (results != null) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(t.config.skills.results(shown: '${results.hits.length}', total: '${results.total}'), style: theme.textTheme.bodySmall),
-                ),
-                for (final hit in results.hits)
-                  Card.outlined(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    child: ListTile(
-                      title: Text('${hit.id}@${hit.version}'),
-                      subtitle: Text(
-                        [
-                          ?hit.description,
-                          [
-                            t.config.skills.downloads(number: '${hit.weeklyDownloads}'),
-                            if (hit.publisher != null) t.config.skills.by(name: hit.publisher!),
-                            if (hit.keywords.isNotEmpty) hit.keywords.join(', '),
-                          ].join(' · '),
-                          if (hit.deprecated != null) t.config.skills.deprecated(reason: hit.deprecated!),
-                        ].join('\n'),
-                      ),
-                      isThreeLine: hit.description != null,
-                      trailing: Wrap(
-                        spacing: 4,
-                        children: [
-                          TextButton(onPressed: () => _info(hit.id), child: Text(t.config.skills.info)),
-                          FilledButton.tonal(onPressed: _running ? null : () => _install(hit.id), child: Text(t.config.plugins.installAction)),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-              if (_command != null) ...[
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(child: Text(_command!, style: theme.textTheme.labelLarge?.copyWith(fontFamily: 'monospace'))),
-                    if (_running) const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                   ],
                 ),
-                const SizedBox(height: 8),
-                if (_output != null) CommandOutputView(_output!.isEmpty ? t.config.noOutput : _output!),
+              ConfigSectionTitle(t.config.skills.search),
+              AppSearchField(
+                key: const ValueKey('skills-search'),
+                hint: t.config.skills.searchHint,
+                debounce: const Duration(milliseconds: 500),
+                onChanged: (text) => unawaited(_search(text)),
+              ),
+              if (_searching) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
+              if (_searchError != null) ConfigError(_searchError!, onRetry: () => _search(_query)),
+              if (results != null && results.hits.isEmpty)
+                Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text(t.config.skills.noHits(query: _query), style: muted)),
+              if (results != null && results.hits.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(t.config.skills.results(shown: '${results.hits.length}', total: '${results.total}'), style: muted),
+                ),
+                for (final hit in results.hits)
+                  _SkillRow(
+                    title: '${hit.id}@${hit.version}',
+                    subtitle: [
+                      ?hit.description,
+                      [
+                        t.config.skills.downloads(number: '${hit.weeklyDownloads}'),
+                        if (hit.publisher != null) t.config.skills.by(name: hit.publisher!),
+                        if (hit.keywords.isNotEmpty) hit.keywords.join(', '),
+                      ].join(' · '),
+                      if (hit.deprecated != null) t.config.skills.deprecated(reason: hit.deprecated!),
+                    ].join('\n'),
+                    actions: [
+                      TextButton(onPressed: () => _info(hit.id), child: Text(t.config.skills.info)),
+                      FilledButton.tonal(onPressed: _running ? null : () => _install(hit.id), child: Text(t.config.plugins.installAction)),
+                    ],
+                  ),
               ],
+              if (_command case final command?) CommandRun(command: command, running: _running, output: _output),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A skill: its id, a secondary line and its actions on a flat block.
+class _SkillRow extends StatelessWidget {
+  const _SkillRow({required this.title, required this.subtitle, required this.actions});
+
+  final String title;
+  final String subtitle;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: ConfigBlock(
+        padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: theme.textTheme.bodyMedium),
+                  Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+            ...actions,
+          ],
+        ),
+      ),
     );
   }
 }

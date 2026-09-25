@@ -221,9 +221,15 @@ final class SessionTree {
       lifted[i] = visible[i] ? [i] : shown;
     }
 
+    // Several first entries (the first message was replaced, or a hidden root holds several) are branches too, one
+    // level in, so an abandoned one cannot read as the continuation of the current one.
     final roots = [for (final root in _ordered(_roots)) ...lifted[root]];
     final rows = <TreeRow>[];
-    final stack = <_Visit>[for (final root in roots.reversed) _Visit(root, 0, false, false)];
+    final branched = roots.length > 1;
+    final stack = <_Visit>[
+      for (var k = roots.length - 1; k >= 0; k--)
+        _Visit(roots[k], branched ? 1 : 0, branched, branched && k == roots.length - 1),
+    ];
     while (stack.isNotEmpty) {
       final visit = stack.removeLast();
       final entry = entries[visit.index];

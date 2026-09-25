@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/session_view_builder.dart';
 import '../dock_empty_state.dart';
@@ -53,7 +54,7 @@ class _PhaseSection extends StatelessWidget {
               Expanded(
                 child: Text(
                   phase.name,
-                  style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.primary),
+                  style: theme.textTheme.titleSmall,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -79,13 +80,14 @@ class _TaskTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final colors = AppColors.of(context);
     final t = context.t.dock.todo;
     final (icon, color, label) = switch (task.status) {
-      TodoStatus.pending => (Icons.radio_button_unchecked, scheme.outline, t.pending),
-      TodoStatus.inProgress => (Icons.timelapse, scheme.primary, t.inProgress),
-      TodoStatus.completed => (Icons.check_circle, scheme.tertiary, t.completed),
-      TodoStatus.abandoned => (Icons.cancel_outlined, scheme.outline, t.abandoned),
-      TodoStatus.blocked => (Icons.block, scheme.error, t.blocked),
+      TodoStatus.pending => (Icons.radio_button_unchecked, scheme.onSurfaceVariant, t.pending),
+      TodoStatus.inProgress => (Icons.timelapse, scheme.onSurface, t.inProgress),
+      TodoStatus.completed => (Icons.check_circle, colors.success, t.completed),
+      TodoStatus.abandoned => (Icons.cancel_outlined, scheme.onSurfaceVariant, t.abandoned),
+      TodoStatus.blocked => (Icons.block, colors.error, t.blocked),
     };
     final finished = task.status == TodoStatus.completed || task.status == TodoStatus.abandoned;
     final details = [
@@ -121,7 +123,7 @@ class _TaskTile extends StatelessWidget {
                     child: Text(
                       line,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: task.status == TodoStatus.blocked ? scheme.error : scheme.onSurfaceVariant,
+                        color: task.status == TodoStatus.blocked ? colors.error : scheme.onSurfaceVariant,
                       ),
                     ),
                   ),

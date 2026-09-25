@@ -1,30 +1,30 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import 'ask.dart';
 import 'request_frame.dart';
+import 'transcript/code_style.dart';
 
-/// The companion's full-fidelity `ask` form: every question with its header, options with descriptions,
+/// The companion's full-fidelity `ask` form, inline: every question with its header, options with descriptions,
 /// previews and the recommended mark, multi-select, an "Other" answer and a note, plus "chat about this".
-class AskContent extends StatefulWidget {
-  const AskContent({
+class AskForm extends StatefulWidget {
+  const AskForm({
     super.key,
     required this.params,
     required this.drafts,
-    required this.sheet,
     required this.busy,
     required this.error,
     required this.onSubmit,
     required this.onCancel,
-    required this.onHide,
+    this.navigation,
   });
 
   final Map<String, Object?> params;
 
-  /// The answers entered so far, one per question: empty the first time, filled and kept up to date here, so a hidden
-  /// form comes back as it was left.
+  /// The answers entered so far, one per question: empty the first time, filled and kept up to date here, so a form
+  /// the user navigated away from comes back as it was left.
   final List<AskDraft> drafts;
-  final bool sheet;
   final bool busy;
   final String? error;
 
@@ -33,16 +33,16 @@ class AskContent extends StatefulWidget {
 
   /// Cancels the request, which aborts the turn as Esc does in the TUI.
   final VoidCallback onCancel;
-  final VoidCallback onHide;
+  final Widget? navigation;
 
   @override
-  State<AskContent> createState() => _AskContentState();
+  State<AskForm> createState() => _AskFormState();
 }
 
 /// Radio value of the "Other" choice; option labels are the other values.
 const _otherValue = '\u0000other';
 
-class _AskContentState extends State<AskContent> {
+class _AskFormState extends State<AskForm> {
   AskParams? _params;
   String? _invalid;
   List<TextEditingController> _custom = const [];
@@ -86,22 +86,21 @@ class _AskContentState extends State<AskContent> {
     final t = context.t;
     final params = _params;
     final busy = widget.busy;
-    final hide = TextButton(onPressed: busy ? null : widget.onHide, child: Text(t.requests.hide));
     final cancel = TextButton(onPressed: busy ? null : widget.onCancel, child: Text(t.common.cancel));
     if (params == null) {
       return RequestFrame(
-        sheet: widget.sheet,
         title: t.ask.title,
+        navigation: widget.navigation,
         error: widget.error,
         body: Text(t.ask.invalid(error: _invalid ?? '')),
-        actions: [hide, cancel],
+        actions: [cancel],
       );
     }
     _syncText();
     final deadline = params.deadline;
     return RequestFrame(
-      sheet: widget.sheet,
       title: params.questions.length == 1 ? t.ask.title : t.ask.titleMany(n: params.questions.length),
+      navigation: widget.navigation,
       error: widget.error,
       deadline: deadline == null ? null : DateTime.fromMillisecondsSinceEpoch(deadline),
       body: Column(
@@ -109,7 +108,7 @@ class _AskContentState extends State<AskContent> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final (index, question) in params.questions.indexed) ...[
-            if (index > 0) const Divider(height: 32),
+            if (index > 0) const SizedBox(height: 20),
             _QuestionForm(
               question: question,
               draft: _drafts[index],
@@ -122,7 +121,6 @@ class _AskContentState extends State<AskContent> {
         ],
       ),
       actions: [
-        hide,
         TextButton(onPressed: busy ? null : () => widget.onSubmit(askChat), child: Text(t.ask.chat)),
         cancel,
         FilledButton(
@@ -165,6 +163,7 @@ class _QuestionForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
+    final secondary = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final header = question.header;
     final options = [
       for (final (index, option) in question.options.indexed)
@@ -187,21 +186,18 @@ class _QuestionForm extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (header != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Chip(label: Text(header), visualDensity: VisualDensity.compact),
-          ),
+          Text(header, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(question.question, style: theme.textTheme.bodyLarge),
+        if (question.multi) Text(t.ask.multi, style: secondary),
         const SizedBox(height: 4),
-        Text(question.question, style: theme.textTheme.titleMedium),
-        if (question.multi)
-          Text(t.ask.multi, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        const SizedBox(height: 8),
         if (question.multi) ...[
           ...options,
           CheckboxListTile(
             value: draft.other,
             onChanged: enabled ? (_) => _chooseOther() : null,
             controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
             title: otherField,
           ),
         ] else
@@ -214,15 +210,21 @@ class _QuestionForm extends StatelessWidget {
             child: Column(
               children: [
                 ...options,
-                RadioListTile<String>(value: _otherValue, enabled: enabled, title: otherField),
+                RadioListTile<String>(
+                  value: _otherValue,
+                  enabled: enabled,
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  title: otherField,
+                ),
               ],
             ),
           ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSizes.gap),
         TextField(
           controller: note,
           enabled: enabled,
-          decoration: InputDecoration(labelText: t.ask.note, isDense: true, border: const OutlineInputBorder()),
+          decoration: InputDecoration(hintText: t.ask.note, isDense: true),
           onChanged: (_) => onChanged(),
         ),
       ],
@@ -237,17 +239,14 @@ class _QuestionForm extends StatelessWidget {
       children: [
         Flexible(child: Text(option.label)),
         if (recommended) ...[
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSizes.gap),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
+              color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: const BorderRadius.all(Radius.circular(6)),
             ),
-            child: Text(
-              t.ask.recommended,
-              style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onPrimaryContainer),
-            ),
+            child: Text(t.ask.recommended, style: theme.textTheme.labelSmall),
           ),
         ],
       ],
@@ -263,10 +262,10 @@ class _QuestionForm extends StatelessWidget {
             margin: const EdgeInsets.only(top: 6),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
+              color: theme.colorScheme.surfaceContainerHigh,
               borderRadius: const BorderRadius.all(Radius.circular(6)),
             ),
-            child: SelectableText(preview, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+            child: SelectableText(preview, style: codeTextStyle(theme)),
           ),
       ],
     );
@@ -276,6 +275,8 @@ class _QuestionForm extends StatelessWidget {
         value: chosen,
         onChanged: enabled ? (_) => _choose(option.label) : null,
         controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
         title: title,
         subtitle: hasSubtitle ? subtitle : null,
       );
@@ -283,6 +284,8 @@ class _QuestionForm extends StatelessWidget {
     return RadioListTile<String>(
       value: option.label,
       enabled: enabled,
+      contentPadding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
       title: title,
       subtitle: hasSubtitle ? subtitle : null,
     );

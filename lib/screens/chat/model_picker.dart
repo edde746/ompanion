@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:omp_core/rpc.dart';
@@ -6,53 +7,132 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../widgets/app_search_field.dart';
 
-/// Lets the user pick one of the machine's available models and switches [session] to it (RPC `set_model`,
-/// this session only).
-Future<void> pickModel(BuildContext context, LiveSession session, Machine machine) async {
-  final t = context.t;
-  final sessions = context.read<SessionsProvider>();
-  final messenger = ScaffoldMessenger.of(context);
-  final picked = await showDialog<RpcModel>(
-    context: context,
-    builder: (_) => _ModelPickerDialog(
-      load: ({required bool refresh}) => sessions.models(machine, session.rpc, refresh: refresh),
-      current: session.view.config.model,
-    ),
-  );
-  if (picked == null) return;
-  try {
-    await session.rpc.setModel(picked.provider, picked.id);
-  } on Object catch (error) {
-    messenger.showSnackBar(SnackBar(content: Text(t.chat.modelFailed(error: '$error'))));
+/// The composer's model button: opens a searchable list of the machine's models next to it and switches [session]
+/// to the picked one (RPC `set_model`, this session only).
+class ModelPicker extends StatefulWidget {
+  const ModelPicker({super.key, required this.session, required this.machine, required this.model});
+
+  final LiveSession session;
+  final Machine? machine;
+  final ModelRef? model;
+
+  @override
+  State<ModelPicker> createState() => _ModelPickerState();
+}
+
+class _ModelPickerState extends State<ModelPicker> {
+  final _menu = MenuController();
+
+  Future<void> _pick(RpcModel picked) async {
+    _menu.close();
+    final t = context.t;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.session.rpc.setModel(picked.provider, picked.id);
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(t.chat.modelFailed(error: '$error'))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final theme = Theme.of(context);
+    final model = widget.model;
+    final machine = widget.machine;
+    return MenuAnchor(
+      controller: _menu,
+      style: MenuStyle(backgroundColor: WidgetStatePropertyAll(theme.colorScheme.surfaceContainer)),
+      menuChildren: [
+        if (machine != null)
+          _ModelList(
+            load: ({required bool refresh}) =>
+                context.read<SessionsProvider>().models(machine, widget.session.rpc, refresh: refresh),
+            current: model,
+            onPick: (picked) => unawaited(_pick(picked)),
+          ),
+      ],
+      builder: (context, controller, _) => ToolbarButton(
+        key: const ValueKey('model-picker'),
+        icon: Icons.auto_awesome_outlined,
+        label: model == null ? t.chat.noModel : (model.name ?? model.id),
+        tooltip: model?.selector,
+        onPressed: machine == null ? null : () => controller.isOpen ? controller.close() : controller.open(),
+      ),
+    );
   }
 }
 
-class _ModelPickerDialog extends StatefulWidget {
-  const _ModelPickerDialog({required this.load, required this.current});
+/// A low-emphasis toolbar control: icon, label and a chevron, the height of every other control.
+class ToolbarButton extends StatelessWidget {
+  const ToolbarButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.tooltip,
+    this.busy = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? tooltip;
+  final VoidCallback? onPressed;
+
+  /// Shows a spinner in place of [icon].
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final button = TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: muted,
+        padding: const EdgeInsetsDirectional.only(start: 8, end: 4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (busy)
+            const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2))
+          else
+            Icon(icon, size: 16),
+          const SizedBox(width: 6),
+          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 2),
+          const Icon(Icons.expand_more, size: 16),
+        ],
+      ),
+    );
+    final tooltip = this.tooltip;
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
+  }
+}
+
+class _ModelList extends StatefulWidget {
+  const _ModelList({required this.load, required this.current, required this.onPick});
 
   final Future<List<RpcModel>> Function({required bool refresh}) load;
   final ModelRef? current;
+  final ValueChanged<RpcModel> onPick;
 
   @override
-  State<_ModelPickerDialog> createState() => _ModelPickerDialogState();
+  State<_ModelList> createState() => _ModelListState();
 }
 
-class _ModelPickerDialogState extends State<_ModelPickerDialog> {
-  final _query = TextEditingController();
+class _ModelListState extends State<_ModelList> {
   late Future<List<RpcModel>> _models = widget.load(refresh: false);
-
-  @override
-  void dispose() {
-    _query.dispose();
-    super.dispose();
-  }
+  String _query = '';
 
   List<RpcModel> _filter(List<RpcModel> models) {
-    final words = _query.text.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final words = _query.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     final matching = [
       for (final model in models)
         if (words.every((word) => '${model.provider}/${model.id} ${model.name}'.toLowerCase().contains(word))) model,
@@ -65,29 +145,33 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
-    return AlertDialog(
-      title: Row(
-        children: [
-          Expanded(child: Text(t.chat.modelTitle)),
-          IconButton(
-            tooltip: t.chat.refreshModels,
-            icon: const Icon(Icons.refresh),
-            onPressed: () => setState(() => _models = widget.load(refresh: true)),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: 520,
-        height: 480,
+    final screen = MediaQuery.sizeOf(context);
+    return SizedBox(
+      width: math.min(440, screen.width - 32),
+      height: math.min(420, screen.height * 0.6),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSizes.gap),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _query,
-              autofocus: true,
-              decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: t.chat.searchModels),
-              onChanged: (_) => setState(() {}),
+            Row(
+              children: [
+                Expanded(
+                  child: AppSearchField(
+                    autofocus: true,
+                    hint: t.chat.searchModels,
+                    onChanged: (query) => setState(() => _query = query),
+                  ),
+                ),
+                const SizedBox(width: AppSizes.gap),
+                IconButton(
+                  tooltip: t.chat.refreshModels,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  onPressed: () => setState(() => _models = widget.load(refresh: true)),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSizes.gap),
             Expanded(
               child: FutureBuilder<List<RpcModel>>(
                 future: _models,
@@ -111,8 +195,11 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
                         children: [
                           if (newProvider)
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                              child: Text(model.provider, style: theme.textTheme.labelLarge),
+                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+                              child: Text(
+                                model.provider,
+                                style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                              ),
                             ),
                           ListTile(
                             dense: true,
@@ -125,8 +212,8 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
                                 if (model.reasoning) t.chat.reasoning,
                               ].join(' · '),
                             ),
-                            trailing: selected ? const Icon(Icons.check) : null,
-                            onTap: () => Navigator.pop(context, model),
+                            trailing: selected ? const Icon(Icons.check, size: 18) : null,
+                            onTap: () => widget.onPick(model),
                           ),
                         ],
                       );
@@ -138,7 +225,6 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
           ],
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(t.common.cancel))],
     );
   }
 }

@@ -241,7 +241,19 @@
     "noHostKeys": "No host key trusted yet. The first connection asks.",
     "forgetHostKey": "Forget this host key",
     "noKeySelected": "no key selected",
-    "keyNamed": "key $name"
+    "facts": "System",
+    "status": "Status",
+    "os": "OS",
+    "arch": "Architecture",
+    "shell": "Shell",
+    "home": "Home",
+    "omp": "omp",
+    "ompVersion": "omp version",
+    "companion": "Companion",
+    "companionReady": "Uploaded",
+    "companionMissing": "Not uploaded",
+    "notFound": "Not found",
+    "notProbed": "Connect to read the machine's OS, shell and omp."
   },
   "auth": {
     "key": "Key",
@@ -352,7 +364,8 @@
     "failed": "Tailscale did not answer: $message",
     "notRunning": "Tailscale is not connected (state: $state).",
     "noPeers": "No other devices in this tailnet.",
-    "offline": "offline"
+    "offline": "offline",
+    "search": "Search devices"
   },
   "sshConfig": {
     "title": "SSH config hosts",
@@ -389,7 +402,11 @@
     "shortcutTogglePanels": "Toggle panels",
     "shortcutPanelTab": "Show a panel tab",
     "shortcutAddMachine": "Add machine",
-    "shortcutSettings": "Settings"
+    "shortcutSettings": "Settings",
+    "shortcutNewSession": "New session",
+    "shortcutTogglePause": "Pause or resume the session",
+    "shortcutPalette": "Command palette",
+    "shortcutAbort": "Stop the running turn"
   },
   "time": {
     "now": "now",
@@ -412,11 +429,16 @@
     "newSessionHere": "New session in this directory",
     "newSessionOn": "New session on $machine",
     "none": "No sessions yet.",
-    "untitled": "Untitled session",
+    "untitled": "New session",
     "unknownDirectory": "Unknown directory",
     "showMore": "Show $n more",
-    "running": "Running",
-    "waiting": "Waiting for your answer",
+    "working": "Working",
+    "needsInput": "Needs your input",
+    "failed": "The last run failed",
+    "disconnected": "Disconnected",
+    "runningOnMachine": "Open in omp on the machine",
+    "opening": "Opening…",
+    "unread": "Unread",
     "openFailed": "Could not open the session: $error",
     "listFailed": "Could not list sessions: $error",
     "directory": "Working directory",
@@ -436,10 +458,9 @@
   "install": {
     "title": "Install omp on $machine",
     "notConnected": "Connect to the machine first.",
-    "facts": "$os $arch · omp $version into $dir",
     "viaDownload": "The machine downloads this release from GitHub and checks its SHA-256 before installing it.",
     "viaUpload": "The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.",
-    "manual": "Or run this on the machine yourself:",
+    "manual": "Run the script yourself",
     "install": "Install",
     "installing": "Downloading and installing on the machine…",
     "installFailed": "Installing on the machine failed",
@@ -449,12 +470,14 @@
     "checking": "Checking the installation…",
     "stillMissing": "omp is still not usable: $reason",
     "noAsset": "omp publishes no build for $os $arch.",
-    "done": "Installed omp $version."
+    "done": "Installed omp $version.",
+    "os": "OS",
+    "arch": "Architecture",
+    "release": "Release",
+    "directory": "Installs into"
   },
   "chat": {
-    "untitled": "New session",
     "noModel": "No model",
-    "modelTitle": "Model",
     "searchModels": "Search models",
     "refreshModels": "Reload the model list",
     "noModels": "No models match.",
@@ -463,7 +486,6 @@
     "contextWindow": "$tokens tokens",
     "reasoning": "reasoning",
     "thinking": "Thinking: $level",
-    "thinkingOff": "off",
     "noThinking": "This model has no thinking levels.",
     "thinkingFailed": "Could not change the thinking level: $error",
     "contextTooltip": "Context: $tokens of $window tokens ($percent%) · cost $cost",
@@ -491,6 +513,7 @@
     "failed": "The last run failed: $error",
     "failedUnknown": "unknown error",
     "aborted": "Stopped",
+    "closedState": "Closed",
     "commandOutput": "Command output",
     "extensionError": "Extension error in $path ($event): $error",
     "fallbackServed": "Served by the fallback model $model.",
@@ -507,8 +530,6 @@
   "composer": {
     "hint": "Message omp",
     "hintRunning": "Steer the running turn",
-    "keys": "Enter sends · Shift+Enter new line · / commands · !command shell · \\$code Python",
-    "keysRunning": "Enter steers · $alt+Enter queues a follow-up · Esc stops",
     "send": "Send",
     "steer": "Steer",
     "followUp": "Follow-up",
@@ -519,12 +540,12 @@
     "sendFailed": "Not sent: $error"
   },
   "queue": {
-    "queued": "Queued",
     "steer": "Steering",
     "followUp": "Follow-up",
     "more": "+$n more",
-    "editLast": "Edit last",
-    "popFailed": "Could not take the message back: $error"
+    "edit": "Edit in the composer",
+    "remove": "Remove from the queue",
+    "takeFailed": "Could not change the queue: $error"
   },
   "exec": {
     "running": "running",
@@ -536,9 +557,9 @@
   },
   "requests": {
     "approvalTitle": "Allow $tool?",
-    "waiting": "Waiting for your answer: $title",
-    "answer": "Answer",
-    "hide": "Later",
+    "position": "$index of $count",
+    "previous": "Previous request",
+    "next": "Next request",
     "submit": "Submit",
     "yes": "Yes",
     "no": "No",
@@ -587,6 +608,7 @@
     "lengthLimit": "Stopped at the output token limit.",
     "retryRecovered": "This attempt failed; retry $attempt succeeded.",
     "retrySuperseded": "This attempt failed; retrying gave up after attempt $attempt.",
+    "retryFailed": "This attempt failed; retry $attempt failed too.",
     "tokensIn": "$count in",
     "tokensOut": "$count out",
     "tokensCached": "$count cached",
@@ -653,6 +675,14 @@
     "showSummary": "Show summary",
     "hideSummary": "Hide summary",
     "branchSummary": "Summary of the branch you left",
+    "summaryFiles": "Files",
+    "fileRead": "read",
+    "fileWritten": "written",
+    "fileReadWritten": "read and written",
+    "filesElided": {
+      "one": "$n more file",
+      "other": "$n more files"
+    },
     "modelChange": "Model: $model",
     "modelRoleChange": "Model ($role): $model",
     "thinkingLevel": "Thinking: $level",
@@ -685,8 +715,8 @@
     },
     "scope": {
       "global": "Global",
-      "project": "Project $name",
-      "projectNone": "Project (open a session here)"
+      "project": "Project",
+      "projectNone": "Open a session on this machine to edit its project settings."
     },
     "provenance": {
       "env": "env $name",
@@ -707,7 +737,7 @@
       "editing": "Editing $path",
       "advancedTab": "Config file only",
       "advancedNote": "Settings without a row in omp's settings panel, grouped by their first key.",
-      "themeNote": "These are omp's terminal UI settings. The app's own look follows the app settings (Material 3).",
+      "themeNote": "These are omp's terminal UI settings. The app's own look follows the app settings.",
       "noMatches": "No setting matches.",
       "reset": "Reset to the inherited value",
       "unset": "unset",
@@ -722,7 +752,6 @@
       "secretHelp": "Sent to the machine as a private file that omp reads and deletes; never shown or logged.",
       "secretGlobalOnly": "Credentials are saved in the global config only.",
       "addItem": "Add",
-      "overridden": "In effect: $value",
       "overriddenLine": "In effect: $value (a higher layer wins)",
       "fileError": "Could not read $path: $error"
     },
@@ -752,11 +781,6 @@
     "accounts": {
       "machineWide": "Credentials are stored per machine.",
       "sessionView": "In use and pinned marks refer to the session in $path.",
-      "stored": "Stored credentials",
-      "none": "No stored credentials.",
-      "currentModel": "current model",
-      "noSource": "No working credential",
-      "fromEnv": "From the environment variable $name",
       "oauthAccount": "OAuth",
       "apiKeyAccount": "API key",
       "active": "in use",
@@ -767,13 +791,8 @@
       "logout": "Log out",
       "logoutTitle": "Log out $account?",
       "logoutBody": "The stored credential for $provider is removed from this machine.",
-      "oauth": "Log in with an account",
       "oauthLocal": "The browser opens on this computer.",
       "oauthRemote": "The browser opens on this device; the app forwards omp's callback port to the machine.",
-      "apiKey": "API key",
-      "apiKeyHint": "Stored in omp's credential store on the machine, like /login with a pasted key.",
-      "provider": "Provider",
-      "key": "Key",
       "saveKey": "Save key",
       "keyStored": "Key stored for $provider.",
       "loginTitle": "Log in to $provider",
@@ -787,7 +806,31 @@
       "yes": "Yes",
       "no": "No",
       "loggedIn": "Logged in.",
-      "bootstrap": "No model works on this machine yet. Sign in with an account or add an API key; settings and roles work meanwhile."
+      "bootstrap": "No model works on this machine yet. Sign in with an account or add an API key; settings and roles work meanwhile.",
+      "search": "Search providers",
+      "noMatches": "No provider matches.",
+      "signedIn": "signed in",
+      "signIn": "Sign in",
+      "keyHint": "Paste an API key",
+      "kind": {
+        "account": "account",
+        "apiKey": "API key",
+        "local": "local"
+      },
+      "source": {
+        "runtime": "omp uses a key set for this omp process only.",
+        "config": "omp uses the key that models.yml sets.",
+        "oauth": "omp uses a signed-in account.",
+        "apiKey": "omp uses a stored API key.",
+        "env": "omp uses the key in the environment variable $name.",
+        "working": "omp has a working credential for this provider.",
+        "none": "Not signed in."
+      },
+      "overridden": {
+        "config": "models.yml sets a key for this provider, so omp uses that key and not the stored one.",
+        "env": "The environment variable $name sets a key, so omp uses it and not the stored one.",
+        "runtime": "A key set for this omp process wins over the stored one."
+      }
     },
     "mcp": {
       "userFile": "User: $path",
@@ -813,7 +856,8 @@
       "tokenHint": "Written into the user mcp.json as an Authorization header.",
       "tokenUserOnly": "Only user-scope servers take a token here: a project session would keep it in its run log.",
       "tuiOnly": "omp 18.3.1 offers reauth, unauth, reconnect and Smithery login only in its terminal UI.",
-      "testDisabled": "Enable the server to test it; omp loads only enabled servers."
+      "testDisabled": "Enable the server to test it; omp loads only enabled servers.",
+      "smitheryTitle": "Smithery registry"
     },
     "plugins": {
       "inProject": "Commands run in $path",
@@ -845,7 +889,6 @@
       "info": "Info",
       "search": "Search the registry",
       "searchHint": "pdf, git, review…",
-      "searchAction": "Search",
       "results": "$shown of $total",
       "downloads": "$number weekly downloads",
       "by": "by $name",
@@ -861,7 +904,8 @@
       "versions": "Versions: $versions",
       "owners": "Owners: $owners",
       "downloadsTotal": "Downloads: $weekly weekly, $total total",
-      "shipsScripts": "Ships scripts."
+      "shipsScripts": "Ships scripts.",
+      "noHits": "Nothing on skills.omp.sh matches \"$query\"."
     },
     "usage": {
       "generated": "Fetched at $time",

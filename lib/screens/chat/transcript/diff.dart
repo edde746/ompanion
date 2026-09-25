@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'ansi.dart';
+import '../../../app/theme.dart';
 import 'code_style.dart';
 
 enum DiffLineKind {
@@ -227,7 +227,7 @@ List<(int, int)> _changedRanges(List<RegExpMatch> tokens, List<bool> kept) {
   ];
 }
 
-/// Diff rows with a line-number gutter, a +/− marker and Material 3 colours. Not scrollable and not lazy: callers cap
+/// Diff rows with a line-number gutter, a +/− marker and the muted [AppColors] diff colours. Not scrollable and not lazy: callers cap
 /// long diffs and put it in their own scroll view. Long lines wrap.
 class DiffView extends StatelessWidget {
   const DiffView({super.key, required this.lines});
@@ -238,7 +238,7 @@ class DiffView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final palette = AnsiPalette.of(scheme);
+    final colors = AppColors.of(context);
     final code = codeTextStyle(theme);
     final maxNumber = lines.fold<int>(0, (max, line) => math.max(max, line.number ?? 0));
     // JetBrains Mono advances 0.6 em per character; three digits are always reserved, like omp's TUI.
@@ -262,7 +262,7 @@ class DiffView extends StatelessWidget {
             code: code,
             dim: dim,
             scheme: scheme,
-            palette: palette,
+            colors: colors,
           ),
       ],
     );
@@ -275,26 +275,16 @@ class DiffView extends StatelessWidget {
     required TextStyle code,
     required TextStyle dim,
     required ColorScheme scheme,
-    required AnsiPalette palette,
+    required AppColors colors,
   }) {
     final (marker, markerColor, background, changedBackground) = switch (line.kind) {
-      DiffLineKind.added => (
-        '+',
-        palette.foreground(2),
-        palette.background(2).withValues(alpha: 0.28),
-        palette.background(2).withValues(alpha: 0.8),
-      ),
-      DiffLineKind.removed => (
-        '−',
-        palette.foreground(1),
-        palette.background(1).withValues(alpha: 0.28),
-        palette.background(1).withValues(alpha: 0.8),
-      ),
-      DiffLineKind.hunk => ('', scheme.primary, scheme.surfaceContainerHigh, null),
+      DiffLineKind.added => ('+', colors.diffAdd, colors.diffAddSurface, colors.diffAdd.withValues(alpha: 0.3)),
+      DiffLineKind.removed => ('−', colors.diffRemove, colors.diffRemoveSurface, colors.diffRemove.withValues(alpha: 0.3)),
+      DiffLineKind.hunk => ('', scheme.onSurfaceVariant, null, null),
       _ => (' ', scheme.onSurfaceVariant, null, null),
     };
     final style = switch (line.kind) {
-      DiffLineKind.hunk => code.copyWith(color: scheme.primary),
+      DiffLineKind.hunk => dim,
       DiffLineKind.meta => dim.copyWith(fontWeight: line.text.startsWith('diff ') ? FontWeight.bold : null),
       DiffLineKind.gap => dim,
       _ => code,

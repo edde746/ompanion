@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
@@ -64,7 +65,7 @@ class _ReconnectingState extends State<_Reconnecting> {
     final cause = state.cause;
     return _Banner(
       icon: Icons.sync_problem,
-      color: Theme.of(context).colorScheme.tertiaryContainer,
+      color: AppColors.of(context).warning,
       text: t.chat.reconnecting(attempt: state.attempt, seconds: seconds),
       detail: cause == null ? null : describeConnectError(t, cause),
       actions: [TextButton(onPressed: widget.session.reconnectNow, child: Text(t.chat.retryNow))],
@@ -106,7 +107,7 @@ class _ClosedState extends State<_Closed> {
     final exitCode = state.exitCode;
     return _Banner(
       icon: Icons.link_off,
-      color: Theme.of(context).colorScheme.errorContainer,
+      color: AppColors.of(context).error,
       text: exitCode == null ? t.chat.closed : t.chat.exited(code: exitCode),
       detail: cause == null ? null : describeConnectError(t, cause),
       actions: [
@@ -120,6 +121,7 @@ class _ClosedState extends State<_Closed> {
   }
 }
 
+/// A flat strip under the header; only the icon carries the state's colour.
 class _Banner extends StatelessWidget {
   const _Banner({required this.icon, required this.color, required this.text, required this.actions, this.detail});
 
@@ -133,13 +135,13 @@ class _Banner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final detail = this.detail;
-    return Material(
-      color: color,
+    return ColoredBox(
+      color: theme.colorScheme.surfaceContainer,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
         child: Row(
           children: [
-            Icon(icon, size: 20),
+            Icon(icon, size: 20, color: color),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -148,11 +150,16 @@ class _Banner extends StatelessWidget {
                 children: [
                   Text(text, style: theme.textTheme.bodyMedium),
                   if (detail != null)
-                    Text(detail, style: theme.textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                      detail,
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                 ],
               ),
             ),
-            ...actions,
+            for (final action in actions) ...[const SizedBox(width: AppSizes.gap), action],
           ],
         ),
       ),

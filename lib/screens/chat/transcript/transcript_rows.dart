@@ -122,17 +122,19 @@ final class ToolRow extends TranscriptRow {
   Object get content => (call ?? orphan!, preparing, abandoned);
 }
 
-/// How an assistant message ended: an error, an interruption, a retry note, and its usage.
+/// How an assistant message ended: an error, an interruption, a retry note, and its usage. [retryFailed] marks a failed
+/// attempt whose retry failed too: omp records one saga status (`recovered`) on every attempt it superseded.
 final class AssistantFooterRow extends TranscriptRow {
-  const AssistantFooterRow(this.item);
+  const AssistantFooterRow(this.item, {this.retryFailed = false});
 
   final AssistantItem item;
+  final bool retryFailed;
 
   @override
   String get key => '${item.key}#footer';
 
   @override
-  Object get content => item;
+  Object get content => (item, retryFailed);
 }
 
 /// A response has started but shows nothing yet.
@@ -233,10 +235,33 @@ final class TranscriptRowModel {
         _callOwner.putIfAbsent(call.id, () => index);
       }
     }
-    for (final row in _itemRows[item] ??= _rowsOf(item)) {
+    var itemRows = _itemRows[item] ??= _rowsOf(item);
+    // Whether a retry failed depends on the next assistant message, so that footer is not cached with the item.
+    if (item is AssistantItem && item.retryRecovery != null && _nextRetryFailed(index)) {
+      itemRows = [
+        for (final row in itemRows) row is AssistantFooterRow ? AssistantFooterRow(item, retryFailed: true) : row,
+      ];
+    }
+    for (final row in itemRows) {
       _positions[row.key] = rows.length;
       rows.add(row);
     }
+  }
+
+  /// The assistant message after item [index] is itself an attempt a retry superseded: the retry that followed
+  /// [index] failed as well.
+  bool _nextRetryFailed(int index) {
+    for (var next = index + 1; next < _items.length; next++) {
+      switch (_items[next]) {
+        case UserItem():
+          return false;
+        case final AssistantItem next:
+          return next.retryRecovery != null;
+        default:
+          continue;
+      }
+    }
+    return false;
   }
 
   /// Index of the first row of item [item]; the row count when [item] is past the end.

@@ -8,10 +8,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omp_app/database/app_database.dart';
 import 'package:omp_app/i18n/strings.g.dart';
 import 'package:omp_app/providers/machines_provider.dart';
-import 'package:omp_app/screens/chat/queue_bar.dart';
+import 'package:omp_app/screens/chat/queue_list.dart';
 import 'package:omp_app/services/known_hosts_store.dart';
 import 'package:omp_app/services/machine_connector.dart';
 import 'package:omp_app/services/secret_store.dart';
+import 'package:omp_app/sessions/composer_draft.dart';
 import 'package:omp_app/sessions/sessions_provider.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
@@ -27,6 +28,9 @@ final class _Omp implements LineChannel {
   final Map<String, Object?> result;
   final _lines = StreamController<String>();
 
+  /// Companion calls received, as `{verb, args}`.
+  final calls = <Map<String, Object?>>[];
+
   @override
   Stream<String> get lines => _lines.stream;
 
@@ -40,6 +44,7 @@ final class _Omp implements LineChannel {
       _lines.add(jsonEncode({'type': 'response', 'id': id, 'command': json['type'], 'success': true, 'data': ?data}));
       if (json['message'] case final String message when message.startsWith('/ompx ')) {
         final call = jsonDecode(message.substring('/ompx '.length)) as Map<String, Object?>;
+        calls.add({'verb': call['verb'], 'args': call['args']});
         _lines.add(jsonEncode({'type': 'ompx', 'kind': 'reply', 'callId': call['callId'], 'ok': true, 'result': result}));
       }
     });
@@ -59,7 +64,7 @@ final class _Session implements LiveSession {
   late final CompanionClient companion = CompanionClient(rpc);
 
   @override
-  SessionView get view => SessionView(queue: const QueueState(count: 1, steering: ['queued message']));
+  SessionView get view => SessionView(queue: const QueueState(count: 2, steering: ['queued message'], followUp: ['later']));
 
   @override
   Stream<SessionView> get views => const Stream.empty();
@@ -69,7 +74,7 @@ final class _Session implements LiveSession {
     'companion': {'version': '0.1.0'},
     'omp': {'version': '18.3.1'},
     'channel': 'output',
-    'verbs': ['queue.pop'],
+    'verbs': ['queue.take'],
     'events': <String>[],
   });
 
@@ -105,17 +110,24 @@ final class _Session implements LiveSession {
 }
 
 void main() {
-  testWidgets('"Edit last" puts the queued message ahead of the draft and appends its images', (tester) async {
+  late AppDatabase db;
+  late MachinesProvider machines;
+  late SessionsProvider sessions;
+
+  setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
-    final db = AppDatabase(NativeDatabase.memory());
+    db = AppDatabase(NativeDatabase.memory());
     final secrets = SecretStore();
-    final machines = MachinesProvider(db, secrets);
-    final sessions = SessionsProvider(
+    machines = MachinesProvider(db, secrets);
+    sessions = SessionsProvider(
       connector: MachineConnector(secrets, KnownHostsStore(db)),
       machines: machines,
       deviceId: 'test',
       companionBytes: (_) async => const [],
     );
+  });
+
+  Future<(_Session, ComposerDraft)> pumpQueue(WidgetTester tester) async {
     final session = _Session({
       'text': 'queued message',
       'images': [
@@ -127,26 +139,52 @@ void main() {
     await attached;
     final draft = sessions.draftOf(session)
       ..replace('half typed', images: const [RpcImage(data: 'DRAFT', mimeType: 'image/png')]);
-
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: sessions,
         child: TranslationProvider(
-          child: MaterialApp(home: Scaffold(body: QueueBar(session: session))),
+          child: MaterialApp(home: Scaffold(body: QueueList(session: session))),
         ),
       ),
     );
-    await tester.tap(find.text('Edit last'));
-    await tester.pump();
-    await tester.pump();
+    return (session, draft);
+  }
 
-    expect(draft.text.text, 'queued message\n\nhalf typed');
-    expect([for (final image in draft.images) image.data], ['DRAFT', 'QUEUED']);
-
+  Future<void> tearDownProviders(WidgetTester tester) async {
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {
       machines.dispose();
       await db.close();
     });
+  }
+
+  testWidgets('editing a queued message takes that one back ahead of the draft and appends its images', (tester) async {
+    final (session, draft) = await pumpQueue(tester);
+    await tester.tap(find.descendant(of: find.byKey(const ValueKey('queued-steering-0')), matching: find.byTooltip('Edit in the composer')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(session.omp.calls.single, {
+      'verb': 'queue.take',
+      'args': {'mode': 'steering', 'index': 0},
+    });
+    expect(draft.text.text, 'queued message\n\nhalf typed');
+    expect([for (final image in draft.images) image.data], ['DRAFT', 'QUEUED']);
+    await tearDownProviders(tester);
+  });
+
+  testWidgets('removing a queued message leaves the draft alone', (tester) async {
+    final (session, draft) = await pumpQueue(tester);
+    await tester.tap(find.descendant(of: find.byKey(const ValueKey('queued-followUp-0')), matching: find.byTooltip('Remove from the queue')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(session.omp.calls.single, {
+      'verb': 'queue.take',
+      'args': {'mode': 'followUp', 'index': 0},
+    });
+    expect(draft.text.text, 'half typed');
+    expect([for (final image in draft.images) image.data], ['DRAFT']);
+    await tearDownProviders(tester);
   });
 }

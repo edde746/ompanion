@@ -3,37 +3,49 @@ import 'package:flutter/material.dart';
 import '../../config/settings_schema.dart';
 import '../../config/settings_view.dart';
 import '../../i18n/strings.g.dart';
+import '../../widgets/app_select.dart';
 
 /// Called with the new value of a setting.
 typedef SettingChanged = void Function(Object? value);
 
-/// The compact editor at the end of a row (switch, dropdown), or null when [editor] needs the row's width.
-Widget? trailingEditor(BuildContext context, SettingEditor editor, Object? value, {required bool enabled, required SettingChanged onChanged}) {
+/// The compact editor at the end of a row (switch, select, credential), or null when [editor] needs a field.
+Widget? trailingEditor(
+  BuildContext context,
+  SettingSchema setting,
+  SettingEditor editor,
+  SettingDisplay display, {
+  required bool enabled,
+  required SettingChanged onChanged,
+}) {
+  final value = display.value;
   switch (editor) {
     case SwitchEditor():
       return Switch(value: value == true, onChanged: enabled ? onChanged : null);
     case ChoiceEditor(:final options):
       final current = value?.toString();
       final known = options.any((option) => option.value == current);
-      return DropdownButton<String>(
+      final select = AppSelect<String?>(
         value: current,
-        isDense: true,
-        hint: Text(context.t.config.settings.unset),
-        onChanged: enabled ? (choice) => onChanged(choice) : null,
-        items: [
-          for (final option in options)
-            DropdownMenuItem(
-              value: option.value,
-              child: option.description == null ? Text(option.label) : Tooltip(message: option.description, child: Text(option.label)),
-            ),
+        options: [
+          if (current == null) (null, context.t.config.settings.unset),
+          for (final option in options) (option.value, option.label),
           // A value from the file that omp's list does not know (hand-edited, newer omp).
-          if (current != null && !known) DropdownMenuItem(value: current, child: Text(current)),
+          if (current != null && !known) (current, current),
         ],
+        onChanged: (choice) {
+          if (choice != null && choice != current) onChanged(choice);
+        },
       );
+      return enabled ? select : IgnorePointer(child: Opacity(opacity: 0.38, child: select));
+    case SecretEditor(:final type):
+      return _SecretField(setting: setting, display: display, type: type, enabled: enabled, onChanged: onChanged);
     default:
       return null;
   }
 }
+
+/// A one-line field that fits at the end of a wide row.
+bool isFieldEditor(SettingEditor editor) => editor is NumberEditor || editor is TextEditor;
 
 /// The full-width editor under a row, or null for editors that sit at its end.
 Widget? blockEditor(
@@ -44,7 +56,7 @@ Widget? blockEditor(
   required bool enabled,
   required SettingChanged onChanged,
 }) => switch (editor) {
-  SwitchEditor() || ChoiceEditor() => null,
+  SwitchEditor() || ChoiceEditor() || SecretEditor() => null,
   NumberEditor(:final presets) => _TextField(
     key: ValueKey('${setting.path}:${display.value}'),
     initial: display.value?.toString() ?? '',
@@ -71,7 +83,6 @@ Widget? blockEditor(
       return null;
     },
   ),
-  SecretEditor(:final type) => _SecretField(setting: setting, display: display, type: type, enabled: enabled, onChanged: onChanged),
   MultiChoiceEditor(:final options, :final ordered) => _MultiChoice(
     options: options,
     ordered: ordered,
@@ -135,8 +146,6 @@ class _TextFieldState extends State<_TextField> {
             enabled: widget.enabled,
             keyboardType: widget.number ? const TextInputType.numberWithOptions(decimal: true, signed: true) : null,
             decoration: InputDecoration(
-              isDense: true,
-              border: const OutlineInputBorder(),
               hintText: widget.hint,
               errorText: _error,
             ),
@@ -150,7 +159,7 @@ class _TextFieldState extends State<_TextField> {
           PopupMenuButton<SettingOption>(
             tooltip: context.t.config.settings.presets,
             enabled: widget.enabled,
-            icon: const Icon(Icons.arrow_drop_down_circle_outlined),
+            icon: const Icon(Icons.expand_more),
             onSelected: widget.onPreset,
             itemBuilder: (context) => [
               for (final option in widget.presets)
@@ -192,12 +201,13 @@ class _SecretField extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(display.configured ? Icons.lock : Icons.lock_open, size: 16),
         const SizedBox(width: 8),
         Text(display.configured ? t.config.settings.secretSet : t.config.settings.secretUnset),
-        const Spacer(),
-        OutlinedButton(onPressed: enabled ? () => _edit(context) : null, child: Text(t.config.settings.secretEdit)),
+        const SizedBox(width: 12),
+        FilledButton.tonal(onPressed: enabled ? () => _edit(context) : null, child: Text(t.config.settings.secretEdit)),
       ],
     );
   }
@@ -251,7 +261,6 @@ class _SecretDialogState extends State<_SecretDialog> {
           maxLines: _json ? 6 : 1,
           style: _json ? const TextStyle(fontFamily: 'monospace', fontSize: 13) : null,
           decoration: InputDecoration(
-            border: const OutlineInputBorder(),
             helperText: t.config.settings.secretHelp,
             helperMaxLines: 3,
             errorText: _error,
@@ -325,7 +334,7 @@ class _MultiChoice extends StatelessWidget {
           PopupMenuButton<String>(
             enabled: enabled,
             tooltip: context.t.config.settings.addItem,
-            icon: const Icon(Icons.add_circle_outline),
+            icon: const Icon(Icons.add),
             onSelected: (value) => onChanged([...values, value]),
             itemBuilder: (context) => [
               for (final option in rest) PopupMenuItem(value: option.value, child: Text(option.label)),
@@ -388,8 +397,6 @@ class _StringListState extends State<_StringList> {
           controller: _controller,
           enabled: widget.enabled,
           decoration: InputDecoration(
-            isDense: true,
-            border: const OutlineInputBorder(),
             hintText: context.t.config.settings.addItem,
             suffixIcon: IconButton(icon: const Icon(Icons.add), onPressed: widget.enabled ? _add : null),
           ),
@@ -431,7 +438,7 @@ class _JsonField extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        OutlinedButton(onPressed: enabled ? () => _edit(context) : null, child: Text(context.t.common.edit)),
+        FilledButton.tonal(onPressed: enabled ? () => _edit(context) : null, child: Text(context.t.common.edit)),
       ],
     );
   }
@@ -480,7 +487,7 @@ class _JsonDialogState extends State<_JsonDialog> {
           maxLines: 16,
           minLines: 6,
           style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-          decoration: InputDecoration(border: const OutlineInputBorder(), errorText: _error),
+          decoration: InputDecoration(errorText: _error),
         ),
       ),
       actions: [

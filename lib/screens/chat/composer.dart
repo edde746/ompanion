@@ -9,19 +9,31 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../models/machine.dart';
 import '../../sessions/composer_draft.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import 'composer_intent.dart';
+import 'composer_toolbar.dart';
+import 'model_picker.dart';
+import 'queue_list.dart';
 import 'slash_palette.dart';
 
 /// Image types omp accepts, by file extension.
-const _imageTypes = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'gif': 'image/gif', 'webp': 'image/webp'};
+const _imageTypes = {
+  'png': 'image/png',
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+};
 
-/// The prompt box: Enter sends (Shift+Enter is a new line); while a run streams Enter steers and Alt/Option+Enter
-/// queues a follow-up. `/` opens the palette of the session's commands, `!`/`!!` run shell commands and
-/// `$`/`$$` Python through the companion.
+/// The prompt box: one flat block with the queued messages on top, the text in the middle and a toolbar with the
+/// model, thinking level and context meter, attach and send at the bottom. Enter sends (Shift+Enter is a new
+/// line); while a run streams Enter steers and Alt/Option+Enter queues a follow-up. `/` opens the palette of the
+/// session's commands, `!`/`!!` run shell commands and `$`/`$$` Python through the companion.
 class Composer extends StatefulWidget {
   const Composer({super.key, required this.session});
 
@@ -136,7 +148,10 @@ class _ComposerState extends State<Composer> {
 
   void _pick(SlashCommand command) {
     final text = '/${command.name} ';
-    _draft.text.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+    _draft.text.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
     _focus.requestFocus();
   }
 
@@ -164,20 +179,16 @@ class _ComposerState extends State<Composer> {
         // Without the companion a `/ompx` call would reach the model as a prompt.
         messenger.showSnackBar(SnackBar(content: Text(t.chat.noCompanion)));
       case RunBash(:final command, :final excludeFromContext):
-        context.read<SessionsProvider>().execRunsOf(session).start(
-          session,
-          ExecutionKind.bash,
-          command,
-          excludeFromContext: excludeFromContext,
-        );
+        context
+            .read<SessionsProvider>()
+            .execRunsOf(session)
+            .start(session, ExecutionKind.bash, command, excludeFromContext: excludeFromContext);
         _draft.clear();
       case RunPython(:final code, :final excludeFromContext):
-        context.read<SessionsProvider>().execRunsOf(session).start(
-          session,
-          ExecutionKind.python,
-          code,
-          excludeFromContext: excludeFromContext,
-        );
+        context
+            .read<SessionsProvider>()
+            .execRunsOf(session)
+            .start(session, ExecutionKind.python, code, excludeFromContext: excludeFromContext);
         _draft.clear();
       case SendPrompt(text: final message, :final behavior):
         // The draft this text came from; the composer may show another session by the time omp answers.
@@ -267,59 +278,59 @@ class _ComposerState extends State<Composer> {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
-    final apple = theme.platform == TargetPlatform.macOS || theme.platform == TargetPlatform.iOS;
-    return SessionViewSelector<(bool, List<SlashCommand>)>(
-      session: widget.session,
-      select: (view) => (view.run.running, view.commands),
-      builder: (context, selected) {
-        final (running, _) = selected;
-        final palette = _paletteItems(widget.session.view);
-        final images = _draft.images;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (palette.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: SlashPalette(
-                    commands: palette,
-                    selected: _paletteIndex.clamp(0, palette.length - 1),
-                    onPick: _pick,
-                  ),
-                ),
-              if (images.isNotEmpty)
-                SizedBox(
-                  height: 72,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (final (index, image) in images.indexed)
-                        _Thumbnail(
-                          key: ObjectKey(image),
-                          image: image,
-                          onRemove: () => _draft.removeImageAt(index),
-                        ),
-                    ],
-                  ),
-                ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHigh,
-                  borderRadius: const BorderRadius.all(Radius.circular(16)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      tooltip: t.composer.attachImage,
-                      icon: const Icon(Icons.image_outlined),
-                      onPressed: () => unawaited(_attachImages()),
+    final session = widget.session;
+    final machine = context.select<SessionsProvider, Machine?>((sessions) => sessions.machineOf(session));
+    return LinkStateBuilder(
+      session: session,
+      builder: (context, link) => SessionViewSelector<_ComposerData>(
+        session: session,
+        select: _select,
+        builder: (context, data) {
+          // A closed session has no omp to talk to; its model, thinking level and context are gone with it.
+          final closed = link is LinkClosed;
+          final palette = _paletteItems(session.view);
+          final images = _draft.images;
+          final canSend = !_sending && !closed;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (palette.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: SlashPalette(
+                      commands: palette,
+                      selected: _paletteIndex.clamp(0, palette.length - 1),
+                      onPick: _pick,
                     ),
-                    Expanded(
-                      child: TextField(
+                  ),
+                Material(
+                  color: theme.colorScheme.surfaceContainer,
+                  borderRadius: const BorderRadius.all(Radius.circular(AppSizes.cardRadius)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      QueueList(session: session),
+                      if (images.isNotEmpty)
+                        SizedBox(
+                          height: 72,
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              for (final (index, image) in images.indexed)
+                                _Thumbnail(
+                                  key: ObjectKey(image),
+                                  image: image,
+                                  onRemove: () => _draft.removeImageAt(index),
+                                ),
+                            ],
+                          ),
+                        ),
+                      TextField(
                         key: const ValueKey('composer'),
                         controller: _draft.text,
                         focusNode: _focus,
@@ -328,50 +339,110 @@ class _ComposerState extends State<Composer> {
                         keyboardType: TextInputType.multiline,
                         textInputAction: TextInputAction.newline,
                         decoration: InputDecoration(
-                          hintText: running ? t.composer.hintRunning : t.composer.hint,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                          hintText: data.running && !closed ? t.composer.hintRunning : t.composer.hint,
+                          filled: false,
+                          contentPadding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
                         ),
                       ),
-                    ),
-                    if (running) ...[
-                      TextButton(
-                        onPressed: _sending ? null : () => unawaited(_send(followUp: true)),
-                        child: Text(t.composer.followUp),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 0, 6, 6),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            // Phones: Follow-up and Steer as icons, so the pickers keep their room.
+                            final narrow = constraints.maxWidth < 480;
+                            void followUp() => unawaited(_send(followUp: true));
+                            void steer() => unawaited(_send(followUp: false));
+                            return Row(
+                              children: [
+                                // The pickers take what they need and shrink first; the rest pushes send to the end.
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      if (!closed) ...[
+                                        Flexible(
+                                          child: ModelPicker(session: session, machine: machine, model: data.model),
+                                        ),
+                                        Flexible(child: ThinkingPicker(session: session, level: data.thinking)),
+                                        ContextMeter(usage: data.context, cost: data.cost),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: t.composer.attachImage,
+                                  icon: const Icon(Icons.image_outlined, size: 20),
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  onPressed: closed ? null : () => unawaited(_attachImages()),
+                                ),
+                                const SizedBox(width: 4),
+                                if (data.running && !closed && narrow) ...[
+                                  IconButton(
+                                    key: const ValueKey('follow-up'),
+                                    tooltip: t.composer.followUp,
+                                    icon: const Icon(Icons.schedule, size: 20),
+                                    onPressed: canSend ? followUp : null,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton.filled(
+                                    key: const ValueKey('steer'),
+                                    tooltip: t.composer.steer,
+                                    icon: const Icon(Icons.subdirectory_arrow_right, size: 20),
+                                    onPressed: canSend ? steer : null,
+                                  ),
+                                ] else if (data.running && !closed) ...[
+                                  TextButton(
+                                    key: const ValueKey('follow-up'),
+                                    onPressed: canSend ? followUp : null,
+                                    child: Text(t.composer.followUp),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  FilledButton(
+                                    key: const ValueKey('steer'),
+                                    onPressed: canSend ? steer : null,
+                                    child: Text(t.composer.steer),
+                                  ),
+                                ] else
+                                  IconButton.filled(
+                                    key: const ValueKey('send'),
+                                    tooltip: t.composer.send,
+                                    icon: const Icon(Icons.arrow_upward, size: 20),
+                                    onPressed: canSend ? steer : null,
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
                       ),
-                      IconButton.filled(
-                        key: const ValueKey('steer'),
-                        tooltip: t.composer.steer,
-                        icon: const Icon(Icons.subdirectory_arrow_right),
-                        onPressed: _sending ? null : () => unawaited(_send(followUp: false)),
-                      ),
-                    ] else
-                      IconButton.filled(
-                        key: const ValueKey('send'),
-                        tooltip: t.composer.send,
-                        icon: const Icon(Icons.arrow_upward),
-                        onPressed: _sending ? null : () => unawaited(_send(followUp: false)),
-                      ),
-                    const SizedBox(width: 6),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 4, left: 8),
-                child: Text(
-                  running
-                      ? t.composer.keysRunning(alt: apple ? '⌥' : 'Alt')
-                      : t.composer.keys,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
+
+/// What the composer shows besides the draft; compared field by field so streamed tokens do not rebuild it.
+typedef _ComposerData = ({
+  bool running,
+  List<SlashCommand> commands,
+  ModelRef? model,
+  String? thinking,
+  ContextUsage? context,
+  double cost,
+});
+
+_ComposerData _select(SessionView view) => (
+  running: view.run.running,
+  commands: view.commands,
+  model: view.config.model,
+  thinking: view.config.thinkingLevel,
+  context: view.contextUsage,
+  cost: view.usageTotals.cost,
+);
 
 class _Thumbnail extends StatefulWidget {
   const _Thumbnail({super.key, required this.image, required this.onRemove});
@@ -389,7 +460,7 @@ class _ThumbnailState extends State<_Thumbnail> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(right: 8, bottom: 6),
+      padding: const EdgeInsets.only(right: AppSizes.gap),
       child: Stack(
         children: [
           ClipRRect(
@@ -399,7 +470,14 @@ class _ThumbnailState extends State<_Thumbnail> {
           Positioned(
             top: 0,
             right: 0,
-            child: IconButton.filledTonal(
+            child: IconButton.filled(
+              style: IconButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
+                minimumSize: const Size.square(24),
+                fixedSize: const Size.square(24),
+                padding: EdgeInsets.zero,
+              ),
               visualDensity: VisualDensity.compact,
               iconSize: 14,
               tooltip: context.t.composer.removeImage,

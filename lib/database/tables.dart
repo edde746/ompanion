@@ -89,3 +89,17 @@ class Settings extends Table {
   @override
   Set<Column<Object>> get primaryKey => {key};
 }
+
+/// Per session file, the file modification time up to which the user has read it. The time is the machine's
+/// (`SessionSummary.modified`), so it compares with later listings without clock skew.
+@DataClassName('ReadMarkerRow')
+class ReadMarkers extends Table {
+  TextColumn get machineId => text().references(Machines, #id, onDelete: KeyAction.cascade)();
+
+  /// Host-native path of the session file.
+  TextColumn get path => text()();
+  DateTimeColumn get seenModified => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {machineId, path};
+}

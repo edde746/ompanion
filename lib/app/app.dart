@@ -14,6 +14,7 @@ import '../services/known_hosts_store.dart';
 import '../services/machine_connector.dart';
 import '../services/secret_store.dart';
 import '../sessions/companion_asset.dart';
+import '../sessions/session_reads.dart';
 import '../sessions/sessions_provider.dart';
 import 'theme.dart';
 
@@ -45,6 +46,16 @@ class OmpApp extends StatelessWidget {
             deviceId: settings.get(Prefs.deviceId),
             companionBytes: bundledCompanion,
           ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => SessionReads.following(
+            db,
+            sessions: context.read<SessionsProvider>(),
+            shell: context.read<ShellProvider>(),
+            machines: machines,
+          ),
+          // Not lazy: it tracks sessions whether or not the sidebar is built yet.
+          lazy: false,
         ),
         ChangeNotifierProvider(create: (_) => DockController(machines)),
       ],

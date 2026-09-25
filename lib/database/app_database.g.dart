@@ -2264,6 +2264,283 @@ class SettingsCompanion extends UpdateCompanion<SettingRow> {
   }
 }
 
+class $ReadMarkersTable extends ReadMarkers
+    with TableInfo<$ReadMarkersTable, ReadMarkerRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReadMarkersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _machineIdMeta = const VerificationMeta(
+    'machineId',
+  );
+  @override
+  late final GeneratedColumn<String> machineId = GeneratedColumn<String>(
+    'machine_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES machines (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _seenModifiedMeta = const VerificationMeta(
+    'seenModified',
+  );
+  @override
+  late final GeneratedColumn<DateTime> seenModified = GeneratedColumn<DateTime>(
+    'seen_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [machineId, path, seenModified];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'read_markers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReadMarkerRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('machine_id')) {
+      context.handle(
+        _machineIdMeta,
+        machineId.isAcceptableOrUnknown(data['machine_id']!, _machineIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_machineIdMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('seen_modified')) {
+      context.handle(
+        _seenModifiedMeta,
+        seenModified.isAcceptableOrUnknown(
+          data['seen_modified']!,
+          _seenModifiedMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_seenModifiedMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {machineId, path};
+  @override
+  ReadMarkerRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReadMarkerRow(
+      machineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}machine_id'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      seenModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}seen_modified'],
+      )!,
+    );
+  }
+
+  @override
+  $ReadMarkersTable createAlias(String alias) {
+    return $ReadMarkersTable(attachedDatabase, alias);
+  }
+}
+
+class ReadMarkerRow extends DataClass implements Insertable<ReadMarkerRow> {
+  final String machineId;
+
+  /// Host-native path of the session file.
+  final String path;
+  final DateTime seenModified;
+  const ReadMarkerRow({
+    required this.machineId,
+    required this.path,
+    required this.seenModified,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['machine_id'] = Variable<String>(machineId);
+    map['path'] = Variable<String>(path);
+    map['seen_modified'] = Variable<DateTime>(seenModified);
+    return map;
+  }
+
+  ReadMarkersCompanion toCompanion(bool nullToAbsent) {
+    return ReadMarkersCompanion(
+      machineId: Value(machineId),
+      path: Value(path),
+      seenModified: Value(seenModified),
+    );
+  }
+
+  factory ReadMarkerRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReadMarkerRow(
+      machineId: serializer.fromJson<String>(json['machineId']),
+      path: serializer.fromJson<String>(json['path']),
+      seenModified: serializer.fromJson<DateTime>(json['seenModified']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'machineId': serializer.toJson<String>(machineId),
+      'path': serializer.toJson<String>(path),
+      'seenModified': serializer.toJson<DateTime>(seenModified),
+    };
+  }
+
+  ReadMarkerRow copyWith({
+    String? machineId,
+    String? path,
+    DateTime? seenModified,
+  }) => ReadMarkerRow(
+    machineId: machineId ?? this.machineId,
+    path: path ?? this.path,
+    seenModified: seenModified ?? this.seenModified,
+  );
+  ReadMarkerRow copyWithCompanion(ReadMarkersCompanion data) {
+    return ReadMarkerRow(
+      machineId: data.machineId.present ? data.machineId.value : this.machineId,
+      path: data.path.present ? data.path.value : this.path,
+      seenModified: data.seenModified.present
+          ? data.seenModified.value
+          : this.seenModified,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReadMarkerRow(')
+          ..write('machineId: $machineId, ')
+          ..write('path: $path, ')
+          ..write('seenModified: $seenModified')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(machineId, path, seenModified);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReadMarkerRow &&
+          other.machineId == this.machineId &&
+          other.path == this.path &&
+          other.seenModified == this.seenModified);
+}
+
+class ReadMarkersCompanion extends UpdateCompanion<ReadMarkerRow> {
+  final Value<String> machineId;
+  final Value<String> path;
+  final Value<DateTime> seenModified;
+  final Value<int> rowid;
+  const ReadMarkersCompanion({
+    this.machineId = const Value.absent(),
+    this.path = const Value.absent(),
+    this.seenModified = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReadMarkersCompanion.insert({
+    required String machineId,
+    required String path,
+    required DateTime seenModified,
+    this.rowid = const Value.absent(),
+  }) : machineId = Value(machineId),
+       path = Value(path),
+       seenModified = Value(seenModified);
+  static Insertable<ReadMarkerRow> custom({
+    Expression<String>? machineId,
+    Expression<String>? path,
+    Expression<DateTime>? seenModified,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (machineId != null) 'machine_id': machineId,
+      if (path != null) 'path': path,
+      if (seenModified != null) 'seen_modified': seenModified,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReadMarkersCompanion copyWith({
+    Value<String>? machineId,
+    Value<String>? path,
+    Value<DateTime>? seenModified,
+    Value<int>? rowid,
+  }) {
+    return ReadMarkersCompanion(
+      machineId: machineId ?? this.machineId,
+      path: path ?? this.path,
+      seenModified: seenModified ?? this.seenModified,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (machineId.present) {
+      map['machine_id'] = Variable<String>(machineId.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (seenModified.present) {
+      map['seen_modified'] = Variable<DateTime>(seenModified.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReadMarkersCompanion(')
+          ..write('machineId: $machineId, ')
+          ..write('path: $path, ')
+          ..write('seenModified: $seenModified, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2272,6 +2549,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MachineJumpsTable machineJumps = $MachineJumpsTable(this);
   late final $KnownHostsTable knownHosts = $KnownHostsTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
+  late final $ReadMarkersTable readMarkers = $ReadMarkersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2282,6 +2560,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     machineJumps,
     knownHosts,
     settings,
+    readMarkers,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2305,6 +2584,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('machine_jumps', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'machines',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('read_markers', kind: UpdateKind.delete)],
     ),
   ]);
   @override
@@ -2796,6 +3082,24 @@ final class $$MachinesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$ReadMarkersTable, List<ReadMarkerRow>>
+  _readMarkersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.readMarkers,
+    aliasName: 'machines__id__read_markers__machine_id',
+  );
+
+  $$ReadMarkersTableProcessedTableManager get readMarkersRefs {
+    final manager = $$ReadMarkersTableTableManager(
+      $_db,
+      $_db.readMarkers,
+    ).filter((f) => f.machineId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_readMarkersRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$MachinesTableFilterComposer
@@ -2903,6 +3207,31 @@ class $$MachinesTableFilterComposer
           }) => $$MachineJumpsTableFilterComposer(
             $db: $db,
             $table: $db.machineJumps,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> readMarkersRefs(
+    Expression<bool> Function($$ReadMarkersTableFilterComposer f) f,
+  ) {
+    final $$ReadMarkersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.readMarkers,
+      getReferencedColumn: (t) => t.machineId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReadMarkersTableFilterComposer(
+            $db: $db,
+            $table: $db.readMarkers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3092,6 +3421,31 @@ class $$MachinesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> readMarkersRefs<T extends Object>(
+    Expression<T> Function($$ReadMarkersTableAnnotationComposer a) f,
+  ) {
+    final $$ReadMarkersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.readMarkers,
+      getReferencedColumn: (t) => t.machineId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReadMarkersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.readMarkers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$MachinesTableTableManager
@@ -3107,7 +3461,11 @@ class $$MachinesTableTableManager
           $$MachinesTableUpdateCompanionBuilder,
           (MachineRow, $$MachinesTableReferences),
           MachineRow,
-          PrefetchHooks Function({bool keyId, bool machineJumpsRefs})
+          PrefetchHooks Function({
+            bool keyId,
+            bool machineJumpsRefs,
+            bool readMarkersRefs,
+          })
         > {
   $$MachinesTableTableManager(_$AppDatabase db, $MachinesTable table)
     : super(
@@ -3188,65 +3546,96 @@ class $$MachinesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({keyId = false, machineJumpsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (machineJumpsRefs) db.machineJumps],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (keyId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.keyId,
-                        referencedTable: $$MachinesTableReferences._keyIdTable(
-                          db,
-                        ),
-                        referencedColumn: $$MachinesTableReferences
-                            ._keyIdTable(db)
-                            .id,
-                      ) as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                keyId = false,
+                machineJumpsRefs = false,
+                readMarkersRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (machineJumpsRefs) db.machineJumps,
+                    if (readMarkersRefs) db.readMarkers,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (keyId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.keyId,
+                            referencedTable: $$MachinesTableReferences
+                                ._keyIdTable(db),
+                            referencedColumn: $$MachinesTableReferences
+                                ._keyIdTable(db)
+                                .id,
+                          ) as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (machineJumpsRefs)
+                        await $_getPrefetchedData<
+                          MachineRow,
+                          $MachinesTable,
+                          MachineJumpRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MachinesTableReferences
+                              ._machineJumpsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MachinesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).machineJumpsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.machineId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (readMarkersRefs)
+                        await $_getPrefetchedData<
+                          MachineRow,
+                          $MachinesTable,
+                          ReadMarkerRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MachinesTableReferences
+                              ._readMarkersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MachinesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).readMarkersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.machineId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (machineJumpsRefs)
-                    await $_getPrefetchedData<
-                      MachineRow,
-                      $MachinesTable,
-                      MachineJumpRow
-                    >(
-                      currentTable: table,
-                      referencedTable: $$MachinesTableReferences
-                          ._machineJumpsRefsTable(db),
-                      managerFromTypedResult: (p0) => $$MachinesTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).machineJumpsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.machineId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -3263,7 +3652,11 @@ typedef $$MachinesTableProcessedTableManager =
       $$MachinesTableUpdateCompanionBuilder,
       (MachineRow, $$MachinesTableReferences),
       MachineRow,
-      PrefetchHooks Function({bool keyId, bool machineJumpsRefs})
+      PrefetchHooks Function({
+        bool keyId,
+        bool machineJumpsRefs,
+        bool readMarkersRefs,
+      })
     >;
 typedef $$MachineJumpsTableCreateCompanionBuilder =
     MachineJumpsCompanion Function({
@@ -4087,6 +4480,285 @@ typedef $$SettingsTableProcessedTableManager =
       SettingRow,
       PrefetchHooks Function()
     >;
+typedef $$ReadMarkersTableCreateCompanionBuilder =
+    ReadMarkersCompanion Function({
+      required String machineId,
+      required String path,
+      required DateTime seenModified,
+      Value<int> rowid,
+    });
+typedef $$ReadMarkersTableUpdateCompanionBuilder =
+    ReadMarkersCompanion Function({
+      Value<String> machineId,
+      Value<String> path,
+      Value<DateTime> seenModified,
+      Value<int> rowid,
+    });
+
+final class $$ReadMarkersTableReferences
+    extends BaseReferences<_$AppDatabase, $ReadMarkersTable, ReadMarkerRow> {
+  $$ReadMarkersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $MachinesTable _machineIdTable(_$AppDatabase db) =>
+      db.machines.createAlias('read_markers__machine_id__machines__id');
+
+  $$MachinesTableProcessedTableManager get machineId {
+    final $_column = $_itemColumn<String>('machine_id')!;
+
+    final manager = $$MachinesTableTableManager(
+      $_db,
+      $_db.machines,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_machineIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ReadMarkersTableFilterComposer
+    extends Composer<_$AppDatabase, $ReadMarkersTable> {
+  $$ReadMarkersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get seenModified => $composableBuilder(
+    column: $table.seenModified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$MachinesTableFilterComposer get machineId {
+    final $$MachinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.machineId,
+      referencedTable: $db.machines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MachinesTableFilterComposer(
+            $db: $db,
+            $table: $db.machines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReadMarkersTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReadMarkersTable> {
+  $$ReadMarkersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get seenModified => $composableBuilder(
+    column: $table.seenModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MachinesTableOrderingComposer get machineId {
+    final $$MachinesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.machineId,
+      referencedTable: $db.machines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MachinesTableOrderingComposer(
+            $db: $db,
+            $table: $db.machines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReadMarkersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReadMarkersTable> {
+  $$ReadMarkersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get seenModified => $composableBuilder(
+    column: $table.seenModified,
+    builder: (column) => column,
+  );
+
+  $$MachinesTableAnnotationComposer get machineId {
+    final $$MachinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.machineId,
+      referencedTable: $db.machines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MachinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.machines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReadMarkersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReadMarkersTable,
+          ReadMarkerRow,
+          $$ReadMarkersTableFilterComposer,
+          $$ReadMarkersTableOrderingComposer,
+          $$ReadMarkersTableAnnotationComposer,
+          $$ReadMarkersTableCreateCompanionBuilder,
+          $$ReadMarkersTableUpdateCompanionBuilder,
+          (ReadMarkerRow, $$ReadMarkersTableReferences),
+          ReadMarkerRow,
+          PrefetchHooks Function({bool machineId})
+        > {
+  $$ReadMarkersTableTableManager(_$AppDatabase db, $ReadMarkersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReadMarkersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReadMarkersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReadMarkersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> machineId = const Value.absent(),
+                Value<String> path = const Value.absent(),
+                Value<DateTime> seenModified = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReadMarkersCompanion(
+                machineId: machineId,
+                path: path,
+                seenModified: seenModified,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String machineId,
+                required String path,
+                required DateTime seenModified,
+                Value<int> rowid = const Value.absent(),
+              }) => ReadMarkersCompanion.insert(
+                machineId: machineId,
+                path: path,
+                seenModified: seenModified,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ReadMarkersTable, ReadMarkerRow>(table),
+                  $$ReadMarkersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({machineId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (machineId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.machineId,
+                        referencedTable: $$ReadMarkersTableReferences
+                            ._machineIdTable(db),
+                        referencedColumn: $$ReadMarkersTableReferences
+                            ._machineIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ReadMarkersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReadMarkersTable,
+      ReadMarkerRow,
+      $$ReadMarkersTableFilterComposer,
+      $$ReadMarkersTableOrderingComposer,
+      $$ReadMarkersTableAnnotationComposer,
+      $$ReadMarkersTableCreateCompanionBuilder,
+      $$ReadMarkersTableUpdateCompanionBuilder,
+      (ReadMarkerRow, $$ReadMarkersTableReferences),
+      ReadMarkerRow,
+      PrefetchHooks Function({bool machineId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4101,4 +4773,6 @@ class $AppDatabaseManager {
       $$KnownHostsTableTableManager(_db, _db.knownHosts);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
+  $$ReadMarkersTableTableManager get readMarkers =>
+      $$ReadMarkersTableTableManager(_db, _db.readMarkers);
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../i18n/strings.g.dart';
 import 'code_style.dart';
 import 'highlighter.dart';
+import 'tool_card.dart' show codeSurface;
 import 'transcript_actions.dart';
 
 /// A block of code: an optional header with a label and a copy button, then the code in a horizontal scroll view,
@@ -127,11 +128,7 @@ class _CodeBlockState extends State<CodeBlock> {
           );
     final label = widget.label ?? widget.language ?? '';
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
-      ),
+      decoration: BoxDecoration(color: codeSurface(context), borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,

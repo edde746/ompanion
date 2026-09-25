@@ -135,25 +135,18 @@ class _RolesPageState extends State<RolesPage> {
               icon: const Icon(Icons.sync),
               label: Text(t.config.roles.refreshModels),
             ),
-            IconButton(tooltip: t.config.refresh, onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
+            RefreshAction(loading: _loading, onPressed: _load),
           ],
         ),
-        const Divider(height: 1),
         Expanded(
           child: switch ((roles, _error)) {
             (null, final error?) => Center(child: ConfigError(error, onRetry: _load)),
             (null, _) => const Center(child: CircularProgressIndicator()),
             (final roles?, _) => ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
               children: [
                 for (final kind in [false, true]) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 16, 8, 4),
-                    child: Text(
-                      kind ? t.config.roles.kindRoles : t.config.roles.chatRoles,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Theme.of(context).colorScheme.primary),
-                    ),
-                  ),
+                  ConfigSectionTitle(kind ? t.config.roles.kindRoles : t.config.roles.chatRoles),
                   for (final role in roles.roles.where((role) => role.kindSection == kind))
                     _RoleCard(
                       role: role,
@@ -215,10 +208,10 @@ class _RoleCard extends StatelessWidget {
         ),
       ],
     );
-    return Card.outlined(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: ConfigBlock(
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -226,7 +219,7 @@ class _RoleCard extends StatelessWidget {
               children: [
                 Text(role.name, style: theme.textTheme.titleSmall),
                 const SizedBox(width: 8),
-                Text(role.role, style: theme.textTheme.labelSmall?.copyWith(fontFamily: 'monospace', color: theme.colorScheme.outline)),
+                Text(role.role, style: theme.textTheme.labelSmall?.copyWith(fontFamily: 'monospace', color: theme.colorScheme.onSurfaceVariant)),
                 const Spacer(),
                 if (busy) const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
               ],

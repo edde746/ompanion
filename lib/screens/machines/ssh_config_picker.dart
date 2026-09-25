@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:omp_core/ssh.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine_draft.dart';
 import '../../providers/keys_provider.dart';
@@ -59,7 +60,7 @@ class _SshConfigPickerState extends State<_SshConfigPicker> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (_error case final error?)
-                  Text(error, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  Text(error, style: TextStyle(color: AppColors.of(context).error)),
                 Flexible(
                   child: ListView(
                     shrinkWrap: true,

@@ -157,7 +157,7 @@ void main() {
     expect(aborts(), 2);
 
     // A dock tab has focus, as a field or editor there would.
-    Focus.of(tester.element(find.text('Files'))).requestFocus();
+    Focus.of(tester.element(find.byTooltip('Files'))).requestFocus();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();

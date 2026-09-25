@@ -14,9 +14,9 @@ final _actions = TranscriptActions(
   onOpenSubagent: (_) {},
 );
 
-Widget _harness(SessionView view) => TranslationProvider(
+Widget _harness(SessionView view, {bool alignTop = false}) => TranslationProvider(
   child: MaterialApp(
-    home: Scaffold(body: TranscriptView(view: view, actions: _actions)),
+    home: Scaffold(body: TranscriptView(view: view, actions: _actions, alignTop: alignTop)),
   ),
 );
 
@@ -195,5 +195,19 @@ void main() {
     expect(position.maxScrollExtent - position.minScrollExtent, lessThanOrEqualTo(16));
     final answer = tester.getBottomLeft(find.byKey(ValueKey('${items.last.key}#0')));
     expect(answer.dy, greaterThan(800 - 60), reason: 'the newest row ends near the bottom edge');
+  });
+
+  testWidgets('a top-aligned transcript starts at the top, then follows its growth at the bottom', (tester) async {
+    final items = _turns(0, 1);
+    await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length), alignTop: true));
+    final question = tester.getTopLeft(find.byKey(ValueKey(items.first.key)));
+    expect(question.dy, lessThan(60), reason: 'the first row starts near the top edge');
+
+    final grown = _turns(0, 30);
+    await tester.pumpWidget(_harness(SessionView(transcript: grown, historyLength: grown.length), alignTop: true));
+    await tester.pumpAndSettle();
+    final position = _position(tester);
+    expect(position.maxScrollExtent, greaterThan(0));
+    expect(position.pixels, position.maxScrollExtent, reason: 'it stays at the bottom as it grows');
   });
 }

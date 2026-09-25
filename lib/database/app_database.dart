@@ -5,13 +5,14 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../app/dev_overrides.dart';
+import 'app_database.steps.dart';
 import 'tables.dart';
 
 export 'tables.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Machines, MachineJumps, SshKeys, KnownHosts, Settings])
+@DriftDatabase(tables: [Machines, MachineJumps, SshKeys, KnownHosts, Settings, ReadMarkers])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
@@ -30,11 +31,12 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
+    onUpgrade: stepByStep(from1To2: (m, schema) => m.createTable(schema.readMarkers)),
     // SQLite leaves foreign keys off per connection; jump cascades and key set-null depend on them.
     beforeOpen: (details) => customStatement('PRAGMA foreign_keys = ON'),
   );

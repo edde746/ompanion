@@ -286,8 +286,44 @@ class Translations$machines$en {
 	/// en: 'no key selected'
 	String get noKeySelected => 'no key selected';
 
-	/// en: 'key $name'
-	String keyNamed({required Object name}) => 'key ${name}';
+	/// en: 'System'
+	String get facts => 'System';
+
+	/// en: 'Status'
+	String get status => 'Status';
+
+	/// en: 'OS'
+	String get os => 'OS';
+
+	/// en: 'Architecture'
+	String get arch => 'Architecture';
+
+	/// en: 'Shell'
+	String get shell => 'Shell';
+
+	/// en: 'Home'
+	String get home => 'Home';
+
+	/// en: 'omp'
+	String get omp => 'omp';
+
+	/// en: 'omp version'
+	String get ompVersion => 'omp version';
+
+	/// en: 'Companion'
+	String get companion => 'Companion';
+
+	/// en: 'Uploaded'
+	String get companionReady => 'Uploaded';
+
+	/// en: 'Not uploaded'
+	String get companionMissing => 'Not uploaded';
+
+	/// en: 'Not found'
+	String get notFound => 'Not found';
+
+	/// en: 'Connect to read the machine's OS, shell and omp.'
+	String get notProbed => 'Connect to read the machine\'s OS, shell and omp.';
 }
 
 // Path: auth
@@ -645,6 +681,9 @@ class Translations$tailscale$en {
 
 	/// en: 'offline'
 	String get offline => 'offline';
+
+	/// en: 'Search devices'
+	String get search => 'Search devices';
 }
 
 // Path: sshConfig
@@ -765,6 +804,18 @@ class Translations$settings$en {
 
 	/// en: 'Settings'
 	String get shortcutSettings => 'Settings';
+
+	/// en: 'New session'
+	String get shortcutNewSession => 'New session';
+
+	/// en: 'Pause or resume the session'
+	String get shortcutTogglePause => 'Pause or resume the session';
+
+	/// en: 'Command palette'
+	String get shortcutPalette => 'Command palette';
+
+	/// en: 'Stop the running turn'
+	String get shortcutAbort => 'Stop the running turn';
 }
 
 // Path: time
@@ -838,8 +889,8 @@ class Translations$sessions$en {
 	/// en: 'No sessions yet.'
 	String get none => 'No sessions yet.';
 
-	/// en: 'Untitled session'
-	String get untitled => 'Untitled session';
+	/// en: 'New session'
+	String get untitled => 'New session';
 
 	/// en: 'Unknown directory'
 	String get unknownDirectory => 'Unknown directory';
@@ -847,11 +898,26 @@ class Translations$sessions$en {
 	/// en: 'Show $n more'
 	String showMore({required Object n}) => 'Show ${n} more';
 
-	/// en: 'Running'
-	String get running => 'Running';
+	/// en: 'Working'
+	String get working => 'Working';
 
-	/// en: 'Waiting for your answer'
-	String get waiting => 'Waiting for your answer';
+	/// en: 'Needs your input'
+	String get needsInput => 'Needs your input';
+
+	/// en: 'The last run failed'
+	String get failed => 'The last run failed';
+
+	/// en: 'Disconnected'
+	String get disconnected => 'Disconnected';
+
+	/// en: 'Open in omp on the machine'
+	String get runningOnMachine => 'Open in omp on the machine';
+
+	/// en: 'Opening…'
+	String get opening => 'Opening…';
+
+	/// en: 'Unread'
+	String get unread => 'Unread';
 
 	/// en: 'Could not open the session: $error'
 	String openFailed({required Object error}) => 'Could not open the session: ${error}';
@@ -913,17 +979,14 @@ class Translations$install$en {
 	/// en: 'Connect to the machine first.'
 	String get notConnected => 'Connect to the machine first.';
 
-	/// en: '$os $arch · omp $version into $dir'
-	String facts({required Object os, required Object arch, required Object version, required Object dir}) => '${os} ${arch} · omp ${version} into ${dir}';
-
 	/// en: 'The machine downloads this release from GitHub and checks its SHA-256 before installing it.'
 	String get viaDownload => 'The machine downloads this release from GitHub and checks its SHA-256 before installing it.';
 
 	/// en: 'The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.'
 	String get viaUpload => 'The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.';
 
-	/// en: 'Or run this on the machine yourself:'
-	String get manual => 'Or run this on the machine yourself:';
+	/// en: 'Run the script yourself'
+	String get manual => 'Run the script yourself';
 
 	/// en: 'Install'
 	String get install => 'Install';
@@ -954,6 +1017,18 @@ class Translations$install$en {
 
 	/// en: 'Installed omp $version.'
 	String done({required Object version}) => 'Installed omp ${version}.';
+
+	/// en: 'OS'
+	String get os => 'OS';
+
+	/// en: 'Architecture'
+	String get arch => 'Architecture';
+
+	/// en: 'Release'
+	String get release => 'Release';
+
+	/// en: 'Installs into'
+	String get directory => 'Installs into';
 }
 
 // Path: chat
@@ -964,14 +1039,8 @@ class Translations$chat$en {
 
 	// Translations
 
-	/// en: 'New session'
-	String get untitled => 'New session';
-
 	/// en: 'No model'
 	String get noModel => 'No model';
-
-	/// en: 'Model'
-	String get modelTitle => 'Model';
 
 	/// en: 'Search models'
 	String get searchModels => 'Search models';
@@ -996,9 +1065,6 @@ class Translations$chat$en {
 
 	/// en: 'Thinking: $level'
 	String thinking({required Object level}) => 'Thinking: ${level}';
-
-	/// en: 'off'
-	String get thinkingOff => 'off';
 
 	/// en: 'This model has no thinking levels.'
 	String get noThinking => 'This model has no thinking levels.';
@@ -1081,6 +1147,9 @@ class Translations$chat$en {
 	/// en: 'Stopped'
 	String get aborted => 'Stopped';
 
+	/// en: 'Closed'
+	String get closedState => 'Closed';
+
 	/// en: 'Command output'
 	String get commandOutput => 'Command output';
 
@@ -1132,12 +1201,6 @@ class Translations$composer$en {
 	/// en: 'Steer the running turn'
 	String get hintRunning => 'Steer the running turn';
 
-	/// en: 'Enter sends · Shift+Enter new line · / commands · !command shell · \$code Python'
-	String get keys => 'Enter sends · Shift+Enter new line · / commands · !command shell · \$code Python';
-
-	/// en: 'Enter steers · $alt+Enter queues a follow-up · Esc stops'
-	String keysRunning({required Object alt}) => 'Enter steers · ${alt}+Enter queues a follow-up · Esc stops';
-
 	/// en: 'Send'
 	String get send => 'Send';
 
@@ -1171,9 +1234,6 @@ class Translations$queue$en {
 
 	// Translations
 
-	/// en: 'Queued'
-	String get queued => 'Queued';
-
 	/// en: 'Steering'
 	String get steer => 'Steering';
 
@@ -1183,11 +1243,14 @@ class Translations$queue$en {
 	/// en: '+$n more'
 	String more({required Object n}) => '+${n} more';
 
-	/// en: 'Edit last'
-	String get editLast => 'Edit last';
+	/// en: 'Edit in the composer'
+	String get edit => 'Edit in the composer';
 
-	/// en: 'Could not take the message back: $error'
-	String popFailed({required Object error}) => 'Could not take the message back: ${error}';
+	/// en: 'Remove from the queue'
+	String get remove => 'Remove from the queue';
+
+	/// en: 'Could not change the queue: $error'
+	String takeFailed({required Object error}) => 'Could not change the queue: ${error}';
 }
 
 // Path: exec
@@ -1228,14 +1291,14 @@ class Translations$requests$en {
 	/// en: 'Allow $tool?'
 	String approvalTitle({required Object tool}) => 'Allow ${tool}?';
 
-	/// en: 'Waiting for your answer: $title'
-	String waiting({required Object title}) => 'Waiting for your answer: ${title}';
+	/// en: '$index of $count'
+	String position({required Object index, required Object count}) => '${index} of ${count}';
 
-	/// en: 'Answer'
-	String get answer => 'Answer';
+	/// en: 'Previous request'
+	String get previous => 'Previous request';
 
-	/// en: 'Later'
-	String get hide => 'Later';
+	/// en: 'Next request'
+	String get next => 'Next request';
 
 	/// en: 'Submit'
 	String get submit => 'Submit';
@@ -1381,6 +1444,9 @@ class Translations$transcript$en {
 	/// en: 'This attempt failed; retrying gave up after attempt $attempt.'
 	String retrySuperseded({required Object attempt}) => 'This attempt failed; retrying gave up after attempt ${attempt}.';
 
+	/// en: 'This attempt failed; retry $attempt failed too.'
+	String retryFailed({required Object attempt}) => 'This attempt failed; retry ${attempt} failed too.';
+
 	/// en: '$count in'
 	String tokensIn({required Object count}) => '${count} in';
 
@@ -1428,6 +1494,24 @@ class Translations$transcript$en {
 
 	/// en: 'Summary of the branch you left'
 	String get branchSummary => 'Summary of the branch you left';
+
+	/// en: 'Files'
+	String get summaryFiles => 'Files';
+
+	/// en: 'read'
+	String get fileRead => 'read';
+
+	/// en: 'written'
+	String get fileWritten => 'written';
+
+	/// en: 'read and written'
+	String get fileReadWritten => 'read and written';
+
+	/// en: '(one) {$n more file} (other) {$n more files}'
+	String filesElided({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} more file',
+		other: '${n} more files',
+	);
 
 	/// en: 'Model: $model'
 	String modelChange({required Object model}) => 'Model: ${model}';
@@ -2162,11 +2246,11 @@ class Translations$config$scope$en {
 	/// en: 'Global'
 	String get global => 'Global';
 
-	/// en: 'Project $name'
-	String project({required Object name}) => 'Project ${name}';
+	/// en: 'Project'
+	String get project => 'Project';
 
-	/// en: 'Project (open a session here)'
-	String get projectNone => 'Project (open a session here)';
+	/// en: 'Open a session on this machine to edit its project settings.'
+	String get projectNone => 'Open a session on this machine to edit its project settings.';
 }
 
 // Path: config.provenance
@@ -2234,8 +2318,8 @@ class Translations$config$settings$en {
 	/// en: 'Settings without a row in omp's settings panel, grouped by their first key.'
 	String get advancedNote => 'Settings without a row in omp\'s settings panel, grouped by their first key.';
 
-	/// en: 'These are omp's terminal UI settings. The app's own look follows the app settings (Material 3).'
-	String get themeNote => 'These are omp\'s terminal UI settings. The app\'s own look follows the app settings (Material 3).';
+	/// en: 'These are omp's terminal UI settings. The app's own look follows the app settings.'
+	String get themeNote => 'These are omp\'s terminal UI settings. The app\'s own look follows the app settings.';
 
 	/// en: 'No setting matches.'
 	String get noMatches => 'No setting matches.';
@@ -2278,9 +2362,6 @@ class Translations$config$settings$en {
 
 	/// en: 'Add'
 	String get addItem => 'Add';
-
-	/// en: 'In effect: $value'
-	String overridden({required Object value}) => 'In effect: ${value}';
 
 	/// en: 'In effect: $value (a higher layer wins)'
 	String overriddenLine({required Object value}) => 'In effect: ${value} (a higher layer wins)';
@@ -2375,21 +2456,6 @@ class Translations$config$accounts$en {
 	/// en: 'In use and pinned marks refer to the session in $path.'
 	String sessionView({required Object path}) => 'In use and pinned marks refer to the session in ${path}.';
 
-	/// en: 'Stored credentials'
-	String get stored => 'Stored credentials';
-
-	/// en: 'No stored credentials.'
-	String get none => 'No stored credentials.';
-
-	/// en: 'current model'
-	String get currentModel => 'current model';
-
-	/// en: 'No working credential'
-	String get noSource => 'No working credential';
-
-	/// en: 'From the environment variable $name'
-	String fromEnv({required Object name}) => 'From the environment variable ${name}';
-
 	/// en: 'OAuth'
 	String get oauthAccount => 'OAuth';
 
@@ -2420,26 +2486,11 @@ class Translations$config$accounts$en {
 	/// en: 'The stored credential for $provider is removed from this machine.'
 	String logoutBody({required Object provider}) => 'The stored credential for ${provider} is removed from this machine.';
 
-	/// en: 'Log in with an account'
-	String get oauth => 'Log in with an account';
-
 	/// en: 'The browser opens on this computer.'
 	String get oauthLocal => 'The browser opens on this computer.';
 
 	/// en: 'The browser opens on this device; the app forwards omp's callback port to the machine.'
 	String get oauthRemote => 'The browser opens on this device; the app forwards omp\'s callback port to the machine.';
-
-	/// en: 'API key'
-	String get apiKey => 'API key';
-
-	/// en: 'Stored in omp's credential store on the machine, like /login with a pasted key.'
-	String get apiKeyHint => 'Stored in omp\'s credential store on the machine, like /login with a pasted key.';
-
-	/// en: 'Provider'
-	String get provider => 'Provider';
-
-	/// en: 'Key'
-	String get key => 'Key';
 
 	/// en: 'Save key'
 	String get saveKey => 'Save key';
@@ -2482,6 +2533,25 @@ class Translations$config$accounts$en {
 
 	/// en: 'No model works on this machine yet. Sign in with an account or add an API key; settings and roles work meanwhile.'
 	String get bootstrap => 'No model works on this machine yet. Sign in with an account or add an API key; settings and roles work meanwhile.';
+
+	/// en: 'Search providers'
+	String get search => 'Search providers';
+
+	/// en: 'No provider matches.'
+	String get noMatches => 'No provider matches.';
+
+	/// en: 'signed in'
+	String get signedIn => 'signed in';
+
+	/// en: 'Sign in'
+	String get signIn => 'Sign in';
+
+	/// en: 'Paste an API key'
+	String get keyHint => 'Paste an API key';
+
+	late final Translations$config$accounts$kind$en kind = Translations$config$accounts$kind$en.internal(_root);
+	late final Translations$config$accounts$source$en source = Translations$config$accounts$source$en.internal(_root);
+	late final Translations$config$accounts$overridden$en overridden = Translations$config$accounts$overridden$en.internal(_root);
 }
 
 // Path: config.mcp
@@ -2563,6 +2633,9 @@ class Translations$config$mcp$en {
 
 	/// en: 'Enable the server to test it; omp loads only enabled servers.'
 	String get testDisabled => 'Enable the server to test it; omp loads only enabled servers.';
+
+	/// en: 'Smithery registry'
+	String get smitheryTitle => 'Smithery registry';
 }
 
 // Path: config.plugins
@@ -2663,9 +2736,6 @@ class Translations$config$skills$en {
 	/// en: 'pdf, git, review…'
 	String get searchHint => 'pdf, git, review…';
 
-	/// en: 'Search'
-	String get searchAction => 'Search';
-
 	/// en: '$shown of $total'
 	String results({required Object shown, required Object total}) => '${shown} of ${total}';
 
@@ -2713,6 +2783,9 @@ class Translations$config$skills$en {
 
 	/// en: 'Ships scripts.'
 	String get shipsScripts => 'Ships scripts.';
+
+	/// en: 'Nothing on skills.omp.sh matches "$query".'
+	String noHits({required Object query}) => 'Nothing on skills.omp.sh matches "${query}".';
 }
 
 // Path: config.usage
@@ -2884,6 +2957,72 @@ class Translations$dock$fileBrowser$git$en {
 
 	/// en: 'Conflicted'
 	String get conflicted => 'Conflicted';
+}
+
+// Path: config.accounts.kind
+class Translations$config$accounts$kind$en {
+	Translations$config$accounts$kind$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'account'
+	String get account => 'account';
+
+	/// en: 'API key'
+	String get apiKey => 'API key';
+
+	/// en: 'local'
+	String get local => 'local';
+}
+
+// Path: config.accounts.source
+class Translations$config$accounts$source$en {
+	Translations$config$accounts$source$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'omp uses a key set for this omp process only.'
+	String get runtime => 'omp uses a key set for this omp process only.';
+
+	/// en: 'omp uses the key that models.yml sets.'
+	String get config => 'omp uses the key that models.yml sets.';
+
+	/// en: 'omp uses a signed-in account.'
+	String get oauth => 'omp uses a signed-in account.';
+
+	/// en: 'omp uses a stored API key.'
+	String get apiKey => 'omp uses a stored API key.';
+
+	/// en: 'omp uses the key in the environment variable $name.'
+	String env({required Object name}) => 'omp uses the key in the environment variable ${name}.';
+
+	/// en: 'omp has a working credential for this provider.'
+	String get working => 'omp has a working credential for this provider.';
+
+	/// en: 'Not signed in.'
+	String get none => 'Not signed in.';
+}
+
+// Path: config.accounts.overridden
+class Translations$config$accounts$overridden$en {
+	Translations$config$accounts$overridden$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'models.yml sets a key for this provider, so omp uses that key and not the stored one.'
+	String get config => 'models.yml sets a key for this provider, so omp uses that key and not the stored one.';
+
+	/// en: 'The environment variable $name sets a key, so omp uses it and not the stored one.'
+	String env({required Object name}) => 'The environment variable ${name} sets a key, so omp uses it and not the stored one.';
+
+	/// en: 'A key set for this omp process wins over the stored one.'
+	String get runtime => 'A key set for this omp process wins over the stored one.';
 }
 
 /// The flat map containing all translations for locale <en>.
@@ -3105,7 +3244,19 @@ extension on Translations {
 			'machines.noHostKeys' => 'No host key trusted yet. The first connection asks.',
 			'machines.forgetHostKey' => 'Forget this host key',
 			'machines.noKeySelected' => 'no key selected',
-			'machines.keyNamed' => ({required Object name}) => 'key ${name}',
+			'machines.facts' => 'System',
+			'machines.status' => 'Status',
+			'machines.os' => 'OS',
+			'machines.arch' => 'Architecture',
+			'machines.shell' => 'Shell',
+			'machines.home' => 'Home',
+			'machines.omp' => 'omp',
+			'machines.ompVersion' => 'omp version',
+			'machines.companion' => 'Companion',
+			'machines.companionReady' => 'Uploaded',
+			'machines.companionMissing' => 'Not uploaded',
+			'machines.notFound' => 'Not found',
+			'machines.notProbed' => 'Connect to read the machine\'s OS, shell and omp.',
 			'auth.key' => 'Key',
 			'auth.password' => 'Password',
 			'auth.agent' => 'SSH agent',
@@ -3201,6 +3352,7 @@ extension on Translations {
 			'tailscale.notRunning' => ({required Object state}) => 'Tailscale is not connected (state: ${state}).',
 			'tailscale.noPeers' => 'No other devices in this tailnet.',
 			'tailscale.offline' => 'offline',
+			'tailscale.search' => 'Search devices',
 			'sshConfig.title' => 'SSH config hosts',
 			'sshConfig.empty' => 'No hosts in ~/.ssh/config.',
 			'sshConfig.failed' => ({required Object error}) => 'Could not read ~/.ssh/config: ${error}',
@@ -3232,6 +3384,10 @@ extension on Translations {
 			'settings.shortcutPanelTab' => 'Show a panel tab',
 			'settings.shortcutAddMachine' => 'Add machine',
 			'settings.shortcutSettings' => 'Settings',
+			'settings.shortcutNewSession' => 'New session',
+			'settings.shortcutTogglePause' => 'Pause or resume the session',
+			'settings.shortcutPalette' => 'Command palette',
+			'settings.shortcutAbort' => 'Stop the running turn',
 			'time.now' => 'now',
 			'time.minutes' => ({required Object n}) => '${n}m',
 			'time.hours' => ({required Object n}) => '${n}h',
@@ -3250,11 +3406,16 @@ extension on Translations {
 			'sessions.newSessionHere' => 'New session in this directory',
 			'sessions.newSessionOn' => ({required Object machine}) => 'New session on ${machine}',
 			'sessions.none' => 'No sessions yet.',
-			'sessions.untitled' => 'Untitled session',
+			'sessions.untitled' => 'New session',
 			'sessions.unknownDirectory' => 'Unknown directory',
 			'sessions.showMore' => ({required Object n}) => 'Show ${n} more',
-			'sessions.running' => 'Running',
-			'sessions.waiting' => 'Waiting for your answer',
+			'sessions.working' => 'Working',
+			'sessions.needsInput' => 'Needs your input',
+			'sessions.failed' => 'The last run failed',
+			'sessions.disconnected' => 'Disconnected',
+			'sessions.runningOnMachine' => 'Open in omp on the machine',
+			'sessions.opening' => 'Opening…',
+			'sessions.unread' => 'Unread',
 			'sessions.openFailed' => ({required Object error}) => 'Could not open the session: ${error}',
 			'sessions.listFailed' => ({required Object error}) => 'Could not list sessions: ${error}',
 			'sessions.directory' => 'Working directory',
@@ -3272,10 +3433,9 @@ extension on Translations {
 			'sessions.chooseDirectory' => 'Use this directory',
 			'install.title' => ({required Object machine}) => 'Install omp on ${machine}',
 			'install.notConnected' => 'Connect to the machine first.',
-			'install.facts' => ({required Object os, required Object arch, required Object version, required Object dir}) => '${os} ${arch} · omp ${version} into ${dir}',
 			'install.viaDownload' => 'The machine downloads this release from GitHub and checks its SHA-256 before installing it.',
 			'install.viaUpload' => 'The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.',
-			'install.manual' => 'Or run this on the machine yourself:',
+			'install.manual' => 'Run the script yourself',
 			'install.install' => 'Install',
 			'install.installing' => 'Downloading and installing on the machine…',
 			'install.installFailed' => 'Installing on the machine failed',
@@ -3286,9 +3446,11 @@ extension on Translations {
 			'install.stillMissing' => ({required Object reason}) => 'omp is still not usable: ${reason}',
 			'install.noAsset' => ({required Object os, required Object arch}) => 'omp publishes no build for ${os} ${arch}.',
 			'install.done' => ({required Object version}) => 'Installed omp ${version}.',
-			'chat.untitled' => 'New session',
+			'install.os' => 'OS',
+			'install.arch' => 'Architecture',
+			'install.release' => 'Release',
+			'install.directory' => 'Installs into',
 			'chat.noModel' => 'No model',
-			'chat.modelTitle' => 'Model',
 			'chat.searchModels' => 'Search models',
 			'chat.refreshModels' => 'Reload the model list',
 			'chat.noModels' => 'No models match.',
@@ -3297,7 +3459,6 @@ extension on Translations {
 			'chat.contextWindow' => ({required Object tokens}) => '${tokens} tokens',
 			'chat.reasoning' => 'reasoning',
 			'chat.thinking' => ({required Object level}) => 'Thinking: ${level}',
-			'chat.thinkingOff' => 'off',
 			'chat.noThinking' => 'This model has no thinking levels.',
 			'chat.thinkingFailed' => ({required Object error}) => 'Could not change the thinking level: ${error}',
 			'chat.contextTooltip' => ({required Object tokens, required Object window, required Object percent, required Object cost}) => 'Context: ${tokens} of ${window} tokens (${percent}%) · cost ${cost}',
@@ -3325,6 +3486,7 @@ extension on Translations {
 			'chat.failed' => ({required Object error}) => 'The last run failed: ${error}',
 			'chat.failedUnknown' => 'unknown error',
 			'chat.aborted' => 'Stopped',
+			'chat.closedState' => 'Closed',
 			'chat.commandOutput' => 'Command output',
 			'chat.extensionError' => ({required Object path, required Object event, required Object error}) => 'Extension error in ${path} (${event}): ${error}',
 			'chat.fallbackServed' => ({required Object model}) => 'Served by the fallback model ${model}.',
@@ -3339,8 +3501,6 @@ extension on Translations {
 			'chat.branchFailed' => ({required Object error}) => 'Could not branch: ${error}',
 			'composer.hint' => 'Message omp',
 			'composer.hintRunning' => 'Steer the running turn',
-			'composer.keys' => 'Enter sends · Shift+Enter new line · / commands · !command shell · \$code Python',
-			'composer.keysRunning' => ({required Object alt}) => 'Enter steers · ${alt}+Enter queues a follow-up · Esc stops',
 			'composer.send' => 'Send',
 			'composer.steer' => 'Steer',
 			'composer.followUp' => 'Follow-up',
@@ -3349,12 +3509,12 @@ extension on Translations {
 			'composer.unsupportedImage' => ({required Object name}) => '${name} is not a PNG, JPEG, GIF or WebP image.',
 			'composer.unknownCommand' => ({required Object name}) => '/${name} is not a command of this session. Nothing was sent.',
 			'composer.sendFailed' => ({required Object error}) => 'Not sent: ${error}',
-			'queue.queued' => 'Queued',
 			'queue.steer' => 'Steering',
 			'queue.followUp' => 'Follow-up',
 			'queue.more' => ({required Object n}) => '+${n} more',
-			'queue.editLast' => 'Edit last',
-			'queue.popFailed' => ({required Object error}) => 'Could not take the message back: ${error}',
+			'queue.edit' => 'Edit in the composer',
+			'queue.remove' => 'Remove from the queue',
+			'queue.takeFailed' => ({required Object error}) => 'Could not change the queue: ${error}',
 			'exec.running' => 'running',
 			'exec.exited' => ({required Object code}) => 'exit ${code}',
 			'exec.cancelled' => 'cancelled',
@@ -3362,9 +3522,9 @@ extension on Translations {
 			'exec.abort' => 'Stop',
 			'exec.truncated' => 'Output truncated',
 			'requests.approvalTitle' => ({required Object tool}) => 'Allow ${tool}?',
-			'requests.waiting' => ({required Object title}) => 'Waiting for your answer: ${title}',
-			'requests.answer' => 'Answer',
-			'requests.hide' => 'Later',
+			'requests.position' => ({required Object index, required Object count}) => '${index} of ${count}',
+			'requests.previous' => 'Previous request',
+			'requests.next' => 'Next request',
 			'requests.submit' => 'Submit',
 			'requests.yes' => 'Yes',
 			'requests.no' => 'No',
@@ -3385,6 +3545,8 @@ extension on Translations {
 			'ask.multi' => 'Choose any number.',
 			'ask.otherHint' => 'Other: type your own answer',
 			'ask.note' => 'Note (optional)',
+			_ => null,
+		} ?? switch (path) {
 			'ask.chat' => 'Chat about this',
 			'transcript.jumpToLatest' => 'Jump to latest',
 			'transcript.loadEarlier' => 'Load earlier messages',
@@ -3406,8 +3568,7 @@ extension on Translations {
 			'transcript.lengthLimit' => 'Stopped at the output token limit.',
 			'transcript.retryRecovered' => ({required Object attempt}) => 'This attempt failed; retry ${attempt} succeeded.',
 			'transcript.retrySuperseded' => ({required Object attempt}) => 'This attempt failed; retrying gave up after attempt ${attempt}.',
-			_ => null,
-		} ?? switch (path) {
+			'transcript.retryFailed' => ({required Object attempt}) => 'This attempt failed; retry ${attempt} failed too.',
 			'transcript.tokensIn' => ({required Object count}) => '${count} in',
 			'transcript.tokensOut' => ({required Object count}) => '${count} out',
 			'transcript.tokensCached' => ({required Object count}) => '${count} cached',
@@ -3458,6 +3619,11 @@ extension on Translations {
 			'transcript.showSummary' => 'Show summary',
 			'transcript.hideSummary' => 'Hide summary',
 			'transcript.branchSummary' => 'Summary of the branch you left',
+			'transcript.summaryFiles' => 'Files',
+			'transcript.fileRead' => 'read',
+			'transcript.fileWritten' => 'written',
+			'transcript.fileReadWritten' => 'read and written',
+			'transcript.filesElided' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} more file', other: '${n} more files', ), 
 			'transcript.modelChange' => ({required Object model}) => 'Model: ${model}',
 			'transcript.modelRoleChange' => ({required Object role, required Object model}) => 'Model (${role}): ${model}',
 			'transcript.thinkingLevel' => ({required Object level}) => 'Thinking: ${level}',
@@ -3482,8 +3648,8 @@ extension on Translations {
 			'config.sections.usage' => 'Usage',
 			'config.sections.stats' => 'Stats',
 			'config.scope.global' => 'Global',
-			'config.scope.project' => ({required Object name}) => 'Project ${name}',
-			'config.scope.projectNone' => 'Project (open a session here)',
+			'config.scope.project' => 'Project',
+			'config.scope.projectNone' => 'Open a session on this machine to edit its project settings.',
 			'config.provenance.env' => ({required Object name}) => 'env ${name}',
 			'config.provenance.envHint' => ({required Object name}) => 'The environment variable ${name} overrides the files.',
 			'config.provenance.runtime' => 'override',
@@ -3500,7 +3666,7 @@ extension on Translations {
 			'config.settings.editing' => ({required Object path}) => 'Editing ${path}',
 			'config.settings.advancedTab' => 'Config file only',
 			'config.settings.advancedNote' => 'Settings without a row in omp\'s settings panel, grouped by their first key.',
-			'config.settings.themeNote' => 'These are omp\'s terminal UI settings. The app\'s own look follows the app settings (Material 3).',
+			'config.settings.themeNote' => 'These are omp\'s terminal UI settings. The app\'s own look follows the app settings.',
 			'config.settings.noMatches' => 'No setting matches.',
 			'config.settings.reset' => 'Reset to the inherited value',
 			'config.settings.unset' => 'unset',
@@ -3515,7 +3681,6 @@ extension on Translations {
 			'config.settings.secretHelp' => 'Sent to the machine as a private file that omp reads and deletes; never shown or logged.',
 			'config.settings.secretGlobalOnly' => 'Credentials are saved in the global config only.',
 			'config.settings.addItem' => 'Add',
-			'config.settings.overridden' => ({required Object value}) => 'In effect: ${value}',
 			'config.settings.overriddenLine' => ({required Object value}) => 'In effect: ${value} (a higher layer wins)',
 			'config.settings.fileError' => ({required Object path, required Object error}) => 'Could not read ${path}: ${error}',
 			'config.roles.storage' => ({required Object storage}) => 'omp\'s model picker saves roles to: ${storage}',
@@ -3541,11 +3706,6 @@ extension on Translations {
 			'config.roles.noModels' => 'No model matches.',
 			'config.accounts.machineWide' => 'Credentials are stored per machine.',
 			'config.accounts.sessionView' => ({required Object path}) => 'In use and pinned marks refer to the session in ${path}.',
-			'config.accounts.stored' => 'Stored credentials',
-			'config.accounts.none' => 'No stored credentials.',
-			'config.accounts.currentModel' => 'current model',
-			'config.accounts.noSource' => 'No working credential',
-			'config.accounts.fromEnv' => ({required Object name}) => 'From the environment variable ${name}',
 			'config.accounts.oauthAccount' => 'OAuth',
 			'config.accounts.apiKeyAccount' => 'API key',
 			'config.accounts.active' => 'in use',
@@ -3556,13 +3716,8 @@ extension on Translations {
 			'config.accounts.logout' => 'Log out',
 			'config.accounts.logoutTitle' => ({required Object account}) => 'Log out ${account}?',
 			'config.accounts.logoutBody' => ({required Object provider}) => 'The stored credential for ${provider} is removed from this machine.',
-			'config.accounts.oauth' => 'Log in with an account',
 			'config.accounts.oauthLocal' => 'The browser opens on this computer.',
 			'config.accounts.oauthRemote' => 'The browser opens on this device; the app forwards omp\'s callback port to the machine.',
-			'config.accounts.apiKey' => 'API key',
-			'config.accounts.apiKeyHint' => 'Stored in omp\'s credential store on the machine, like /login with a pasted key.',
-			'config.accounts.provider' => 'Provider',
-			'config.accounts.key' => 'Key',
 			'config.accounts.saveKey' => 'Save key',
 			'config.accounts.keyStored' => ({required Object provider}) => 'Key stored for ${provider}.',
 			'config.accounts.loginTitle' => ({required Object provider}) => 'Log in to ${provider}',
@@ -3577,6 +3732,24 @@ extension on Translations {
 			'config.accounts.no' => 'No',
 			'config.accounts.loggedIn' => 'Logged in.',
 			'config.accounts.bootstrap' => 'No model works on this machine yet. Sign in with an account or add an API key; settings and roles work meanwhile.',
+			'config.accounts.search' => 'Search providers',
+			'config.accounts.noMatches' => 'No provider matches.',
+			'config.accounts.signedIn' => 'signed in',
+			'config.accounts.signIn' => 'Sign in',
+			'config.accounts.keyHint' => 'Paste an API key',
+			'config.accounts.kind.account' => 'account',
+			'config.accounts.kind.apiKey' => 'API key',
+			'config.accounts.kind.local' => 'local',
+			'config.accounts.source.runtime' => 'omp uses a key set for this omp process only.',
+			'config.accounts.source.config' => 'omp uses the key that models.yml sets.',
+			'config.accounts.source.oauth' => 'omp uses a signed-in account.',
+			'config.accounts.source.apiKey' => 'omp uses a stored API key.',
+			'config.accounts.source.env' => ({required Object name}) => 'omp uses the key in the environment variable ${name}.',
+			'config.accounts.source.working' => 'omp has a working credential for this provider.',
+			'config.accounts.source.none' => 'Not signed in.',
+			'config.accounts.overridden.config' => 'models.yml sets a key for this provider, so omp uses that key and not the stored one.',
+			'config.accounts.overridden.env' => ({required Object name}) => 'The environment variable ${name} sets a key, so omp uses it and not the stored one.',
+			'config.accounts.overridden.runtime' => 'A key set for this omp process wins over the stored one.',
 			'config.mcp.userFile' => ({required Object path}) => 'User: ${path}',
 			'config.mcp.projectFile' => ({required Object path}) => 'Project: ${path}',
 			'config.mcp.add' => 'Add server',
@@ -3601,6 +3774,7 @@ extension on Translations {
 			'config.mcp.tokenUserOnly' => 'Only user-scope servers take a token here: a project session would keep it in its run log.',
 			'config.mcp.tuiOnly' => 'omp 18.3.1 offers reauth, unauth, reconnect and Smithery login only in its terminal UI.',
 			'config.mcp.testDisabled' => 'Enable the server to test it; omp loads only enabled servers.',
+			'config.mcp.smitheryTitle' => 'Smithery registry',
 			'config.plugins.inProject' => ({required Object path}) => 'Commands run in ${path}',
 			'config.plugins.installed' => 'Installed',
 			'config.plugins.none' => 'No plugins installed.',
@@ -3628,7 +3802,6 @@ extension on Translations {
 			'config.skills.info' => 'Info',
 			'config.skills.search' => 'Search the registry',
 			'config.skills.searchHint' => 'pdf, git, review…',
-			'config.skills.searchAction' => 'Search',
 			'config.skills.results' => ({required Object shown, required Object total}) => '${shown} of ${total}',
 			'config.skills.downloads' => ({required Object number}) => '${number} weekly downloads',
 			'config.skills.by' => ({required Object name}) => 'by ${name}',
@@ -3645,6 +3818,7 @@ extension on Translations {
 			'config.skills.owners' => ({required Object owners}) => 'Owners: ${owners}',
 			'config.skills.downloadsTotal' => ({required Object weekly, required Object total}) => 'Downloads: ${weekly} weekly, ${total} total',
 			'config.skills.shipsScripts' => 'Ships scripts.',
+			'config.skills.noHits' => ({required Object query}) => 'Nothing on skills.omp.sh matches "${query}".',
 			'config.usage.generated' => ({required Object time}) => 'Fetched at ${time}',
 			'config.usage.fetchAgain' => 'Ask providers again',
 			'config.usage.none' => 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.',

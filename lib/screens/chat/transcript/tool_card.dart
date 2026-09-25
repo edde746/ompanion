@@ -3,11 +3,38 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:omp_core/store.dart';
 
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import 'ansi.dart';
 import 'code_style.dart';
 import 'tool_bodies.dart';
 import 'transcript_rows.dart';
+
+/// A flat card of the transcript: a [ColorScheme.surfaceContainer] block without a border. Code, output and diffs
+/// inside it sit one tone higher ([codeSurface]).
+class TranscriptCard extends StatelessWidget {
+  const TranscriptCard({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+    ),
+    child: child,
+  );
+}
+
+/// The background of code, terminal output and diffs: [ColorScheme.surfaceContainer] on the transcript, one tone
+/// higher inside a [TranscriptCard].
+Color codeSurface(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
+  return context.findAncestorWidgetOfExactType<TranscriptCard>() == null
+      ? scheme.surfaceContainer
+      : scheme.surfaceContainerHigh;
+}
 
 /// What a tool card knows about one call: its row, its result so far, and the session's subagents (a `task` card
 /// shows their live status).
@@ -106,21 +133,14 @@ class _ToolCardState extends State<ToolCard> {
     final subjectStyle = parts.monoSubject
         ? codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize)
         : theme.textTheme.bodyMedium;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: data.status == ToolStatus.failed ? scheme.error.withValues(alpha: 0.6) : scheme.outlineVariant,
-        ),
-      ),
+    return TranscriptCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           SelectionContainer.disabled(
             child: InkWell(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppSizes.cardRadius),
               onTap: body == null ? null : () => _toggle(expanded),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
@@ -151,9 +171,8 @@ class _ToolCardState extends State<ToolCard> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: subjectStyle?.copyWith(
-                                      color: scheme.primary,
                                       decoration: TextDecoration.underline,
-                                      decorationColor: scheme.primary.withValues(alpha: 0.4),
+                                      decorationColor: scheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ),
@@ -164,7 +183,7 @@ class _ToolCardState extends State<ToolCard> {
                             child: Text(
                               fact,
                               style: theme.textTheme.labelSmall?.copyWith(
-                                color: data.status == ToolStatus.failed ? scheme.error : scheme.onSurfaceVariant,
+                                color: data.status == ToolStatus.failed ? AppColors.of(context).error : scheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -214,22 +233,23 @@ class _StatusIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final colors = AppColors.of(context);
     final t = context.t.transcript.tool;
     return SizedBox.square(
       dimension: 14,
       child: switch (status) {
         ToolStatus.pending || ToolStatus.running => Tooltip(
           message: t.running,
-          child: const CircularProgressIndicator(strokeWidth: 2),
+          child: CircularProgressIndicator(strokeWidth: 2, color: colors.running),
         ),
         ToolStatus.background => Tooltip(
           message: t.background,
-          child: Icon(Icons.schedule, size: 14, color: scheme.primary),
+          child: Icon(Icons.schedule, size: 14, color: colors.running),
         ),
-        ToolStatus.done => Icon(Icons.check_circle, size: 14, color: AnsiPalette.of(scheme).foreground(2)),
+        ToolStatus.done => Icon(Icons.check_circle, size: 14, color: colors.success),
         ToolStatus.failed => Tooltip(
           message: t.error,
-          child: Icon(Icons.error, size: 14, color: scheme.error),
+          child: Icon(Icons.error, size: 14, color: colors.error),
         ),
         ToolStatus.interrupted => Tooltip(
           message: t.interrupted,
@@ -326,12 +346,9 @@ class TerminalOutput extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final lines = linesOf(text);
-    final base = codeTextStyle(theme).copyWith(color: error ? scheme.error : scheme.onSurface);
+    final base = codeTextStyle(theme).copyWith(color: error ? AppColors.of(context).error : scheme.onSurface);
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: BoxDecoration(color: codeSurface(context), borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: CappedLines(
@@ -360,10 +377,7 @@ class JsonView extends StatelessWidget {
     final theme = Theme.of(context);
     final lines = linesOf(_encoder.convert(value));
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: BoxDecoration(color: codeSurface(context), borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: CappedLines(

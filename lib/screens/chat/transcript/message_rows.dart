@@ -2,10 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:omp_core/store.dart';
 
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import 'code_style.dart';
 import 'images.dart';
 import 'markdown.dart';
+import 'summary_files.dart';
 import 'tool_card.dart';
 import 'transcript_actions.dart';
 import 'transcript_rows.dart';
@@ -35,7 +37,7 @@ class TranscriptRowView extends StatelessWidget {
       final ThinkingRow row => (_ThinkingView(row, thought: thought), 6.0),
       AssistantImageRow(:final block) => (Align(alignment: Alignment.centerLeft, child: TranscriptImage(block)), 6.0),
       final ToolRow row => (ToolCard(data: ToolData(row: row, result: result, subagents: subagents)), 6.0),
-      AssistantFooterRow(:final item) => (_AssistantFooter(item), 4.0),
+      final AssistantFooterRow row => (_AssistantFooter(row.item, retryFailed: row.retryFailed), 4.0),
       PendingRow() => (const _Pending(), 10.0),
     };
     return Align(
@@ -61,7 +63,7 @@ class TranscriptRowView extends StatelessWidget {
     final UserItem item => _UserMessage(item),
     final ExecutionItem item => _Execution(item),
     final CustomItem item => _CustomMessage(item),
-    final CompactionItem item => _Divider(
+    final CompactionItem item => _SummaryMarker(
       icon: Icons.compress,
       title: (t) => item.tokensAfter == null
           ? '${t.compacted} · ${t.compactedFrom(before: _count(item.tokensBefore))}'
@@ -69,7 +71,7 @@ class TranscriptRowView extends StatelessWidget {
       summary: item.summary,
       storageKey: item.key,
     ),
-    final BranchSummaryItem item => _Divider(
+    final BranchSummaryItem item => _SummaryMarker(
       icon: Icons.call_split,
       title: (t) => t.branchSummary,
       summary: item.summary,
@@ -137,13 +139,8 @@ class _UserMessageState extends State<_UserMessage> {
     final text = item.text;
     final bubble = DecoratedBox(
       decoration: BoxDecoration(
-        color: agent ? scheme.surfaceContainerHigh : scheme.secondaryContainer,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(4),
-        ),
+        color: agent ? scheme.surfaceContainer : scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(AppSizes.cardRadius),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -164,9 +161,7 @@ class _UserMessageState extends State<_UserMessage> {
             if (text.isNotEmpty)
               Text(
                 text,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: agent ? scheme.onSurfaceVariant : scheme.onSecondaryContainer,
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(color: agent ? scheme.onSurfaceVariant : scheme.onSurface),
               ),
             if (images.isNotEmpty) ...[if (text.isNotEmpty) const SizedBox(height: 8), ImageStrip(images)],
           ],
@@ -307,10 +302,8 @@ class _ThinkingViewState extends State<_ThinkingView> {
           ),
         ),
         if (_expanded)
-          Container(
-            margin: const EdgeInsets.only(left: 7, top: 2),
-            padding: const EdgeInsets.only(left: 12),
-            decoration: BoxDecoration(border: Border(left: BorderSide(color: scheme.outlineVariant, width: 2))),
+          Padding(
+            padding: const EdgeInsets.only(left: 22, top: 2),
             child: TranscriptMarkdown(block.thinking, style: dim?.copyWith(fontSize: theme.textTheme.bodyMedium?.fontSize)),
           ),
       ],
@@ -319,15 +312,19 @@ class _ThinkingViewState extends State<_ThinkingView> {
 }
 
 class _AssistantFooter extends StatelessWidget {
-  const _AssistantFooter(this.item);
+  const _AssistantFooter(this.item, {required this.retryFailed});
 
   final AssistantItem item;
+
+  /// The retry that followed this failed attempt failed as well.
+  final bool retryFailed;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final t = context.t.transcript;
+    final colors = AppColors.of(context);
     final dim = theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant);
     final usage = item.usage;
     final facts = [
@@ -349,11 +346,8 @@ class _AssistantFooter extends StatelessWidget {
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 4),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(8)),
-              child: Text(
-                item.errorMessage ?? t.failed,
-                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onErrorContainer),
-              ),
+              decoration: BoxDecoration(color: colors.errorSurface, borderRadius: BorderRadius.circular(8)),
+              child: Text(item.errorMessage ?? t.failed, style: theme.textTheme.bodySmall?.copyWith(color: colors.error)),
             ),
           if (item.stopReason == StopReason.aborted)
             Row(
@@ -363,10 +357,12 @@ class _AssistantFooter extends StatelessWidget {
                 Text(t.interrupted, style: dim),
               ],
             ),
-          if (item.stopReason == StopReason.length) Text(t.lengthLimit, style: dim?.copyWith(color: scheme.tertiary)),
+          if (item.stopReason == StopReason.length) Text(t.lengthLimit, style: dim?.copyWith(color: colors.warning)),
           if (recovery != null)
             Text(
-              recovery.recovered
+              retryFailed
+                  ? t.retryFailed(attempt: recovery.attempt)
+                  : recovery.recovered
                   ? t.retryRecovered(attempt: recovery.attempt)
                   : t.retrySuperseded(attempt: recovery.attempt),
               style: dim,
@@ -419,12 +415,7 @@ class _Execution extends StatelessWidget {
       if (item.truncated) t.execution.truncated,
       if (item.excludeFromContext) t.execution.notSent,
     ];
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: failed ? scheme.error.withValues(alpha: 0.6) : scheme.outlineVariant),
-      ),
+    return TranscriptCard(
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -434,7 +425,7 @@ class _Execution extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(bash ? Icons.terminal : Icons.data_object, size: 16, color: scheme.primary),
+                Icon(bash ? Icons.terminal : Icons.data_object, size: 16, color: scheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -444,7 +435,10 @@ class _Execution extends StatelessWidget {
                 ),
                 if (failed)
                   SelectionContainer.disabled(
-                    child: Text(t.tool.exitCode(code: item.exitCode!), style: dim?.copyWith(color: scheme.error)),
+                    child: Text(
+                      t.tool.exitCode(code: item.exitCode!),
+                      style: dim?.copyWith(color: AppColors.of(context).error),
+                    ),
                   ),
               ],
             ),
@@ -474,18 +468,14 @@ class _CustomMessage extends StatelessWidget {
     final images = item.content.whereType<ImageBlock>().toList();
     switch (item.customType) {
       case 'live-delegation':
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: scheme.primary),
-          ),
+        return TranscriptCard(
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SelectionContainer.disabled(
-                  child: Text(t.delegated, style: theme.textTheme.labelSmall?.copyWith(color: scheme.primary)),
+                  child: Text(t.delegated, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
                 ),
                 TranscriptMarkdown(item.text),
               ],
@@ -564,19 +554,14 @@ class _CollapsibleState extends State<_Collapsible> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
+    return TranscriptCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           SelectionContainer.disabled(
             child: InkWell(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppSizes.cardRadius),
               onTap: _toggle,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -605,9 +590,10 @@ class _CollapsibleState extends State<_Collapsible> {
   }
 }
 
-/// A full-width divider with a title and an expandable summary: compactions and abandoned branches.
-class _Divider extends StatefulWidget {
-  const _Divider({required this.icon, required this.title, required this.summary, required this.storageKey});
+/// A centred marker with a title and an expandable summary: compactions and abandoned branches. The summary's file
+/// lists show as rows, not as omp's tags.
+class _SummaryMarker extends StatefulWidget {
+  const _SummaryMarker({required this.icon, required this.title, required this.summary, required this.storageKey});
 
   final IconData icon;
   final String Function(Translations$transcript$en t) title;
@@ -615,10 +601,10 @@ class _Divider extends StatefulWidget {
   final String storageKey;
 
   @override
-  State<_Divider> createState() => _DividerState();
+  State<_SummaryMarker> createState() => _SummaryMarkerState();
 }
 
-class _DividerState extends State<_Divider> {
+class _SummaryMarkerState extends State<_SummaryMarker> {
   bool _expanded = false;
 
   String get _storageId => 'transcript-divider:${widget.storageKey}';
@@ -640,40 +626,46 @@ class _DividerState extends State<_Divider> {
     final scheme = theme.colorScheme;
     final t = context.t.transcript;
     final style = theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant);
+    final summary = _expanded ? splitSummaryFiles(widget.summary) : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         SelectionContainer.disabled(
-          child: LayoutBuilder(
-            // The title takes what it needs, up to what the icon, button and two short rules leave it.
-            builder: (context, constraints) => Row(
-              children: [
-                Expanded(child: Divider(color: scheme.outlineVariant)),
-                const SizedBox(width: 8),
-                Icon(widget.icon, size: 16, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: (constraints.maxWidth - 200).clamp(40, 520)),
-                  child: Text(widget.title(t), style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-                TextButton(
-                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                  onPressed: widget.summary.trim().isEmpty ? null : _toggle,
-                  child: Text(_expanded ? t.hideSummary : t.showSummary),
-                ),
-                const SizedBox(width: 4),
-                Expanded(child: Divider(color: scheme.outlineVariant)),
-              ],
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(widget.icon, size: 16, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 6),
+              Flexible(child: Text(widget.title(t), style: style, maxLines: 1, overflow: TextOverflow.ellipsis)),
+              const SizedBox(width: 4),
+              TextButton(
+                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                onPressed: widget.summary.trim().isEmpty ? null : _toggle,
+                child: Text(_expanded ? t.hideSummary : t.showSummary),
+              ),
+            ],
           ),
         ),
-        if (_expanded)
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: scheme.surfaceContainerLow, borderRadius: BorderRadius.circular(10)),
-            child: TranscriptMarkdown(widget.summary),
+        if (summary != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: TranscriptCard(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (summary.text.isNotEmpty) TranscriptMarkdown(summary.text),
+                    if (summary.files.isNotEmpty || summary.elided > 0) ...[
+                      if (summary.text.isNotEmpty) const SizedBox(height: 12),
+                      SummaryFiles(files: summary.files, elided: summary.elided),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           ),
       ],
     );

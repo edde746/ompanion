@@ -8,8 +8,10 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/sessions_provider.dart';
+import '../../../widgets/app_search_field.dart';
 import '../dock_empty_state.dart';
 import 'session_tree.dart';
 
@@ -25,7 +27,7 @@ class TreeTab extends StatefulWidget {
 }
 
 class _TreeTabState extends State<TreeTab> {
-  static const _rowHeight = 30.0;
+  static const _rowHeight = AppSizes.rowHeight;
 
   SessionTree? _tree;
   List<TreeRow> _rows = const [];
@@ -36,7 +38,6 @@ class _TreeTabState extends State<TreeTab> {
   var _query = '';
   final _toggled = <String>{};
   String? _selectedId;
-  final _search = TextEditingController();
 
   /// A navigation with summary in flight; `tree.abort` stops it.
   var _summarizing = false;
@@ -302,7 +303,6 @@ class _TreeTabState extends State<TreeTab> {
   @override
   void dispose() {
     _detach();
-    _search.dispose();
     super.dispose();
   }
 
@@ -316,31 +316,25 @@ class _TreeTabState extends State<TreeTab> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
           child: Row(
             children: [
               Expanded(
-                child: SizedBox(
-                  height: 36,
-                  child: TextField(
-                    controller: _search,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      hintText: t.search,
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    onChanged: (value) => setState(() {
-                      _query = value;
-                      _rebuildRows();
-                    }),
-                  ),
+                child: AppSearchField(
+                  hint: t.search,
+                  onChanged: (value) => setState(() {
+                    _query = value;
+                    _rebuildRows();
+                  }),
                 ),
               ),
+              const SizedBox(width: 4),
               PopupMenuButton<TreeFilter>(
                 tooltip: t.filter,
-                icon: Icon(Icons.filter_list, color: _filter == TreeFilter.standard ? null : theme.colorScheme.primary),
+                style: IconButton.styleFrom(
+                  backgroundColor: _filter == TreeFilter.standard ? null : theme.colorScheme.surfaceContainerHighest,
+                ),
+                icon: const Icon(Icons.filter_list),
                 initialValue: _filter,
                 onSelected: (filter) => setState(() {
                   _filter = filter;
@@ -361,14 +355,16 @@ class _TreeTabState extends State<TreeTab> {
         ),
         if (_loading) const LinearProgressIndicator(minHeight: 2) else const SizedBox(height: 2),
         if (widget.session.companionHello == null)
-          Material(
-            color: theme.colorScheme.secondaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Text(
-                t.noCompanion,
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSecondaryContainer),
-              ),
+          Container(
+            margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(AppSizes.radius),
+            ),
+            child: Text(
+              t.noCompanion,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
         if (_summarizing)
@@ -407,8 +403,7 @@ class _TreeTabState extends State<TreeTab> {
             ),
           },
         ),
-        if (selected != null) ...[
-          const Divider(height: 1),
+        if (selected != null)
           _SelectionBar(
             entry: selected,
             actions: _actionsFor(selected),
@@ -416,7 +411,6 @@ class _TreeTabState extends State<TreeTab> {
             label: (action) => _actionLabel(t, action),
             onAction: (action) => _run(action, selected),
           ),
-        ],
       ],
     );
   }
@@ -456,12 +450,12 @@ class _TreeRowTile extends StatelessWidget {
     final (icon, color) = _kindIcon(entry.kind, scheme);
     final muted = entry.bookkeeping || entry.kind == TreeEntryKind.toolResult;
     final textStyle = theme.textTheme.bodySmall?.copyWith(
-      color: entry.error ? scheme.error : (muted ? scheme.onSurfaceVariant : scheme.onSurface),
+      color: entry.error ? AppColors.of(context).error : (muted ? scheme.onSurfaceVariant : scheme.onSurface),
       fontWeight: row.isLeaf ? FontWeight.w700 : null,
       fontStyle: entry.text.isEmpty ? FontStyle.italic : null,
     );
     return Material(
-      color: selected ? scheme.secondaryContainer : Colors.transparent,
+      color: selected ? scheme.surfaceContainerHighest : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         onSecondaryTapUp: (details) => onMenu(details.globalPosition),
@@ -471,7 +465,7 @@ class _TreeRowTile extends StatelessWidget {
         },
         child: Row(
           children: [
-            Container(width: 3, color: row.onActivePath ? scheme.primary : Colors.transparent),
+            Container(width: 3, color: row.onActivePath ? scheme.onSurfaceVariant : Colors.transparent),
             SizedBox(width: 4.0 + row.depth * 14),
             SizedBox(
               width: 20,
@@ -489,10 +483,10 @@ class _TreeRowTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
-                  color: scheme.tertiaryContainer,
+                  color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text(label, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onTertiaryContainer)),
+                child: Text(label, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurface)),
               ),
               const SizedBox(width: 4),
             ],
@@ -502,14 +496,14 @@ class _TreeRowTile extends StatelessWidget {
             if (row.collapsedCount case final hidden?)
               Padding(
                 padding: const EdgeInsets.only(left: 4),
-                child: Text('+$hidden', style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline)),
+                child: Text('+$hidden', style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
               ),
             if (row.isLeaf)
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Tooltip(
                   message: context.t.dock.sessionTree.currentLeaf,
-                  child: Icon(Icons.my_location, size: 14, color: scheme.primary),
+                  child: Icon(Icons.my_location, size: 14, color: scheme.onSurface),
                 ),
               ),
             const SizedBox(width: 8),
@@ -540,19 +534,19 @@ String _rowText(BuildContext context, TreeEntry entry) {
 }
 
 (IconData, Color) _kindIcon(TreeEntryKind kind, ColorScheme scheme) => switch (kind) {
-  TreeEntryKind.user => (Icons.person_outline, scheme.primary),
-  TreeEntryKind.assistant => (Icons.smart_toy_outlined, scheme.tertiary),
-  TreeEntryKind.toolResult => (Icons.build_outlined, scheme.outline),
-  TreeEntryKind.bash => (Icons.terminal, scheme.outline),
-  TreeEntryKind.python => (Icons.code, scheme.outline),
-  TreeEntryKind.custom => (Icons.extension_outlined, scheme.secondary),
-  TreeEntryKind.advisor => (Icons.rate_review_outlined, scheme.secondary),
-  TreeEntryKind.compaction => (Icons.compress, scheme.secondary),
-  TreeEntryKind.branchSummary => (Icons.call_split, scheme.secondary),
-  TreeEntryKind.modelChange => (Icons.swap_horiz, scheme.outline),
-  TreeEntryKind.thinkingChange => (Icons.psychology_outlined, scheme.outline),
-  TreeEntryKind.label => (Icons.label_outline, scheme.outline),
-  TreeEntryKind.other => (Icons.circle_outlined, scheme.outline),
+  TreeEntryKind.user => (Icons.person_outline, scheme.onSurface),
+  TreeEntryKind.assistant => (Icons.smart_toy_outlined, scheme.onSurfaceVariant),
+  TreeEntryKind.toolResult => (Icons.build_outlined, scheme.onSurfaceVariant),
+  TreeEntryKind.bash => (Icons.terminal, scheme.onSurfaceVariant),
+  TreeEntryKind.python => (Icons.code, scheme.onSurfaceVariant),
+  TreeEntryKind.custom => (Icons.extension_outlined, scheme.onSurfaceVariant),
+  TreeEntryKind.advisor => (Icons.rate_review_outlined, scheme.onSurfaceVariant),
+  TreeEntryKind.compaction => (Icons.compress, scheme.onSurfaceVariant),
+  TreeEntryKind.branchSummary => (Icons.call_split, scheme.onSurfaceVariant),
+  TreeEntryKind.modelChange => (Icons.swap_horiz, scheme.onSurfaceVariant),
+  TreeEntryKind.thinkingChange => (Icons.psychology_outlined, scheme.onSurfaceVariant),
+  TreeEntryKind.label => (Icons.label_outline, scheme.onSurfaceVariant),
+  TreeEntryKind.other => (Icons.circle_outlined, scheme.onSurfaceVariant),
 };
 
 class _SelectionBar extends StatelessWidget {
@@ -573,7 +567,8 @@ class _SelectionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
+    return Container(
+      color: theme.colorScheme.surfaceContainer,
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -585,18 +580,14 @@ class _SelectionBar extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSizes.gap),
           Wrap(
-            spacing: 4,
-            runSpacing: 4,
+            spacing: AppSizes.gap,
+            runSpacing: AppSizes.gap,
             children: [
               for (final action in actions)
                 if (action != _TreeAction.copy)
                   FilledButton.tonal(
-                    style: FilledButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                    ),
                     onPressed: enabled(action) ? () => onAction(action) : null,
                     child: Text(label(action)),
                   ),
@@ -642,7 +633,7 @@ class _SummaryDialogState extends State<_SummaryDialog> {
               autofocus: true,
               minLines: 2,
               maxLines: 6,
-              decoration: InputDecoration(labelText: t.summaryInstructions, border: const OutlineInputBorder()),
+              decoration: InputDecoration(labelText: t.summaryInstructions),
             ),
           ],
         ),
@@ -695,7 +686,7 @@ class _LabelDialogState extends State<_LabelDialog> {
         child: TextField(
           controller: _label,
           autofocus: true,
-          decoration: InputDecoration(labelText: t.labelField, border: const OutlineInputBorder()),
+          decoration: InputDecoration(labelText: t.labelField),
           onSubmitted: (_) => _submit(),
         ),
       ),

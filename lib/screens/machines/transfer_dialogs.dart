@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../models/machine_export.dart';
@@ -175,7 +176,6 @@ class _ImportDialogState extends State<_ImportDialog> {
                 minLines: 6,
                 maxLines: 12,
                 style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
-                decoration: const InputDecoration(border: OutlineInputBorder()),
               ),
               Align(
                 alignment: AlignmentDirectional.centerStart,
@@ -186,7 +186,7 @@ class _ImportDialogState extends State<_ImportDialog> {
                 ),
               ),
               if (_status case final status?)
-                Text(status, style: _failed ? TextStyle(color: theme.colorScheme.error) : null),
+                Text(status, style: _failed ? TextStyle(color: AppColors.of(context).error) : null),
               if (_changes.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text(t.transfer.hostKeysTitle, style: theme.textTheme.titleSmall),
@@ -224,22 +224,22 @@ class _HostKeyChangeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t.transfer;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final colors = AppColors.of(context);
     final mono = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace');
     final label = theme.textTheme.labelMedium;
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border.all(color: confirmed ? scheme.outlineVariant : scheme.error),
-        borderRadius: const BorderRadius.all(Radius.circular(8)),
+        color: confirmed ? theme.colorScheme.surfaceContainerHigh : colors.errorSurface,
+        borderRadius: BorderRadius.circular(AppSizes.cardRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.gpp_maybe_outlined, size: 18, color: scheme.error),
+              Icon(Icons.gpp_maybe_outlined, size: 18, color: colors.error),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -262,7 +262,6 @@ class _HostKeyChangeTile extends StatelessWidget {
             child: confirmed
                 ? Text(t.keysTrusted, style: theme.textTheme.labelLarge)
                 : FilledButton(
-                    style: FilledButton.styleFrom(backgroundColor: scheme.error, foregroundColor: scheme.onError),
                     onPressed: onTrust,
                     child: Text(t.trustKeys),
                   ),

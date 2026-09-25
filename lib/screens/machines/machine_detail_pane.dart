@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:omp_core/host.dart';
+import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../database/app_database.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
@@ -9,7 +14,9 @@ import '../../providers/machines_provider.dart';
 import '../../providers/shell_provider.dart';
 import '../../services/known_hosts_store.dart';
 import '../../services/machine_connector.dart';
+import '../../sessions/sessions_provider.dart';
 import '../../utils/app_logger.dart';
+import '../sessions/machine_status.dart';
 import 'connect_dialogs.dart';
 import 'machine_editor.dart';
 
@@ -39,7 +46,7 @@ final class _Failed extends _RunState {
   final String message;
 }
 
-/// One machine: how it is reached, a connection test, and the host keys trusted for its hops.
+/// One machine: what its probe found, how it is reached, a connection test, and the host keys trusted for its hops.
 class MachineDetailPane extends StatefulWidget {
   const MachineDetailPane({super.key, required this.machine});
 
@@ -90,6 +97,7 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
     final t = context.t;
     final theme = Theme.of(context);
     final machine = widget.machine;
+    final runtime = context.read<SessionsProvider>().runtimeFor(machine);
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -103,28 +111,27 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
             Expanded(child: Text(machine.name, style: theme.textTheme.headlineSmall)),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSizes.gap),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 6,
+          runSpacing: 6,
           children: [
-            if (machine is LocalMachine) Chip(label: Text(t.machines.thisComputer)),
-            if (machine case SshMachine(tailscale: true)) Chip(label: Text(t.machines.tailscale)),
-            if (machine case SshMachine(:final sshConfigAlias?))
-              Chip(label: Text(t.machines.sshConfigAlias(alias: sshConfigAlias))),
+            if (machine is LocalMachine) _Tag(t.machines.thisComputer),
+            if (machine case SshMachine(tailscale: true)) _Tag(t.machines.tailscale),
+            if (machine case SshMachine(:final sshConfigAlias?)) _Tag(t.machines.sshConfigAlias(alias: sshConfigAlias)),
           ],
         ),
         const SizedBox(height: 16),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: AppSizes.gap,
+          runSpacing: AppSizes.gap,
           children: [
             FilledButton.icon(
               icon: const Icon(Icons.power_outlined),
               label: Text(t.machines.testConnection),
               onPressed: _test is _Running ? null : _testConnection,
             ),
-            OutlinedButton.icon(
+            FilledButton.tonalIcon(
               icon: const Icon(Icons.edit_outlined),
               label: Text(t.common.edit),
               onPressed: () => showMachineEditor(context, machine: machine),
@@ -137,21 +144,167 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
           ],
         ),
         _RunStatus(_test),
+        const SizedBox(height: 24),
+        Text(t.machines.facts, style: theme.textTheme.titleMedium),
+        const SizedBox(height: AppSizes.gap),
+        MachineStatusBuilder(
+          runtime: runtime,
+          builder: (context, status) => _Facts(
+            status: status,
+            onConnect: () => unawaited(context.read<SessionsProvider>().refresh(machine)),
+          ),
+        ),
         if (machine is SshMachine) ...[
           const SizedBox(height: 24),
           Text(t.machines.route, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          for (final (index, jump) in machine.jumps.indexed)
-            _HopTile(label: t.editor.jumpHostN(n: index + 1), hop: jump),
-          _HopTile(label: t.machines.target, hop: machine.target),
+          const SizedBox(height: AppSizes.gap),
+          _Group(
+            children: [
+              for (final (index, jump) in machine.jumps.indexed)
+                _HopTile(label: t.editor.jumpHostN(n: index + 1), hop: jump),
+              _HopTile(label: t.machines.target, hop: machine.target),
+            ],
+          ),
           const SizedBox(height: 24),
           Text(t.machines.hostKeys, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSizes.gap),
           _HostKeys(hops: machine.hops),
         ],
       ],
     );
   }
+}
+
+/// A small grey label next to the machine's name.
+class _Tag extends StatelessWidget {
+  const _Tag(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(text, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+    );
+  }
+}
+
+/// Rows on one `surfaceContainer` block.
+class _Group extends StatelessWidget {
+  const _Group({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+  );
+}
+
+/// One fact: a label column and a selectable value.
+class _Fact extends StatelessWidget {
+  const _Fact(this.label, this.value, {this.color});
+
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          ),
+          Expanded(child: SelectableText(value, style: theme.textTheme.bodyMedium?.copyWith(color: color))),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the last probe found: OS, architecture, shell, home, omp and the companion. Before the first connection only
+/// the status.
+class _Facts extends StatelessWidget {
+  const _Facts({required this.status, required this.onConnect});
+
+  final MachineStatus status;
+  final VoidCallback onConnect;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final m = t.machines;
+    final colors = AppColors.of(context);
+    final probe = switch (status) {
+      MachineOnline(:final probe) || MachineNeedsOmp(:final probe) => probe,
+      _ => null,
+    };
+    final statusColor = switch (status) {
+      MachineFailed() => colors.error,
+      MachineNeedsOmp() => colors.warning,
+      _ => null,
+    };
+    return _Group(
+      children: [
+        if (status is! MachineOnline) _Fact(m.status, machineStatusText(t, status), color: statusColor),
+        if (probe == null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    m.notProbed,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                if (status is! MachineConnecting)
+                  FilledButton.tonal(onPressed: onConnect, child: Text(t.sessions.connect)),
+              ],
+            ),
+          )
+        else ...[
+          _Fact(m.os, osLabel(probe)),
+          _Fact(m.arch, probe.arch),
+          _Fact(m.shell, probe.shell ?? (probe.isWindows ? 'cmd.exe' : '—')),
+          _Fact(m.home, probe.home),
+          _Fact(m.omp, probe.ompPath ?? m.notFound),
+          _Fact(m.ompVersion, probe.ompVersion ?? '—'),
+          _Fact(m.companion, status is MachineOnline ? m.companionReady : m.companionMissing),
+        ],
+      ],
+    );
+  }
+}
+
+/// `Linux (glibc)`, `macOS`, `Windows`; the kernel name for anything else.
+String osLabel(HostProbe probe) {
+  final name = switch (probe.os) {
+    HostOs.macos => 'macOS',
+    HostOs.linux => 'Linux',
+    HostOs.windows => 'Windows',
+    HostOs.other => probe.kernel,
+  };
+  return probe.libc == null ? name : '$name (${probe.libc})';
 }
 
 class _RunStatus extends StatelessWidget {
@@ -161,7 +314,7 @@ class _RunStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final colors = AppColors.of(context);
     final (Widget? icon, String? text, Color? color) = switch (state) {
       _Idle() => (null, null, null),
       _Running(:final message) => (
@@ -169,8 +322,8 @@ class _RunStatus extends StatelessWidget {
         message,
         null,
       ),
-      _Succeeded(:final message) => (Icon(Icons.check_circle, color: scheme.primary, size: 20), message, null),
-      _Failed(:final message) => (Icon(Icons.error, color: scheme.error, size: 20), message, scheme.error),
+      _Succeeded(:final message) => (Icon(Icons.check_circle, color: colors.success, size: 20), message, null),
+      _Failed(:final message) => (Icon(Icons.error, color: colors.error, size: 20), message, colors.error),
     };
     if (icon == null || text == null) return const SizedBox.shrink();
     return Padding(
@@ -198,19 +351,35 @@ class _HopTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final theme = Theme.of(context);
     final key = context.watch<KeysProvider>().byId(hop.keyId);
     final auth = switch (hop.auth) {
-      AuthMethod.key => '${t.auth.key}: ${key == null ? t.machines.noKeySelected : t.machines.keyNamed(name: key.name)}',
+      AuthMethod.key => '${t.auth.key}: ${key?.name ?? t.machines.noKeySelected}',
       AuthMethod.password => t.auth.password,
       AuthMethod.agent => t.auth.agent,
       AuthMethod.none => t.auth.none,
       AuthMethod.keyboardInteractive => t.auth.keyboardInteractive,
     };
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.subdirectory_arrow_right),
-      title: Text(hop.label),
-      subtitle: Text('$label · $auth'),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(Icons.subdirectory_arrow_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(hop.label, style: theme.textTheme.bodyMedium),
+                Text(
+                  '$label · $auth',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -237,26 +406,44 @@ class _HostKeysState extends State<_HostKeys> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final mono = Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace');
+    final theme = Theme.of(context);
+    final mono = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace');
     return StreamBuilder<List<KnownHostRow>>(
       stream: _rows,
       builder: (context, snapshot) {
         if (snapshot.hasError) throw snapshot.error!;
         final rows = snapshot.data;
         if (rows == null) return const SizedBox.shrink();
-        if (rows.isEmpty) return Text(t.machines.noHostKeys);
-        return Column(
+        if (rows.isEmpty) {
+          return Text(t.machines.noHostKeys, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant));
+        }
+        return _Group(
           children: [
             for (final row in rows)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.verified_user_outlined),
-                title: Text(row.port == 22 ? '${row.host} · ${row.keyType}' : '${row.host}:${row.port} · ${row.keyType}'),
-                subtitle: SelectableText(row.fingerprint, style: mono),
-                trailing: IconButton(
-                  tooltip: t.machines.forgetHostKey,
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => context.read<KnownHostsStore>().forget(row),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.verified_user_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            row.port == 22 ? '${row.host} · ${row.keyType}' : '${row.host}:${row.port} · ${row.keyType}',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          SelectableText(row.fingerprint, style: mono?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: t.machines.forgetHostKey,
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                      onPressed: () => context.read<KnownHostsStore>().forget(row),
+                    ),
+                  ],
                 ),
               ),
           ],

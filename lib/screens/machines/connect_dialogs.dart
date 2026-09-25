@@ -3,6 +3,7 @@ import 'package:omp_core/ssh.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/host_key_trust.dart';
 import '../../models/machine.dart';
@@ -89,7 +90,7 @@ class HostKeyDialog extends StatelessWidget {
     final warning = verdict is! HostKeyUnknown;
     return AlertDialog(
       icon: Icon(warning ? Icons.gpp_bad_outlined : Icons.verified_user_outlined),
-      iconColor: warning ? theme.colorScheme.error : null,
+      iconColor: warning ? AppColors.of(context).error : null,
       title: Text(title),
       content: SingleChildScrollView(
         child: Column(
@@ -120,11 +121,7 @@ class HostKeyDialog extends StatelessWidget {
         HostKeyRevoked() => [TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.common.close))],
         HostKeyChanged() || HostKeyOtherTypesKnown() => [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.common.cancel)),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: theme.colorScheme.error,
-              foregroundColor: theme.colorScheme.onError,
-            ),
+          FilledButton.tonal(
             onPressed: () => Navigator.pop(context, true),
             child: Text(verdict is HostKeyChanged ? t.hostKey.replace : t.hostKey.trust),
           ),

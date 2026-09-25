@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:omp_core/host.dart';
@@ -86,13 +87,20 @@ int _indexOf(Uint8List bytes, List<int> pattern, int from) {
 /// A local shell: program, arguments and extra environment for a PTY on this computer.
 typedef LocalShell = ({String executable, List<String> arguments, Map<String, String> environment});
 
-/// The login shell of this computer. [environment] is the app's own (`Platform.environment`). GUI apps on macOS start
-/// without a locale, so a UTF-8 one is set when the environment names none.
+/// The login shell of this computer. [environment] is the app's own (`Platform.environment`); [accountShell] is the
+/// shell the user database names ([accountLoginShell]), used when the environment has no absolute `SHELL` (an app
+/// started by launchd or a desktop launcher may have none). GUI apps on macOS start without a locale, so a UTF-8 one is
+/// set when the environment names none.
 ///
 /// [isolation] is the development environment (`devLocalEnvironment`): its variables override the app's, the
 /// isolated home's `.local/bin` leads `PATH`, and the shell is not a login shell, because a login profile
 /// (`/etc/zprofile` runs `path_helper`) would put the user's own omp back on `PATH`.
-LocalShell localShell({required bool windows, required Map<String, String> environment, Map<String, String>? isolation}) {
+LocalShell localShell({
+  required bool windows,
+  required Map<String, String> environment,
+  String? accountShell,
+  Map<String, String>? isolation,
+}) {
   final extra = <String, String>{'TERM': 'xterm-256color', 'COLORTERM': 'truecolor', ...?isolation};
   final home = isolation?['HOME'];
   if (home != null && !windows) extra['PATH'] = '$home/.local/bin:${isolation?['PATH'] ?? environment['PATH'] ?? ''}';
@@ -101,12 +109,50 @@ LocalShell localShell({required bool windows, required Map<String, String> envir
   }
   final hasLocale = ['LC_ALL', 'LC_CTYPE', 'LANG'].any((key) => (environment[key] ?? '').isNotEmpty);
   if (!hasLocale) extra['LANG'] = 'en_US.UTF-8';
-  final shell = environment['SHELL'];
-  return (
-    executable: shell != null && shell.startsWith('/') ? shell : '/bin/sh',
-    arguments: isolation == null ? const ['-l'] : const [],
-    environment: extra,
-  );
+  final shell = [environment['SHELL'], accountShell].firstWhere(
+    (shell) => shell != null && shell.startsWith('/'),
+    orElse: () => '/bin/sh',
+  )!;
+  return (executable: shell, arguments: isolation == null ? const ['-l'] : const [], environment: extra);
+}
+
+/// The login shell the user database names for this user (`USER`, else `LOGNAME`, else `id -un`): `dscl` on macOS;
+/// elsewhere `getent passwd`, or `/etc/passwd` where there is no `getent`. Null when the lookup finds no absolute
+/// path.
+Future<String?> accountLoginShell({required bool macos, required Map<String, String> environment}) async {
+  var user = environment['USER'] ?? environment['LOGNAME'];
+  if (user == null || user.isEmpty) {
+    final id = await Process.run('id', ['-un']);
+    user = id.exitCode == 0 ? (id.stdout as String).trim() : '';
+  }
+  if (user.isEmpty) return null;
+  if (macos) {
+    final result = await Process.run('dscl', ['.', '-read', '/Users/$user', 'UserShell']);
+    return result.exitCode == 0 ? parseDsclUserShell(result.stdout as String) : null;
+  }
+  try {
+    final result = await Process.run('getent', ['passwd', user]);
+    return result.exitCode == 0 ? parsePasswdShell(result.stdout as String) : null;
+  } on ProcessException {
+    final passwd = File('/etc/passwd');
+    if (!passwd.existsSync()) return null;
+    final line = passwd.readAsLinesSync().where((line) => line.startsWith('$user:')).firstOrNull;
+    return line == null ? null : parsePasswdShell(line);
+  }
+}
+
+/// The path in `dscl . -read /Users/<user> UserShell` output (`UserShell: /bin/zsh`).
+String? parseDsclUserShell(String output) {
+  final match = RegExp(r'^UserShell:\s*(/\S+)\s*$', multiLine: true).firstMatch(output);
+  return match?.group(1);
+}
+
+/// The shell field (the seventh) of a `passwd` line.
+String? parsePasswdShell(String line) {
+  final fields = line.trim().split(':');
+  if (fields.length < 7) return null;
+  final shell = fields[6];
+  return shell.startsWith('/') ? shell : null;
 }
 
 /// Keystrokes and pastes from the terminal view, as the bytes a PTY expects.

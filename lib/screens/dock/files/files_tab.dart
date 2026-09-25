@@ -7,6 +7,7 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
 
+import '../../../app/theme.dart';
 import '../../../files/file_paths.dart';
 import '../../../files/file_workspace.dart';
 import '../../../files/git_status.dart';
@@ -100,7 +101,7 @@ class _Browser extends StatelessWidget {
   final Future<void> Function(String path, {int? line}) onOpen;
   final void Function(String message) onSnack;
 
-  static const _rowHeight = 28.0;
+  static const _rowHeight = AppSizes.rowHeight;
 
   Future<void> _create(BuildContext context, String dir, {required bool folder}) async {
     final t = context.t.dock.fileBrowser;
@@ -148,7 +149,6 @@ class _Browser extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.t.common.cancel)),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             onPressed: () => Navigator.pop(context, true),
             child: Text(context.t.common.delete),
           ),
@@ -247,7 +247,6 @@ class _Browser extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(height: 1),
         Expanded(
           child: ListView.builder(
             itemExtent: _rowHeight,
@@ -268,7 +267,7 @@ class _Browser extends StatelessWidget {
               ),
               EmptyRow(:final depth) => _StatusTile(
                 depth: depth,
-                child: Text(t.emptyFolder, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+                child: Text(t.emptyFolder, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ),
               FailedRow(:final depth, :final dir, :final error) => _StatusTile(
                 depth: depth,
@@ -281,7 +280,7 @@ class _Browser extends StatelessWidget {
                           t.listFailed(error: error.toString()),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                          style: theme.textTheme.bodySmall?.copyWith(color: AppColors.of(context).error),
                         ),
                       ),
                     ),
@@ -319,7 +318,7 @@ class _Breadcrumbs extends StatelessWidget {
         reverse: true,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         itemCount: crumbs.length,
-        separatorBuilder: (_, _) => Icon(Icons.chevron_right, size: 16, color: theme.colorScheme.outline),
+        separatorBuilder: (_, _) => Icon(Icons.chevron_right, size: 16, color: theme.colorScheme.onSurfaceVariant),
         itemBuilder: (context, index) {
           // Reversed so the deepest directory stays in view.
           final crumb = crumbs[crumbs.length - 1 - index];
@@ -334,7 +333,7 @@ class _Breadcrumbs extends StatelessWidget {
                   crumb.label,
                   style: last
                       ? theme.textTheme.labelLarge
-                      : theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary),
+                      : theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ),
             ),
@@ -369,7 +368,7 @@ class _EntryTile extends StatelessWidget {
     final scheme = theme.colorScheme;
     final name = row.entry.name;
     final hidden = name.startsWith('.');
-    final badge = change == null ? null : _badge(change!, scheme);
+    final badge = change == null ? null : _badge(change!, scheme, AppColors.of(context));
     return InkWell(
       onTap: onTap,
       onDoubleTap: onDoubleTap,
@@ -385,7 +384,7 @@ class _EntryTile extends StatelessWidget {
             SizedBox(
               width: 18,
               child: row.isDirectory
-                  ? Icon(row.expanded ? Icons.expand_more : Icons.chevron_right, size: 18, color: scheme.outline)
+                  ? Icon(row.expanded ? Icons.expand_more : Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant)
                   : null,
             ),
             if (row.isLink)
@@ -397,7 +396,7 @@ class _EntryTile extends StatelessWidget {
               Icon(
                 row.isDirectory ? (row.expanded ? Icons.folder_open : Icons.folder) : _fileIcon(name),
                 size: 16,
-                color: row.isDirectory ? scheme.primary : scheme.onSurfaceVariant,
+                color: scheme.onSurfaceVariant,
               ),
             const SizedBox(width: 6),
             Expanded(
@@ -416,9 +415,9 @@ class _EntryTile extends StatelessWidget {
                 child: Text(badge.$1, style: theme.textTheme.labelSmall?.copyWith(color: badge.$2)),
               )
             else if (dirty)
-              Icon(Icons.circle, size: 6, color: scheme.tertiary)
+              Icon(Icons.circle, size: 6, color: AppColors.of(context).warning)
             else if (!row.isDirectory && !row.isLink)
-              Text(_size(row.entry.stat.size), style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline)),
+              Text(_size(row.entry.stat.size), style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
           ],
         ),
       ),
@@ -426,16 +425,16 @@ class _EntryTile extends StatelessWidget {
   }
 }
 
-(String, Color) _badge(GitChange change, ColorScheme scheme) => switch (change) {
-  GitChange.modified => ('M', scheme.tertiary),
-  GitChange.added => ('A', scheme.primary),
-  GitChange.deleted => ('D', scheme.error),
-  GitChange.renamed => ('R', scheme.primary),
-  GitChange.copied => ('C', scheme.primary),
-  GitChange.typeChanged => ('T', scheme.tertiary),
-  GitChange.untracked => ('U', scheme.secondary),
-  GitChange.ignored => ('I', scheme.outline),
-  GitChange.conflicted => ('!', scheme.error),
+(String, Color) _badge(GitChange change, ColorScheme scheme, AppColors colors) => switch (change) {
+  GitChange.modified => ('M', colors.warning),
+  GitChange.added => ('A', colors.success),
+  GitChange.deleted => ('D', colors.error),
+  GitChange.renamed => ('R', colors.success),
+  GitChange.copied => ('C', colors.success),
+  GitChange.typeChanged => ('T', colors.warning),
+  GitChange.untracked => ('U', colors.success),
+  GitChange.ignored => ('I', scheme.onSurfaceVariant),
+  GitChange.conflicted => ('!', colors.error),
 };
 
 String _changeLabel(BuildContext context, GitChange change) {
@@ -534,7 +533,6 @@ class _NameDialogState extends State<_NameDialog> {
           autofocus: true,
           decoration: InputDecoration(
             labelText: t.name,
-            border: const OutlineInputBorder(),
             errorText: switch (_problem) {
               null => null,
               NameProblem.empty => context.t.common.required,

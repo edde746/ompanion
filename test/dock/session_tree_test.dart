@@ -200,6 +200,20 @@ void main() {
       expect(branched(leaf: null).parentOf('c1'), 'c');
       expect(branched(leaf: null).parentOf('root'), isNull);
     });
+
+    test('a first message replaced under a hidden root: both are branches, the current one first and open', () {
+      final tree = SessionTree.decode([
+        node(entry('model', 'model_change', {'provider': 'fake', 'modelId': 'one'}), [
+          node(user('old', 'Show the renderer demo'), [node(assistant('old1', [text('long demo')]))]),
+          node(user('new', 'Show a shorter renderer demo'), [node(assistant('new1', [text('short demo')]))]),
+        ]),
+      ], 'new1');
+      final rows = tree.rows();
+      expect(ids(rows), ['new', 'new1', 'old']);
+      expect([for (final row in rows) (row.depth, row.branchHead)], [(1, true), (1, false), (1, true)]);
+      expect(rows.last.collapsedCount, 1);
+      expect(rows.last.lastSibling, isTrue);
+    });
   });
 
   test('entries without text describe themselves', () {

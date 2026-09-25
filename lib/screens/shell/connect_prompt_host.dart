@@ -65,7 +65,8 @@ class _ConnectPromptHostState extends State<ConnectPromptHost> with WidgetsBindi
           final responses = await _dialog<List<String>>(prompt, KeyboardInteractiveDialog(request));
           if (!answer.isCompleted) answer.complete(responses);
         case PendingHostKey(:final check, :final verdict, :final answer):
-          final trusted = await _dialog<bool>(prompt, HostKeyDialog(check: check, verdict: verdict), dismissible: false);
+          // Dismissing is declining: the connection attempt fails instead of trusting an unchecked key.
+          final trusted = await _dialog<bool>(prompt, HostKeyDialog(check: check, verdict: verdict));
           if (!answer.isCompleted) answer.complete(trusted ?? false);
       }
     } finally {
@@ -79,9 +80,9 @@ class _ConnectPromptHostState extends State<ConnectPromptHost> with WidgetsBindi
 
   /// Shows [dialog] until it pops, or until [prompt] is cancelled elsewhere (its machine was deleted, or a retry asked
   /// the same question again), which closes it: an answer there would be dropped.
-  Future<T?> _dialog<T>(PendingPrompt prompt, Widget dialog, {bool dismissible = true}) {
+  Future<T?> _dialog<T>(PendingPrompt prompt, Widget dialog) {
     final navigator = Navigator.of(context, rootNavigator: true);
-    final route = DialogRoute<T>(context: context, barrierDismissible: dismissible, builder: (_) => dialog);
+    final route = DialogRoute<T>(context: context, builder: (_) => dialog);
     unawaited(
       prompt.settled.then((_) {
         if (route.isActive) navigator.removeRoute(route);

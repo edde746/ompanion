@@ -2,39 +2,24 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:omp_core/host.dart' show SessionSummary;
 import 'package:omp_core/session.dart';
-import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
+import '../../sessions/session_name.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
-import 'model_picker.dart';
+import 'queue_list.dart';
 
 /// What the header shows; compared field by field so streamed tokens do not rebuild it.
-typedef _HeaderData = ({
-  String? title,
-  ModelRef? model,
-  String? thinking,
-  ContextUsage? context,
-  double cost,
-  bool paused,
-  bool running,
-});
+typedef _HeaderData = ({String name, bool paused, bool running});
 
-_HeaderData _select(SessionView view) => (
-  title: view.config.sessionName,
-  model: view.config.model,
-  thinking: view.config.thinkingLevel,
-  context: view.contextUsage,
-  cost: view.usageTotals.cost,
-  paused: view.run.paused,
-  running: view.run.running,
-);
-
-/// Session title, directory and machine, with the model and thinking pickers, the context meter, the pause
-/// toggle and the stop button. [leading] and [trailing] carry the shell's sidebar and panel toggles.
+/// Session title, directory and machine, with the pause toggle while a run goes or waits paused, Stop while a run
+/// goes, and the session menu. A closed session shows its state instead of the run controls. [leading] and
+/// [trailing] carry the shell's sidebar and panel toggles.
 class ChatHeader extends StatelessWidget {
   const ChatHeader({super.key, required this.session, this.leading, this.trailing, this.compact = false});
 
@@ -42,7 +27,7 @@ class ChatHeader extends StatelessWidget {
   final Widget? leading;
   final Widget? trailing;
 
-  /// Phones: the pickers move to a second row.
+  /// Phones: icon-only buttons.
   final bool compact;
 
   @override
@@ -50,224 +35,65 @@ class ChatHeader extends StatelessWidget {
     final t = context.t;
     final theme = Theme.of(context);
     final machine = context.select<SessionsProvider, Machine?>((sessions) => sessions.machineOf(session));
-    return SessionViewSelector<_HeaderData>(
+    final summary = context.select<SessionsProvider, SessionSummary?>((sessions) => sessions.summaryOf(session));
+    final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    return LinkStateBuilder(
       session: session,
-      select: _select,
-      builder: (context, data) {
-        final pickers = [
-          _ModelButton(session: session, machine: machine, model: data.model),
-          _ThinkingButton(session: session, level: data.thinking),
-          _ContextMeter(usage: data.context, cost: data.cost),
-        ];
-        final title = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              data.title ?? t.chat.untitled,
-              style: theme.textTheme.titleMedium,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              machine == null ? session.cwd : '${session.cwd} · ${machine.name}',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        );
-        final actions = [
-          _PauseButton(session: session, paused: data.paused, iconOnly: compact),
-          if (data.running) ...[const SizedBox(width: 8), _StopButton(session: session, iconOnly: compact)],
-          _SessionMenu(session: session),
-        ];
-        final leading = this.leading;
-        final trailing = this.trailing;
-        if (compact) {
-          return Column(
+      builder: (context, link) => SessionViewSelector<_HeaderData>(
+        session: session,
+        select: (view) =>
+            (name: liveSessionName(t, view, summary), paused: view.run.paused, running: view.run.running),
+        builder: (context, data) {
+          final closed = link is LinkClosed;
+          final title = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
-                child: Row(children: [?leading, const SizedBox(width: 4), Expanded(child: title), ...actions, ?trailing]),
+              Text(
+                data.name,
+                style: theme.textTheme.titleSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-                child: Row(children: pickers),
+              Text(
+                machine == null ? session.cwd : '${session.cwd} · ${machine.name}',
+                style: muted,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           );
-        }
-        return SizedBox(
-          height: 56,
-          child: Row(
-            children: [
-              const SizedBox(width: 4),
-              ?leading,
-              const SizedBox(width: 8),
-              Expanded(child: title),
-              ...pickers,
-              const SizedBox(width: 8),
-              ...actions,
-              ?trailing,
-              const SizedBox(width: 4),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ModelButton extends StatelessWidget {
-  const _ModelButton({required this.session, required this.machine, required this.model});
-
-  final LiveSession session;
-  final Machine? machine;
-  final ModelRef? model;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final model = this.model;
-    final machine = this.machine;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: ActionChip(
-        avatar: const Icon(Icons.auto_awesome_outlined, size: 16),
-        label: Text(model == null ? t.chat.noModel : (model.name ?? model.id), overflow: TextOverflow.ellipsis),
-        tooltip: model?.selector,
-        onPressed: machine == null ? null : () => unawaited(pickModel(context, session, machine)),
-      ),
-    );
-  }
-}
-
-class _ThinkingButton extends StatefulWidget {
-  const _ThinkingButton({required this.session, required this.level});
-
-  final LiveSession session;
-  final String? level;
-
-  @override
-  State<_ThinkingButton> createState() => _ThinkingButtonState();
-}
-
-class _ThinkingButtonState extends State<_ThinkingButton> {
-  bool _loading = false;
-
-  Future<void> _open() async {
-    final t = context.t;
-    final messenger = ScaffoldMessenger.of(context);
-    final box = context.findRenderObject()! as RenderBox;
-    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        box.localToGlobal(Offset(0, box.size.height), ancestor: overlay),
-        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
-      ),
-      Offset.zero & overlay.size,
-    );
-    setState(() => _loading = true);
-    final List<String> levels;
-    try {
-      levels = await widget.session.rpc.getAvailableThinkingLevels();
-    } on Object catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(t.chat.thinkingFailed(error: '$error'))));
-      return;
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-    if (!mounted) return;
-    if (levels.isEmpty) {
-      messenger.showSnackBar(SnackBar(content: Text(t.chat.noThinking)));
-      return;
-    }
-    final level = await showMenu<String>(
-      context: context,
-      position: position,
-      items: [
-        for (final level in levels)
-          CheckedPopupMenuItem(value: level, checked: level == widget.level, child: Text(level)),
-      ],
-    );
-    if (level == null || level == widget.level) return;
-    try {
-      await widget.session.rpc.setThinkingLevel(level);
-    } on Object catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(t.chat.thinkingFailed(error: '$error'))));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: ActionChip(
-        avatar: _loading
-            ? const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(Icons.psychology_outlined, size: 16),
-        label: Text(t.chat.thinking(level: widget.level ?? t.chat.thinkingOff)),
-        onPressed: _loading ? null : () => unawaited(_open()),
-      ),
-    );
-  }
-}
-
-class _ContextMeter extends StatelessWidget {
-  const _ContextMeter({required this.usage, required this.cost});
-
-  final ContextUsage? usage;
-  final double cost;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final theme = Theme.of(context);
-    final usage = this.usage;
-    final fraction = usage == null ? 0.0 : (usage.percent / 100).clamp(0.0, 1.0);
-    final color = fraction >= 0.9
-        ? theme.colorScheme.error
-        : fraction >= 0.7
-        ? theme.colorScheme.tertiary
-        : theme.colorScheme.primary;
-    final costText = '\$${cost.toStringAsFixed(cost < 1 ? 4 : 2)}';
-    return Tooltip(
-      message: usage == null
-          ? t.chat.contextUnknown(cost: costText)
-          : t.chat.contextTooltip(
-              tokens: _compact(usage.tokens),
-              window: _compact(usage.contextWindow),
-              percent: usage.percent.toStringAsFixed(1),
-              cost: costText,
+          final leading = this.leading;
+          final trailing = this.trailing;
+          return SizedBox(
+            height: 52,
+            child: Row(
+              children: [
+                const SizedBox(width: 4),
+                ?leading,
+                const SizedBox(width: AppSizes.gap),
+                Expanded(child: title),
+                const SizedBox(width: AppSizes.gap),
+                if (closed)
+                  Text(t.chat.closedState, key: const ValueKey('closed-state'), style: muted)
+                else ...[
+                  if (data.running || data.paused) _PauseButton(session: session, paused: data.paused, iconOnly: compact),
+                  if (data.running) ...[
+                    const SizedBox(width: AppSizes.gap),
+                    _StopButton(session: session, iconOnly: compact),
+                  ],
+                ],
+                const SizedBox(width: 4),
+                _SessionMenu(session: session),
+                ?trailing,
+                const SizedBox(width: 4),
+              ],
             ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox.square(
-              dimension: 18,
-              child: CircularProgressIndicator(
-                value: fraction,
-                strokeWidth: 3,
-                color: color,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(usage == null ? '–' : '${usage.percent.round()}%', style: theme.textTheme.labelMedium),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
-
-  static String _compact(int tokens) => tokens >= 1000 ? '${(tokens / 1000).toStringAsFixed(1)}k' : '$tokens';
 }
 
 class _PauseButton extends StatelessWidget {
@@ -282,22 +108,22 @@ class _PauseButton extends StatelessWidget {
     final t = context.t;
     final scheme = Theme.of(context).colorScheme;
     final label = paused ? t.chat.resume : t.chat.pause;
-    final icon = Icon(paused ? Icons.play_arrow : Icons.pause);
+    final icon = Icon(paused ? Icons.play_arrow : Icons.pause, size: 18);
+    // Paused is a held state: the button stays one tone lighter until released.
+    final style = paused ? FilledButton.styleFrom(backgroundColor: scheme.surfaceContainerHighest) : null;
     void onPressed() => unawaited(togglePause(context, session));
     if (iconOnly) {
       return IconButton.filledTonal(
         key: const ValueKey('pause'),
+        style: paused ? IconButton.styleFrom(backgroundColor: scheme.surfaceContainerHighest) : null,
         tooltip: label,
-        isSelected: paused,
         icon: icon,
         onPressed: onPressed,
       );
     }
     return FilledButton.tonalIcon(
       key: const ValueKey('pause'),
-      style: paused
-          ? FilledButton.styleFrom(backgroundColor: scheme.tertiaryContainer, foregroundColor: scheme.onTertiaryContainer)
-          : null,
+      style: style,
       icon: icon,
       label: Text(label),
       onPressed: onPressed,
@@ -321,12 +147,29 @@ Future<void> togglePause(BuildContext context, LiveSession session) async {
   }
 }
 
-/// Aborts [session]'s run (Esc in the TUI).
+/// Aborts [session]'s run as Esc does in the TUI: the queued messages go back into the composer ahead of the draft
+/// (companion `queue.clear` with `interrupt`, which also drops omp's own queued steers so the run cannot resume by
+/// itself), omp aborts, and a pause gate is released, since nothing is left for it to hold.
 Future<void> abortRun(BuildContext context, LiveSession session) async {
   final t = context.t;
   final messenger = ScaffoldMessenger.of(context);
+  final companion = session.companionHello != null;
+  if (companion) {
+    try {
+      final cleared = await session.companion.call('queue.clear', {'interrupt': true});
+      if (cleared case {'steering': final List<Object?> steering, 'followUp': final List<Object?> followUp}) {
+        if (context.mounted) {
+          restoreIntoDraft(context, session, [...steering, ...followUp].map(decodeRestored).nonNulls.toList());
+        }
+      }
+    } on Object catch (error) {
+      // The run still stops; only the queue stays where it was.
+      messenger.showSnackBar(SnackBar(content: Text(t.queue.takeFailed(error: '$error'))));
+    }
+  }
   try {
     await session.rpc.abort();
+    if (companion && session.view.run.paused) await session.companion.call('pause.set', {'paused': false});
   } on Object catch (error) {
     messenger.showSnackBar(SnackBar(content: Text(t.chat.abortFailed(error: '$error'))));
   }
@@ -340,22 +183,18 @@ class _StopButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final style = FilledButton.styleFrom(backgroundColor: scheme.error, foregroundColor: scheme.onError);
     void onPressed() => unawaited(abortRun(context, session));
     if (iconOnly) {
       return IconButton.filled(
         key: const ValueKey('stop'),
-        style: IconButton.styleFrom(backgroundColor: scheme.error, foregroundColor: scheme.onError),
         tooltip: context.t.chat.stop,
-        icon: const Icon(Icons.stop),
+        icon: const Icon(Icons.stop, size: 18),
         onPressed: onPressed,
       );
     }
     return FilledButton.icon(
       key: const ValueKey('stop'),
-      style: style,
-      icon: const Icon(Icons.stop),
+      icon: const Icon(Icons.stop, size: 18),
       label: Text(context.t.chat.stop),
       onPressed: onPressed,
     );

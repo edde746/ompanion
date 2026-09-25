@@ -9,6 +9,7 @@ import 'package:omp_app/providers/machines_provider.dart';
 import 'package:omp_app/providers/shell_provider.dart';
 import 'package:omp_app/screens/machines/machine_editor.dart';
 import 'package:omp_app/services/secret_store.dart';
+import 'package:omp_app/widgets/app_select.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -85,8 +86,8 @@ void main() {
     );
     await pumpApp(tester);
 
-    final auth = tester.widget<DropdownButtonFormField<AuthMethod>>(find.byType(DropdownButtonFormField<AuthMethod>));
-    expect(auth.initialValue, AuthMethod.key);
+    final auth = tester.widget<AppSelect<AuthMethod>>(find.byType(AppSelect<AuthMethod>));
+    expect(auth.value, AuthMethod.key);
     await tearDownApp(tester);
   });
 

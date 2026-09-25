@@ -74,6 +74,35 @@ void main() {
       );
     });
 
+    test('in a retry saga only the attempt before the answer says its retry succeeded', () {
+      AssistantItem failed(int timestamp, int attempt) => AssistantItem(
+        timestamp: timestamp,
+        content: const [],
+        provider: 'fake',
+        model: 'fake-1',
+        stopReason: StopReason.error,
+        errorMessage: '500',
+        retryRecovery: RetryRecovery(recovered: true, attempt: attempt, note: 'error; retried'),
+      );
+      final rows = rowsOf([
+        user(1, 'a'),
+        failed(2, 1),
+        failed(3, 2),
+        failed(4, 3),
+        assistant(5, const [TextBlock('answer')], usage: const Usage(input: 1)),
+        user(6, 'b'),
+        failed(7, 1),
+        assistant(8, const [TextBlock('answer')], usage: const Usage(input: 1)),
+      ]);
+      expect(
+        [
+          for (final row in rows.whereType<AssistantFooterRow>())
+            if (row.item.retryRecovery != null) (row.item.retryRecovery!.attempt, row.retryFailed),
+        ],
+        [(1, true), (2, true), (3, false), (1, false)],
+      );
+    });
+
     test('the split row is the first row of the split item', () {
       final transcript = [
         user(1, 'a'),

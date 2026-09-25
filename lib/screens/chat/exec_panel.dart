@@ -5,6 +5,7 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../sessions/exec_runs.dart';
 import '../../sessions/sessions_provider.dart';
@@ -97,7 +98,7 @@ class _ExecCard extends StatelessWidget {
                   status,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: error != null || (exitCode != null && exitCode != 0)
-                        ? theme.colorScheme.error
+                        ? AppColors.of(context).error
                         : theme.colorScheme.onSurfaceVariant,
                   ),
                 ),

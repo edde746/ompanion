@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:omp_core/session.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../machines/connect_dialogs.dart';
 
@@ -27,10 +28,13 @@ String machineStatusText(Translations t, MachineStatus status) => switch (status
   MachineFailed(:final cause) => describeConnectError(t, cause),
 };
 
-/// The dot in front of a machine: grey offline, primary online, tertiary without omp, error when failed.
-Color machineStatusColor(ColorScheme scheme, MachineStatus status) => switch (status) {
-  MachineOffline() || MachineConnecting() => scheme.outline,
-  MachineOnline() => scheme.primary,
-  MachineNeedsOmp() => scheme.tertiary,
-  MachineFailed() => scheme.error,
-};
+/// The dot on a machine's icon: grey offline or connecting, success online, warning without omp, error when failed.
+Color machineStatusColor(BuildContext context, MachineStatus status) {
+  final colors = AppColors.of(context);
+  return switch (status) {
+    MachineOffline() || MachineConnecting() => Theme.of(context).colorScheme.onSurfaceVariant,
+    MachineOnline() => colors.success,
+    MachineNeedsOmp() => colors.warning,
+    MachineFailed() => colors.error,
+  };
+}

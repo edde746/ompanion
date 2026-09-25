@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omp_app/terminal/shell_launch.dart';
 import 'package:omp_app/terminal/terminal_deck.dart';
 import 'package:omp_app/terminal/terminal_session.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/transport.dart';
+import 'package:xterm3/xterm.dart';
 
 void main() {
   group('input', () {
@@ -92,24 +94,30 @@ void main() {
       expect(ascii.decode(failed.close()), 'sh: not found\r\n');
     });
 
-    test('the directory is sent only after the ready line, and keystrokes only after the directory', () async {
+    test('the PTY takes sizes at once; the directory waits for the ready line, and keystrokes for the directory', () async {
       final link = _PtyLink();
       const launch = (command: posixTerminalCommand, startLine: '/srv/app\n');
       final started = SshTerminalBackend.start(link, launch, columns: 80, rows: 24);
       final process = await link.started.future;
+      final backend = await started;
       expect(link.command, posixTerminalCommand);
+      final shown = StringBuffer();
+      final done = backend.output.listen((bytes) => shown.write(utf8.decode(bytes))).asFuture<void>();
+
+      // Before the login shell exists, the view's size already reaches the PTY; typing waits.
+      backend.resize(100, 40, 0, 0);
+      backend.write(encodeTerminalInput('ls\r'));
+      expect(process.sizes, [(100, 40)]);
       process.emit('Last login: today\r\n');
       await pumpEventQueue();
       expect(process.written, isEmpty);
 
       process.emit('OMPAPP_TERMINAL_READY\n');
-      final backend = await started;
-      expect(process.written, ['/srv/app\n']);
-      backend.write(encodeTerminalInput('ls\r'));
+      await pumpEventQueue();
       expect(process.written, ['/srv/app\n', 'ls\r']);
+      backend.write(encodeTerminalInput('pwd\r'));
+      expect(process.written, ['/srv/app\n', 'ls\r', 'pwd\r']);
 
-      final shown = StringBuffer();
-      final done = backend.output.listen((bytes) => shown.write(utf8.decode(bytes))).asFuture<void>();
       process.emit('~/srv/app \$ ');
       await process.end();
       await done;
@@ -120,11 +128,12 @@ void main() {
       final link = _PtyLink();
       final started = SshTerminalBackend.start(link, (command: posixTerminalCommand, startLine: '\n'), columns: 80, rows: 24);
       final process = await link.started.future;
+      final backend = await started;
+      backend.write(encodeTerminalInput('ls\r'));
       process.emit('This account is currently not available.\r\n');
       await process.end();
-      final backend = await started;
-      expect(process.written, isEmpty);
       expect(utf8.decode((await backend.output.toList()).expand((bytes) => bytes).toList()), 'This account is currently not available.\r\n');
+      expect(process.written, isEmpty);
     });
   });
 
@@ -137,6 +146,31 @@ void main() {
       final withLocale = localShell(windows: false, environment: const {'SHELL': 'zsh', 'LC_ALL': 'de_DE.UTF-8'});
       expect(withLocale.executable, '/bin/sh');
       expect(withLocale.environment.containsKey('LANG'), isFalse);
+    });
+
+    test("without SHELL the account's shell from the user database, else /bin/sh", () {
+      final account = localShell(windows: false, environment: const {'USER': 'me'}, accountShell: '/opt/homebrew/bin/fish');
+      expect(account.executable, '/opt/homebrew/bin/fish');
+      expect(account.arguments, ['-l']);
+      // The environment's own SHELL wins over the database.
+      expect(localShell(windows: false, environment: const {'SHELL': '/bin/zsh'}, accountShell: '/bin/bash').executable, '/bin/zsh');
+      expect(localShell(windows: false, environment: const {}, accountShell: null).executable, '/bin/sh');
+      // A development home keeps the account's shell but not its login profile.
+      final isolated = localShell(
+        windows: false,
+        environment: const {},
+        accountShell: '/bin/zsh',
+        isolation: const {'HOME': '/tmp/dev', 'PATH': '/usr/bin:/bin'},
+      );
+      expect(isolated.executable, '/bin/zsh');
+      expect(isolated.arguments, isEmpty);
+    });
+
+    test('the account shell from dscl and passwd output', () {
+      expect(parseDsclUserShell('UserShell: /bin/zsh\n'), '/bin/zsh');
+      expect(parseDsclUserShell('No such key: UserShell\n'), isNull);
+      expect(parsePasswdShell('me:x:501:20:Me:/home/me:/usr/bin/fish\n'), '/usr/bin/fish');
+      expect(parsePasswdShell('me:x:501:20:Me:/home/me:\n'), isNull);
     });
 
     test('an isolated development home: its variables, its omp first on PATH, and no login profile', () {
@@ -173,6 +207,57 @@ void main() {
       deck.close(c);
       expect(deck.current, same(b));
       deck.dispose();
+    });
+  });
+
+  group('PTY size', () {
+    testWidgets('opens at the laid-out grid and follows the view, also while the PTY opens', (tester) async {
+      final opening = Completer<TerminalBackend>();
+      final opened = <(int, int)>[];
+      final backend = _Backend();
+      final session = TerminalSession(
+        title: 'sh',
+        open: (columns, rows) {
+          opened.add((columns, rows));
+          return opening.future;
+        },
+      );
+      var size = const Size(600, 400);
+      late StateSetter setSize;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              setSize = setState;
+              return Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox.fromSize(size: size, child: TerminalView(session.terminal)),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      (int, int) grid() => (session.terminal.viewWidth, session.terminal.viewHeight);
+      expect(opened, [grid()]);
+      expect(grid(), isNot((80, 24)));
+
+      // The dock widens while the PTY opens: the PTY gets the new grid before any output is drawn.
+      setSize(() => size = const Size(800, 500));
+      await tester.pump();
+      expect(backend.sizes, isEmpty);
+      opening.complete(backend);
+      await tester.pump();
+      expect(backend.sizes, [grid()]);
+      expect(session.phase, isA<TerminalRunning>());
+
+      setSize(() => size = const Size(500, 300));
+      await tester.pump();
+      expect(backend.sizes.last, grid());
+      expect(backend.pixels.last.$1, greaterThan(grid().$1), reason: 'the grid in pixels, not one cell');
+
+      await tester.pumpWidget(const SizedBox());
+      session.dispose();
     });
   });
 
@@ -233,6 +318,7 @@ final class _PtyProcess implements HostProcess {
   final _stdout = StreamController<Uint8List>();
   final _exit = Completer<HostExit>();
   final written = <String>[];
+  final sizes = <(int, int)>[];
 
   void emit(String text) => _stdout.add(utf8.encode(text));
 
@@ -257,7 +343,7 @@ final class _PtyProcess implements HostProcess {
   Future<HostExit> get exit => _exit.future;
 
   @override
-  void resize(int columns, int rows) {}
+  void resize(int columns, int rows) => sizes.add((columns, rows));
 
   @override
   void kill() {}
@@ -272,6 +358,7 @@ final class _Backend implements TerminalBackend {
   final _exit = Completer<int?>();
   final written = <String>[];
   final sizes = <(int, int)>[];
+  final pixels = <(int, int)>[];
   var closed = false;
 
   void exit(int code) {
@@ -292,6 +379,7 @@ final class _Backend implements TerminalBackend {
   void resize(int columns, int rows, int pixelWidth, int pixelHeight) {
     if (_exit.isCompleted) throw StateError('PTY closed');
     sizes.add((columns, rows));
+    pixels.add((pixelWidth, pixelHeight));
   }
 
   @override

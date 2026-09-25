@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../sessions/session_view_builder.dart';
 import 'transcript/ansi.dart';
@@ -11,7 +12,7 @@ import 'transcript/ansi.dart';
 typedef _StripData = ({Map<String, String> statuses, RunStatus status, bool paused, bool running});
 
 /// One line of run state and extension statuses (`setStatus`) under the header: compacting, retrying, a
-/// failed run, a parked run while paused.
+/// failed run, a parked run while paused. A closed session has no run left to describe.
 class StatusStrip extends StatelessWidget {
   const StatusStrip({super.key, required this.session});
 
@@ -19,53 +20,57 @@ class StatusStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SessionViewSelector<_StripData>(
+    return LinkStateBuilder(
       session: session,
-      select: (view) => (statuses: view.statuses, status: view.status, paused: view.run.paused, running: view.run.running),
-      builder: (context, data) {
-        final t = context.t;
-        final theme = Theme.of(context);
-        final chips = <Widget>[
-          if (data.paused && data.running)
-            _StatusChip(icon: Icons.pause_circle_outline, text: t.chat.parked, color: theme.colorScheme.tertiaryContainer),
-          ...switch (data.status) {
-            RunCompacting() => [
-              _StatusChip(icon: Icons.compress, text: t.chat.compacting, busy: true),
-            ],
-            RunRetrying(:final attempt, :final maxAttempts, :final errorMessage) => [
-              _StatusChip(
-                icon: Icons.replay,
-                text: t.chat.retrying(attempt: attempt, max: maxAttempts, error: errorMessage),
-                color: theme.colorScheme.tertiaryContainer,
-                busy: true,
+      builder: (context, link) => SessionViewSelector<_StripData>(
+        session: session,
+        select: (view) =>
+            (statuses: view.statuses, status: view.status, paused: view.run.paused, running: view.run.running),
+        builder: (context, data) {
+          final t = context.t;
+          final theme = Theme.of(context);
+          final colors = AppColors.of(context);
+          final live = link is! LinkClosed;
+          final chips = <Widget>[
+            if (live && data.paused && data.running) _StatusChip(icon: Icons.pause_circle_outline, text: t.chat.parked),
+            if (live)
+              ...switch (data.status) {
+                RunCompacting() => [_StatusChip(icon: Icons.compress, text: t.chat.compacting, busy: true)],
+                RunRetrying(:final attempt, :final maxAttempts, :final errorMessage) => [
+                  _StatusChip(
+                    icon: Icons.replay,
+                    text: t.chat.retrying(attempt: attempt, max: maxAttempts, error: errorMessage),
+                    color: colors.warning,
+                    busy: true,
+                  ),
+                ],
+                RunFailed(:final message) => [
+                  _StatusChip(
+                    icon: Icons.error_outline,
+                    text: t.chat.failed(error: message ?? t.chat.failedUnknown),
+                    color: colors.error,
+                  ),
+                ],
+                RunAborted() => [_StatusChip(icon: Icons.stop_circle_outlined, text: t.chat.aborted)],
+                RunStreaming() || RunIdle() => const <Widget>[],
+              },
+            for (final MapEntry(:key, :value) in data.statuses.entries)
+              Tooltip(
+                message: key,
+                child: Text.rich(
+                  ansiSpan(value, base: theme.textTheme.bodySmall ?? const TextStyle(), scheme: theme.colorScheme),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ],
-            RunFailed(:final message) => [
-              _StatusChip(
-                icon: Icons.error_outline,
-                text: t.chat.failed(error: message ?? t.chat.failedUnknown),
-                color: theme.colorScheme.errorContainer,
-              ),
-            ],
-            RunAborted() => [_StatusChip(icon: Icons.stop_circle_outlined, text: t.chat.aborted)],
-            RunStreaming() || RunIdle() => const <Widget>[],
-          },
-          for (final MapEntry(:key, :value) in data.statuses.entries)
-            Tooltip(
-              message: key,
-              child: Text.rich(
-                ansiSpan(value, base: theme.textTheme.bodySmall ?? const TextStyle(), scheme: theme.colorScheme),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-        ];
-        if (chips.isEmpty) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-          child: Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: chips),
-        );
-      },
+          ];
+          if (chips.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+            child: Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: chips),
+          );
+        },
+      ),
     );
   }
 }
@@ -75,25 +80,28 @@ class _StatusChip extends StatelessWidget {
 
   final IconData icon;
   final String text;
+
+  /// Icon colour for a warning or an error; grey otherwise.
   final Color? color;
   final bool busy;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final color = this.color ?? theme.colorScheme.onSurfaceVariant;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color ?? theme.colorScheme.surfaceContainerHighest,
-        borderRadius: const BorderRadius.all(Radius.circular(8)),
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: const BorderRadius.all(Radius.circular(AppSizes.radius)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (busy)
-            const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2))
+            SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2, color: color))
           else
-            Icon(icon, size: 14),
+            Icon(icon, size: 14, color: color),
           const SizedBox(width: 6),
           Flexible(
             child: Text(text, style: theme.textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -303,7 +311,7 @@ class _NoticeHostState extends State<NoticeHost> {
     _shownThrough = fresh.last.seq;
     final t = context.t;
     final messenger = ScaffoldMessenger.of(context);
-    final scheme = Theme.of(context).colorScheme;
+    final colors = AppColors.of(context);
     for (final notice in fresh) {
       final error = switch (notice) {
         MessageNotice(level: NoticeLevel.error) || ExtensionErrorNotice() => true,
@@ -312,8 +320,8 @@ class _NoticeHostState extends State<NoticeHost> {
       };
       messenger.showSnackBar(
         SnackBar(
-          content: Text(noticeText(t, notice)),
-          backgroundColor: error ? scheme.error : null,
+          content: Text(noticeText(t, notice), style: error ? TextStyle(color: colors.error) : null),
+          backgroundColor: error ? colors.errorSurface : null,
           behavior: SnackBarBehavior.floating,
         ),
       );

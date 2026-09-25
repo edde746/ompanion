@@ -134,33 +134,24 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
                     NavigationRailDestination(icon: Icon(labels[section]!.$2), label: Text(labels[section]!.$1)),
                 ],
               ),
-              const VerticalDivider(width: 1),
               Expanded(child: page),
             ],
           );
         }
         return Column(
           children: [
-            SizedBox(
-              height: 52,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                children: [
-                  for (final section in ConfigSection.values)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        avatar: Icon(labels[section]!.$2, size: 18),
-                        label: Text(labels[section]!.$1),
-                        selected: section == _section,
-                        onSelected: (_) => setState(() => _section = section),
-                      ),
-                    ),
-                ],
+            ColoredBox(
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: ConfigPills<ConfigSection>(
+                  value: _section,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  items: [for (final section in ConfigSection.values) (section, labels[section]!.$1, labels[section]!.$2)],
+                  onChanged: (section) => setState(() => _section = section),
+                ),
               ),
             ),
-            const Divider(height: 1),
             Expanded(child: page),
           ],
         );

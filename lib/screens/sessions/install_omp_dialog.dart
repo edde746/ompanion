@@ -8,10 +8,12 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
 import '../machines/connect_dialogs.dart';
+import '../machines/machine_detail_pane.dart';
 
 /// Installs omp on [machine] (docs/PLAN.md D12): a machine with curl or wget, and every Windows machine, downloads
 /// the pinned release asset itself; otherwise the app downloads it here and uploads it. Either way the machine checks
@@ -60,6 +62,7 @@ class _InstallOmpDialog extends StatefulWidget {
 
 class _InstallOmpDialogState extends State<_InstallOmpDialog> {
   _Phase _phase = const _Ready();
+  var _showManual = false;
 
   /// The newest release the app supports.
   static final _version = ompReleases.last.version;
@@ -145,6 +148,7 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
+    final colors = AppColors.of(context);
     final status = _runtime.status;
     final probe = switch (status) {
       MachineNeedsOmp(:final probe) || MachineOnline(:final probe) => probe,
@@ -153,71 +157,99 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
     final reason = status is MachineNeedsOmp ? status.reason : null;
     final phase = _phase;
     final running = phase is _Running;
+    final muted = theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    Widget fact(String label, String value) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 110, child: Text(label, style: muted)),
+          Expanded(child: SelectableText(value, style: theme.textTheme.bodyMedium)),
+        ],
+      ),
+    );
     return AlertDialog(
       title: Text(t.install.title(machine: widget.machine.name)),
       content: SizedBox(
         width: 560,
         child: probe == null
             ? Text(t.install.notConnected)
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (reason != null) Text(reason),
-                  const SizedBox(height: 8),
-                  Text(
-                    t.install.facts(
-                      os: probe.os.name,
-                      arch: probe.arch,
-                      version: _version,
-                      dir: defaultInstallDir(probe),
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(switch (installRoute(probe)) {
+                      InstallRoute.download => t.install.viaDownload,
+                      InstallRoute.upload => t.install.viaUpload,
+                    }),
+                    if (reason != null) ...[const SizedBox(height: 4), Text(reason, style: muted)],
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+                      ),
+                      child: Column(
+                        children: [
+                          fact(t.install.os, osLabel(probe)),
+                          fact(t.install.arch, probe.arch),
+                          fact(t.install.release, 'omp $_version'),
+                          fact(t.install.directory, defaultInstallDir(probe)),
+                        ],
+                      ),
                     ),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(switch (installRoute(probe)) {
-                    InstallRoute.download => t.install.viaDownload,
-                    InstallRoute.upload => t.install.viaUpload,
-                  }),
-                  const SizedBox(height: 12),
-                  Text(t.install.manual, style: theme.textTheme.labelMedium),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            borderRadius: const BorderRadius.all(Radius.circular(8)),
-                          ),
-                          child: SelectableText(
-                            _manualCommand(probe),
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                          ),
+                    const SizedBox(height: 12),
+                    switch (phase) {
+                      _Ready() => const SizedBox.shrink(),
+                      _Running(:final message, :final fraction) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [LinearProgressIndicator(value: fraction), const SizedBox(height: 6), Text(message)],
+                      ),
+                      _Done(:final version) => Text(
+                        t.install.done(version: version),
+                        style: TextStyle(color: colors.success),
+                      ),
+                      _Failed(:final message) => Text(message, style: TextStyle(color: colors.error)),
+                    },
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton.icon(
+                        onPressed: () => setState(() => _showManual = !_showManual),
+                        icon: Icon(_showManual ? Icons.expand_more : Icons.chevron_right, size: 18),
+                        label: Text(t.install.manual),
+                      ),
+                    ),
+                    if (_showManual)
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: SelectableText(
+                                  _manualCommand(probe),
+                                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: t.common.copy,
+                              icon: const Icon(Icons.copy, size: 18),
+                              onPressed: () => unawaited(Clipboard.setData(ClipboardData(text: _manualCommand(probe)))),
+                            ),
+                          ],
                         ),
                       ),
-                      IconButton(
-                        tooltip: t.common.copy,
-                        icon: const Icon(Icons.copy),
-                        onPressed: () => unawaited(Clipboard.setData(ClipboardData(text: _manualCommand(probe)))),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  switch (phase) {
-                    _Ready() => const SizedBox.shrink(),
-                    _Running(:final message, :final fraction) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [LinearProgressIndicator(value: fraction), const SizedBox(height: 6), Text(message)],
-                    ),
-                    _Done(:final version) => Text(
-                      t.install.done(version: version),
-                      style: TextStyle(color: theme.colorScheme.primary),
-                    ),
-                    _Failed(:final message) => Text(message, style: TextStyle(color: theme.colorScheme.error)),
-                  },
-                ],
+                  ],
+                ),
               ),
       ),
       actions: [

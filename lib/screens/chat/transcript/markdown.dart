@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../external_links.dart';
 import 'code_block.dart';
@@ -82,10 +85,150 @@ final class CommonMarkFence extends MarkdownBlockSyntax {
   }
 }
 
+/// The rows of a pipe table: [aligns] has one entry per column, [rows] starts with the header row and every row has
+/// one cell per column.
+final class MarkdownTable {
+  const MarkdownTable(this.aligns, this.rows);
+
+  final List<TextAlign> aligns;
+  final List<List<String>> rows;
+}
+
+/// A GFM pipe table (spec §4.10) whose rows start with `|`: a header row, a delimiter row with as many cells, and the
+/// body rows up to the first line that does not start with `|`. It replaces gpt_markdown's table, which sizes itself to
+/// its content inside a scroll view that hides the available width, so it cannot fill the transcript. [MdCustomBlock.data]
+/// is the [MarkdownTable]; a table whose rows omit the leading pipe still reaches gpt_markdown's renderer.
+final class PipeTable extends MarkdownBlockSyntax {
+  const PipeTable();
+
+  @override
+  String get type => 'pipe-table';
+
+  @override
+  String get prefix => '|';
+
+  @override
+  MarkdownBlockMatch? parse(List<String> lines, int startLine) {
+    if (startLine + 1 >= lines.length || CommonMarkFence._leadingSpaces(lines[startLine]) > 3) return null;
+    final header = tableCells(lines[startLine]);
+    final delimiter = tableCells(lines[startLine + 1]);
+    if (delimiter.length != header.length || !delimiter.every(_delimiterCell.hasMatch)) return null;
+    var end = startLine + 2;
+    while (end < lines.length && lines[end].trimLeft().startsWith('|')) {
+      end++;
+    }
+    final aligns = [
+      for (final cell in delimiter)
+        cell.endsWith(':')
+            ? (cell.startsWith(':') ? TextAlign.center : TextAlign.right)
+            : TextAlign.left,
+    ];
+    final rows = [
+      header,
+      for (final line in lines.sublist(startLine + 2, end))
+        [for (final (index, cell) in tableCells(line).take(header.length).indexed) if (index < header.length) cell],
+    ];
+    for (final row in rows) {
+      while (row.length < header.length) {
+        row.add('');
+      }
+    }
+    return MarkdownBlockMatch(
+      node: MdCustomBlock(
+        type: type,
+        body: lines.sublist(startLine, end).join('\n'),
+        data: MarkdownTable(aligns, rows),
+      ),
+      endLine: end,
+    );
+  }
+}
+
+final _delimiterCell = RegExp(r'^:?-+:?$');
+
+/// The trimmed cells of a table row: an outer pipe on either side is dropped and `\|` is a pipe inside a cell.
+List<String> tableCells(String line) {
+  var text = line.trim();
+  if (text.startsWith('|')) text = text.substring(1);
+  if (text.endsWith('|') && !text.endsWith(r'\|')) text = text.substring(0, text.length - 1);
+  final cells = <String>[];
+  final cell = StringBuffer();
+  for (var i = 0; i < text.length; i++) {
+    final char = text[i];
+    if (char == r'\' && i + 1 < text.length && text[i + 1] == '|') {
+      cell.write('|');
+      i++;
+    } else if (char == '|') {
+      cells.add(cell.toString().trim());
+      cell.clear();
+    } else {
+      cell.write(char);
+    }
+  }
+  cells.add(cell.toString().trim());
+  return cells;
+}
+
+/// A GFM task list (spec §5.3): consecutive `- [ ] item` / `- [x] item` lines with the same bullet [marker], each
+/// with its indented continuation lines. gpt_markdown draws a task item as a bullet followed by a padded Material
+/// checkbox; this draws the box in place of the bullet at list spacing. [MdCustomBlock.data] is a list of
+/// `(checked, text)` records.
+final class TaskList extends MarkdownBlockSyntax {
+  const TaskList(this.marker);
+
+  static const dash = TaskList('-');
+  static const star = TaskList('*');
+  static const plus = TaskList('+');
+
+  /// `-`, `*` or `+`.
+  final String marker;
+
+  @override
+  String get type => switch (marker) {
+    '-' => 'task-list-dash',
+    '*' => 'task-list-star',
+    _ => 'task-list-plus',
+  };
+
+  @override
+  String get prefix => '$marker [';
+
+  @override
+  MarkdownBlockMatch? parse(List<String> lines, int startLine) {
+    final items = <(bool, String)>[];
+    var end = startLine;
+    while (end < lines.length) {
+      final line = lines[end];
+      final item = _taskItem.firstMatch(line);
+      if (item != null && item[1] == marker) {
+        items.add((item[2] != ' ', item[3] ?? ''));
+      } else if (items.isNotEmpty && line.startsWith('  ') && line.trim().isNotEmpty && !_listItem.hasMatch(line)) {
+        final (checked, text) = items.removeLast();
+        items.add((checked, '$text ${line.trim()}'));
+      } else {
+        break;
+      }
+      end++;
+    }
+    if (items.isEmpty) return null;
+    return MarkdownBlockMatch(
+      node: MdCustomBlock(type: type, body: lines.sublist(startLine, end).join('\n'), data: items),
+      endLine: end,
+    );
+  }
+}
+
+final _taskItem = RegExp(r'^ {0,3}([-*+]) \[([ xX])\](?: (.*))?$');
+final _listItem = RegExp(r'^\s*(?:[-*+]|\d{1,9}[.)])(?:\s|$)');
+
 // gpt_markdown caches its block registry by the identity of this list: it must be created once.
 final List<MarkdownBlockComponent> _blockComponents = [
   const MarkdownBlockComponent(syntax: CommonMarkFence.backtick, builder: _fence),
   const MarkdownBlockComponent(syntax: CommonMarkFence.tilde, builder: _fence),
+  const MarkdownBlockComponent(syntax: PipeTable(), builder: _table),
+  const MarkdownBlockComponent(syntax: TaskList.dash, builder: _tasks),
+  const MarkdownBlockComponent(syntax: TaskList.star, builder: _tasks),
+  const MarkdownBlockComponent(syntax: TaskList.plus, builder: _tasks),
 ];
 
 Widget _fence(BuildContext context, MdCustomBlock node, GptMarkdownConfig config) {
@@ -97,6 +240,147 @@ Widget _fence(BuildContext context, MdCustomBlock node, GptMarkdownConfig config
 /// Built-in fences can still reach the renderer through a construct the fence rule does not own.
 Widget _builtInFence(BuildContext context, String name, String code, bool closed) =>
     CodeBlock(code: code, language: languageForFence(name), label: name, closed: closed);
+
+/// Inline markdown [text] rendered as gpt_markdown renders a table cell.
+Widget _inline(BuildContext context, String text, GptMarkdownConfig config) => config.getRich(
+  TextSpan(children: PlusparseRenderer.render(context, text, config, inlineOnly: true)),
+  ambientScaling: config.blocksRenderDirectly,
+);
+
+Widget _table(BuildContext context, MdCustomBlock node, GptMarkdownConfig config) =>
+    _TableView(table: node.data! as MarkdownTable, config: config);
+
+/// A pipe table at the full available width: columns take their content's width, up to a cap past which the text
+/// wraps, and share what is left over; a table wider than the transcript scrolls sideways. A flat header and zebra
+/// rows from the surface tones separate the cells.
+class _TableView extends StatefulWidget {
+  const _TableView({required this.table, required this.config});
+
+  final MarkdownTable table;
+  final GptMarkdownConfig config;
+
+  @override
+  State<_TableView> createState() => _TableViewState();
+}
+
+class _TableViewState extends State<_TableView> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final table = widget.table;
+    final config = widget.config;
+    final headerConfig = config.copyWith(
+      style: (config.style ?? const TextStyle()).copyWith(fontWeight: FontWeight.w600),
+    );
+    Widget cell(GptMarkdownConfig base, int column, String text) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: _inline(
+        context,
+        text,
+        table.aligns[column] == TextAlign.left ? base : base.copyWith(textAlign: table.aligns[column]),
+      ),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite ? constraints.maxWidth : 0.0;
+        final grid = Table(
+          // Measured by laying each cell out (gpt_markdown's column width), capped so long text wraps.
+          defaultColumnWidth: MinColumnWidth(
+            const CustomTableColumnWidth(),
+            FixedColumnWidth(math.max(160, width * 0.6)),
+          ),
+          children: [
+            for (final (index, row) in table.rows.indexed)
+              TableRow(
+                decoration: BoxDecoration(
+                  color: index == 0
+                      ? scheme.surfaceContainerHigh
+                      : index.isOdd
+                      ? scheme.surfaceContainerLow
+                      : scheme.surfaceContainer,
+                ),
+                children: [
+                  for (final (column, text) in row.indexed) cell(index == 0 ? headerConfig : config, column, text),
+                ],
+              ),
+          ],
+        );
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(AppSizes.radius),
+          child: Scrollbar(
+            controller: _scroll,
+            child: SingleChildScrollView(
+              controller: _scroll,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(constraints: BoxConstraints(minWidth: width), child: grid),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+Widget _tasks(BuildContext context, MdCustomBlock node, GptMarkdownConfig config) {
+  final style = config.style ?? DefaultTextStyle.of(context).style;
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      for (final (checked, text) in node.data! as List<(bool, String)>)
+        _task(context, style, checked, _inline(context, text, config)),
+    ],
+  );
+}
+
+Widget _checkbox(BuildContext context, bool checked, Widget content, CheckboxStyle style) =>
+    _task(context, DefaultTextStyle.of(context).style, checked, content);
+
+/// One task item: a box where a list item has its bullet, centred on the label's first line.
+Widget _task(BuildContext context, TextStyle style, bool checked, Widget label) {
+  final scheme = Theme.of(context).colorScheme;
+  final line = MediaQuery.textScalerOf(context).scale(style.fontSize ?? 14) * (style.height ?? 1.4);
+  return Padding(
+    padding: const EdgeInsets.only(left: 2),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(top: math.max(0, (line - 16) / 2)),
+          child: Icon(
+            checked ? Icons.check_box : Icons.check_box_outline_blank,
+            size: 16,
+            color: checked ? scheme.onSurface : scheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(child: label),
+      ],
+    ),
+  );
+}
+
+/// A quote as a flat block of dimmed text.
+Widget _quote(BuildContext context, Widget content, BlockQuoteStyle style) => Container(
+  width: double.infinity,
+  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  decoration: BoxDecoration(
+    color: Theme.of(context).colorScheme.surfaceContainer,
+    borderRadius: BorderRadius.circular(AppSizes.radius),
+  ),
+  child: content,
+);
+
+/// A thematic break is a gap, not a rule.
+Widget _rule(BuildContext context, HrStyle style) => const SizedBox(height: 8);
 
 /// An image of the transcript's markdown: an inline `data:` image is drawn, a web image waits for a tap
 /// ([_RemoteImage]), and anything else shows its URL. [alt] is the image's alt text, empty when unknown.
@@ -143,7 +427,7 @@ class _RemoteImageState extends State<_RemoteImage> {
         widget.url,
         width: widget.width,
         height: widget.height,
-        errorBuilder: (context, error, stack) => Text(widget.url, style: TextStyle(color: scheme.error)),
+        errorBuilder: (context, error, stack) => Text(widget.url, style: TextStyle(color: AppColors.of(context).error)),
       );
     }
     final t = context.t.transcript;
@@ -152,8 +436,8 @@ class _RemoteImageState extends State<_RemoteImage> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
         decoration: BoxDecoration(
-          border: Border.all(color: scheme.outlineVariant),
-          borderRadius: const BorderRadius.all(Radius.circular(8)),
+          color: scheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppSizes.radius),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -408,24 +692,61 @@ class _TranscriptMarkdownState extends State<TranscriptMarkdown> {
       _alts = markdownImageAlts(_prepared);
     }
     final theme = Theme.of(context);
-    return GptMarkdown(
-      _prepared,
-      style: widget.style ?? theme.textTheme.bodyMedium,
-      blockComponents: _blockComponents,
-      codeBuilder: _builtInFence,
-      imageBuilder: _buildImage,
-      onLinkTap: _onLinkTap,
-      styleSheet: _styleSheet(theme.colorScheme),
+    return GptMarkdownTheme(
+      gptThemeData: _markdownTheme(theme),
+      child: GptMarkdown(
+        _prepared,
+        style: widget.style ?? theme.textTheme.bodyMedium,
+        blockComponents: _blockComponents,
+        codeBuilder: _builtInFence,
+        imageBuilder: _buildImage,
+        checkboxBuilder: _checkbox,
+        blockQuoteBuilder: _quote,
+        hrBuilder: _rule,
+        onLinkTap: _onLinkTap,
+        styleSheet: _styleSheet(theme.colorScheme),
+      ),
     );
   }
 }
 
+final _markdownThemes = Expando<GptMarkdownThemeData>();
+
+/// Headings one step above the body text each, without the rule gpt_markdown draws under a first-level heading.
+GptMarkdownThemeData _markdownTheme(ThemeData theme) => _markdownThemes[theme] ??= () {
+  final body = theme.textTheme.bodyMedium?.fontSize ?? 14;
+  TextStyle heading(double size) => TextStyle(fontSize: size, fontWeight: FontWeight.w600, height: 1.3);
+  return GptMarkdownThemeData(
+    brightness: theme.brightness,
+    h1: heading(body + 6),
+    h2: heading(body + 3),
+    h3: heading(body + 1),
+    h4: heading(body),
+    h5: heading(body),
+    h6: heading(body),
+    autoAddDividerLineAfterH1: false,
+    linkColor: theme.colorScheme.onSurface,
+    linkHoverColor: theme.colorScheme.onSurfaceVariant,
+  );
+}();
+
 final _styleSheets = Expando<GptMarkdownStyleSheet>();
 
 GptMarkdownStyleSheet _styleSheet(ColorScheme scheme) => _styleSheets[scheme] ??= GptMarkdownStyleSheet(
+  heading: const HeadingStyle(showDivider: false),
+  link: LinkStyle(
+    color: scheme.onSurface,
+    hoverColor: scheme.onSurfaceVariant,
+    decoration: TextDecoration.underline,
+  ),
+  inlineCode: InlineCodeStyle(backgroundColor: scheme.surfaceContainerHigh, borderWidth: 0),
+  blockQuote: BlockQuoteStyle(textStyle: TextStyle(color: scheme.onSurfaceVariant)),
+  // Tables without a leading pipe still use gpt_markdown's table: flat, like [PipeTable]'s.
   table: TableStyle(
-    borderColor: scheme.outlineVariant,
-    borderRadius: const Radius.circular(6),
+    borderColor: const Color(0x00000000),
+    borderWidth: 0,
+    borderRadius: const Radius.circular(AppSizes.radius),
     headerBackground: scheme.surfaceContainerHigh,
+    rowStripeColor: scheme.surfaceContainer,
   ),
 );

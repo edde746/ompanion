@@ -63,6 +63,30 @@ void main() {
       expect(stats.byAgentType.single.agentType, 'main');
       expect(stats.timeSeries.single.requests, 2);
     });
+
+    test('requests per hour fill the hours without a bucket up to the current hour', () {
+      DateTime hour(int h, [int minute = 0]) => DateTime.utc(2026, 9, 26, h, minute);
+      ({DateTime time, int requests, int errors, int tokens, double cost}) point(DateTime time, int requests) =>
+          (time: time, requests: requests, errors: 0, tokens: 0, cost: 0);
+      final bars = hourlyRequests([point(hour(9), 3), point(hour(12), 1)], now: hour(14, 20), hours: 6);
+      expect(bars.map((bar) => bar.hour.toUtc()), [for (var h = 8; h <= 14; h++) hour(h)]);
+      expect(bars.map((bar) => bar.requests), [0, 3, 0, 0, 1, 0, 0]);
+      // A machine clock ahead of this device: its latest bucket ends the axis.
+      expect(hourlyRequests([point(hour(16), 2)], now: hour(14), hours: 2).map((bar) => bar.requests), [0, 0, 2]);
+    });
+
+    test('project folders read as paths; listed sessions resolve the dashes', () {
+      const home = '/Users/me';
+      expect(statsFolderPath('-demo-project', home: home), '~/demo-project');
+      expect(statsFolderPath('-', home: home), '~');
+      expect(statsFolderPath('-tmp-scratch', home: home), r'$TMPDIR/scratch');
+      expect(statsFolderPath('/opt-work/', home: home), '/opt-work');
+      final folder = statsFolderOf('/Users/me/.omp/agent/sessions/-work-demo-project/2026-09-26_abc.jsonl');
+      expect(folder, '-work-demo-project');
+      expect(statsFolderPath(folder, home: home, known: {folder: '/Users/me/work/demo-project'}), '~/work/demo-project');
+      expect(statsFolderOf('/home/u/.omp/agent/sessions/--srv-app--/s.jsonl'), '/srv-app/');
+      expect(statsFolderPath('/srv-app/', home: home, known: {'/srv-app/': '/srv/app'}), '/srv/app');
+    });
   });
 
   group('omp usage --json', () {

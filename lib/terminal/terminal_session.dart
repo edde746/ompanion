@@ -25,11 +25,12 @@ abstract interface class TerminalBackend {
 
 /// A PTY channel on [HostLink.exec].
 final class SshTerminalBackend implements TerminalBackend {
-  SshTerminalBackend._(this._process, this.output);
+  SshTerminalBackend._(this._process, this.output, this._ready);
 
-  /// Runs [launch] on a PTY. A launch with a start line completes once the machine's shell printed
-  /// [terminalReadyMarker] and got the line, so keystrokes typed meanwhile reach the shell after it; the process
-  /// ending first completes it too, with the output that explains why.
+  /// Runs [launch] on a PTY and returns once the channel is open, so the terminal can size the PTY before the login
+  /// shell starts drawing. A launch with a start line sends it once the machine's shell printed
+  /// [terminalReadyMarker]; keystrokes written before that are held and follow the line. When the process ends
+  /// before the marker, its output explains why.
   static Future<SshTerminalBackend> start(
     HostLink link,
     RemoteShellLaunch launch, {
@@ -38,17 +39,14 @@ final class SshTerminalBackend implements TerminalBackend {
   }) async {
     final process = await link.exec(launch.command, pty: PtyRequest(columns: columns, rows: rows));
     final startLine = launch.startLine;
-    if (startLine == null) return SshTerminalBackend._(process, process.stdout);
-    final ready = Completer<void>();
+    if (startLine == null) return SshTerminalBackend._(process, process.stdout, true);
     final filter = TerminalReadyFilter();
     final output = StreamController<Uint8List>();
+    final backend = SshTerminalBackend._(process, output.stream, false);
     final subscription = process.stdout.listen(
       (chunk) {
         final shown = filter.add(chunk);
-        if (filter.ready && !ready.isCompleted) {
-          process.write(utf8.encode(startLine));
-          ready.complete();
-        }
+        if (filter.ready && !backend._ready) backend._release(startLine);
         if (shown.isNotEmpty) output.add(shown);
       },
       onError: output.addError,
@@ -56,24 +54,39 @@ final class SshTerminalBackend implements TerminalBackend {
         final held = filter.close();
         if (held.isNotEmpty) output.add(held);
         unawaited(output.close());
-        if (!ready.isCompleted) ready.complete();
       },
     );
     output
       ..onPause = subscription.pause
       ..onResume = subscription.resume
       ..onCancel = subscription.cancel;
-    await ready.future;
-    return SshTerminalBackend._(process, output.stream);
+    return backend;
   }
 
   final HostProcess _process;
+  bool _ready;
+  final _held = <Uint8List>[];
 
   @override
   final Stream<Uint8List> output;
 
+  void _release(String startLine) {
+    _ready = true;
+    _process.write(utf8.encode(startLine));
+    for (final bytes in _held) {
+      _process.write(bytes);
+    }
+    _held.clear();
+  }
+
   @override
-  void write(Uint8List bytes) => _process.write(bytes);
+  void write(Uint8List bytes) {
+    if (_ready) {
+      _process.write(bytes);
+    } else {
+      _held.add(bytes);
+    }
+  }
 
   @override
   void resize(int columns, int rows, int pixelWidth, int pixelHeight) => _process.resize(columns, rows);
@@ -173,8 +186,9 @@ final class TerminalFailed extends TerminalPhase {
   final Object error;
 }
 
-/// One terminal tab: an xterm [Terminal] bound to a shell. The shell starts at the grid size the view lays out
-/// (the first resize), or at the default size if the view reports none in time.
+/// One terminal tab: an xterm [Terminal] bound to a shell. The PTY opens at the grid size the view lays out (the
+/// first resize), or at the default size if the view reports none in time, and follows every later layout, including
+/// the ones while the PTY opens.
 final class TerminalSession extends ChangeNotifier {
   TerminalSession({required this._title, required this.open}) {
     terminal
@@ -200,6 +214,10 @@ final class TerminalSession extends ChangeNotifier {
   var _started = false;
   var _disposed = false;
 
+  /// A cell's size in pixels, as the view last reported it; 0 until then.
+  var _cellWidth = 0;
+  var _cellHeight = 0;
+
   String get title => _title;
 
   TerminalPhase get phase => _phase;
@@ -221,10 +239,13 @@ final class TerminalSession extends ChangeNotifier {
     }
   }
 
-  void _onResize(int columns, int rows, int pixelWidth, int pixelHeight) {
+  /// [cellWidth] and [cellHeight] are one cell's pixels (xterm's view reports those); the PTY takes the grid's.
+  void _onResize(int columns, int rows, int cellWidth, int cellHeight) {
+    _cellWidth = cellWidth;
+    _cellHeight = cellHeight;
     final backend = _backend;
     if (backend != null && _phase is TerminalRunning) {
-      backend.resize(columns, rows, pixelWidth, pixelHeight);
+      backend.resize(columns, rows, columns * cellWidth, rows * cellHeight);
     } else if (!_started) {
       // The view laid out the grid: start at its real size.
       scheduleMicrotask(_start);
@@ -244,15 +265,15 @@ final class TerminalSession extends ChangeNotifier {
         return;
       }
       _backend = backend;
+      // The view may have laid out again while the PTY opened; the shell has not drawn yet, so it starts at that size.
+      final (width, height) = (terminal.viewWidth, terminal.viewHeight);
+      if (width != columns || height != rows) backend.resize(width, height, width * _cellWidth, height * _cellHeight);
       final decoder = TerminalOutputDecoder(_writer.write);
       _output = backend.output.listen(decoder.add, onDone: decoder.close);
       for (final bytes in _pendingInput) {
         backend.write(bytes);
       }
       _pendingInput.clear();
-      if (terminal.viewWidth != columns || terminal.viewHeight != rows) {
-        backend.resize(terminal.viewWidth, terminal.viewHeight, 0, 0);
-      }
       _setPhase(const TerminalRunning());
       final code = await backend.exitCode;
       _writer.flush();

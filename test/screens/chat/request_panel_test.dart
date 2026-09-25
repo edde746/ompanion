@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omp_app/database/app_database.dart';
 import 'package:omp_app/i18n/strings.g.dart';
 import 'package:omp_app/providers/machines_provider.dart';
-import 'package:omp_app/screens/chat/request_host.dart';
+import 'package:omp_app/screens/chat/request_panel.dart';
 import 'package:omp_app/services/known_hosts_store.dart';
 import 'package:omp_app/services/machine_connector.dart';
 import 'package:omp_app/services/secret_store.dart';
@@ -92,20 +92,32 @@ final class _Session implements LiveSession {
   Future<void> stop() async {}
 }
 
+
 late AppDatabase _db;
 late MachinesProvider _machines;
 late SessionsProvider _sessions;
 
-Widget _host(_Session session) => ChangeNotifierProvider.value(
+/// The panel under a stand-in transcript with a button, which stays usable while requests are open.
+Widget _host(_Session session, {VoidCallback? onOutside}) => ChangeNotifierProvider.value(
   value: _sessions,
   child: TranslationProvider(
     child: MaterialApp(
-      home: Scaffold(body: RequestHost(session: session, child: const SizedBox.expand())),
+      home: Scaffold(
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Center(child: TextButton(onPressed: onOutside, child: const Text('Elsewhere'))),
+            ),
+            RequestPanel(session: session),
+          ],
+        ),
+      ),
     ),
   ),
 );
 
-Future<void> _pump(WidgetTester tester, _Session session) async {
+Future<void> _pump(WidgetTester tester, _Session session, {VoidCallback? onOutside}) async {
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox());
     _sessions.dispose();
@@ -114,7 +126,7 @@ Future<void> _pump(WidgetTester tester, _Session session) async {
       await _db.close();
     });
   });
-  await tester.pumpWidget(_host(session));
+  await tester.pumpWidget(_host(session, onOutside: onOutside));
   await tester.pumpAndSettle();
 }
 
@@ -132,22 +144,35 @@ void main() {
     );
   });
 
-  testWidgets('an approval shows the tool and sends the chosen option', (tester) async {
+  testWidgets('an approval shows the call once and sends the chosen option', (tester) async {
     final session = _Session(
       SessionView(
+        transcript: [
+          ToolResultItem(
+            toolCallId: 't1',
+            toolName: 'bash',
+            args: const {'command': 'ls -la', 'i': 'Listing files'},
+            intent: 'Listing files',
+            state: ToolState.running,
+          ),
+        ],
         requests: const [
           ApprovalRequest(
             'a1',
             toolName: 'bash',
-            details: ['Origin: model'],
+            details: ['Command: ls -la', 'Origin: model'],
             options: ['Approve', 'Deny'],
-            title: 'Allow tool: bash\nOrigin: model',
+            title: 'Allow tool: bash\nCommand: ls -la\nOrigin: model',
+            toolCallId: 't1',
           ),
         ],
       ),
     );
     await _pump(tester, session);
     expect(find.text('Allow bash?'), findsOneWidget);
+    expect(find.text('Listing files'), findsOneWidget);
+    expect(find.text('ls -la'), findsOneWidget);
+    expect(find.text('Command: ls -la'), findsNothing);
     expect(find.text('Origin: model'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Approve'));
     await tester.pumpAndSettle();
@@ -155,11 +180,11 @@ void main() {
       {'type': 'extension_ui_response', 'id': 'a1', 'value': 'Approve'},
     ]);
     expect(find.text('Allow bash?'), findsNothing);
-    // With no dialog left, typing goes back to the composer.
+    // With no request left, typing goes back to the composer.
     expect(_sessions.draftOf(session).takeFocusRequest(), isTrue);
   });
 
-  testWidgets('select, confirm and input answer with value, confirmed and cancelled', (tester) async {
+  testWidgets('select, confirm and input answer with value, confirmed and cancelled, one after another', (tester) async {
     final session = _Session(
       SessionView(
         requests: const [
@@ -170,12 +195,15 @@ void main() {
       ),
     );
     await _pump(tester, session);
+    expect(find.text('1 of 3'), findsOneWidget);
     expect(find.text('cool'), findsOneWidget);
     await tester.tap(find.text('Blue'));
     await tester.pumpAndSettle();
+    expect(find.text('1 of 2'), findsOneWidget);
     expect(find.text('This rewrites history.'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Yes'));
     await tester.pumpAndSettle();
+    expect(find.text('1 of 2'), findsNothing);
     await tester.enterText(find.byType(TextField), 'omp');
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
@@ -184,47 +212,55 @@ void main() {
       {'type': 'extension_ui_response', 'id': 'c1', 'confirmed': true},
       {'type': 'extension_ui_response', 'id': 'i1', 'cancelled': true},
     ]);
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(RequestContent), findsNothing);
   });
 
-  testWidgets('a request answered elsewhere closes its dialog without an answer from here', (tester) async {
+  testWidgets('a request answered elsewhere leaves the panel without an answer from here', (tester) async {
     final session = _Session(SessionView(requests: const [InputRequest('i1', title: 'Name')]));
     await _pump(tester, session);
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Name'), findsOneWidget);
     session.emit(store.dismissRequest(session.view, 'i1'));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(RequestContent), findsNothing);
     expect(session.channel.sent, isEmpty);
   });
 
-  testWidgets('"Later" hides the dialog into a bar that brings it back', (tester) async {
-    final session = _Session(SessionView(requests: const [ConfirmRequest('c1', title: 'Proceed?', message: 'Sure?')]));
-    await _pump(tester, session);
-    await tester.tap(find.text('Later'));
-    await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
-    expect(find.text('Waiting for your answer: Proceed?'), findsOneWidget);
-    await tester.tap(find.text('Answer'));
-    await tester.pumpAndSettle();
-    expect(find.text('Sure?'), findsOneWidget);
-    expect(session.channel.sent, isEmpty);
-  });
+  testWidgets('open requests leave the rest of the screen usable and keep their input while another is shown', (
+    tester,
+  ) async {
+    var outside = 0;
+    final session = _Session(
+      SessionView(
+        requests: const [
+          InputRequest('i1', title: 'Name'),
+          ConfirmRequest('c1', title: 'Proceed?', message: 'Sure?'),
+        ],
+      ),
+    );
+    await _pump(tester, session, onOutside: () => outside++);
+    await tester.tap(find.text('Elsewhere'));
+    expect(outside, 1);
 
-  testWidgets('a hidden input comes back with what was typed into it', (tester) async {
-    final session = _Session(SessionView(requests: const [InputRequest('i1', title: 'Name')]));
-    await _pump(tester, session);
     await tester.enterText(find.byType(TextField), 'half an answer');
-    // A tap beside the dialog hides it.
-    await tester.tapAt(const Offset(4, 4));
+    await tester.tap(find.byKey(const ValueKey('request-next')));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
-    await tester.tap(find.text('Answer'));
+    expect(find.text('2 of 2'), findsOneWidget);
+    expect(find.text('Sure?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('request-previous')));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextField, 'half an answer'), findsOneWidget);
+
+    // Answering the shown request shows the one that takes its place.
+    await tester.tap(find.widgetWithText(FilledButton, 'Submit'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sure?'), findsOneWidget);
+    expect(session.channel.sent, [
+      {'type': 'extension_ui_response', 'id': 'i1', 'value': 'half an answer'},
+    ]);
   });
 
-  // omp resolves a timed-out dialog by itself and says nothing; the sidebar shows a waiting session until it leaves.
-  testWidgets('timed dialogs expire at their deadline, also while their chat is not shown', (tester) async {
+  // omp resolves a timed-out request by itself and says nothing; the sidebar shows a waiting session until it leaves.
+  testWidgets('timed requests expire at their deadline, also while their chat is not shown', (tester) async {
     final session = _Session(
       SessionView(
         requests: const [
@@ -233,6 +269,7 @@ void main() {
         ],
       ),
     );
+    _sessions.deadlinesOf(session);
     await _pump(tester, session);
     expect(find.text('Name'), findsOneWidget);
 
@@ -247,7 +284,7 @@ void main() {
     await tester.pump(const Duration(seconds: 19));
     await tester.pumpAndSettle();
     expect(session.view.requests, isEmpty);
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(RequestContent), findsNothing);
   });
 
   group('companion ask', () {
@@ -315,22 +352,30 @@ void main() {
           },
         ],
       });
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(RequestContent), findsNothing);
     });
 
-    testWidgets('a hidden form comes back with its choices and text', (tester) async {
+    testWidgets('a form shown again after another request keeps its choices and text', (tester) async {
       tester.view.physicalSize = const Size(2400, 3600);
       addTearDown(tester.view.resetPhysicalSize);
-      final session = _Session(SessionView(requests: const [CompanionRequest('q1', method: 'ask', params: params)]));
+      final session = _Session(
+        SessionView(
+          requests: const [
+            CompanionRequest('q1', method: 'ask', params: params),
+            ConfirmRequest('c1', title: 'Proceed?', message: 'Sure?'),
+          ],
+        ),
+      );
       await _pump(tester, session);
       await tester.tap(find.text('Red'));
       await tester.tap(find.text('Commit'));
       await tester.pump();
       await tester.enterText(find.widgetWithText(TextField, 'Note (optional)').first, 'dark blue');
       await tester.pump();
-      await tester.tap(find.text('Later'));
+      await tester.tap(find.byKey(const ValueKey('request-next')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Answer'));
+      expect(find.text('Sure?'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('request-previous')));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Submit'));
       await tester.pumpAndSettle();
@@ -372,20 +417,19 @@ void main() {
     });
   });
 
-  testWidgets('phones get bottom sheets', (tester) async {
+  testWidgets('phones answer in the same inline panel', (tester) async {
     tester.view.physicalSize = const Size(390 * 3, 844 * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     final session = _Session(SessionView(requests: const [ConfirmRequest('c1', title: 'Proceed?', message: 'Sure?')]));
     await _pump(tester, session);
-    expect(find.byType(AlertDialog), findsNothing);
-    expect(find.byType(BottomSheet), findsOneWidget);
-    await tester.tap(find.widgetWithText(OutlinedButton, 'No'));
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, 'No'));
     await tester.pumpAndSettle();
     expect(session.channel.sent, [
       {'type': 'extension_ui_response', 'id': 'c1', 'confirmed': false},
     ]);
-    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.byType(RequestContent), findsNothing);
   });
 
   group('open_url', () {

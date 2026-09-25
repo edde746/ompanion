@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:omp_core/session.dart';
 
+import '../../app/theme.dart';
 import '../../config/config_target.dart';
 import '../../config/mcp_config.dart';
 import '../../config/txt_command.dart';
 import '../../i18n/strings.g.dart';
+import '../../widgets/app_search_field.dart';
+import '../../widgets/app_segmented.dart';
 import 'config_widgets.dart';
 
 /// MCP servers from `<agentDir>/mcp.json` and the active project's `.omp/mcp.json`, read over SFTP. Changes
@@ -28,7 +31,9 @@ class _McpPageState extends State<McpPage> {
   String? _command;
   String? _output;
   bool _running = false;
-  final _search = TextEditingController();
+  String _smitheryQuery = '';
+  String? _smitheryOutput;
+  bool _smitherySearching = false;
 
   LiveSession? get _project => widget.target.projectSession;
 
@@ -36,12 +41,6 @@ class _McpPageState extends State<McpPage> {
   void initState() {
     super.initState();
     unawaited(_load());
-  }
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
   }
 
   String get _userFile => widget.target.join(widget.target.probe.agentDir, const ['mcp.json']);
@@ -71,21 +70,28 @@ class _McpPageState extends State<McpPage> {
     }
   }
 
-  /// Runs `/mcp …` where [scope] lives and shows its output.
-  Future<void> _run(String line, McpScope scope, {bool reload = true, bool secret = false}) async {
+  Future<LiveSession> _session(McpScope scope) async =>
+      scope == McpScope.project ? _project ?? (throw StateError('no project session')) : await widget.target.control();
+
+  /// Runs `/mcp …` where [scope] lives, shows its output under the list and returns it; null when it failed.
+  /// [append] adds the command and its output to the ones shown.
+  Future<String?> _run(String line, McpScope scope, {bool reload = true, bool secret = false, bool append = false}) async {
+    // A token must not show on screen after the command ran.
+    final shown = secret ? line.replaceAll(RegExp(r'--token \S+'), '--token ••••') : line;
+    final previous = append ? _output : null;
     setState(() {
       _running = true;
-      // A token must not show on screen after the command ran.
-      _command = secret ? line.replaceAll(RegExp(r'--token \S+'), '--token ••••') : line;
-      _output = null;
+      _command = append && _command != null ? '${_command!}\n$shown' : shown;
+      _output = previous;
     });
+    String? output;
     await runReporting(context, () async {
-      final session = scope == McpScope.project ? _project ?? (throw StateError('no project session')) : await widget.target.control();
-      final output = await runTxtCommand(session, line);
-      if (mounted) setState(() => _output = output);
+      output = await runTxtCommand(await _session(scope), line);
+      if (mounted) setState(() => _output = [?previous, output!].join('\n'));
       if (reload) await _load();
     }, secret: secret);
     if (mounted) setState(() => _running = false);
+    return output;
   }
 
   Future<void> _remove(McpServer server) async {
@@ -104,18 +110,45 @@ class _McpPageState extends State<McpPage> {
       context: context,
       builder: (_) => _AddServerDialog(projectAvailable: _project != null),
     );
-    if (spec == null) return;
+    if (spec == null || !mounted) return;
     final line = spec.transport == 'stdio'
         ? mcpAddStdio(spec.name, spec.scope, spec.target)
         : mcpAddRemote(spec.name, spec.scope, url: spec.target, transport: spec.transport, token: spec.token);
-    await _run(line, spec.scope, secret: spec.token != null);
+    final output = await _run(line, spec.scope, secret: spec.token != null);
+    // omp's `/mcp add` only writes mcp.json and reports "Added MCP server …" without connecting; `/mcp test`
+    // connects and says whether the command or URL is an MCP server.
+    if (output != null && output.contains('Added MCP server') && mounted) {
+      await _run('/mcp test ${spec.name}', spec.scope, reload: false, append: true);
+    }
+  }
+
+  /// `/mcp smithery-search` as the query changes; a reply to an older query is dropped.
+  Future<void> _searchSmithery(String text) async {
+    final query = text.trim();
+    setState(() {
+      _smitheryQuery = query;
+      _smitheryOutput = null;
+      _smitherySearching = query.isNotEmpty;
+    });
+    if (query.isEmpty) return;
+    String? output;
+    try {
+      output = await runTxtCommand(await widget.target.control(), '/mcp smithery-search $query');
+    } on Object catch (error) {
+      output = '$error';
+    }
+    if (!mounted || query != _smitheryQuery) return;
+    setState(() {
+      _smitheryOutput = output;
+      _smitherySearching = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final theme = Theme.of(context);
     final servers = _servers;
+    final lookupScope = _project == null ? McpScope.user : McpScope.project;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -123,119 +156,128 @@ class _McpPageState extends State<McpPage> {
           title: t.config.sections.mcp,
           subtitle: [t.config.mcp.userFile(path: _userFile), if (_projectFile case final file?) t.config.mcp.projectFile(path: file)].join('\n'),
           actions: [
-            FilledButton.icon(onPressed: _running ? null : _add, icon: const Icon(Icons.add), label: Text(t.config.mcp.add)),
-            const SizedBox(width: 8),
-            IconButton(tooltip: t.config.refresh, onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
+            FilledButton.icon(onPressed: _running ? null : _add, icon: const Icon(Icons.add, size: 18), label: Text(t.config.mcp.add)),
+            RefreshAction(loading: _loading, onPressed: _load),
           ],
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: AppSizes.gap,
+            runSpacing: AppSizes.gap,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              OutlinedButton(onPressed: _running ? null : () => _run('/mcp reload', McpScope.user, reload: false), child: Text(t.config.mcp.reload)),
-              OutlinedButton(
-                onPressed: _running ? null : () => _run('/mcp resources', _project == null ? McpScope.user : McpScope.project, reload: false),
+              FilledButton.tonal(
+                onPressed: _running ? null : () => _run('/mcp reload', McpScope.user, reload: false),
+                child: Text(t.config.mcp.reload),
+              ),
+              FilledButton.tonal(
+                onPressed: _running ? null : () => _run('/mcp resources', lookupScope, reload: false),
                 child: Text(t.config.mcp.resources),
               ),
-              OutlinedButton(
-                onPressed: _running ? null : () => _run('/mcp prompts', _project == null ? McpScope.user : McpScope.project, reload: false),
+              FilledButton.tonal(
+                onPressed: _running ? null : () => _run('/mcp prompts', lookupScope, reload: false),
                 child: Text(t.config.mcp.prompts),
-              ),
-              SizedBox(
-                width: 260,
-                child: TextField(
-                  controller: _search,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    border: const OutlineInputBorder(),
-                    hintText: t.config.mcp.smithery,
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.search),
-                      onPressed: _running || _search.text.trim().isEmpty
-                          ? null
-                          : () => _run('/mcp smithery-search ${_search.text.trim()}', McpScope.user, reload: false),
-                    ),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (text) {
-                    if (text.trim().isNotEmpty) unawaited(_run('/mcp smithery-search ${text.trim()}', McpScope.user, reload: false));
-                  },
-                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        const Divider(height: 1),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
             children: [
               if (_error != null) ConfigError(_error!, onRetry: _load),
               if (servers == null && _error == null) const Center(child: CircularProgressIndicator()),
-              if (servers != null && servers.isEmpty) Padding(padding: const EdgeInsets.all(8), child: Text(t.config.mcp.none)),
+              if (servers != null && servers.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(t.config.mcp.none)),
               for (final server in servers ?? const <McpServer>[])
-                Card.outlined(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    leading: Icon(server.transport == 'stdio' ? Icons.terminal : Icons.cloud_outlined),
-                    title: Text(server.name),
-                    subtitle: Text(
-                      '${server.transport} · ${server.scope == McpScope.user ? t.config.mcp.userScope : t.config.mcp.projectScope}'
-                      '${server.target == null ? '' : '\n${server.target}'}',
-                      style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
-                    ),
-                    isThreeLine: server.target != null,
-                    trailing: Wrap(
-                      spacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Switch(
-                          value: server.enabled,
-                          onChanged: _running || (server.scope == McpScope.project && _project == null)
-                              ? null
-                              : (enabled) => _run('/mcp ${enabled ? 'enable' : 'disable'} ${server.name}', server.scope),
-                        ),
-                        if (server.enabled)
-                          TextButton(
-                            onPressed: _running ? null : () => _run('/mcp test ${server.name}', server.scope, reload: false),
-                            child: Text(t.config.mcp.test),
-                          )
-                        else
-                          // omp loads only enabled servers; `/mcp test` of a disabled one answers "not found".
-                          Tooltip(
-                            message: t.config.mcp.testDisabled,
-                            child: TextButton(onPressed: null, child: Text(t.config.mcp.test)),
-                          ),
-                        IconButton(
-                          tooltip: t.common.delete,
-                          onPressed: _running || (server.scope == McpScope.project && _project == null) ? null : () => _remove(server),
-                          icon: const Icon(Icons.delete_outline),
-                        ),
-                      ],
-                    ),
-                  ),
+                _ServerRow(
+                  server: server,
+                  running: _running,
+                  editable: server.scope == McpScope.user || _project != null,
+                  onEnabled: (enabled) => _run('/mcp ${enabled ? 'enable' : 'disable'} ${server.name}', server.scope),
+                  onTest: () => _run('/mcp test ${server.name}', server.scope, reload: false),
+                  onRemove: () => _remove(server),
                 ),
-              if (_command != null) ...[
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(child: Text(_command!, style: theme.textTheme.labelLarge?.copyWith(fontFamily: 'monospace'))),
-                    if (_running) const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                if (_output != null) CommandOutputView(_output!.isEmpty ? t.config.noOutput : _output!),
-              ],
+              if (_command case final command?) CommandRun(command: command, running: _running, output: _output),
+              ConfigSectionTitle(t.config.mcp.smitheryTitle),
+              AppSearchField(
+                key: const ValueKey('mcp-smithery'),
+                hint: t.config.mcp.smithery,
+                debounce: const Duration(milliseconds: 500),
+                onChanged: (text) => unawaited(_searchSmithery(text)),
+              ),
+              if (_smitherySearching) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
+              if (_smitheryOutput case final output?)
+                Padding(padding: const EdgeInsets.only(top: 8), child: CommandOutputView(output.isEmpty ? t.config.noOutput : output)),
               const SizedBox(height: 16),
-              Text(t.config.mcp.tuiOnly, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Text(t.config.mcp.tuiOnly, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A server: transport icon, name, scope and target, then its switch, Test and Delete.
+class _ServerRow extends StatelessWidget {
+  const _ServerRow({
+    required this.server,
+    required this.running,
+    required this.editable,
+    required this.onEnabled,
+    required this.onTest,
+    required this.onRemove,
+  });
+
+  final McpServer server;
+  final bool running;
+
+  /// A project server needs the project session to change.
+  final bool editable;
+  final ValueChanged<bool> onEnabled;
+  final VoidCallback onTest;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final test = TextButton(onPressed: running || !server.enabled ? null : onTest, child: Text(t.config.mcp.test));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: ConfigBlock(
+        padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+        child: Row(
+          children: [
+            Icon(server.transport == 'stdio' ? Icons.terminal : Icons.cloud_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(server.name, style: theme.textTheme.bodyMedium),
+                  Text(
+                    [server.transport, server.scope == McpScope.user ? t.config.mcp.userScope : t.config.mcp.projectScope].join(' · '),
+                    style: muted,
+                  ),
+                  if (server.target case final target?)
+                    Text(target, style: muted?.copyWith(fontFamily: 'monospace'), maxLines: 2, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            Switch(value: server.enabled, onChanged: running || !editable ? null : onEnabled),
+            // omp loads only enabled servers; `/mcp test` of a disabled one answers "not found".
+            if (server.enabled) test else Tooltip(message: t.config.mcp.testDisabled, child: test),
+            IconButton(
+              tooltip: t.common.delete,
+              onPressed: running || !editable ? null : onRemove,
+              icon: const Icon(Icons.delete_outline, size: 20),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -303,26 +345,25 @@ class _AddServerDialogState extends State<_AddServerDialog> {
               key: const ValueKey('mcp-name'),
               controller: _name,
               autofocus: true,
-              decoration: InputDecoration(labelText: t.config.mcp.name, errorText: _nameError, border: const OutlineInputBorder()),
+              decoration: InputDecoration(labelText: t.config.mcp.name, errorText: _nameError),
             ),
             const SizedBox(height: 12),
-            SegmentedButton<McpScope>(
-              segments: [
-                ButtonSegment(value: McpScope.user, label: Text(t.config.mcp.userScope)),
-                ButtonSegment(value: McpScope.project, label: Text(t.config.mcp.projectScope), enabled: widget.projectAvailable),
+            Wrap(
+              spacing: AppSizes.gap,
+              runSpacing: AppSizes.gap,
+              children: [
+                AppSegmented<McpScope>(
+                  value: _scope,
+                  segments: [(McpScope.user, t.config.mcp.userScope, null), (McpScope.project, t.config.mcp.projectScope, null)],
+                  disabled: {if (!widget.projectAvailable) McpScope.project},
+                  onChanged: (scope) => setState(() => _scope = scope),
+                ),
+                AppSegmented<String>(
+                  value: _transport,
+                  segments: const [('stdio', 'stdio', null), ('http', 'http', null), ('sse', 'sse', null)],
+                  onChanged: (transport) => setState(() => _transport = transport),
+                ),
               ],
-              selected: {_scope},
-              onSelectionChanged: (selection) => setState(() => _scope = selection.single),
-            ),
-            const SizedBox(height: 12),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'stdio', label: Text('stdio')),
-                ButtonSegment(value: 'http', label: Text('http')),
-                ButtonSegment(value: 'sse', label: Text('sse')),
-              ],
-              selected: {_transport},
-              onSelectionChanged: (selection) => setState(() => _transport = selection.single),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -331,7 +372,6 @@ class _AddServerDialogState extends State<_AddServerDialog> {
               decoration: InputDecoration(
                 labelText: _transport == 'stdio' ? t.config.mcp.command : t.config.mcp.url,
                 hintText: _transport == 'stdio' ? 'npx -y @modelcontextprotocol/server-everything' : 'https://example.com/mcp',
-                border: const OutlineInputBorder(),
               ),
             ),
             if (_transport != 'stdio') ...[
@@ -344,7 +384,6 @@ class _AddServerDialogState extends State<_AddServerDialog> {
                   labelText: t.config.mcp.token,
                   helperText: _scope == McpScope.user ? t.config.mcp.tokenHint : t.config.mcp.tokenUserOnly,
                   helperMaxLines: 2,
-                  border: const OutlineInputBorder(),
                 ),
               ),
             ],

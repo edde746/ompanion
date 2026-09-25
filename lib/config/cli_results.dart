@@ -377,12 +377,62 @@ final class StatsSnapshot {
   final StatsTotals overall;
   final List<({String provider, String model, StatsTotals totals})> byModel;
 
-  /// [folder] is omp's encoded project directory (`-work-demo-project`).
+  /// [folder] is omp's name for the project directory (`-demo-project`); [statsFolderPath] turns it into a path.
   final List<({String folder, StatsTotals totals})> byFolder;
   final List<({String agentType, int requests, int inputTokens, int outputTokens, double cost})> byAgentType;
 
-  /// Hourly buckets.
+  /// Hours with requests, oldest first; hours without any are absent.
   final List<({DateTime time, int requests, int errors, int tokens, double cost})> timeSeries;
+}
+
+/// Requests per hour on a continuous hour axis: the [hours] hours before the latest hour (the hour of [now],
+/// or a later bucket from a machine whose clock runs ahead) and that hour itself, zero where omp reports no
+/// bucket. omp buckets by whole hours of epoch time (`timestamp / 3600000`), the default `stats` range covers
+/// the last 24 hours.
+List<({DateTime hour, int requests})> hourlyRequests(
+  List<({DateTime time, int requests, int errors, int tokens, double cost})> series, {
+  required DateTime now,
+  int hours = 24,
+}) {
+  const hourMs = 60 * 60 * 1000;
+  final counts = <int, int>{};
+  for (final point in series) {
+    counts.update(point.time.millisecondsSinceEpoch ~/ hourMs, (count) => count + point.requests, ifAbsent: () => point.requests);
+  }
+  final last = counts.keys.fold(now.millisecondsSinceEpoch ~/ hourMs, (latest, bucket) => bucket > latest ? bucket : latest);
+  return [
+    for (var bucket = last - hours; bucket <= last; bucket++)
+      (hour: DateTime.fromMillisecondsSinceEpoch(bucket * hourMs), requests: counts[bucket] ?? 0),
+  ];
+}
+
+/// The folder `omp stats` groups a session under, from the session file's path: the session directory's name
+/// with omp's `--` turned into `/` (its `byFolder` rows use the same rule).
+String statsFolderOf(String sessionFile) {
+  final parts = sessionFile.split(RegExp(r'[\\/]')).where((part) => part.isNotEmpty).toList();
+  final directory = parts.length < 2 ? '' : parts[parts.length - 2];
+  return directory.replaceFirst(RegExp('^--'), '/').replaceAll('--', '/');
+}
+
+/// A `byFolder` name of `omp stats` as a path, the home directory shown as `~`. omp names a session directory
+/// `-<path>` under the home directory, `-tmp-<path>` under the temp directory and `--<path>--` elsewhere,
+/// with every separator turned into `-`, so the name alone cannot tell a separator from a dash. [known] maps
+/// the folders of listed sessions ([statsFolderOf]) to their working directories, which are exact; other
+/// names keep their dashes.
+String statsFolderPath(String folder, {required String home, Map<String, String> known = const {}}) {
+  if (known[folder] case final cwd?) {
+    if (cwd == home) return '~';
+    for (final separator in const ['/', r'\']) {
+      if (cwd.startsWith('$home$separator')) return '~$separator${cwd.substring(home.length + 1)}';
+    }
+    return cwd;
+  }
+  if (folder == '-') return '~';
+  if (folder == '-tmp') return r'$TMPDIR';
+  if (folder.startsWith('-tmp-')) return '\$TMPDIR/${folder.substring(5)}';
+  if (folder.startsWith('-')) return '~/${folder.substring(1)}';
+  if (folder.length > 1 && folder.startsWith('/') && folder.endsWith('/')) return folder.substring(0, folder.length - 1);
+  return folder;
 }
 
 final class StatsTotals {
