@@ -1,0 +1,908 @@
+{
+  "tabs": [
+    "appearance",
+    "model",
+    "interaction",
+    "context",
+    "memory",
+    "files",
+    "shell",
+    "tools",
+    "tasks",
+    "providers"
+  ],
+  "settings": [
+    {
+      "path": "auth.broker.token",
+      "type": "string",
+      "default": null,
+      "isCredential": true,
+      "env": {
+        "name": "OMP_AUTH_BROKER_TOKEN",
+        "fallback": false
+      }
+    },
+    {
+      "path": "enabledModels",
+      "type": "array",
+      "default": [],
+      "isCredential": false,
+      "pathScoped": {
+        "valuesKey": "models"
+      }
+    },
+    {
+      "path": "modelRoleStorage",
+      "type": "enum",
+      "default": "global",
+      "isCredential": false,
+      "enumValues": [
+        "global",
+        "project"
+      ],
+      "ui": {
+        "tab": "model",
+        "group": "Prompt",
+        "label": "Model Role Storage",
+        "description": "Where model selector role assignments are saved",
+        "options": [
+          {
+            "value": "global",
+            "label": "Global",
+            "description": "Save role models in the active profile config (current behavior)"
+          },
+          {
+            "value": "project",
+            "label": "Per-project",
+            "description": "Save project role models in .omp/config.yml; missing project roles use global defaults"
+          }
+        ]
+      }
+    },
+    {
+      "path": "modelRoles",
+      "type": "record",
+      "default": {},
+      "isCredential": false
+    },
+    {
+      "path": "autoResume",
+      "type": "boolean",
+      "default": false,
+      "isCredential": false,
+      "ui": {
+        "tab": "interaction",
+        "group": "Startup & Updates",
+        "label": "Auto Resume",
+        "description": "Automatically resume the most recent session in the current directory"
+      }
+    },
+    {
+      "path": "theme.dark",
+      "type": "string",
+      "default": "titanium",
+      "isCredential": false,
+      "ui": {
+        "tab": "appearance",
+        "group": "Theme",
+        "label": "Dark Theme",
+        "description": "Theme used when the terminal has a dark background",
+        "options": [
+          {
+            "value": "alabaster",
+            "label": "alabaster"
+          },
+          {
+            "value": "amethyst",
+            "label": "amethyst"
+          },
+          {
+            "value": "anthracite",
+            "label": "anthracite"
+          },
+          {
+            "value": "basalt",
+            "label": "basalt"
+          },
+          {
+            "value": "birch",
+            "label": "birch"
+          },
+          {
+            "value": "dark",
+            "label": "dark"
+          },
+          {
+            "value": "dark-abyss",
+            "label": "dark-abyss"
+          },
+          {
+            "value": "dark-arctic",
+            "label": "dark-arctic"
+          },
+          {
+            "value": "dark-aurora",
+            "label": "dark-aurora"
+          },
+          {
+            "value": "dark-catppuccin",
+            "label": "dark-catppuccin"
+          },
+          {
+            "value": "dark-cavern",
+            "label": "dark-cavern"
+          },
+          {
+            "value": "dark-celestial",
+            "label": "dark-celestial"
+          },
+          {
+            "value": "dark-copper",
+            "label": "dark-copper"
+          },
+          {
+            "value": "dark-cosmos",
+            "label": "dark-cosmos"
+          },
+          {
+            "value": "dark-cyberpunk",
+            "label": "dark-cyberpunk"
+          },
+          {
+            "value": "dark-dracula",
+            "label": "dark-dracula"
+          },
+          {
+            "value": "dark-eclipse",
+            "label": "dark-eclipse"
+          },
+          {
+            "value": "dark-ember",
+            "label": "dark-ember"
+          },
+          {
+            "value": "dark-equinox",
+            "label": "dark-equinox"
+          },
+          {
+            "value": "dark-forest",
+            "label": "dark-forest"
+          },
+          {
+            "value": "dark-github",
+            "label": "dark-github"
+          },
+          {
+            "value": "dark-gruvbox",
+            "label": "dark-gruvbox"
+          },
+          {
+            "value": "dark-lavender",
+            "label": "dark-lavender"
+          },
+          {
+            "value": "dark-lunar",
+            "label": "dark-lunar"
+          },
+          {
+            "value": "dark-midnight",
+            "label": "dark-midnight"
+          },
+          {
+            "value": "dark-monochrome",
+            "label": "dark-monochrome"
+          },
+          {
+            "value": "dark-monokai",
+            "label": "dark-monokai"
+          },
+          {
+            "value": "dark-nebula",
+            "label": "dark-nebula"
+          },
+          {
+            "value": "dark-nord",
+            "label": "dark-nord"
+          },
+          {
+            "value": "dark-ocean",
+            "label": "dark-ocean"
+          },
+          {
+            "value": "dark-one",
+            "label": "dark-one"
+          },
+          {
+            "value": "dark-poimandres",
+            "label": "dark-poimandres"
+          },
+          {
+            "value": "dark-rainforest",
+            "label": "dark-rainforest"
+          },
+          {
+            "value": "dark-reef",
+            "label": "dark-reef"
+          },
+          {
+            "value": "dark-retro",
+            "label": "dark-retro"
+          },
+          {
+            "value": "dark-rose-pine",
+            "label": "dark-rose-pine"
+          },
+          {
+            "value": "dark-sakura",
+            "label": "dark-sakura"
+          },
+          {
+            "value": "dark-slate",
+            "label": "dark-slate"
+          },
+          {
+            "value": "dark-solarized",
+            "label": "dark-solarized"
+          },
+          {
+            "value": "dark-solstice",
+            "label": "dark-solstice"
+          },
+          {
+            "value": "dark-starfall",
+            "label": "dark-starfall"
+          },
+          {
+            "value": "dark-sunset",
+            "label": "dark-sunset"
+          },
+          {
+            "value": "dark-swamp",
+            "label": "dark-swamp"
+          },
+          {
+            "value": "dark-synthwave",
+            "label": "dark-synthwave"
+          },
+          {
+            "value": "dark-taiga",
+            "label": "dark-taiga"
+          },
+          {
+            "value": "dark-terminal",
+            "label": "dark-terminal"
+          },
+          {
+            "value": "dark-tokyo-night",
+            "label": "dark-tokyo-night"
+          },
+          {
+            "value": "dark-tundra",
+            "label": "dark-tundra"
+          },
+          {
+            "value": "dark-twilight",
+            "label": "dark-twilight"
+          },
+          {
+            "value": "dark-volcanic",
+            "label": "dark-volcanic"
+          },
+          {
+            "value": "graphite",
+            "label": "graphite"
+          },
+          {
+            "value": "light",
+            "label": "light"
+          },
+          {
+            "value": "light-arctic",
+            "label": "light-arctic"
+          },
+          {
+            "value": "light-aurora-day",
+            "label": "light-aurora-day"
+          },
+          {
+            "value": "light-canyon",
+            "label": "light-canyon"
+          },
+          {
+            "value": "light-catppuccin",
+            "label": "light-catppuccin"
+          },
+          {
+            "value": "light-cirrus",
+            "label": "light-cirrus"
+          },
+          {
+            "value": "light-coral",
+            "label": "light-coral"
+          },
+          {
+            "value": "light-cyberpunk",
+            "label": "light-cyberpunk"
+          },
+          {
+            "value": "light-dawn",
+            "label": "light-dawn"
+          },
+          {
+            "value": "light-dunes",
+            "label": "light-dunes"
+          },
+          {
+            "value": "light-eucalyptus",
+            "label": "light-eucalyptus"
+          },
+          {
+            "value": "light-forest",
+            "label": "light-forest"
+          },
+          {
+            "value": "light-frost",
+            "label": "light-frost"
+          },
+          {
+            "value": "light-github",
+            "label": "light-github"
+          },
+          {
+            "value": "light-glacier",
+            "label": "light-glacier"
+          },
+          {
+            "value": "light-gruvbox",
+            "label": "light-gruvbox"
+          },
+          {
+            "value": "light-haze",
+            "label": "light-haze"
+          },
+          {
+            "value": "light-honeycomb",
+            "label": "light-honeycomb"
+          },
+          {
+            "value": "light-lagoon",
+            "label": "light-lagoon"
+          },
+          {
+            "value": "light-lavender",
+            "label": "light-lavender"
+          },
+          {
+            "value": "light-meadow",
+            "label": "light-meadow"
+          },
+          {
+            "value": "light-mint",
+            "label": "light-mint"
+          },
+          {
+            "value": "light-monochrome",
+            "label": "light-monochrome"
+          },
+          {
+            "value": "light-ocean",
+            "label": "light-ocean"
+          },
+          {
+            "value": "light-one",
+            "label": "light-one"
+          },
+          {
+            "value": "light-opal",
+            "label": "light-opal"
+          },
+          {
+            "value": "light-orchard",
+            "label": "light-orchard"
+          },
+          {
+            "value": "light-paper",
+            "label": "light-paper"
+          },
+          {
+            "value": "light-poimandres",
+            "label": "light-poimandres"
+          },
+          {
+            "value": "light-prism",
+            "label": "light-prism"
+          },
+          {
+            "value": "light-retro",
+            "label": "light-retro"
+          },
+          {
+            "value": "light-sand",
+            "label": "light-sand"
+          },
+          {
+            "value": "light-savanna",
+            "label": "light-savanna"
+          },
+          {
+            "value": "light-solarized",
+            "label": "light-solarized"
+          },
+          {
+            "value": "light-soleil",
+            "label": "light-soleil"
+          },
+          {
+            "value": "light-sunset",
+            "label": "light-sunset"
+          },
+          {
+            "value": "light-synthwave",
+            "label": "light-synthwave"
+          },
+          {
+            "value": "light-tokyo-night",
+            "label": "light-tokyo-night"
+          },
+          {
+            "value": "light-wetland",
+            "label": "light-wetland"
+          },
+          {
+            "value": "light-zenith",
+            "label": "light-zenith"
+          },
+          {
+            "value": "limestone",
+            "label": "limestone"
+          },
+          {
+            "value": "mahogany",
+            "label": "mahogany"
+          },
+          {
+            "value": "marble",
+            "label": "marble"
+          },
+          {
+            "value": "obsidian",
+            "label": "obsidian"
+          },
+          {
+            "value": "onyx",
+            "label": "onyx"
+          },
+          {
+            "value": "pearl",
+            "label": "pearl"
+          },
+          {
+            "value": "porcelain",
+            "label": "porcelain"
+          },
+          {
+            "value": "quartz",
+            "label": "quartz"
+          },
+          {
+            "value": "sandstone",
+            "label": "sandstone"
+          },
+          {
+            "value": "titanium",
+            "label": "titanium"
+          }
+        ]
+      }
+    },
+    {
+      "path": "composer.shape",
+      "type": "string",
+      "default": "band",
+      "isCredential": false,
+      "ui": {
+        "tab": "appearance",
+        "group": "Composer",
+        "label": "Composer Shape",
+        "description": "Visual layout of the input editor and status line",
+        "options": "runtime"
+      }
+    },
+    {
+      "path": "statusLine.leftSegments",
+      "type": "array",
+      "default": [
+        "vim",
+        "model",
+        "mode",
+        "path",
+        "git",
+        "pr"
+      ],
+      "isCredential": false,
+      "items": {
+        "values": [
+          "pi",
+          "status",
+          "model",
+          "mode",
+          "path",
+          "git",
+          "pr",
+          "subagents",
+          "token_in",
+          "token_out",
+          "token_total",
+          "token_rate",
+          "cost",
+          "context_pct",
+          "context_total",
+          "time_spent",
+          "time",
+          "session",
+          "hostname",
+          "cache_read",
+          "cache_write",
+          "cache_hit",
+          "session_name",
+          "usage",
+          "collab",
+          "stream",
+          "vim"
+        ],
+        "label": "status line segment"
+      }
+    },
+    {
+      "path": "tui.hyperlinks",
+      "type": "enum",
+      "default": "auto",
+      "isCredential": false,
+      "enumValues": [
+        "off",
+        "auto",
+        "always"
+      ],
+      "ui": {
+        "tab": "appearance",
+        "group": "Display",
+        "label": "Terminal Hyperlinks",
+        "description": "Wrap paths and URLs in OSC 8 hyperlinks for terminal-native click-to-open (auto: detect support; off: never; always: unconditional)"
+      }
+    },
+    {
+      "path": "steeringMode",
+      "type": "enum",
+      "default": "one-at-a-time",
+      "isCredential": false,
+      "enumValues": [
+        "all",
+        "one-at-a-time"
+      ],
+      "ui": {
+        "tab": "interaction",
+        "group": "Input",
+        "label": "Steering Mode",
+        "description": "How to process queued messages while agent is working"
+      }
+    },
+    {
+      "path": "loop.conditionTimeoutMs",
+      "type": "number",
+      "default": 30000,
+      "isCredential": false,
+      "ui": {
+        "tab": "interaction",
+        "group": "Input",
+        "label": "Loop Condition Timeout (ms)",
+        "description": "Max wait for a `/loop --while` / `--until` condition command before treating it as broken and stopping the loop. Set to 0 to wait indefinitely",
+        "options": [
+          {
+            "value": "0",
+            "label": "Unlimited"
+          },
+          {
+            "value": "10000",
+            "label": "10 seconds"
+          },
+          {
+            "value": "30000",
+            "label": "30 seconds"
+          },
+          {
+            "value": "120000",
+            "label": "2 minutes"
+          }
+        ]
+      }
+    },
+    {
+      "path": "startup.checkUpdate",
+      "type": "boolean",
+      "default": true,
+      "isCredential": false,
+      "ui": {
+        "tab": "interaction",
+        "group": "Startup & Updates",
+        "label": "Check for Updates",
+        "description": "Check for omp updates on startup"
+      }
+    },
+    {
+      "path": "externalThinking",
+      "type": "boolean",
+      "default": false,
+      "isCredential": false,
+      "ui": {
+        "tab": "model",
+        "group": "Thinking",
+        "label": "External Thinking",
+        "description": "Private scratchpad; not shown to user. Disables supported GPT, Claude, and Gemini reasoning",
+        "warning": "At your own risk: providers have flagged this request shape as abuse, up to account-level enforcement"
+      }
+    },
+    {
+      "path": "model.loopGuard.enabled",
+      "type": "boolean",
+      "default": true,
+      "isCredential": false,
+      "env": {
+        "name": "PI_NO_THINKING_LOOP_GUARD",
+        "fallback": false
+      },
+      "ui": {
+        "tab": "model",
+        "group": "Thinking",
+        "label": "Loop Guard",
+        "description": "Enable automatic stream loop detection for model reasoning and prose"
+      }
+    },
+    {
+      "path": "retry.enabled",
+      "type": "boolean",
+      "default": true,
+      "isCredential": false
+    },
+    {
+      "path": "advisor.enabled",
+      "type": "boolean",
+      "default": false,
+      "isCredential": false,
+      "ui": {
+        "tab": "model",
+        "group": "Advisor",
+        "label": "Enable Advisor",
+        "description": "Pair a second model (assigned to the 'advisor' role) that passively reviews each turn and injects notes."
+      }
+    },
+    {
+      "path": "compaction.methodOrder",
+      "type": "array",
+      "default": [
+        "remote",
+        "snapcompact",
+        "handoff",
+        "shake",
+        "soft"
+      ],
+      "isCredential": false,
+      "ui": {
+        "tab": "context",
+        "group": "Compaction",
+        "label": "Compaction Method Order",
+        "description": "Preferred fallback order for automatic context maintenance; unavailable or failed methods advance to the next choice",
+        "options": [
+          {
+            "value": "remote",
+            "label": "Server compaction",
+            "description": "Use provider-native server compaction (OpenAI Responses compact, Anthropic compaction beta) when the active route supports it"
+          },
+          {
+            "value": "snapcompact",
+            "label": "Snapcompact",
+            "description": "Archive history onto dense bitmap images the active vision model reads back; no LLM call"
+          },
+          {
+            "value": "handoff",
+            "label": "Handoff",
+            "description": "Generate a handoff document and continue from it as the compaction summary"
+          },
+          {
+            "value": "soft",
+            "label": "Soft compaction",
+            "description": "Summarize in place with a compaction model without using server compaction"
+          },
+          {
+            "value": "shake",
+            "label": "Shake",
+            "description": "Drop recoverable heavy content in place without an LLM call"
+          }
+        ],
+        "ordered": true
+      }
+    },
+    {
+      "path": "mnemopi.embeddingModel",
+      "type": "string",
+      "default": null,
+      "isCredential": false,
+      "env": {
+        "name": "MNEMOPI_EMBEDDING_MODEL",
+        "fallback": "blank"
+      },
+      "ui": {
+        "tab": "memory",
+        "group": "Mnemopi",
+        "label": "Mnemopi Embedding Model",
+        "description": "Advanced: explicit embedding model id that overrides the variant. Leave empty to use mnemopi.embeddingVariant.",
+        "condition": "mnemopiActive"
+      }
+    },
+    {
+      "path": "mnemopi.embeddingApiKey",
+      "type": "string",
+      "default": null,
+      "isCredential": true,
+      "ui": {
+        "tab": "memory",
+        "group": "Mnemopi",
+        "label": "Mnemopi Embedding API Key",
+        "description": "Optional embedding API key passed to Mnemopi",
+        "condition": "mnemopiActive"
+      }
+    },
+    {
+      "path": "hindsight.recallBudget",
+      "type": "enum",
+      "default": "mid",
+      "isCredential": false,
+      "enumValues": [
+        "low",
+        "mid",
+        "high"
+      ],
+      "env": {
+        "name": "HINDSIGHT_RECALL_BUDGET",
+        "fallback": false
+      }
+    },
+    {
+      "path": "ttsr.disabledRules",
+      "type": "array",
+      "default": [],
+      "isCredential": false,
+      "ui": {
+        "tab": "context",
+        "group": "Rules (TTSR)",
+        "label": "Disabled Rules",
+        "description": "Rule names to ignore entirely (applies to bundled defaults and your own rules)"
+      }
+    },
+    {
+      "path": "edit.fuzzyThreshold",
+      "type": "number",
+      "default": 0.95,
+      "isCredential": false,
+      "env": {
+        "name": "PI_EDIT_FUZZY_THRESHOLD",
+        "fallback": false
+      },
+      "ui": {
+        "tab": "files",
+        "group": "Editing",
+        "label": "Fuzzy Match Threshold",
+        "description": "Similarity threshold (0-1) for accepting fuzzy matches",
+        "options": [
+          {
+            "value": "0.85",
+            "label": "0.85",
+            "description": "Lenient"
+          },
+          {
+            "value": "0.90",
+            "label": "0.90",
+            "description": "Moderate"
+          },
+          {
+            "value": "0.95",
+            "label": "0.95",
+            "description": "Default"
+          },
+          {
+            "value": "0.98",
+            "label": "0.98",
+            "description": "Strict"
+          }
+        ]
+      }
+    },
+    {
+      "path": "tools.approval",
+      "type": "record",
+      "default": {},
+      "isCredential": false,
+      "ui": {
+        "tab": "interaction",
+        "group": "Approvals",
+        "label": "Tool Approval Policies",
+        "description": "Per-tool approval policies. Set to 'allow' to auto-approve, 'prompt' to require confirmation, or 'deny' to block. Overrides are honored in every approval mode."
+      }
+    },
+    {
+      "path": "bashInterceptor.patterns",
+      "type": "array",
+      "default": [
+        {
+          "pattern": "^\\s*(cat|head|tail|less|more)\\s+",
+          "tool": "read",
+          "message": "Use the `read` tool instead of cat/head/tail. It provides better context and handles binary files."
+        },
+        {
+          "pattern": "^\\s*(grep|rg|ripgrep|ag|ack)\\s+",
+          "tool": "grep",
+          "message": "Use the `grep` tool instead of grep/rg. It respects .gitignore and provides structured output."
+        },
+        {
+          "pattern": "^\\s*(find|fd|locate)\\s+.*(-name|-iname|-type|--type|-glob)",
+          "tool": "glob",
+          "message": "Use the `glob` tool instead of find/fd. It respects .gitignore and is faster for glob patterns."
+        },
+        {
+          "pattern": "^\\s*sed\\s+(-i|--in-place)",
+          "tool": "edit",
+          "message": "Use the `edit` tool instead of sed -i. It provides diff preview and fuzzy matching."
+        },
+        {
+          "pattern": "^\\s*perl\\s+.*-[pn]?i",
+          "tool": "edit",
+          "message": "Use the `edit` tool instead of perl -i. It provides diff preview and fuzzy matching."
+        },
+        {
+          "pattern": "^\\s*awk\\s+.*-i\\s+inplace",
+          "tool": "edit",
+          "message": "Use the `edit` tool instead of awk -i inplace. It provides diff preview and fuzzy matching."
+        },
+        {
+          "pattern": "^\\s*(echo|printf|cat\\s*<<)\\s+(?:(?:[^\"'>]|\"[^\"]*\"|'[^']*')|(?<!\\|)>{1,2}\\|?\\s*(?:\"/dev/(?:null|tty|stdout|stderr)\"|'/dev/(?:null|tty|stdout|stderr)'|/dev/(?:null|tty|stdout|stderr))(?:[\\s;&|]|$))*(?<!\\|)>{1,2}\\|?\\s*(?!(?:\"/dev/(?:null|tty|stdout|stderr)\"|'/dev/(?:null|tty|stdout|stderr)'|/dev/(?:null|tty|stdout|stderr))(?:[\\s;&|]|$))[$\\w./~\"'-]",
+          "tool": "write",
+          "message": "Use the `write` tool instead of echo/cat redirection. It handles encoding and provides confirmation."
+        },
+        {
+          "pattern": "^\\s*nohup\\s+|(?<!&)\\&\\s*$",
+          "tool": "bash",
+          "message": "Use `bash` with `name` instead of nohup or background shell syntax so the service stays observable and managed."
+        },
+        {
+          "pattern": "^\\s*(?:(?:bun|npm|pnpm|yarn)\\s+(?:run\\s+)?(?:dev|start)(?:\\s|$)|(?:vite|next\\s+dev|nuxt\\s+dev|nodemon|lldb|gdb|tail\\s+-f)(?:\\s|$)|docker\\s+compose\\s+up(?!.*(?:\\s-d(?:\\s|$)|--detach))(?:\\s|$))",
+          "tool": "bash",
+          "message": "Use `bash` with `name` for services, watchers, and debuggers; inspect with `read proc://<name>`."
+        },
+        {
+          "pattern": "^\\s*(?:(?:bun|npm|pnpm|yarn)\\s+(?:run\\s+)?\\S+|cargo\\s+watch|watchexec|pytest|vitest|jest|tsc)(?:.|\\n)*(?:--watch|-w)(?:\\s|$)",
+          "tool": "bash",
+          "message": "Use `bash` with `name` for watch mode so its output, input, and lifecycle stay managed."
+        }
+      ],
+      "isCredential": false
+    },
+    {
+      "path": "images.urls.credentials",
+      "type": "record",
+      "default": null,
+      "isCredential": true
+    }
+  ],
+  "conditions": {
+    "hasImageProtocol": false,
+    "advisorEnabled": false,
+    "usageAwareFallbackEnabled": false,
+    "autoThinkingActive": false,
+    "vimModeEnabled": false,
+    "macOS": true,
+    "autolearnActive": false,
+    "mnemopiActive": false,
+    "hindsightActive": false,
+    "planModeEnabled": true,
+    "planAutosaveEnabled": false
+  }
+}

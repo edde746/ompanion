@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:omp_core/ssh.dart';
 import 'package:omp_core/transport.dart';
 
+import '../app/dev_overrides.dart';
 import '../database/app_database.dart';
 import '../models/machine.dart';
 import 'known_hosts_store.dart';
@@ -34,7 +35,7 @@ class MachineConnector {
   Future<HostLink> open(Machine machine, ConnectPrompts prompts) async {
     switch (machine) {
       case LocalMachine():
-        return LocalLink();
+        return LocalLink(environment: devLocalEnvironment);
       case SshMachine():
         final keys = <String, StoredPrivateKey>{};
         final passwords = <String, String>{};

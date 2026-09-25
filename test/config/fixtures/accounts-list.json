@@ -1,0 +1,17 @@
+{
+  "sessionId": "01a0d9a6-3c1c-774d-becd-14f39d4bbf63",
+  "currentProvider": "fake",
+  "providers": [
+    {
+      "provider": "fake",
+      "name": "fake",
+      "source": {
+        "kind": "config",
+        "envVar": null,
+        "concrete": true
+      },
+      "sourceText": "config override (models.yml)",
+      "credentials": []
+    }
+  ]
+}

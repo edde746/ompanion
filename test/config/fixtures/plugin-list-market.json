@@ -1,0 +1,36 @@
+{
+  "npm": [
+    {
+      "name": "omp-plugin-demo",
+      "version": "1.2.0",
+      "path": "/tmp/ompcfg-cli.V96t/.omp/plugins/node_modules/omp-plugin-demo",
+      "manifest": {
+        "description": "Demo plugin for omp-app fixtures",
+        "features": {
+          "extra": {
+            "description": "An optional extra feature",
+            "default": false
+          }
+        },
+        "version": "1.2.0"
+      },
+      "enabledFeatures": null,
+      "enabled": true
+    }
+  ],
+  "marketplace": [
+    {
+      "id": "hello-plugin@demo-market",
+      "scope": "user",
+      "entries": [
+        {
+          "scope": "user",
+          "installPath": "/tmp/ompcfg-cli.V96t/.omp/plugins/cache/plugins/demo-market___hello-plugin___0.1.0",
+          "version": "0.1.0",
+          "installedAt": "2026-09-25T17:53:02.494Z",
+          "lastUpdated": "2026-09-25T17:53:02.494Z"
+        }
+      ]
+    }
+  ]
+}

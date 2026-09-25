@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../app/dev_overrides.dart';
 import '../models/machine.dart';
 
 /// Private keys, key passphrases and passwords. They live only here: never in the database, never exported.
@@ -44,7 +45,7 @@ class SecretStore {
 
   Future<void> deletePassword(String endpointId) => _storage.delete(key: _password(endpointId));
 
-  static String _privateKey(String keyId) => 'ssh-key.$keyId.private';
-  static String _passphrase(String keyId) => 'ssh-key.$keyId.passphrase';
-  static String _password(String endpointId) => 'password.$endpointId';
+  static String _privateKey(String keyId) => '${devSecretPrefix}ssh-key.$keyId.private';
+  static String _passphrase(String keyId) => '${devSecretPrefix}ssh-key.$keyId.passphrase';
+  static String _password(String endpointId) => '${devSecretPrefix}password.$endpointId';
 }

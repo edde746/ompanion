@@ -29,6 +29,11 @@ final class SettingsSelection extends ShellSelection {
   const SettingsSelection();
 }
 
+/// The chat of `SessionsProvider.active`.
+final class SessionSelection extends ShellSelection {
+  const SessionSelection();
+}
+
 /// Navigation state shared by the wide and the narrow layout, so resizing the window keeps the place.
 class ShellProvider extends ChangeNotifier {
   ShellSelection _selection = const HomeSelection();

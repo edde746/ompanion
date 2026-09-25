@@ -122,8 +122,15 @@ pinned omp.
 ```sh
 bun testing/fake-provider/server.ts --port 18999 --demo    # keep it running
 testing/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
-flutter run -d macos --dart-define=OMP_APP_LOCAL_HOME=/tmp/omp-dev-home
+flutter run -d macos --dart-define=OMP_APP_LOCAL_HOME=/tmp/omp-dev-home \
+  --dart-define=OMP_APP_DATA_DIR=/tmp/omp-app-data --dart-define=OMP_APP_SECRET_PREFIX=dev
 ```
+
+The app reads the three defines in `lib/app/dev_overrides.dart`: `OMP_APP_LOCAL_HOME` is the `HOME` of
+"this computer", `OMP_APP_DATA_DIR` holds the app's database and files instead of the platform's
+application support directory, and `OMP_APP_SECRET_PREFIX` prefixes every keychain key. App instances
+running at the same time each need their own server port, home, data directory and prefix; one demo
+server shares its cycle among all its sessions.
 
 `dev-machine.sh <home> <port>` runs `omp-home.sh <home> <port>`, adds `modelRoles.default: fake/fake-1`
 so an omp started without `--model` uses the fake provider, links `<home>/.local/bin/omp` to

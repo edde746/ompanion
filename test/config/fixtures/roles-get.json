@@ -1,0 +1,155 @@
+{
+  "storage": "global",
+  "roles": [
+    {
+      "role": "default",
+      "name": "Default",
+      "tag": "DEFAULT",
+      "section": "chat",
+      "model": "fake/fake-1",
+      "provenance": "runtime",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "smol",
+      "name": "Fast",
+      "tag": "SMOL",
+      "section": "chat",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "slow",
+      "name": "Thinking",
+      "tag": "SLOW",
+      "section": "chat",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "vision",
+      "name": "Vision",
+      "tag": "VISION",
+      "section": "chat",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "plan",
+      "name": "Architect",
+      "tag": "PLAN",
+      "section": "chat",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "commit",
+      "name": "Commit",
+      "tag": "COMMIT",
+      "section": "chat",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "tiny",
+      "name": "Tiny",
+      "tag": "TINY",
+      "section": "chat",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "memory",
+      "name": "Memory",
+      "tag": "MEMORY",
+      "section": "chat",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "task",
+      "name": "Subtask",
+      "tag": "TASK",
+      "section": "chat",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "advisor",
+      "name": "Advisor",
+      "tag": "ADVISOR",
+      "section": "chat",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "image",
+      "name": "Image generation",
+      "tag": "IMAGE",
+      "section": "kind",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "web",
+      "name": "Web search",
+      "tag": "WEB",
+      "section": "kind",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "speech",
+      "name": "Speech",
+      "tag": "SPEECH",
+      "section": "kind",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "dictation",
+      "name": "Dictation",
+      "tag": "DICTATION",
+      "section": "kind",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    },
+    {
+      "role": "judge",
+      "name": "Judge",
+      "tag": "JUDGE",
+      "section": "kind",
+      "model": null,
+      "provenance": "default",
+      "global": null,
+      "project": null
+    }
+  ]
+}

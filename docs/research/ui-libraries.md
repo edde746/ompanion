@@ -350,3 +350,30 @@ DiffRow? parseOmpDiffLine(String s) {
 - Profile-mode frame times on a mid-range phone, streaming a 50 KB reply at 60 updates per second.
 - Scrolling behaviour: fling near the bottom, keyboard, iOS bounce.
 - A build of re_editor on Flutter 3.47.
+
+---
+## Performance
+
+The transcript meets the frame budget while a long reply streams into a long session. Measured on macOS
+(Apple silicon, profile build) with `integration_test/transcript_benchmark_test.dart` (command in README):
+2,000 synthetic items (questions, `bash` calls with results, markdown answers with code and tables), then a
+12,385-character markdown reply streamed in 300 updates at 50 per second.
+
+| | Build p50 | Build p90 | Build p99 | Build max | Frames over 16.7 ms |
+|---|---|---|---|---|---|
+| Before | 12.92 ms | 23.44 ms | 106.80 ms | 162.66 ms | 72 of 296 |
+| After | 1.34 ms | 2.34 ms | 7.08 ms | 8.15 ms | 0 of 476 |
+
+Raster after: p90 1.30 ms, max 8.80 ms. The "before" run used an earlier harness with the same data and
+rate that also rebuilt its own window chrome on every update, so part of the difference is harness overhead.
+
+What changed:
+- **Rows are kept incrementally** (`TranscriptRowModel`). An update skips the unchanged leading items by
+  identity and recomputes rows only from the first changed item. Row positions and tool results are indexed
+  as rows are appended. Before, every update rebuilt the row list, `SessionView.toolResults` and a key-to-index
+  map over the whole transcript.
+- **Long text blocks are split into rows** of at most 1,500 characters, cut between markdown segments
+  (`splitStreamSegments` with the fence rule). A streaming reply then rebuilds, lays out and repaints only its
+  last part. Before, the whole reply was one list item that was laid out and repainted on every update.
+- Coalescing is not needed in the app: `SessionViewBuilder` rebuilds through `setState`, so several views in
+  one frame produce one build.

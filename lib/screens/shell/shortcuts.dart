@@ -25,6 +25,25 @@ final class OpenSettingsIntent extends Intent {
   const OpenSettingsIntent();
 }
 
+final class NewSessionIntent extends Intent {
+  const NewSessionIntent();
+}
+
+/// Pause or resume the shown session (companion `pause.set`).
+final class TogglePauseIntent extends Intent {
+  const TogglePauseIntent();
+}
+
+/// Open the composer's command palette.
+final class OpenPaletteIntent extends Intent {
+  const OpenPaletteIntent();
+}
+
+/// Abort the shown session's run, as Esc does in the TUI.
+final class AbortRunIntent extends Intent {
+  const AbortRunIntent();
+}
+
 const _digits = [
   LogicalKeyboardKey.digit1,
   LogicalKeyboardKey.digit2,
@@ -44,5 +63,9 @@ Map<ShortcutActivator, Intent> appShortcuts(TargetPlatform platform) {
     for (final (index, tab) in DockTab.values.indexed) primary(_digits[index]): ShowPanelTabIntent(tab),
     primary(LogicalKeyboardKey.keyM, shift: true): const AddMachineIntent(),
     primary(LogicalKeyboardKey.comma): const OpenSettingsIntent(),
+    primary(LogicalKeyboardKey.keyN): const NewSessionIntent(),
+    primary(LogicalKeyboardKey.keyP, shift: true): const TogglePauseIntent(),
+    primary(LogicalKeyboardKey.keyK): const OpenPaletteIntent(),
+    const SingleActivator(LogicalKeyboardKey.escape): const AbortRunIntent(),
   };
 }

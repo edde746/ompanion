@@ -57,6 +57,17 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$sshConfig$en sshConfig = Translations$sshConfig$en.internal(_root);
 	late final Translations$transfer$en transfer = Translations$transfer$en.internal(_root);
 	late final Translations$settings$en settings = Translations$settings$en.internal(_root);
+	late final Translations$time$en time = Translations$time$en.internal(_root);
+	late final Translations$sessions$en sessions = Translations$sessions$en.internal(_root);
+	late final Translations$install$en install = Translations$install$en.internal(_root);
+	late final Translations$chat$en chat = Translations$chat$en.internal(_root);
+	late final Translations$composer$en composer = Translations$composer$en.internal(_root);
+	late final Translations$queue$en queue = Translations$queue$en.internal(_root);
+	late final Translations$exec$en exec = Translations$exec$en.internal(_root);
+	late final Translations$requests$en requests = Translations$requests$en.internal(_root);
+	late final Translations$ask$en ask = Translations$ask$en.internal(_root);
+	late final Translations$transcript$en transcript = Translations$transcript$en.internal(_root);
+	late final Translations$config$en config = Translations$config$en.internal(_root);
 }
 
 // Path: app
@@ -177,6 +188,15 @@ class Translations$dock$en {
 
 	/// en: 'Open a session to use this panel.'
 	String get noSession => 'Open a session to use this panel.';
+
+	/// en: 'Open a session or select a machine to use this panel.'
+	String get noMachine => 'Open a session or select a machine to use this panel.';
+
+	late final Translations$dock$todo$en todo = Translations$dock$todo$en.internal(_root);
+	late final Translations$dock$hub$en hub = Translations$dock$hub$en.internal(_root);
+	late final Translations$dock$sessionTree$en sessionTree = Translations$dock$sessionTree$en.internal(_root);
+	late final Translations$dock$fileBrowser$en fileBrowser = Translations$dock$fileBrowser$en.internal(_root);
+	late final Translations$dock$terminals$en terminals = Translations$dock$terminals$en.internal(_root);
 }
 
 // Path: sidebar
@@ -698,6 +718,2074 @@ class Translations$settings$en {
 	String get shortcutSettings => 'Settings';
 }
 
+// Path: time
+class Translations$time$en {
+	Translations$time$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'now'
+	String get now => 'now';
+
+	/// en: '${n}m'
+	String minutes({required Object n}) => '${n}m';
+
+	/// en: '${n}h'
+	String hours({required Object n}) => '${n}h';
+
+	/// en: '${n}d'
+	String days({required Object n}) => '${n}d';
+}
+
+// Path: sessions
+class Translations$sessions$en {
+	Translations$sessions$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Offline'
+	String get offline => 'Offline';
+
+	/// en: 'Connecting…'
+	String get connecting => 'Connecting…';
+
+	/// en: 'omp $version'
+	String online({required Object version}) => 'omp ${version}';
+
+	/// en: 'omp needed: $reason'
+	String needsOmp({required Object reason}) => 'omp needed: ${reason}';
+
+	/// en: 'Connect'
+	String get connect => 'Connect';
+
+	/// en: 'Install omp'
+	String get install => 'Install omp';
+
+	/// en: 'Refresh'
+	String get refresh => 'Refresh';
+
+	/// en: 'Collapse'
+	String get collapse => 'Collapse';
+
+	/// en: 'Expand'
+	String get expand => 'Expand';
+
+	/// en: 'Configure'
+	String get configure => 'Configure';
+
+	/// en: 'New session'
+	String get newSession => 'New session';
+
+	/// en: 'New session in this directory'
+	String get newSessionHere => 'New session in this directory';
+
+	/// en: 'New session on $machine'
+	String newSessionOn({required Object machine}) => 'New session on ${machine}';
+
+	/// en: 'No sessions yet.'
+	String get none => 'No sessions yet.';
+
+	/// en: 'Untitled session'
+	String get untitled => 'Untitled session';
+
+	/// en: 'Unknown directory'
+	String get unknownDirectory => 'Unknown directory';
+
+	/// en: 'Show $n more'
+	String showMore({required Object n}) => 'Show ${n} more';
+
+	/// en: 'Running'
+	String get running => 'Running';
+
+	/// en: 'Waiting for your answer'
+	String get waiting => 'Waiting for your answer';
+
+	/// en: 'Could not open the session: $error'
+	String openFailed({required Object error}) => 'Could not open the session: ${error}';
+
+	/// en: 'Could not list sessions: $error'
+	String listFailed({required Object error}) => 'Could not list sessions: ${error}';
+
+	/// en: 'Working directory'
+	String get directory => 'Working directory';
+
+	/// en: 'A path on the machine, e.g. ~/code/project'
+	String get directoryHint => 'A path on the machine, e.g. ~/code/project';
+
+	/// en: 'Choose a working directory.'
+	String get directoryRequired => 'Choose a working directory.';
+
+	/// en: '$path is not a directory on $machine.'
+	String notADirectory({required Object path, required Object machine}) => '${path} is not a directory on ${machine}.';
+
+	/// en: 'Recent projects'
+	String get recentDirectories => 'Recent projects';
+
+	/// en: 'Model (optional)'
+	String get model => 'Model (optional)';
+
+	/// en: 'provider/model, e.g. anthropic/claude-sonnet-4-5'
+	String get modelHint => 'provider/model, e.g. anthropic/claude-sonnet-4-5';
+
+	/// en: 'Start'
+	String get create => 'Start';
+
+	/// en: 'Browse the machine'
+	String get browse => 'Browse the machine';
+
+	/// en: 'Choose a directory'
+	String get browseTitle => 'Choose a directory';
+
+	/// en: 'Parent directory'
+	String get up => 'Parent directory';
+
+	/// en: 'Show hidden directories'
+	String get showHidden => 'Show hidden directories';
+
+	/// en: 'Use this directory'
+	String get chooseDirectory => 'Use this directory';
+}
+
+// Path: install
+class Translations$install$en {
+	Translations$install$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Install omp on $machine'
+	String title({required Object machine}) => 'Install omp on ${machine}';
+
+	/// en: 'Connect to the machine first.'
+	String get notConnected => 'Connect to the machine first.';
+
+	/// en: '$os $arch · omp $version into $dir'
+	String facts({required Object os, required Object arch, required Object version, required Object dir}) => '${os} ${arch} · omp ${version} into ${dir}';
+
+	/// en: 'The app runs omp's installer on the machine, pinned to this release.'
+	String get viaInstaller => 'The app runs omp\'s installer on the machine, pinned to this release.';
+
+	/// en: 'The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.'
+	String get viaUpload => 'The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.';
+
+	/// en: 'Or run this on the machine yourself:'
+	String get manual => 'Or run this on the machine yourself:';
+
+	/// en: 'Install'
+	String get install => 'Install';
+
+	/// en: 'Running the installer…'
+	String get runningInstaller => 'Running the installer…';
+
+	/// en: 'The installer failed'
+	String get installerFailed => 'The installer failed';
+
+	/// en: 'Downloading $asset…'
+	String downloading({required Object asset}) => 'Downloading ${asset}…';
+
+	/// en: 'Download failed with HTTP $status: $url'
+	String downloadFailed({required Object status, required Object url}) => 'Download failed with HTTP ${status}: ${url}';
+
+	/// en: 'Transferring $asset: $done of $total MB'
+	String transferring({required Object asset, required Object done, required Object total}) => 'Transferring ${asset}: ${done} of ${total} MB';
+
+	/// en: 'Checking the installation…'
+	String get checking => 'Checking the installation…';
+
+	/// en: 'omp is still not usable: $reason'
+	String stillMissing({required Object reason}) => 'omp is still not usable: ${reason}';
+
+	/// en: 'omp publishes no build for $os $arch.'
+	String noAsset({required Object os, required Object arch}) => 'omp publishes no build for ${os} ${arch}.';
+
+	/// en: 'Installed omp $version.'
+	String done({required Object version}) => 'Installed omp ${version}.';
+}
+
+// Path: chat
+class Translations$chat$en {
+	Translations$chat$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'New session'
+	String get untitled => 'New session';
+
+	/// en: 'No model'
+	String get noModel => 'No model';
+
+	/// en: 'Model'
+	String get modelTitle => 'Model';
+
+	/// en: 'Search models'
+	String get searchModels => 'Search models';
+
+	/// en: 'Reload the model list'
+	String get refreshModels => 'Reload the model list';
+
+	/// en: 'No models match.'
+	String get noModels => 'No models match.';
+
+	/// en: 'Could not load models: $error'
+	String modelsFailed({required Object error}) => 'Could not load models: ${error}';
+
+	/// en: 'Could not switch the model: $error'
+	String modelFailed({required Object error}) => 'Could not switch the model: ${error}';
+
+	/// en: '$tokens tokens'
+	String contextWindow({required Object tokens}) => '${tokens} tokens';
+
+	/// en: 'reasoning'
+	String get reasoning => 'reasoning';
+
+	/// en: 'Thinking: $level'
+	String thinking({required Object level}) => 'Thinking: ${level}';
+
+	/// en: 'off'
+	String get thinkingOff => 'off';
+
+	/// en: 'This model has no thinking levels.'
+	String get noThinking => 'This model has no thinking levels.';
+
+	/// en: 'Could not change the thinking level: $error'
+	String thinkingFailed({required Object error}) => 'Could not change the thinking level: ${error}';
+
+	/// en: 'Context: $tokens of $window tokens ($percent%) · cost $cost'
+	String contextTooltip({required Object tokens, required Object window, required Object percent, required Object cost}) => 'Context: ${tokens} of ${window} tokens (${percent}%) · cost ${cost}';
+
+	/// en: 'Context usage not known yet · cost $cost'
+	String contextUnknown({required Object cost}) => 'Context usage not known yet · cost ${cost}';
+
+	/// en: 'Pause'
+	String get pause => 'Pause';
+
+	/// en: 'Resume'
+	String get resume => 'Resume';
+
+	/// en: 'Could not pause or resume: $error'
+	String pauseFailed({required Object error}) => 'Could not pause or resume: ${error}';
+
+	/// en: 'Stop'
+	String get stop => 'Stop';
+
+	/// en: 'Could not stop the run: $error'
+	String abortFailed({required Object error}) => 'Could not stop the run: ${error}';
+
+	/// en: 'The companion is not loaded in this session, so pause, queue editing and shell or Python runs are unavailable.'
+	String get noCompanion => 'The companion is not loaded in this session, so pause, queue editing and shell or Python runs are unavailable.';
+
+	/// en: 'More'
+	String get more => 'More';
+
+	/// en: 'Copy session file path'
+	String get copyPath => 'Copy session file path';
+
+	/// en: 'Close on this device'
+	String get detach => 'Close on this device';
+
+	/// en: 'Stop the omp process'
+	String get stopSession => 'Stop the omp process';
+
+	/// en: 'Connection lost. Reconnecting (attempt $attempt) in $seconds s.'
+	String reconnecting({required Object attempt, required Object seconds}) => 'Connection lost. Reconnecting (attempt ${attempt}) in ${seconds} s.';
+
+	/// en: 'Retry now'
+	String get retryNow => 'Retry now';
+
+	/// en: 'This session is closed.'
+	String get closed => 'This session is closed.';
+
+	/// en: 'omp exited with code $code.'
+	String exited({required Object code}) => 'omp exited with code ${code}.';
+
+	/// en: 'Reopen'
+	String get reopen => 'Reopen';
+
+	/// en: 'Could not reopen the session: $error'
+	String reopenFailed({required Object error}) => 'Could not reopen the session: ${error}';
+
+	/// en: 'Paused: the run waits before its next step'
+	String get parked => 'Paused: the run waits before its next step';
+
+	/// en: 'Compacting the context…'
+	String get compacting => 'Compacting the context…';
+
+	/// en: 'Retrying ($attempt of $max): $error'
+	String retrying({required Object attempt, required Object max, required Object error}) => 'Retrying (${attempt} of ${max}): ${error}';
+
+	/// en: 'The last run failed: $error'
+	String failed({required Object error}) => 'The last run failed: ${error}';
+
+	/// en: 'unknown error'
+	String get failedUnknown => 'unknown error';
+
+	/// en: 'Stopped'
+	String get aborted => 'Stopped';
+
+	/// en: 'Command output'
+	String get commandOutput => 'Command output';
+
+	/// en: 'Extension error in $path ($event): $error'
+	String extensionError({required Object path, required Object event, required Object error}) => 'Extension error in ${path} (${event}): ${error}';
+
+	/// en: 'Served by the fallback model $model.'
+	String fallbackServed({required Object model}) => 'Served by the fallback model ${model}.';
+
+	/// en: 'Switched from $from to the fallback model $to. $reason'
+	String fallbackApplied({required Object from, required Object to, required Object reason}) => 'Switched from ${from} to the fallback model ${to}. ${reason}';
+
+	/// en: 'Compaction was cancelled.'
+	String get compactionCancelled => 'Compaction was cancelled.';
+
+	/// en: 'Compaction failed: $error'
+	String compactionFailed({required Object error}) => 'Compaction failed: ${error}';
+
+	/// en: 'Stream rules interrupted the response: $rules'
+	String rulesInterrupted({required Object rules}) => 'Stream rules interrupted the response: ${rules}';
+
+	/// en: 'Branching is only possible from your own messages.'
+	String get cannotBranch => 'Branching is only possible from your own messages.';
+
+	/// en: 'Branch'
+	String get branch => 'Branch';
+
+	/// en: 'Branch from this message?'
+	String get branchTitle => 'Branch from this message?';
+
+	/// en: 'A new session file starts before this message, and the message goes back into the composer: $text'
+	String branchBody({required Object text}) => 'A new session file starts before this message, and the message goes back into the composer:\n\n${text}';
+
+	/// en: 'Could not branch: $error'
+	String branchFailed({required Object error}) => 'Could not branch: ${error}';
+}
+
+// Path: composer
+class Translations$composer$en {
+	Translations$composer$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Message omp'
+	String get hint => 'Message omp';
+
+	/// en: 'Steer the running turn'
+	String get hintRunning => 'Steer the running turn';
+
+	/// en: 'Enter sends · Shift+Enter new line · / commands · !command shell · \$code Python'
+	String get keys => 'Enter sends · Shift+Enter new line · / commands · !command shell · \$code Python';
+
+	/// en: 'Enter steers · $alt+Enter queues a follow-up · Esc stops'
+	String keysRunning({required Object alt}) => 'Enter steers · ${alt}+Enter queues a follow-up · Esc stops';
+
+	/// en: 'Send'
+	String get send => 'Send';
+
+	/// en: 'Steer'
+	String get steer => 'Steer';
+
+	/// en: 'Follow-up'
+	String get followUp => 'Follow-up';
+
+	/// en: 'Attach images'
+	String get attachImage => 'Attach images';
+
+	/// en: 'Remove image'
+	String get removeImage => 'Remove image';
+
+	/// en: '$name is not a PNG, JPEG, GIF or WebP image.'
+	String unsupportedImage({required Object name}) => '${name} is not a PNG, JPEG, GIF or WebP image.';
+
+	/// en: '/$name is not a command of this session. Nothing was sent.'
+	String unknownCommand({required Object name}) => '/${name} is not a command of this session. Nothing was sent.';
+
+	/// en: 'Not sent: $error'
+	String sendFailed({required Object error}) => 'Not sent: ${error}';
+}
+
+// Path: queue
+class Translations$queue$en {
+	Translations$queue$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Queued'
+	String get queued => 'Queued';
+
+	/// en: 'Steering'
+	String get steer => 'Steering';
+
+	/// en: 'Follow-up'
+	String get followUp => 'Follow-up';
+
+	/// en: '+$n more'
+	String more({required Object n}) => '+${n} more';
+
+	/// en: 'Edit last'
+	String get editLast => 'Edit last';
+
+	/// en: 'Could not take the message back: $error'
+	String popFailed({required Object error}) => 'Could not take the message back: ${error}';
+}
+
+// Path: exec
+class Translations$exec$en {
+	Translations$exec$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'running'
+	String get running => 'running';
+
+	/// en: 'exit $code'
+	String exited({required Object code}) => 'exit ${code}';
+
+	/// en: 'cancelled'
+	String get cancelled => 'cancelled';
+
+	/// en: 'failed: $error'
+	String failed({required Object error}) => 'failed: ${error}';
+
+	/// en: 'Stop'
+	String get abort => 'Stop';
+
+	/// en: 'Output truncated'
+	String get truncated => 'Output truncated';
+}
+
+// Path: requests
+class Translations$requests$en {
+	Translations$requests$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Allow $tool?'
+	String approvalTitle({required Object tool}) => 'Allow ${tool}?';
+
+	/// en: 'Waiting for your answer: $title'
+	String waiting({required Object title}) => 'Waiting for your answer: ${title}';
+
+	/// en: 'Answer'
+	String get answer => 'Answer';
+
+	/// en: 'Later'
+	String get hide => 'Later';
+
+	/// en: 'Submit'
+	String get submit => 'Submit';
+
+	/// en: 'Yes'
+	String get yes => 'Yes';
+
+	/// en: 'No'
+	String get no => 'No';
+
+	/// en: 'Composer text'
+	String get editorText => 'Composer text';
+
+	/// en: 'Open in your browser'
+	String get openUrlTitle => 'Open in your browser';
+
+	/// en: 'Open'
+	String get openInBrowser => 'Open';
+
+	/// en: 'Forwarding localhost:$port on this device to the machine for the login callback.'
+	String forwarding({required Object port}) => 'Forwarding localhost:${port} on this device to the machine for the login callback.';
+
+	/// en: 'Could not forward the login callback port: $error'
+	String forwardFailed({required Object error}) => 'Could not forward the login callback port: ${error}';
+
+	/// en: 'Could not send the answer: $error'
+	String answerFailed({required Object error}) => 'Could not send the answer: ${error}';
+
+	/// en: 'Unsupported request'
+	String get unsupportedTitle => 'Unsupported request';
+
+	/// en: 'The companion asked for "$method", which this app version cannot show.'
+	String unsupportedBody({required Object method}) => 'The companion asked for "${method}", which this app version cannot show.';
+
+	/// en: '$n s left'
+	String secondsLeft({required Object n}) => '${n} s left';
+}
+
+// Path: ask
+class Translations$ask$en {
+	Translations$ask$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Question'
+	String get title => 'Question';
+
+	/// en: '$n questions'
+	String titleMany({required Object n}) => '${n} questions';
+
+	/// en: 'The question could not be read: $error'
+	String invalid({required Object error}) => 'The question could not be read: ${error}';
+
+	/// en: 'Recommended'
+	String get recommended => 'Recommended';
+
+	/// en: 'Choose any number.'
+	String get multi => 'Choose any number.';
+
+	/// en: 'Other: type your own answer'
+	String get otherHint => 'Other: type your own answer';
+
+	/// en: 'Note (optional)'
+	String get note => 'Note (optional)';
+
+	/// en: 'Chat about this'
+	String get chat => 'Chat about this';
+}
+
+// Path: transcript
+class Translations$transcript$en {
+	Translations$transcript$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Jump to latest'
+	String get jumpToLatest => 'Jump to latest';
+
+	/// en: 'Load earlier messages'
+	String get loadEarlier => 'Load earlier messages';
+
+	/// en: 'Message actions'
+	String get messageActions => 'Message actions';
+
+	/// en: 'Branch from here'
+	String get branchFromHere => 'Branch from here';
+
+	/// en: 'Copy message'
+	String get copyMessage => 'Copy message';
+
+	/// en: 'Copy code'
+	String get copyCode => 'Copy code';
+
+	/// en: 'Copy output'
+	String get copyOutput => 'Copy output';
+
+	/// en: 'Sent by the agent'
+	String get fromAgent => 'Sent by the agent';
+
+	/// en: 'Automatic message'
+	String get automatic => 'Automatic message';
+
+	/// en: 'Waiting for the model…'
+	String get waiting => 'Waiting for the model…';
+
+	/// en: 'Thinking…'
+	String get thinking => 'Thinking…';
+
+	/// en: 'Thought'
+	String get thought => 'Thought';
+
+	/// en: 'Thought for $duration'
+	String thoughtFor({required Object duration}) => 'Thought for ${duration}';
+
+	/// en: '(one) {$n reasoning token} (other) {$n reasoning tokens}'
+	String reasoningTokens({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} reasoning token',
+		other: '${n} reasoning tokens',
+	);
+
+	/// en: 'Reasoning hidden by the provider'
+	String get redactedThinking => 'Reasoning hidden by the provider';
+
+	/// en: 'Interrupted'
+	String get interrupted => 'Interrupted';
+
+	/// en: 'The response failed.'
+	String get failed => 'The response failed.';
+
+	/// en: 'Stopped at the output token limit.'
+	String get lengthLimit => 'Stopped at the output token limit.';
+
+	/// en: 'This attempt failed; retry $attempt succeeded.'
+	String retryRecovered({required Object attempt}) => 'This attempt failed; retry ${attempt} succeeded.';
+
+	/// en: 'This attempt failed; retrying gave up after attempt $attempt.'
+	String retrySuperseded({required Object attempt}) => 'This attempt failed; retrying gave up after attempt ${attempt}.';
+
+	/// en: '$count in'
+	String tokensIn({required Object count}) => '${count} in';
+
+	/// en: '$count out'
+	String tokensOut({required Object count}) => '${count} out';
+
+	/// en: '$count cached'
+	String tokensCached({required Object count}) => '${count} cached';
+
+	/// en: '$value s'
+	String seconds({required Object value}) => '${value} s';
+
+	/// en: 'Image'
+	String get image => 'Image';
+
+	/// en: '(one) {Show $n more line} (other) {Show $n more lines}'
+	String showMoreLines({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: 'Show ${n} more line',
+		other: 'Show ${n} more lines',
+	);
+
+	/// en: 'Show less'
+	String get showLess => 'Show less';
+
+	late final Translations$transcript$tool$en tool = Translations$transcript$tool$en.internal(_root);
+	late final Translations$transcript$execution$en execution = Translations$transcript$execution$en.internal(_root);
+
+	/// en: 'Context compacted'
+	String get compacted => 'Context compacted';
+
+	/// en: '$before → $after tokens'
+	String compactedTokens({required Object before, required Object after}) => '${before} → ${after} tokens';
+
+	/// en: 'from $before tokens'
+	String compactedFrom({required Object before}) => 'from ${before} tokens';
+
+	/// en: 'Show summary'
+	String get showSummary => 'Show summary';
+
+	/// en: 'Hide summary'
+	String get hideSummary => 'Hide summary';
+
+	/// en: 'Summary of the branch you left'
+	String get branchSummary => 'Summary of the branch you left';
+
+	/// en: 'Model: $model'
+	String modelChange({required Object model}) => 'Model: ${model}';
+
+	/// en: 'Model ($role): $model'
+	String modelRoleChange({required Object role, required Object model}) => 'Model (${role}): ${model}';
+
+	/// en: 'Thinking: $level'
+	String thinkingLevel({required Object level}) => 'Thinking: ${level}';
+
+	/// en: 'Thinking: off'
+	String get thinkingOff => 'Thinking: off';
+
+	/// en: '(one) {Attached $n file} (other) {Attached $n files}'
+	String mentionedFiles({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: 'Attached ${n} file',
+		other: 'Attached ${n} files',
+	);
+
+	/// en: 'too large'
+	String get skippedTooLarge => 'too large';
+
+	/// en: 'binary'
+	String get skippedBinary => 'binary';
+
+	/// en: 'Background result'
+	String get backgroundResult => 'Background result';
+
+	/// en: 'Delegated request'
+	String get delegated => 'Delegated request';
+}
+
+// Path: config
+class Translations$config$en {
+	Translations$config$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Configure $machine'
+	String title({required Object machine}) => 'Configure ${machine}';
+
+	/// en: 'Connect'
+	String get connect => 'Connect';
+
+	/// en: 'Connecting…'
+	String get connecting => 'Connecting…';
+
+	/// en: 'omp needs an install or an upgrade on this machine: $reason'
+	String needsOmp({required Object reason}) => 'omp needs an install or an upgrade on this machine: ${reason}';
+
+	/// en: 'Refresh'
+	String get refresh => 'Refresh';
+
+	/// en: '(no output)'
+	String get noOutput => '(no output)';
+
+	late final Translations$config$sections$en sections = Translations$config$sections$en.internal(_root);
+	late final Translations$config$scope$en scope = Translations$config$scope$en.internal(_root);
+	late final Translations$config$provenance$en provenance = Translations$config$provenance$en.internal(_root);
+	late final Translations$config$settings$en settings = Translations$config$settings$en.internal(_root);
+	late final Translations$config$roles$en roles = Translations$config$roles$en.internal(_root);
+	late final Translations$config$accounts$en accounts = Translations$config$accounts$en.internal(_root);
+	late final Translations$config$mcp$en mcp = Translations$config$mcp$en.internal(_root);
+	late final Translations$config$plugins$en plugins = Translations$config$plugins$en.internal(_root);
+	late final Translations$config$skills$en skills = Translations$config$skills$en.internal(_root);
+	late final Translations$config$usage$en usage = Translations$config$usage$en.internal(_root);
+	late final Translations$config$stats$en stats = Translations$config$stats$en.internal(_root);
+}
+
+// Path: dock.todo
+class Translations$dock$todo$en {
+	Translations$dock$todo$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'No todos yet. The agent's todo list shows up here.'
+	String get empty => 'No todos yet. The agent\'s todo list shows up here.';
+
+	/// en: '$done/$total'
+	String progress({required Object done, required Object total}) => '${done}/${total}';
+
+	/// en: 'Pending'
+	String get pending => 'Pending';
+
+	/// en: 'In progress'
+	String get inProgress => 'In progress';
+
+	/// en: 'Completed'
+	String get completed => 'Completed';
+
+	/// en: 'Abandoned'
+	String get abandoned => 'Abandoned';
+
+	/// en: 'Blocked'
+	String get blocked => 'Blocked';
+
+	/// en: 'Blocked: $reason'
+	String blockedBy({required Object reason}) => 'Blocked: ${reason}';
+}
+
+// Path: dock.hub
+class Translations$dock$hub$en {
+	Translations$dock$hub$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'No subagents yet. Agents the session starts show up here.'
+	String get empty => 'No subagents yet. Agents the session starts show up here.';
+
+	/// en: 'Agents: $count · running: $running'
+	String summary({required Object count, required Object running}) => 'Agents: ${count} · running: ${running}';
+
+	/// en: 'Show as list'
+	String get showList => 'Show as list';
+
+	/// en: 'Show as tree'
+	String get showTree => 'Show as tree';
+
+	/// en: 'advisor'
+	String get advisor => 'advisor';
+
+	/// en: '$count tok'
+	String tokens({required Object count}) => '${count} tok';
+
+	/// en: '(one) {$n tool} (other) {$n tools}'
+	String tools({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} tool',
+		other: '${n} tools',
+	);
+
+	/// en: 'context $percent%'
+	String context({required Object percent}) => 'context ${percent}%';
+
+	late final Translations$dock$hub$status$en status = Translations$dock$hub$status$en.internal(_root);
+
+	/// en: 'Back to agents'
+	String get back => 'Back to agents';
+
+	/// en: 'Agent actions'
+	String get actions => 'Agent actions';
+
+	/// en: 'Revive'
+	String get revive => 'Revive';
+
+	/// en: 'Agent revived.'
+	String get revived => 'Agent revived.';
+
+	/// en: 'Kill'
+	String get kill => 'Kill';
+
+	/// en: 'Agent killed.'
+	String get killed => 'Agent killed.';
+
+	/// en: 'Kill $name?'
+	String killTitle({required Object name}) => 'Kill ${name}?';
+
+	/// en: 'Its running turn is aborted and the agent is released for good. It cannot be revived.'
+	String get killBody => 'Its running turn is aborted and the agent is released for good. It cannot be revived.';
+
+	/// en: 'Copy agent id'
+	String get copyId => 'Copy agent id';
+
+	/// en: 'Send'
+	String get steer => 'Send';
+
+	/// en: 'Sent to the agent.'
+	String get steered => 'Sent to the agent.';
+
+	/// en: 'Message this agent…'
+	String get steerHint => 'Message this agent…';
+
+	/// en: 'Message wakes this parked agent…'
+	String get steerParkedHint => 'Message wakes this parked agent…';
+
+	/// en: 'Advisors are read-only.'
+	String get advisorReadOnly => 'Advisors are read-only.';
+
+	/// en: 'No transcript yet.'
+	String get noTranscript => 'No transcript yet.';
+
+	/// en: 'Transcript unavailable: $error'
+	String transcriptFailed({required Object error}) => 'Transcript unavailable: ${error}';
+
+	/// en: 'Failed: $error'
+	String failed({required Object error}) => 'Failed: ${error}';
+}
+
+// Path: dock.sessionTree
+class Translations$dock$sessionTree$en {
+	Translations$dock$sessionTree$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Search entries'
+	String get search => 'Search entries';
+
+	/// en: 'Filter'
+	String get filter => 'Filter';
+
+	/// en: 'Conversation'
+	String get filterStandard => 'Conversation';
+
+	/// en: 'Without tool results'
+	String get filterNoTools => 'Without tool results';
+
+	/// en: 'Your messages'
+	String get filterUserOnly => 'Your messages';
+
+	/// en: 'Labeled'
+	String get filterLabeled => 'Labeled';
+
+	/// en: 'Everything'
+	String get filterAll => 'Everything';
+
+	/// en: 'Refresh'
+	String get refresh => 'Refresh';
+
+	/// en: 'Could not load the tree: $error'
+	String loadFailed({required Object error}) => 'Could not load the tree: ${error}';
+
+	/// en: 'No entries yet.'
+	String get empty => 'No entries yet.';
+
+	/// en: 'No entries match.'
+	String get noMatches => 'No entries match.';
+
+	/// en: 'Current position'
+	String get currentLeaf => 'Current position';
+
+	/// en: 'Go here'
+	String get navigate => 'Go here';
+
+	/// en: 'Go here with summary…'
+	String get navigateWithSummary => 'Go here with summary…';
+
+	/// en: 'Label…'
+	String get label => 'Label…';
+
+	/// en: 'Branch into new session'
+	String get branch => 'Branch into new session';
+
+	/// en: 'Copy text'
+	String get copyText => 'Copy text';
+
+	/// en: 'Summarizing the branch you are leaving…'
+	String get summarizing => 'Summarizing the branch you are leaving…';
+
+	/// en: 'Abort'
+	String get abort => 'Abort';
+
+	/// en: 'Summary aborted. Nothing moved.'
+	String get summaryAborted => 'Summary aborted. Nothing moved.';
+
+	/// en: 'Navigation cancelled.'
+	String get navigationCancelled => 'Navigation cancelled.';
+
+	/// en: 'Branch cancelled.'
+	String get branchCancelled => 'Branch cancelled.';
+
+	/// en: 'Branched into a new session. The message is back in the composer.'
+	String get branched => 'Branched into a new session. The message is back in the composer.';
+
+	/// en: 'Failed: $error'
+	String failed({required Object error}) => 'Failed: ${error}';
+
+	/// en: '(aborted)'
+	String get aborted => '(aborted)';
+
+	/// en: '(no content)'
+	String get noContent => '(no content)';
+
+	/// en: 'Compaction (${tokens}k tokens)'
+	String compaction({required Object tokens}) => 'Compaction (${tokens}k tokens)';
+
+	/// en: 'Branch summary: $summary'
+	String branchSummary({required Object summary}) => 'Branch summary: ${summary}';
+
+	/// en: 'Model: $model'
+	String model({required Object model}) => 'Model: ${model}';
+
+	/// en: 'Thinking: $level'
+	String thinking({required Object level}) => 'Thinking: ${level}';
+
+	/// en: 'Label: $label'
+	String labelSet({required Object label}) => 'Label: ${label}';
+
+	/// en: 'Label cleared'
+	String get labelCleared => 'Label cleared';
+
+	/// en: 'Summarize the branch you leave'
+	String get summaryTitle => 'Summarize the branch you leave';
+
+	/// en: 'omp writes a summary of the abandoned branch at the new position. This makes a model call.'
+	String get summaryBody => 'omp writes a summary of the abandoned branch at the new position. This makes a model call.';
+
+	/// en: 'Custom instructions (optional)'
+	String get summaryInstructions => 'Custom instructions (optional)';
+
+	/// en: 'Summarize and go'
+	String get summarize => 'Summarize and go';
+
+	/// en: 'Label entry'
+	String get labelTitle => 'Label entry';
+
+	/// en: 'Label'
+	String get labelField => 'Label';
+
+	/// en: 'Clear label'
+	String get clearLabel => 'Clear label';
+}
+
+// Path: dock.fileBrowser
+class Translations$dock$fileBrowser$en {
+	Translations$dock$fileBrowser$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Parent folder'
+	String get up => 'Parent folder';
+
+	/// en: 'Refresh'
+	String get refresh => 'Refresh';
+
+	/// en: 'New file'
+	String get newFile => 'New file';
+
+	/// en: 'New folder'
+	String get newFolder => 'New folder';
+
+	/// en: 'Create'
+	String get create => 'Create';
+
+	/// en: 'Rename'
+	String get rename => 'Rename';
+
+	/// en: 'Open'
+	String get open => 'Open';
+
+	/// en: 'Browse'
+	String get browseHere => 'Browse';
+
+	/// en: 'Copy path'
+	String get copyPath => 'Copy path';
+
+	/// en: 'Name'
+	String get name => 'Name';
+
+	/// en: 'This name is reserved.'
+	String get nameReserved => 'This name is reserved.';
+
+	/// en: 'Names cannot contain / or \.'
+	String get nameSeparator => 'Names cannot contain / or \.';
+
+	/// en: '$name already exists.'
+	String exists({required Object name}) => '${name} already exists.';
+
+	/// en: 'Failed: $error'
+	String failed({required Object error}) => 'Failed: ${error}';
+
+	/// en: 'Delete $name?'
+	String deleteTitle({required Object name}) => 'Delete ${name}?';
+
+	/// en: 'The file is deleted from the machine.'
+	String get deleteFileBody => 'The file is deleted from the machine.';
+
+	/// en: 'The folder and everything in it are deleted from the machine.'
+	String get deleteFolderBody => 'The folder and everything in it are deleted from the machine.';
+
+	/// en: 'Empty folder'
+	String get emptyFolder => 'Empty folder';
+
+	/// en: 'Could not list: $error'
+	String listFailed({required Object error}) => 'Could not list: ${error}';
+
+	/// en: '(one) {$n open file} (other) {$n open files}'
+	String openDocuments({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} open file',
+		other: '${n} open files',
+	);
+
+	/// en: 'Could not open: $error'
+	String openFailed({required Object error}) => 'Could not open: ${error}';
+
+	/// en: 'Back to files'
+	String get backToFiles => 'Back to files';
+
+	/// en: 'Save'
+	String get save => 'Save';
+
+	/// en: 'Saved $name.'
+	String saved({required Object name}) => 'Saved ${name}.';
+
+	/// en: 'Save failed: $error'
+	String saveFailed({required Object error}) => 'Save failed: ${error}';
+
+	/// en: 'More'
+	String get more => 'More';
+
+	/// en: 'Find'
+	String get find => 'Find';
+
+	/// en: 'Reload from disk'
+	String get reload => 'Reload from disk';
+
+	/// en: 'Show git diff'
+	String get showDiff => 'Show git diff';
+
+	/// en: 'Show file'
+	String get showFile => 'Show file';
+
+	/// en: 'File changed on the machine'
+	String get conflictTitle => 'File changed on the machine';
+
+	/// en: 'The file changed on the machine since you opened it. Overwrite it with your version, or discard your edits and reload it?'
+	String get conflictChanged => 'The file changed on the machine since you opened it. Overwrite it with your version, or discard your edits and reload it?';
+
+	/// en: 'The file was deleted on the machine since you opened it. Overwrite recreates it.'
+	String get conflictDeleted => 'The file was deleted on the machine since you opened it. Overwrite recreates it.';
+
+	/// en: 'Overwrite'
+	String get overwrite => 'Overwrite';
+
+	/// en: 'Discard and reload'
+	String get discardAndReload => 'Discard and reload';
+
+	/// en: 'Discard changes to $name?'
+	String discardTitle({required Object name}) => 'Discard changes to ${name}?';
+
+	/// en: 'Your unsaved edits are lost.'
+	String get discardBody => 'Your unsaved edits are lost.';
+
+	/// en: 'Discard'
+	String get discard => 'Discard';
+
+	/// en: 'Larger than $mb MB: showing the beginning, read-only.'
+	String tooLarge({required Object mb}) => 'Larger than ${mb} MB: showing the beginning, read-only.';
+
+	/// en: 'Binary file. Not shown.'
+	String get binary => 'Binary file. Not shown.';
+
+	/// en: 'Not UTF-8 text: read-only, so saving cannot damage it.'
+	String get notUtf8 => 'Not UTF-8 text: read-only, so saving cannot damage it.';
+
+	/// en: 'No results'
+	String get noMatches => 'No results';
+
+	/// en: 'Replace'
+	String get replace => 'Replace';
+
+	/// en: 'Replace all'
+	String get replaceAll => 'Replace all';
+
+	/// en: 'Match case'
+	String get caseSensitive => 'Match case';
+
+	/// en: 'Previous match'
+	String get previousMatch => 'Previous match';
+
+	/// en: 'Next match'
+	String get nextMatch => 'Next match';
+
+	/// en: 'No changes against HEAD.'
+	String get noChanges => 'No changes against HEAD.';
+
+	/// en: 'git diff failed: $error'
+	String diffFailed({required Object error}) => 'git diff failed: ${error}';
+
+	/// en: 'Showing $shown of $total diff lines.'
+	String diffTruncated({required Object shown, required Object total}) => 'Showing ${shown} of ${total} diff lines.';
+
+	late final Translations$dock$fileBrowser$git$en git = Translations$dock$fileBrowser$git$en.internal(_root);
+}
+
+// Path: dock.terminals
+class Translations$dock$terminals$en {
+	Translations$dock$terminals$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'New terminal'
+	String get newTerminal => 'New terminal';
+
+	/// en: 'No terminal open on $machine.'
+	String empty({required Object machine}) => 'No terminal open on ${machine}.';
+
+	/// en: 'Close'
+	String get close => 'Close';
+
+	/// en: 'Restart'
+	String get restart => 'Restart';
+
+	/// en: 'Smaller text'
+	String get smaller => 'Smaller text';
+
+	/// en: 'Larger text'
+	String get larger => 'Larger text';
+
+	/// en: 'Paste'
+	String get paste => 'Paste';
+
+	/// en: 'Select all'
+	String get selectAll => 'Select all';
+
+	/// en: 'Clear'
+	String get clear => 'Clear';
+
+	/// en: 'Terminal failed: $error'
+	String failed({required Object error}) => 'Terminal failed: ${error}';
+
+	/// en: 'The shell exited with code $code.'
+	String exited({required Object code}) => 'The shell exited with code ${code}.';
+
+	/// en: 'The shell ended.'
+	String get exitedBySignal => 'The shell ended.';
+}
+
+// Path: transcript.tool
+class Translations$transcript$tool$en {
+	Translations$transcript$tool$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Running…'
+	String get running => 'Running…';
+
+	/// en: 'Running in the background'
+	String get background => 'Running in the background';
+
+	/// en: 'Did not finish'
+	String get interrupted => 'Did not finish';
+
+	/// en: 'Error'
+	String get error => 'Error';
+
+	/// en: 'Arguments'
+	String get arguments => 'Arguments';
+
+	/// en: 'No output'
+	String get noOutput => 'No output';
+
+	/// en: 'Exit $code'
+	String exitCode({required Object code}) => 'Exit ${code}';
+
+	/// en: 'Timed out'
+	String get timedOut => 'Timed out';
+
+	/// en: '(one) {$n line} (other) {$n lines}'
+	String lines({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} line',
+		other: '${n} lines',
+	);
+
+	/// en: 'lines $from–$to'
+	String lineRange({required Object from, required Object to}) => 'lines ${from}–${to}';
+
+	/// en: 'Open file'
+	String get openFile => 'Open file';
+
+	/// en: 'Created'
+	String get created => 'Created';
+
+	/// en: 'Deleted'
+	String get deleted => 'Deleted';
+
+	/// en: 'Moved to $path'
+	String movedTo({required Object path}) => 'Moved to ${path}';
+
+	/// en: 'No changes'
+	String get noChanges => 'No changes';
+
+	/// en: '$done of $total done'
+	String todoProgress({required Object done, required Object total}) => '${done} of ${total} done';
+
+	/// en: '(one) {$n agent} (other) {$n agents}'
+	String agents({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} agent',
+		other: '${n} agents',
+	);
+
+	/// en: 'Open agent'
+	String get openAgent => 'Open agent';
+
+	/// en: 'Pending'
+	String get agentPending => 'Pending';
+
+	/// en: 'Running'
+	String get agentRunning => 'Running';
+
+	/// en: 'Done'
+	String get agentCompleted => 'Done';
+
+	/// en: 'Failed'
+	String get agentFailed => 'Failed';
+
+	/// en: 'Aborted'
+	String get agentAborted => 'Aborted';
+
+	/// en: 'Recommended'
+	String get recommended => 'Recommended';
+
+	/// en: 'Cancelled'
+	String get cancelled => 'Cancelled';
+
+	/// en: 'Note: $note'
+	String note({required Object note}) => 'Note: ${note}';
+
+	/// en: 'Chosen automatically after the timeout'
+	String get autoSelected => 'Chosen automatically after the timeout';
+
+	/// en: '(one) {$n source} (other) {$n sources}'
+	String sources({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} source',
+		other: '${n} sources',
+	);
+
+	/// en: 'Output'
+	String get output => 'Output';
+
+	/// en: 'Context'
+	String get context => 'Context';
+
+	/// en: 'Diagnostics'
+	String get diagnostics => 'Diagnostics';
+
+	/// en: 'Redirected to $url'
+	String redirectedTo({required Object url}) => 'Redirected to ${url}';
+
+	/// en: '$count tokens'
+	String tokens({required Object count}) => '${count} tokens';
+}
+
+// Path: transcript.execution
+class Translations$transcript$execution$en {
+	Translations$transcript$execution$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Not sent to the model'
+	String get notSent => 'Not sent to the model';
+
+	/// en: 'Cancelled'
+	String get cancelled => 'Cancelled';
+
+	/// en: 'Output truncated'
+	String get truncated => 'Output truncated';
+}
+
+// Path: config.sections
+class Translations$config$sections$en {
+	Translations$config$sections$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Settings'
+	String get settings => 'Settings';
+
+	/// en: 'Model roles'
+	String get roles => 'Model roles';
+
+	/// en: 'Providers & accounts'
+	String get accounts => 'Providers & accounts';
+
+	/// en: 'MCP servers'
+	String get mcp => 'MCP servers';
+
+	/// en: 'Plugins'
+	String get plugins => 'Plugins';
+
+	/// en: 'Skills'
+	String get skills => 'Skills';
+
+	/// en: 'Usage'
+	String get usage => 'Usage';
+
+	/// en: 'Stats'
+	String get stats => 'Stats';
+}
+
+// Path: config.scope
+class Translations$config$scope$en {
+	Translations$config$scope$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Global'
+	String get global => 'Global';
+
+	/// en: 'Project $name'
+	String project({required Object name}) => 'Project ${name}';
+
+	/// en: 'Project (open a session here)'
+	String get projectNone => 'Project (open a session here)';
+}
+
+// Path: config.provenance
+class Translations$config$provenance$en {
+	Translations$config$provenance$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'env $name'
+	String env({required Object name}) => 'env ${name}';
+
+	/// en: 'The environment variable $name overrides the files.'
+	String envHint({required Object name}) => 'The environment variable ${name} overrides the files.';
+
+	/// en: 'override'
+	String get runtime => 'override';
+
+	/// en: 'Set for this omp process only (RPC mode or a runtime override); the app's sessions use it.'
+	String get runtimeHint => 'Set for this omp process only (RPC mode or a runtime override); the app\'s sessions use it.';
+
+	/// en: 'app overlay'
+	String get overlay => 'app overlay';
+
+	/// en: 'Forced by the app's per-session config overlay.'
+	String get overlayHint => 'Forced by the app\'s per-session config overlay.';
+
+	/// en: 'project'
+	String get project => 'project';
+
+	/// en: 'From the project's .omp/config.yml.'
+	String get projectHint => 'From the project\'s .omp/config.yml.';
+
+	/// en: 'global'
+	String get global => 'global';
+
+	/// en: 'From the profile's config.yml.'
+	String get globalHint => 'From the profile\'s config.yml.';
+
+	/// en: 'default'
+	String get defaults => 'default';
+
+	/// en: 'omp's default; no file sets it.'
+	String get defaultsHint => 'omp\'s default; no file sets it.';
+}
+
+// Path: config.settings
+class Translations$config$settings$en {
+	Translations$config$settings$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Search settings'
+	String get search => 'Search settings';
+
+	/// en: 'Editing $path'
+	String editing({required Object path}) => 'Editing ${path}';
+
+	/// en: 'Config file only'
+	String get advancedTab => 'Config file only';
+
+	/// en: 'Settings without a row in omp's settings panel, grouped by their first key.'
+	String get advancedNote => 'Settings without a row in omp\'s settings panel, grouped by their first key.';
+
+	/// en: 'These are omp's terminal UI settings. The app's own look follows the app settings (Material 3).'
+	String get themeNote => 'These are omp\'s terminal UI settings. The app\'s own look follows the app settings (Material 3).';
+
+	/// en: 'No setting matches.'
+	String get noMatches => 'No setting matches.';
+
+	/// en: 'Reset to the inherited value'
+	String get reset => 'Reset to the inherited value';
+
+	/// en: 'unset'
+	String get unset => 'unset';
+
+	/// en: 'Suggested values'
+	String get presets => 'Suggested values';
+
+	/// en: 'Not a number'
+	String get notANumber => 'Not a number';
+
+	/// en: 'Configured'
+	String get secretSet => 'Configured';
+
+	/// en: 'Not set'
+	String get secretUnset => 'Not set';
+
+	/// en: 'Set…'
+	String get secretEdit => 'Set…';
+
+	/// en: 'Sent to the machine as a private file that omp reads and deletes; never shown or logged.'
+	String get secretHelp => 'Sent to the machine as a private file that omp reads and deletes; never shown or logged.';
+
+	/// en: 'Credentials are saved in the global config only.'
+	String get secretGlobalOnly => 'Credentials are saved in the global config only.';
+
+	/// en: 'Add'
+	String get addItem => 'Add';
+
+	/// en: 'In effect: $value'
+	String overridden({required Object value}) => 'In effect: ${value}';
+
+	/// en: 'In effect: $value (a higher layer wins)'
+	String overriddenLine({required Object value}) => 'In effect: ${value} (a higher layer wins)';
+
+	/// en: 'Could not read $path: $error'
+	String fileError({required Object path, required Object error}) => 'Could not read ${path}: ${error}';
+}
+
+// Path: config.roles
+class Translations$config$roles$en {
+	Translations$config$roles$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'omp's model picker saves roles to: $storage'
+	String storage({required Object storage}) => 'omp\'s model picker saves roles to: ${storage}';
+
+	/// en: 'Project: $path'
+	String projectIs({required Object path}) => 'Project: ${path}';
+
+	/// en: 'Open a session on this machine to assign project roles.'
+	String get noProject => 'Open a session on this machine to assign project roles.';
+
+	/// en: 'Refresh models'
+	String get refreshModels => 'Refresh models';
+
+	/// en: 'Model list refreshed.'
+	String get modelsRefreshed => 'Model list refreshed.';
+
+	/// en: 'Chat roles'
+	String get chatRoles => 'Chat roles';
+
+	/// en: 'Task kinds'
+	String get kindRoles => 'Task kinds';
+
+	/// en: 'In effect'
+	String get effective => 'In effect';
+
+	/// en: 'Project'
+	String get projectLayer => 'Project';
+
+	/// en: 'auto'
+	String get auto => 'auto';
+
+	/// en: 'Set'
+	String get assign => 'Set';
+
+	/// en: 'Clear'
+	String get clear => 'Clear';
+
+	/// en: 'Model for $role'
+	String pickTitle({required Object role}) => 'Model for ${role}';
+
+	/// en: 'Search models'
+	String get searchModels => 'Search models';
+
+	/// en: 'Thinking level'
+	String get thinking => 'Thinking level';
+
+	/// en: 'model default'
+	String get thinkingDefault => 'model default';
+
+	/// en: 'Use $selector'
+	String useTyped({required Object selector}) => 'Use ${selector}';
+
+	/// en: 'A model omp does not list as available here'
+	String get useTypedHint => 'A model omp does not list as available here';
+
+	/// en: '$tokens context'
+	String context({required Object tokens}) => '${tokens} context';
+
+	/// en: 'images'
+	String get vision => 'images';
+
+	/// en: 'No model matches.'
+	String get noModels => 'No model matches.';
+}
+
+// Path: config.accounts
+class Translations$config$accounts$en {
+	Translations$config$accounts$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Credentials are stored per machine.'
+	String get machineWide => 'Credentials are stored per machine.';
+
+	/// en: 'In use and pinned marks refer to the session in $path.'
+	String sessionView({required Object path}) => 'In use and pinned marks refer to the session in ${path}.';
+
+	/// en: 'Stored credentials'
+	String get stored => 'Stored credentials';
+
+	/// en: 'No stored credentials.'
+	String get none => 'No stored credentials.';
+
+	/// en: 'current model'
+	String get currentModel => 'current model';
+
+	/// en: 'No working credential'
+	String get noSource => 'No working credential';
+
+	/// en: 'From the environment variable $name'
+	String fromEnv({required Object name}) => 'From the environment variable ${name}';
+
+	/// en: 'OAuth'
+	String get oauthAccount => 'OAuth';
+
+	/// en: 'API key'
+	String get apiKeyAccount => 'API key';
+
+	/// en: 'in use'
+	String get active => 'in use';
+
+	/// en: 'pinned'
+	String get sticky => 'pinned';
+
+	/// en: 'expires $date'
+	String expires({required Object date}) => 'expires ${date}';
+
+	/// en: 'Pin to session'
+	String get pin => 'Pin to session';
+
+	/// en: 'Account pinned to the session.'
+	String get pinned => 'Account pinned to the session.';
+
+	/// en: 'Log out'
+	String get logout => 'Log out';
+
+	/// en: 'Log out $account?'
+	String logoutTitle({required Object account}) => 'Log out ${account}?';
+
+	/// en: 'The stored credential for $provider is removed from this machine.'
+	String logoutBody({required Object provider}) => 'The stored credential for ${provider} is removed from this machine.';
+
+	/// en: 'Log in with an account'
+	String get oauth => 'Log in with an account';
+
+	/// en: 'The browser opens on this computer.'
+	String get oauthLocal => 'The browser opens on this computer.';
+
+	/// en: 'The browser opens on this device; the app forwards omp's callback port to the machine.'
+	String get oauthRemote => 'The browser opens on this device; the app forwards omp\'s callback port to the machine.';
+
+	/// en: 'API key'
+	String get apiKey => 'API key';
+
+	/// en: 'Stored in omp's credential store on the machine, like /login with a pasted key.'
+	String get apiKeyHint => 'Stored in omp\'s credential store on the machine, like /login with a pasted key.';
+
+	/// en: 'Provider'
+	String get provider => 'Provider';
+
+	/// en: 'Key'
+	String get key => 'Key';
+
+	/// en: 'Save key'
+	String get saveKey => 'Save key';
+
+	/// en: 'Key stored for $provider.'
+	String keyStored({required Object provider}) => 'Key stored for ${provider}.';
+
+	/// en: 'Log in to $provider'
+	String loginTitle({required Object provider}) => 'Log in to ${provider}';
+
+	/// en: 'Waiting for omp's authorization link…'
+	String get waitingForLink => 'Waiting for omp\'s authorization link…';
+
+	/// en: 'Open this link and sign in:'
+	String get openLink => 'Open this link and sign in:';
+
+	/// en: 'Open browser'
+	String get openBrowser => 'Open browser';
+
+	/// en: 'Copy link'
+	String get copyLink => 'Copy link';
+
+	/// en: 'Forwarding local port $ports to the machine for the callback.'
+	String forwarding({required Object ports}) => 'Forwarding local port ${ports} to the machine for the callback.';
+
+	/// en: 'Could not forward port $port ($error). Paste the redirect URL when omp asks for it.'
+	String forwardFailed({required Object port, required Object error}) => 'Could not forward port ${port} (${error}). Paste the redirect URL when omp asks for it.';
+
+	/// en: 'Submit'
+	String get submit => 'Submit';
+
+	/// en: 'Yes'
+	String get yes => 'Yes';
+
+	/// en: 'No'
+	String get no => 'No';
+
+	/// en: 'Logged in.'
+	String get loggedIn => 'Logged in.';
+
+	/// en: 'No model works on this machine yet. Sign in with an account or add an API key; settings and roles work meanwhile.'
+	String get bootstrap => 'No model works on this machine yet. Sign in with an account or add an API key; settings and roles work meanwhile.';
+}
+
+// Path: config.mcp
+class Translations$config$mcp$en {
+	Translations$config$mcp$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'User: $path'
+	String userFile({required Object path}) => 'User: ${path}';
+
+	/// en: 'Project: $path'
+	String projectFile({required Object path}) => 'Project: ${path}';
+
+	/// en: 'Add server'
+	String get add => 'Add server';
+
+	/// en: 'Add MCP server'
+	String get addTitle => 'Add MCP server';
+
+	/// en: 'Reload'
+	String get reload => 'Reload';
+
+	/// en: 'Resources'
+	String get resources => 'Resources';
+
+	/// en: 'Prompts'
+	String get prompts => 'Prompts';
+
+	/// en: 'Search Smithery'
+	String get smithery => 'Search Smithery';
+
+	/// en: 'No MCP servers configured.'
+	String get none => 'No MCP servers configured.';
+
+	/// en: 'user'
+	String get userScope => 'user';
+
+	/// en: 'project'
+	String get projectScope => 'project';
+
+	/// en: 'Test'
+	String get test => 'Test';
+
+	/// en: 'Remove $name?'
+	String removeTitle({required Object name}) => 'Remove ${name}?';
+
+	/// en: 'The server is removed from the $scope mcp.json.'
+	String removeBody({required Object scope}) => 'The server is removed from the ${scope} mcp.json.';
+
+	/// en: 'Name'
+	String get name => 'Name';
+
+	/// en: 'Command'
+	String get command => 'Command';
+
+	/// en: 'URL'
+	String get url => 'URL';
+
+	/// en: 'Bearer token (optional)'
+	String get token => 'Bearer token (optional)';
+
+	/// en: 'Written into the user mcp.json as an Authorization header.'
+	String get tokenHint => 'Written into the user mcp.json as an Authorization header.';
+
+	/// en: 'Only user-scope servers take a token here: a project session would keep it in its run log.'
+	String get tokenUserOnly => 'Only user-scope servers take a token here: a project session would keep it in its run log.';
+
+	/// en: 'omp 18.3.1 offers reauth, unauth, reconnect and Smithery login only in its terminal UI.'
+	String get tuiOnly => 'omp 18.3.1 offers reauth, unauth, reconnect and Smithery login only in its terminal UI.';
+
+	/// en: 'Enable the server to test it; omp loads only enabled servers.'
+	String get testDisabled => 'Enable the server to test it; omp loads only enabled servers.';
+}
+
+// Path: config.plugins
+class Translations$config$plugins$en {
+	Translations$config$plugins$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Commands run in $path'
+	String inProject({required Object path}) => 'Commands run in ${path}';
+
+	/// en: 'Installed'
+	String get installed => 'Installed';
+
+	/// en: 'No plugins installed.'
+	String get none => 'No plugins installed.';
+
+	/// en: 'npm'
+	String get npm => 'npm';
+
+	/// en: 'Uninstall'
+	String get uninstall => 'Uninstall';
+
+	/// en: 'Upgrade'
+	String get upgrade => 'Upgrade';
+
+	/// en: 'Update'
+	String get update => 'Update';
+
+	/// en: 'marketplace · $scope'
+	String marketplaceScope({required Object scope}) => 'marketplace · ${scope}';
+
+	/// en: 'shadowed'
+	String get shadowed => 'shadowed';
+
+	/// en: 'Install'
+	String get install => 'Install';
+
+	/// en: 'An npm package, name@marketplace, github:user/repo, a git URL or a local path. npm installs need bun on the machine.'
+	String get installHint => 'An npm package, name@marketplace, github:user/repo, a git URL or a local path. npm installs need bun on the machine.';
+
+	/// en: '@oh-my-pi/exa'
+	String get installPlaceholder => '@oh-my-pi/exa';
+
+	/// en: 'Install'
+	String get installAction => 'Install';
+
+	/// en: 'Marketplaces'
+	String get marketplaces => 'Marketplaces';
+
+	/// en: 'Update all'
+	String get updateAll => 'Update all';
+
+	/// en: 'No marketplaces configured.'
+	String get noMarketplaces => 'No marketplaces configured.';
+
+	/// en: 'installed'
+	String get isInstalled => 'installed';
+
+	/// en: 'owner/repo, git URL or local path'
+	String get sourcePlaceholder => 'owner/repo, git URL or local path';
+
+	/// en: 'Add marketplace'
+	String get addMarketplace => 'Add marketplace';
+}
+
+// Path: config.skills
+class Translations$config$skills$en {
+	Translations$config$skills$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Registry skills from skills.omp.sh'
+	String get registry => 'Registry skills from skills.omp.sh';
+
+	/// en: 'Installed'
+	String get installed => 'Installed';
+
+	/// en: 'No registry skills installed.'
+	String get none => 'No registry skills installed.';
+
+	/// en: 'not installed'
+	String get notInstalled => 'not installed';
+
+	/// en: 'range $range'
+	String range({required Object range}) => 'range ${range}';
+
+	/// en: 'Info'
+	String get info => 'Info';
+
+	/// en: 'Search the registry'
+	String get search => 'Search the registry';
+
+	/// en: 'pdf, git, review…'
+	String get searchHint => 'pdf, git, review…';
+
+	/// en: 'Search'
+	String get searchAction => 'Search';
+
+	/// en: '$shown of $total'
+	String results({required Object shown, required Object total}) => '${shown} of ${total}';
+
+	/// en: '$number weekly downloads'
+	String downloads({required Object number}) => '${number} weekly downloads';
+
+	/// en: 'by $name'
+	String by({required Object name}) => 'by ${name}';
+
+	/// en: 'Deprecated: $reason'
+	String deprecated({required Object reason}) => 'Deprecated: ${reason}';
+
+	/// en: 'Install $id for'
+	String installWhere({required Object id}) => 'Install ${id} for';
+
+	/// en: 'Every project (user)'
+	String get forUser => 'Every project (user)';
+
+	/// en: 'This project ($path)'
+	String forProject({required Object path}) => 'This project (${path})';
+
+	/// en: 'This skill ships scripts'
+	String get scriptsTitle => 'This skill ships scripts';
+
+	/// en: 'Installing it runs its scripts on the machine. Install anyway?'
+	String get scriptsBody => 'Installing it runs its scripts on the machine. Install anyway?';
+
+	/// en: 'Install anyway'
+	String get installAnyway => 'Install anyway';
+
+	/// en: 'License: $license'
+	String license({required Object license}) => 'License: ${license}';
+
+	/// en: 'Latest: $version'
+	String latest({required Object version}) => 'Latest: ${version}';
+
+	/// en: 'Versions: $versions'
+	String versions({required Object versions}) => 'Versions: ${versions}';
+
+	/// en: 'Owners: $owners'
+	String owners({required Object owners}) => 'Owners: ${owners}';
+
+	/// en: 'Downloads: $weekly weekly, $total total'
+	String downloadsTotal({required Object weekly, required Object total}) => 'Downloads: ${weekly} weekly, ${total} total';
+
+	/// en: 'Ships scripts.'
+	String get shipsScripts => 'Ships scripts.';
+}
+
+// Path: config.usage
+class Translations$config$usage$en {
+	Translations$config$usage$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Fetched at $time'
+	String generated({required Object time}) => 'Fetched at ${time}';
+
+	/// en: 'Ask providers again'
+	String get fetchAgain => 'Ask providers again';
+
+	/// en: 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.'
+	String get none => 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.';
+
+	/// en: 'plan $plan'
+	String plan({required Object plan}) => 'plan ${plan}';
+
+	/// en: 'Capacity'
+	String get capacity => 'Capacity';
+
+	/// en: '$remaining of $accounts accounts left'
+	String capacityLine({required Object remaining, required Object accounts}) => '${remaining} of ${accounts} accounts left';
+
+	/// en: 'Accounts without usage data'
+	String get withoutUsage => 'Accounts without usage data';
+
+	/// en: 'Disabled credentials'
+	String get disabled => 'Disabled credentials';
+
+	/// en: '$amount left'
+	String left({required Object amount}) => '${amount} left';
+
+	/// en: '$percent% used'
+	String used({required Object percent}) => '${percent}% used';
+
+	/// en: 'resets in $duration'
+	String resets({required Object duration}) => 'resets in ${duration}';
+
+	/// en: 'no data'
+	String get noData => 'no data';
+}
+
+// Path: config.stats
+class Translations$config$stats$en {
+	Translations$config$stats$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: '$from – $to'
+	String span({required Object from, required Object to}) => '${from} – ${to}';
+
+	/// en: 'No requests recorded yet.'
+	String get none => 'No requests recorded yet.';
+
+	/// en: 'Requests'
+	String get requests => 'Requests';
+
+	/// en: 'Errors'
+	String get errors => 'Errors';
+
+	/// en: 'Input tokens'
+	String get inputTokens => 'Input tokens';
+
+	/// en: 'Output tokens'
+	String get outputTokens => 'Output tokens';
+
+	/// en: 'Cache read'
+	String get cacheRead => 'Cache read';
+
+	/// en: 'Cost'
+	String get cost => 'Cost';
+
+	/// en: 'Avg. first token'
+	String get ttft => 'Avg. first token';
+
+	/// en: 'Avg. speed'
+	String get speed => 'Avg. speed';
+
+	/// en: 'Requests per hour'
+	String get perHour => 'Requests per hour';
+
+	/// en: 'By model'
+	String get byModel => 'By model';
+
+	/// en: 'By project'
+	String get byFolder => 'By project';
+
+	/// en: 'By agent'
+	String get byAgent => 'By agent';
+
+	/// en: 'Model'
+	String get model => 'Model';
+
+	/// en: 'Project'
+	String get folder => 'Project';
+
+	/// en: 'Agent'
+	String get agent => 'Agent';
+}
+
+// Path: dock.hub.status
+class Translations$dock$hub$status$en {
+	Translations$dock$hub$status$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Running'
+	String get running => 'Running';
+
+	/// en: 'Pending'
+	String get pending => 'Pending';
+
+	/// en: 'Idle'
+	String get idle => 'Idle';
+
+	/// en: 'Parked'
+	String get parked => 'Parked';
+
+	/// en: 'Completed'
+	String get completed => 'Completed';
+
+	/// en: 'Failed'
+	String get failed => 'Failed';
+
+	/// en: 'Killed'
+	String get aborted => 'Killed';
+}
+
+// Path: dock.fileBrowser.git
+class Translations$dock$fileBrowser$git$en {
+	Translations$dock$fileBrowser$git$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Modified'
+	String get modified => 'Modified';
+
+	/// en: 'Added'
+	String get added => 'Added';
+
+	/// en: 'Deleted'
+	String get deleted => 'Deleted';
+
+	/// en: 'Renamed'
+	String get renamed => 'Renamed';
+
+	/// en: 'Copied'
+	String get copied => 'Copied';
+
+	/// en: 'Type changed'
+	String get typeChanged => 'Type changed';
+
+	/// en: 'Untracked'
+	String get untracked => 'Untracked';
+
+	/// en: 'Ignored'
+	String get ignored => 'Ignored';
+
+	/// en: 'Conflicted'
+	String get conflicted => 'Conflicted';
+}
+
 /// The flat map containing all translations for locale <en>.
 /// Only for edge cases! For simple maps, use the map function of this library.
 ///
@@ -734,6 +2822,157 @@ extension on Translations {
 			'dock.files' => 'Files',
 			'dock.terminal' => 'Terminal',
 			'dock.noSession' => 'Open a session to use this panel.',
+			'dock.noMachine' => 'Open a session or select a machine to use this panel.',
+			'dock.todo.empty' => 'No todos yet. The agent\'s todo list shows up here.',
+			'dock.todo.progress' => ({required Object done, required Object total}) => '${done}/${total}',
+			'dock.todo.pending' => 'Pending',
+			'dock.todo.inProgress' => 'In progress',
+			'dock.todo.completed' => 'Completed',
+			'dock.todo.abandoned' => 'Abandoned',
+			'dock.todo.blocked' => 'Blocked',
+			'dock.todo.blockedBy' => ({required Object reason}) => 'Blocked: ${reason}',
+			'dock.hub.empty' => 'No subagents yet. Agents the session starts show up here.',
+			'dock.hub.summary' => ({required Object count, required Object running}) => 'Agents: ${count} · running: ${running}',
+			'dock.hub.showList' => 'Show as list',
+			'dock.hub.showTree' => 'Show as tree',
+			'dock.hub.advisor' => 'advisor',
+			'dock.hub.tokens' => ({required Object count}) => '${count} tok',
+			'dock.hub.tools' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} tool', other: '${n} tools', ), 
+			'dock.hub.context' => ({required Object percent}) => 'context ${percent}%',
+			'dock.hub.status.running' => 'Running',
+			'dock.hub.status.pending' => 'Pending',
+			'dock.hub.status.idle' => 'Idle',
+			'dock.hub.status.parked' => 'Parked',
+			'dock.hub.status.completed' => 'Completed',
+			'dock.hub.status.failed' => 'Failed',
+			'dock.hub.status.aborted' => 'Killed',
+			'dock.hub.back' => 'Back to agents',
+			'dock.hub.actions' => 'Agent actions',
+			'dock.hub.revive' => 'Revive',
+			'dock.hub.revived' => 'Agent revived.',
+			'dock.hub.kill' => 'Kill',
+			'dock.hub.killed' => 'Agent killed.',
+			'dock.hub.killTitle' => ({required Object name}) => 'Kill ${name}?',
+			'dock.hub.killBody' => 'Its running turn is aborted and the agent is released for good. It cannot be revived.',
+			'dock.hub.copyId' => 'Copy agent id',
+			'dock.hub.steer' => 'Send',
+			'dock.hub.steered' => 'Sent to the agent.',
+			'dock.hub.steerHint' => 'Message this agent…',
+			'dock.hub.steerParkedHint' => 'Message wakes this parked agent…',
+			'dock.hub.advisorReadOnly' => 'Advisors are read-only.',
+			'dock.hub.noTranscript' => 'No transcript yet.',
+			'dock.hub.transcriptFailed' => ({required Object error}) => 'Transcript unavailable: ${error}',
+			'dock.hub.failed' => ({required Object error}) => 'Failed: ${error}',
+			'dock.sessionTree.search' => 'Search entries',
+			'dock.sessionTree.filter' => 'Filter',
+			'dock.sessionTree.filterStandard' => 'Conversation',
+			'dock.sessionTree.filterNoTools' => 'Without tool results',
+			'dock.sessionTree.filterUserOnly' => 'Your messages',
+			'dock.sessionTree.filterLabeled' => 'Labeled',
+			'dock.sessionTree.filterAll' => 'Everything',
+			'dock.sessionTree.refresh' => 'Refresh',
+			'dock.sessionTree.loadFailed' => ({required Object error}) => 'Could not load the tree: ${error}',
+			'dock.sessionTree.empty' => 'No entries yet.',
+			'dock.sessionTree.noMatches' => 'No entries match.',
+			'dock.sessionTree.currentLeaf' => 'Current position',
+			'dock.sessionTree.navigate' => 'Go here',
+			'dock.sessionTree.navigateWithSummary' => 'Go here with summary…',
+			'dock.sessionTree.label' => 'Label…',
+			'dock.sessionTree.branch' => 'Branch into new session',
+			'dock.sessionTree.copyText' => 'Copy text',
+			'dock.sessionTree.summarizing' => 'Summarizing the branch you are leaving…',
+			'dock.sessionTree.abort' => 'Abort',
+			'dock.sessionTree.summaryAborted' => 'Summary aborted. Nothing moved.',
+			'dock.sessionTree.navigationCancelled' => 'Navigation cancelled.',
+			'dock.sessionTree.branchCancelled' => 'Branch cancelled.',
+			'dock.sessionTree.branched' => 'Branched into a new session. The message is back in the composer.',
+			'dock.sessionTree.failed' => ({required Object error}) => 'Failed: ${error}',
+			'dock.sessionTree.aborted' => '(aborted)',
+			'dock.sessionTree.noContent' => '(no content)',
+			'dock.sessionTree.compaction' => ({required Object tokens}) => 'Compaction (${tokens}k tokens)',
+			'dock.sessionTree.branchSummary' => ({required Object summary}) => 'Branch summary: ${summary}',
+			'dock.sessionTree.model' => ({required Object model}) => 'Model: ${model}',
+			'dock.sessionTree.thinking' => ({required Object level}) => 'Thinking: ${level}',
+			'dock.sessionTree.labelSet' => ({required Object label}) => 'Label: ${label}',
+			'dock.sessionTree.labelCleared' => 'Label cleared',
+			'dock.sessionTree.summaryTitle' => 'Summarize the branch you leave',
+			'dock.sessionTree.summaryBody' => 'omp writes a summary of the abandoned branch at the new position. This makes a model call.',
+			'dock.sessionTree.summaryInstructions' => 'Custom instructions (optional)',
+			'dock.sessionTree.summarize' => 'Summarize and go',
+			'dock.sessionTree.labelTitle' => 'Label entry',
+			'dock.sessionTree.labelField' => 'Label',
+			'dock.sessionTree.clearLabel' => 'Clear label',
+			'dock.fileBrowser.up' => 'Parent folder',
+			'dock.fileBrowser.refresh' => 'Refresh',
+			'dock.fileBrowser.newFile' => 'New file',
+			'dock.fileBrowser.newFolder' => 'New folder',
+			'dock.fileBrowser.create' => 'Create',
+			'dock.fileBrowser.rename' => 'Rename',
+			'dock.fileBrowser.open' => 'Open',
+			'dock.fileBrowser.browseHere' => 'Browse',
+			'dock.fileBrowser.copyPath' => 'Copy path',
+			'dock.fileBrowser.name' => 'Name',
+			'dock.fileBrowser.nameReserved' => 'This name is reserved.',
+			'dock.fileBrowser.nameSeparator' => 'Names cannot contain / or \.',
+			'dock.fileBrowser.exists' => ({required Object name}) => '${name} already exists.',
+			'dock.fileBrowser.failed' => ({required Object error}) => 'Failed: ${error}',
+			'dock.fileBrowser.deleteTitle' => ({required Object name}) => 'Delete ${name}?',
+			'dock.fileBrowser.deleteFileBody' => 'The file is deleted from the machine.',
+			'dock.fileBrowser.deleteFolderBody' => 'The folder and everything in it are deleted from the machine.',
+			'dock.fileBrowser.emptyFolder' => 'Empty folder',
+			'dock.fileBrowser.listFailed' => ({required Object error}) => 'Could not list: ${error}',
+			'dock.fileBrowser.openDocuments' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} open file', other: '${n} open files', ), 
+			'dock.fileBrowser.openFailed' => ({required Object error}) => 'Could not open: ${error}',
+			'dock.fileBrowser.backToFiles' => 'Back to files',
+			'dock.fileBrowser.save' => 'Save',
+			'dock.fileBrowser.saved' => ({required Object name}) => 'Saved ${name}.',
+			'dock.fileBrowser.saveFailed' => ({required Object error}) => 'Save failed: ${error}',
+			'dock.fileBrowser.more' => 'More',
+			'dock.fileBrowser.find' => 'Find',
+			'dock.fileBrowser.reload' => 'Reload from disk',
+			'dock.fileBrowser.showDiff' => 'Show git diff',
+			'dock.fileBrowser.showFile' => 'Show file',
+			'dock.fileBrowser.conflictTitle' => 'File changed on the machine',
+			'dock.fileBrowser.conflictChanged' => 'The file changed on the machine since you opened it. Overwrite it with your version, or discard your edits and reload it?',
+			'dock.fileBrowser.conflictDeleted' => 'The file was deleted on the machine since you opened it. Overwrite recreates it.',
+			'dock.fileBrowser.overwrite' => 'Overwrite',
+			'dock.fileBrowser.discardAndReload' => 'Discard and reload',
+			'dock.fileBrowser.discardTitle' => ({required Object name}) => 'Discard changes to ${name}?',
+			'dock.fileBrowser.discardBody' => 'Your unsaved edits are lost.',
+			'dock.fileBrowser.discard' => 'Discard',
+			'dock.fileBrowser.tooLarge' => ({required Object mb}) => 'Larger than ${mb} MB: showing the beginning, read-only.',
+			'dock.fileBrowser.binary' => 'Binary file. Not shown.',
+			'dock.fileBrowser.notUtf8' => 'Not UTF-8 text: read-only, so saving cannot damage it.',
+			'dock.fileBrowser.noMatches' => 'No results',
+			'dock.fileBrowser.replace' => 'Replace',
+			'dock.fileBrowser.replaceAll' => 'Replace all',
+			'dock.fileBrowser.caseSensitive' => 'Match case',
+			'dock.fileBrowser.previousMatch' => 'Previous match',
+			'dock.fileBrowser.nextMatch' => 'Next match',
+			'dock.fileBrowser.noChanges' => 'No changes against HEAD.',
+			'dock.fileBrowser.diffFailed' => ({required Object error}) => 'git diff failed: ${error}',
+			'dock.fileBrowser.diffTruncated' => ({required Object shown, required Object total}) => 'Showing ${shown} of ${total} diff lines.',
+			'dock.fileBrowser.git.modified' => 'Modified',
+			'dock.fileBrowser.git.added' => 'Added',
+			'dock.fileBrowser.git.deleted' => 'Deleted',
+			'dock.fileBrowser.git.renamed' => 'Renamed',
+			'dock.fileBrowser.git.copied' => 'Copied',
+			'dock.fileBrowser.git.typeChanged' => 'Type changed',
+			'dock.fileBrowser.git.untracked' => 'Untracked',
+			'dock.fileBrowser.git.ignored' => 'Ignored',
+			'dock.fileBrowser.git.conflicted' => 'Conflicted',
+			'dock.terminals.newTerminal' => 'New terminal',
+			'dock.terminals.empty' => ({required Object machine}) => 'No terminal open on ${machine}.',
+			'dock.terminals.close' => 'Close',
+			'dock.terminals.restart' => 'Restart',
+			'dock.terminals.smaller' => 'Smaller text',
+			'dock.terminals.larger' => 'Larger text',
+			'dock.terminals.paste' => 'Paste',
+			'dock.terminals.selectAll' => 'Select all',
+			'dock.terminals.clear' => 'Clear',
+			'dock.terminals.failed' => ({required Object error}) => 'Terminal failed: ${error}',
+			'dock.terminals.exited' => ({required Object code}) => 'The shell exited with code ${code}.',
+			'dock.terminals.exitedBySignal' => 'The shell ended.',
 			'sidebar.machines' => 'Machines',
 			'sidebar.addMachine' => 'Add machine',
 			'sidebar.more' => 'More',
@@ -871,6 +3110,440 @@ extension on Translations {
 			'settings.shortcutPanelTab' => 'Show a panel tab',
 			'settings.shortcutAddMachine' => 'Add machine',
 			'settings.shortcutSettings' => 'Settings',
+			'time.now' => 'now',
+			'time.minutes' => ({required Object n}) => '${n}m',
+			'time.hours' => ({required Object n}) => '${n}h',
+			'time.days' => ({required Object n}) => '${n}d',
+			'sessions.offline' => 'Offline',
+			'sessions.connecting' => 'Connecting…',
+			'sessions.online' => ({required Object version}) => 'omp ${version}',
+			'sessions.needsOmp' => ({required Object reason}) => 'omp needed: ${reason}',
+			'sessions.connect' => 'Connect',
+			'sessions.install' => 'Install omp',
+			'sessions.refresh' => 'Refresh',
+			'sessions.collapse' => 'Collapse',
+			'sessions.expand' => 'Expand',
+			'sessions.configure' => 'Configure',
+			'sessions.newSession' => 'New session',
+			'sessions.newSessionHere' => 'New session in this directory',
+			'sessions.newSessionOn' => ({required Object machine}) => 'New session on ${machine}',
+			'sessions.none' => 'No sessions yet.',
+			'sessions.untitled' => 'Untitled session',
+			'sessions.unknownDirectory' => 'Unknown directory',
+			'sessions.showMore' => ({required Object n}) => 'Show ${n} more',
+			'sessions.running' => 'Running',
+			'sessions.waiting' => 'Waiting for your answer',
+			'sessions.openFailed' => ({required Object error}) => 'Could not open the session: ${error}',
+			'sessions.listFailed' => ({required Object error}) => 'Could not list sessions: ${error}',
+			'sessions.directory' => 'Working directory',
+			'sessions.directoryHint' => 'A path on the machine, e.g. ~/code/project',
+			'sessions.directoryRequired' => 'Choose a working directory.',
+			'sessions.notADirectory' => ({required Object path, required Object machine}) => '${path} is not a directory on ${machine}.',
+			'sessions.recentDirectories' => 'Recent projects',
+			'sessions.model' => 'Model (optional)',
+			'sessions.modelHint' => 'provider/model, e.g. anthropic/claude-sonnet-4-5',
+			'sessions.create' => 'Start',
+			'sessions.browse' => 'Browse the machine',
+			'sessions.browseTitle' => 'Choose a directory',
+			'sessions.up' => 'Parent directory',
+			'sessions.showHidden' => 'Show hidden directories',
+			'sessions.chooseDirectory' => 'Use this directory',
+			'install.title' => ({required Object machine}) => 'Install omp on ${machine}',
+			'install.notConnected' => 'Connect to the machine first.',
+			'install.facts' => ({required Object os, required Object arch, required Object version, required Object dir}) => '${os} ${arch} · omp ${version} into ${dir}',
+			'install.viaInstaller' => 'The app runs omp\'s installer on the machine, pinned to this release.',
+			'install.viaUpload' => 'The machine has neither curl nor wget: the app downloads the release here and uploads it, checking its SHA-256 on the machine.',
+			'install.manual' => 'Or run this on the machine yourself:',
+			'install.install' => 'Install',
+			'install.runningInstaller' => 'Running the installer…',
+			'install.installerFailed' => 'The installer failed',
+			'install.downloading' => ({required Object asset}) => 'Downloading ${asset}…',
+			'install.downloadFailed' => ({required Object status, required Object url}) => 'Download failed with HTTP ${status}: ${url}',
+			'install.transferring' => ({required Object asset, required Object done, required Object total}) => 'Transferring ${asset}: ${done} of ${total} MB',
+			'install.checking' => 'Checking the installation…',
+			'install.stillMissing' => ({required Object reason}) => 'omp is still not usable: ${reason}',
+			'install.noAsset' => ({required Object os, required Object arch}) => 'omp publishes no build for ${os} ${arch}.',
+			'install.done' => ({required Object version}) => 'Installed omp ${version}.',
+			'chat.untitled' => 'New session',
+			'chat.noModel' => 'No model',
+			'chat.modelTitle' => 'Model',
+			'chat.searchModels' => 'Search models',
+			'chat.refreshModels' => 'Reload the model list',
+			'chat.noModels' => 'No models match.',
+			'chat.modelsFailed' => ({required Object error}) => 'Could not load models: ${error}',
+			'chat.modelFailed' => ({required Object error}) => 'Could not switch the model: ${error}',
+			'chat.contextWindow' => ({required Object tokens}) => '${tokens} tokens',
+			'chat.reasoning' => 'reasoning',
+			'chat.thinking' => ({required Object level}) => 'Thinking: ${level}',
+			'chat.thinkingOff' => 'off',
+			'chat.noThinking' => 'This model has no thinking levels.',
+			'chat.thinkingFailed' => ({required Object error}) => 'Could not change the thinking level: ${error}',
+			'chat.contextTooltip' => ({required Object tokens, required Object window, required Object percent, required Object cost}) => 'Context: ${tokens} of ${window} tokens (${percent}%) · cost ${cost}',
+			'chat.contextUnknown' => ({required Object cost}) => 'Context usage not known yet · cost ${cost}',
+			'chat.pause' => 'Pause',
+			'chat.resume' => 'Resume',
+			'chat.pauseFailed' => ({required Object error}) => 'Could not pause or resume: ${error}',
+			'chat.stop' => 'Stop',
+			'chat.abortFailed' => ({required Object error}) => 'Could not stop the run: ${error}',
+			'chat.noCompanion' => 'The companion is not loaded in this session, so pause, queue editing and shell or Python runs are unavailable.',
+			'chat.more' => 'More',
+			'chat.copyPath' => 'Copy session file path',
+			'chat.detach' => 'Close on this device',
+			'chat.stopSession' => 'Stop the omp process',
+			'chat.reconnecting' => ({required Object attempt, required Object seconds}) => 'Connection lost. Reconnecting (attempt ${attempt}) in ${seconds} s.',
+			'chat.retryNow' => 'Retry now',
+			'chat.closed' => 'This session is closed.',
+			'chat.exited' => ({required Object code}) => 'omp exited with code ${code}.',
+			'chat.reopen' => 'Reopen',
+			'chat.reopenFailed' => ({required Object error}) => 'Could not reopen the session: ${error}',
+			'chat.parked' => 'Paused: the run waits before its next step',
+			'chat.compacting' => 'Compacting the context…',
+			'chat.retrying' => ({required Object attempt, required Object max, required Object error}) => 'Retrying (${attempt} of ${max}): ${error}',
+			'chat.failed' => ({required Object error}) => 'The last run failed: ${error}',
+			'chat.failedUnknown' => 'unknown error',
+			'chat.aborted' => 'Stopped',
+			'chat.commandOutput' => 'Command output',
+			'chat.extensionError' => ({required Object path, required Object event, required Object error}) => 'Extension error in ${path} (${event}): ${error}',
+			'chat.fallbackServed' => ({required Object model}) => 'Served by the fallback model ${model}.',
+			'chat.fallbackApplied' => ({required Object from, required Object to, required Object reason}) => 'Switched from ${from} to the fallback model ${to}. ${reason}',
+			'chat.compactionCancelled' => 'Compaction was cancelled.',
+			'chat.compactionFailed' => ({required Object error}) => 'Compaction failed: ${error}',
+			'chat.rulesInterrupted' => ({required Object rules}) => 'Stream rules interrupted the response: ${rules}',
+			'chat.cannotBranch' => 'Branching is only possible from your own messages.',
+			'chat.branch' => 'Branch',
+			'chat.branchTitle' => 'Branch from this message?',
+			'chat.branchBody' => ({required Object text}) => 'A new session file starts before this message, and the message goes back into the composer:\n\n${text}',
+			'chat.branchFailed' => ({required Object error}) => 'Could not branch: ${error}',
+			'composer.hint' => 'Message omp',
+			'composer.hintRunning' => 'Steer the running turn',
+			'composer.keys' => 'Enter sends · Shift+Enter new line · / commands · !command shell · \$code Python',
+			'composer.keysRunning' => ({required Object alt}) => 'Enter steers · ${alt}+Enter queues a follow-up · Esc stops',
+			'composer.send' => 'Send',
+			'composer.steer' => 'Steer',
+			'composer.followUp' => 'Follow-up',
+			'composer.attachImage' => 'Attach images',
+			'composer.removeImage' => 'Remove image',
+			'composer.unsupportedImage' => ({required Object name}) => '${name} is not a PNG, JPEG, GIF or WebP image.',
+			'composer.unknownCommand' => ({required Object name}) => '/${name} is not a command of this session. Nothing was sent.',
+			'composer.sendFailed' => ({required Object error}) => 'Not sent: ${error}',
+			'queue.queued' => 'Queued',
+			'queue.steer' => 'Steering',
+			'queue.followUp' => 'Follow-up',
+			'queue.more' => ({required Object n}) => '+${n} more',
+			'queue.editLast' => 'Edit last',
+			'queue.popFailed' => ({required Object error}) => 'Could not take the message back: ${error}',
+			'exec.running' => 'running',
+			'exec.exited' => ({required Object code}) => 'exit ${code}',
+			'exec.cancelled' => 'cancelled',
+			'exec.failed' => ({required Object error}) => 'failed: ${error}',
+			'exec.abort' => 'Stop',
+			'exec.truncated' => 'Output truncated',
+			'requests.approvalTitle' => ({required Object tool}) => 'Allow ${tool}?',
+			'requests.waiting' => ({required Object title}) => 'Waiting for your answer: ${title}',
+			'requests.answer' => 'Answer',
+			'requests.hide' => 'Later',
+			'requests.submit' => 'Submit',
+			'requests.yes' => 'Yes',
+			'requests.no' => 'No',
+			'requests.editorText' => 'Composer text',
+			'requests.openUrlTitle' => 'Open in your browser',
+			'requests.openInBrowser' => 'Open',
+			'requests.forwarding' => ({required Object port}) => 'Forwarding localhost:${port} on this device to the machine for the login callback.',
+			'requests.forwardFailed' => ({required Object error}) => 'Could not forward the login callback port: ${error}',
+			'requests.answerFailed' => ({required Object error}) => 'Could not send the answer: ${error}',
+			'requests.unsupportedTitle' => 'Unsupported request',
+			'requests.unsupportedBody' => ({required Object method}) => 'The companion asked for "${method}", which this app version cannot show.',
+			'requests.secondsLeft' => ({required Object n}) => '${n} s left',
+			'ask.title' => 'Question',
+			'ask.titleMany' => ({required Object n}) => '${n} questions',
+			'ask.invalid' => ({required Object error}) => 'The question could not be read: ${error}',
+			'ask.recommended' => 'Recommended',
+			'ask.multi' => 'Choose any number.',
+			'ask.otherHint' => 'Other: type your own answer',
+			'ask.note' => 'Note (optional)',
+			'ask.chat' => 'Chat about this',
+			'transcript.jumpToLatest' => 'Jump to latest',
+			'transcript.loadEarlier' => 'Load earlier messages',
+			'transcript.messageActions' => 'Message actions',
+			'transcript.branchFromHere' => 'Branch from here',
+			'transcript.copyMessage' => 'Copy message',
+			'transcript.copyCode' => 'Copy code',
+			'transcript.copyOutput' => 'Copy output',
+			'transcript.fromAgent' => 'Sent by the agent',
+			'transcript.automatic' => 'Automatic message',
+			'transcript.waiting' => 'Waiting for the model…',
+			'transcript.thinking' => 'Thinking…',
+			'transcript.thought' => 'Thought',
+			'transcript.thoughtFor' => ({required Object duration}) => 'Thought for ${duration}',
+			'transcript.reasoningTokens' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} reasoning token', other: '${n} reasoning tokens', ), 
+			'transcript.redactedThinking' => 'Reasoning hidden by the provider',
+			'transcript.interrupted' => 'Interrupted',
+			'transcript.failed' => 'The response failed.',
+			'transcript.lengthLimit' => 'Stopped at the output token limit.',
+			'transcript.retryRecovered' => ({required Object attempt}) => 'This attempt failed; retry ${attempt} succeeded.',
+			'transcript.retrySuperseded' => ({required Object attempt}) => 'This attempt failed; retrying gave up after attempt ${attempt}.',
+			'transcript.tokensIn' => ({required Object count}) => '${count} in',
+			'transcript.tokensOut' => ({required Object count}) => '${count} out',
+			'transcript.tokensCached' => ({required Object count}) => '${count} cached',
+			'transcript.seconds' => ({required Object value}) => '${value} s',
+			'transcript.image' => 'Image',
+			'transcript.showMoreLines' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Show ${n} more line', other: 'Show ${n} more lines', ), 
+			'transcript.showLess' => 'Show less',
+			'transcript.tool.running' => 'Running…',
+			'transcript.tool.background' => 'Running in the background',
+			'transcript.tool.interrupted' => 'Did not finish',
+			'transcript.tool.error' => 'Error',
+			'transcript.tool.arguments' => 'Arguments',
+			'transcript.tool.noOutput' => 'No output',
+			'transcript.tool.exitCode' => ({required Object code}) => 'Exit ${code}',
+			'transcript.tool.timedOut' => 'Timed out',
+			'transcript.tool.lines' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} line', other: '${n} lines', ), 
+			'transcript.tool.lineRange' => ({required Object from, required Object to}) => 'lines ${from}–${to}',
+			'transcript.tool.openFile' => 'Open file',
+			'transcript.tool.created' => 'Created',
+			'transcript.tool.deleted' => 'Deleted',
+			'transcript.tool.movedTo' => ({required Object path}) => 'Moved to ${path}',
+			'transcript.tool.noChanges' => 'No changes',
+			'transcript.tool.todoProgress' => ({required Object done, required Object total}) => '${done} of ${total} done',
+			'transcript.tool.agents' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} agent', other: '${n} agents', ), 
+			_ => null,
+		} ?? switch (path) {
+			'transcript.tool.openAgent' => 'Open agent',
+			'transcript.tool.agentPending' => 'Pending',
+			'transcript.tool.agentRunning' => 'Running',
+			'transcript.tool.agentCompleted' => 'Done',
+			'transcript.tool.agentFailed' => 'Failed',
+			'transcript.tool.agentAborted' => 'Aborted',
+			'transcript.tool.recommended' => 'Recommended',
+			'transcript.tool.cancelled' => 'Cancelled',
+			'transcript.tool.note' => ({required Object note}) => 'Note: ${note}',
+			'transcript.tool.autoSelected' => 'Chosen automatically after the timeout',
+			'transcript.tool.sources' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} source', other: '${n} sources', ), 
+			'transcript.tool.output' => 'Output',
+			'transcript.tool.context' => 'Context',
+			'transcript.tool.diagnostics' => 'Diagnostics',
+			'transcript.tool.redirectedTo' => ({required Object url}) => 'Redirected to ${url}',
+			'transcript.tool.tokens' => ({required Object count}) => '${count} tokens',
+			'transcript.execution.notSent' => 'Not sent to the model',
+			'transcript.execution.cancelled' => 'Cancelled',
+			'transcript.execution.truncated' => 'Output truncated',
+			'transcript.compacted' => 'Context compacted',
+			'transcript.compactedTokens' => ({required Object before, required Object after}) => '${before} → ${after} tokens',
+			'transcript.compactedFrom' => ({required Object before}) => 'from ${before} tokens',
+			'transcript.showSummary' => 'Show summary',
+			'transcript.hideSummary' => 'Hide summary',
+			'transcript.branchSummary' => 'Summary of the branch you left',
+			'transcript.modelChange' => ({required Object model}) => 'Model: ${model}',
+			'transcript.modelRoleChange' => ({required Object role, required Object model}) => 'Model (${role}): ${model}',
+			'transcript.thinkingLevel' => ({required Object level}) => 'Thinking: ${level}',
+			'transcript.thinkingOff' => 'Thinking: off',
+			'transcript.mentionedFiles' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Attached ${n} file', other: 'Attached ${n} files', ), 
+			'transcript.skippedTooLarge' => 'too large',
+			'transcript.skippedBinary' => 'binary',
+			'transcript.backgroundResult' => 'Background result',
+			'transcript.delegated' => 'Delegated request',
+			'config.title' => ({required Object machine}) => 'Configure ${machine}',
+			'config.connect' => 'Connect',
+			'config.connecting' => 'Connecting…',
+			'config.needsOmp' => ({required Object reason}) => 'omp needs an install or an upgrade on this machine: ${reason}',
+			'config.refresh' => 'Refresh',
+			'config.noOutput' => '(no output)',
+			'config.sections.settings' => 'Settings',
+			'config.sections.roles' => 'Model roles',
+			'config.sections.accounts' => 'Providers & accounts',
+			'config.sections.mcp' => 'MCP servers',
+			'config.sections.plugins' => 'Plugins',
+			'config.sections.skills' => 'Skills',
+			'config.sections.usage' => 'Usage',
+			'config.sections.stats' => 'Stats',
+			'config.scope.global' => 'Global',
+			'config.scope.project' => ({required Object name}) => 'Project ${name}',
+			'config.scope.projectNone' => 'Project (open a session here)',
+			'config.provenance.env' => ({required Object name}) => 'env ${name}',
+			'config.provenance.envHint' => ({required Object name}) => 'The environment variable ${name} overrides the files.',
+			'config.provenance.runtime' => 'override',
+			'config.provenance.runtimeHint' => 'Set for this omp process only (RPC mode or a runtime override); the app\'s sessions use it.',
+			'config.provenance.overlay' => 'app overlay',
+			'config.provenance.overlayHint' => 'Forced by the app\'s per-session config overlay.',
+			'config.provenance.project' => 'project',
+			'config.provenance.projectHint' => 'From the project\'s .omp/config.yml.',
+			'config.provenance.global' => 'global',
+			'config.provenance.globalHint' => 'From the profile\'s config.yml.',
+			'config.provenance.defaults' => 'default',
+			'config.provenance.defaultsHint' => 'omp\'s default; no file sets it.',
+			'config.settings.search' => 'Search settings',
+			'config.settings.editing' => ({required Object path}) => 'Editing ${path}',
+			'config.settings.advancedTab' => 'Config file only',
+			'config.settings.advancedNote' => 'Settings without a row in omp\'s settings panel, grouped by their first key.',
+			'config.settings.themeNote' => 'These are omp\'s terminal UI settings. The app\'s own look follows the app settings (Material 3).',
+			'config.settings.noMatches' => 'No setting matches.',
+			'config.settings.reset' => 'Reset to the inherited value',
+			'config.settings.unset' => 'unset',
+			'config.settings.presets' => 'Suggested values',
+			'config.settings.notANumber' => 'Not a number',
+			'config.settings.secretSet' => 'Configured',
+			'config.settings.secretUnset' => 'Not set',
+			'config.settings.secretEdit' => 'Set…',
+			'config.settings.secretHelp' => 'Sent to the machine as a private file that omp reads and deletes; never shown or logged.',
+			'config.settings.secretGlobalOnly' => 'Credentials are saved in the global config only.',
+			'config.settings.addItem' => 'Add',
+			'config.settings.overridden' => ({required Object value}) => 'In effect: ${value}',
+			'config.settings.overriddenLine' => ({required Object value}) => 'In effect: ${value} (a higher layer wins)',
+			'config.settings.fileError' => ({required Object path, required Object error}) => 'Could not read ${path}: ${error}',
+			'config.roles.storage' => ({required Object storage}) => 'omp\'s model picker saves roles to: ${storage}',
+			'config.roles.projectIs' => ({required Object path}) => 'Project: ${path}',
+			'config.roles.noProject' => 'Open a session on this machine to assign project roles.',
+			'config.roles.refreshModels' => 'Refresh models',
+			'config.roles.modelsRefreshed' => 'Model list refreshed.',
+			'config.roles.chatRoles' => 'Chat roles',
+			'config.roles.kindRoles' => 'Task kinds',
+			'config.roles.effective' => 'In effect',
+			'config.roles.projectLayer' => 'Project',
+			'config.roles.auto' => 'auto',
+			'config.roles.assign' => 'Set',
+			'config.roles.clear' => 'Clear',
+			'config.roles.pickTitle' => ({required Object role}) => 'Model for ${role}',
+			'config.roles.searchModels' => 'Search models',
+			'config.roles.thinking' => 'Thinking level',
+			'config.roles.thinkingDefault' => 'model default',
+			'config.roles.useTyped' => ({required Object selector}) => 'Use ${selector}',
+			'config.roles.useTypedHint' => 'A model omp does not list as available here',
+			'config.roles.context' => ({required Object tokens}) => '${tokens} context',
+			'config.roles.vision' => 'images',
+			'config.roles.noModels' => 'No model matches.',
+			'config.accounts.machineWide' => 'Credentials are stored per machine.',
+			'config.accounts.sessionView' => ({required Object path}) => 'In use and pinned marks refer to the session in ${path}.',
+			'config.accounts.stored' => 'Stored credentials',
+			'config.accounts.none' => 'No stored credentials.',
+			'config.accounts.currentModel' => 'current model',
+			'config.accounts.noSource' => 'No working credential',
+			'config.accounts.fromEnv' => ({required Object name}) => 'From the environment variable ${name}',
+			'config.accounts.oauthAccount' => 'OAuth',
+			'config.accounts.apiKeyAccount' => 'API key',
+			'config.accounts.active' => 'in use',
+			'config.accounts.sticky' => 'pinned',
+			'config.accounts.expires' => ({required Object date}) => 'expires ${date}',
+			'config.accounts.pin' => 'Pin to session',
+			'config.accounts.pinned' => 'Account pinned to the session.',
+			'config.accounts.logout' => 'Log out',
+			'config.accounts.logoutTitle' => ({required Object account}) => 'Log out ${account}?',
+			'config.accounts.logoutBody' => ({required Object provider}) => 'The stored credential for ${provider} is removed from this machine.',
+			'config.accounts.oauth' => 'Log in with an account',
+			'config.accounts.oauthLocal' => 'The browser opens on this computer.',
+			'config.accounts.oauthRemote' => 'The browser opens on this device; the app forwards omp\'s callback port to the machine.',
+			'config.accounts.apiKey' => 'API key',
+			'config.accounts.apiKeyHint' => 'Stored in omp\'s credential store on the machine, like /login with a pasted key.',
+			'config.accounts.provider' => 'Provider',
+			'config.accounts.key' => 'Key',
+			'config.accounts.saveKey' => 'Save key',
+			'config.accounts.keyStored' => ({required Object provider}) => 'Key stored for ${provider}.',
+			'config.accounts.loginTitle' => ({required Object provider}) => 'Log in to ${provider}',
+			'config.accounts.waitingForLink' => 'Waiting for omp\'s authorization link…',
+			'config.accounts.openLink' => 'Open this link and sign in:',
+			'config.accounts.openBrowser' => 'Open browser',
+			'config.accounts.copyLink' => 'Copy link',
+			'config.accounts.forwarding' => ({required Object ports}) => 'Forwarding local port ${ports} to the machine for the callback.',
+			'config.accounts.forwardFailed' => ({required Object port, required Object error}) => 'Could not forward port ${port} (${error}). Paste the redirect URL when omp asks for it.',
+			'config.accounts.submit' => 'Submit',
+			'config.accounts.yes' => 'Yes',
+			'config.accounts.no' => 'No',
+			'config.accounts.loggedIn' => 'Logged in.',
+			'config.accounts.bootstrap' => 'No model works on this machine yet. Sign in with an account or add an API key; settings and roles work meanwhile.',
+			'config.mcp.userFile' => ({required Object path}) => 'User: ${path}',
+			'config.mcp.projectFile' => ({required Object path}) => 'Project: ${path}',
+			'config.mcp.add' => 'Add server',
+			'config.mcp.addTitle' => 'Add MCP server',
+			'config.mcp.reload' => 'Reload',
+			'config.mcp.resources' => 'Resources',
+			'config.mcp.prompts' => 'Prompts',
+			'config.mcp.smithery' => 'Search Smithery',
+			'config.mcp.none' => 'No MCP servers configured.',
+			'config.mcp.userScope' => 'user',
+			'config.mcp.projectScope' => 'project',
+			'config.mcp.test' => 'Test',
+			'config.mcp.removeTitle' => ({required Object name}) => 'Remove ${name}?',
+			'config.mcp.removeBody' => ({required Object scope}) => 'The server is removed from the ${scope} mcp.json.',
+			'config.mcp.name' => 'Name',
+			'config.mcp.command' => 'Command',
+			'config.mcp.url' => 'URL',
+			'config.mcp.token' => 'Bearer token (optional)',
+			'config.mcp.tokenHint' => 'Written into the user mcp.json as an Authorization header.',
+			'config.mcp.tokenUserOnly' => 'Only user-scope servers take a token here: a project session would keep it in its run log.',
+			'config.mcp.tuiOnly' => 'omp 18.3.1 offers reauth, unauth, reconnect and Smithery login only in its terminal UI.',
+			'config.mcp.testDisabled' => 'Enable the server to test it; omp loads only enabled servers.',
+			'config.plugins.inProject' => ({required Object path}) => 'Commands run in ${path}',
+			'config.plugins.installed' => 'Installed',
+			'config.plugins.none' => 'No plugins installed.',
+			'config.plugins.npm' => 'npm',
+			'config.plugins.uninstall' => 'Uninstall',
+			'config.plugins.upgrade' => 'Upgrade',
+			'config.plugins.update' => 'Update',
+			'config.plugins.marketplaceScope' => ({required Object scope}) => 'marketplace · ${scope}',
+			'config.plugins.shadowed' => 'shadowed',
+			'config.plugins.install' => 'Install',
+			'config.plugins.installHint' => 'An npm package, name@marketplace, github:user/repo, a git URL or a local path. npm installs need bun on the machine.',
+			'config.plugins.installPlaceholder' => '@oh-my-pi/exa',
+			'config.plugins.installAction' => 'Install',
+			'config.plugins.marketplaces' => 'Marketplaces',
+			'config.plugins.updateAll' => 'Update all',
+			'config.plugins.noMarketplaces' => 'No marketplaces configured.',
+			'config.plugins.isInstalled' => 'installed',
+			'config.plugins.sourcePlaceholder' => 'owner/repo, git URL or local path',
+			'config.plugins.addMarketplace' => 'Add marketplace',
+			'config.skills.registry' => 'Registry skills from skills.omp.sh',
+			'config.skills.installed' => 'Installed',
+			'config.skills.none' => 'No registry skills installed.',
+			'config.skills.notInstalled' => 'not installed',
+			'config.skills.range' => ({required Object range}) => 'range ${range}',
+			'config.skills.info' => 'Info',
+			'config.skills.search' => 'Search the registry',
+			'config.skills.searchHint' => 'pdf, git, review…',
+			'config.skills.searchAction' => 'Search',
+			'config.skills.results' => ({required Object shown, required Object total}) => '${shown} of ${total}',
+			'config.skills.downloads' => ({required Object number}) => '${number} weekly downloads',
+			'config.skills.by' => ({required Object name}) => 'by ${name}',
+			'config.skills.deprecated' => ({required Object reason}) => 'Deprecated: ${reason}',
+			'config.skills.installWhere' => ({required Object id}) => 'Install ${id} for',
+			'config.skills.forUser' => 'Every project (user)',
+			'config.skills.forProject' => ({required Object path}) => 'This project (${path})',
+			'config.skills.scriptsTitle' => 'This skill ships scripts',
+			'config.skills.scriptsBody' => 'Installing it runs its scripts on the machine. Install anyway?',
+			'config.skills.installAnyway' => 'Install anyway',
+			'config.skills.license' => ({required Object license}) => 'License: ${license}',
+			'config.skills.latest' => ({required Object version}) => 'Latest: ${version}',
+			'config.skills.versions' => ({required Object versions}) => 'Versions: ${versions}',
+			'config.skills.owners' => ({required Object owners}) => 'Owners: ${owners}',
+			'config.skills.downloadsTotal' => ({required Object weekly, required Object total}) => 'Downloads: ${weekly} weekly, ${total} total',
+			'config.skills.shipsScripts' => 'Ships scripts.',
+			'config.usage.generated' => ({required Object time}) => 'Fetched at ${time}',
+			'config.usage.fetchAgain' => 'Ask providers again',
+			'config.usage.none' => 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.',
+			'config.usage.plan' => ({required Object plan}) => 'plan ${plan}',
+			'config.usage.capacity' => 'Capacity',
+			'config.usage.capacityLine' => ({required Object remaining, required Object accounts}) => '${remaining} of ${accounts} accounts left',
+			'config.usage.withoutUsage' => 'Accounts without usage data',
+			'config.usage.disabled' => 'Disabled credentials',
+			'config.usage.left' => ({required Object amount}) => '${amount} left',
+			'config.usage.used' => ({required Object percent}) => '${percent}% used',
+			'config.usage.resets' => ({required Object duration}) => 'resets in ${duration}',
+			'config.usage.noData' => 'no data',
+			'config.stats.span' => ({required Object from, required Object to}) => '${from} – ${to}',
+			'config.stats.none' => 'No requests recorded yet.',
+			'config.stats.requests' => 'Requests',
+			'config.stats.errors' => 'Errors',
+			'config.stats.inputTokens' => 'Input tokens',
+			'config.stats.outputTokens' => 'Output tokens',
+			'config.stats.cacheRead' => 'Cache read',
+			'config.stats.cost' => 'Cost',
+			'config.stats.ttft' => 'Avg. first token',
+			'config.stats.speed' => 'Avg. speed',
+			'config.stats.perHour' => 'Requests per hour',
+			'config.stats.byModel' => 'By model',
+			'config.stats.byFolder' => 'By project',
+			'config.stats.byAgent' => 'By agent',
+			'config.stats.model' => 'Model',
+			'config.stats.folder' => 'Project',
+			'config.stats.agent' => 'Agent',
 			_ => null,
 		};
 	}

@@ -1,0 +1,3 @@
+Configured Marketplaces:
+
+  demo-market  /tmp/ompcfg-cli.V96t/src/demo-market

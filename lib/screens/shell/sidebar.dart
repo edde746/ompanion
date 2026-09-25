@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../i18n/strings.g.dart';
-import '../../models/machine.dart';
 import '../../providers/machines_provider.dart';
 import '../../providers/shell_provider.dart';
 import '../machines/machine_editor.dart';
 import '../machines/transfer_dialogs.dart';
+import '../sessions/machine_sessions.dart';
 
 /// Machines, then per machine its projects and sessions; SSH keys and settings at the bottom.
 class Sidebar extends StatelessWidget {
@@ -46,10 +46,7 @@ class Sidebar extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     children: [
                       for (final machine in machines.machines)
-                        MachineTile(
-                          machine: machine,
-                          selected: selection == MachineSelection(machine.id),
-                        ),
+                        MachineSection(key: ValueKey(machine.id), machine: machine),
                     ],
                   ),
           ),
@@ -108,34 +105,6 @@ class SidebarActions extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class MachineTile extends StatelessWidget {
-  const MachineTile({super.key, required this.machine, required this.selected});
-
-  final Machine machine;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final (icon, subtitle) = switch (machine) {
-      LocalMachine() => (Icons.computer, t.machines.thisComputer),
-      SshMachine(:final target, :final tailscale) => (tailscale ? Icons.lan_outlined : Icons.dns_outlined, target.label),
-    };
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: ListTile(
-        dense: true,
-        selected: selected,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-        leading: Icon(icon),
-        title: Text(machine.name, overflow: TextOverflow.ellipsis),
-        subtitle: Text(subtitle, overflow: TextOverflow.ellipsis),
-        onTap: () => context.read<ShellProvider>().select(MachineSelection(machine.id)),
-      ),
     );
   }
 }

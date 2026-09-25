@@ -3,9 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../../i18n/strings.g.dart';
 import '../../models/dock_tab.dart';
+import '../../providers/machines_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/shell_provider.dart';
+import '../../sessions/sessions_provider.dart';
+import '../dock/dock_tab_body.dart';
 
-/// The right dock: per-session tools. Every tab shows its empty state until a session is open.
+/// The right dock: per-session tools for the active session, or machine tools (files, terminal) for the
+/// machine selected in the sidebar.
 class DockPanel extends StatefulWidget {
   const DockPanel({super.key});
 
@@ -50,6 +55,14 @@ class _DockPanelState extends State<DockPanel> with SingleTickerProviderStateMix
         if (mounted && _tabs.index != selected.index) _tabs.animateTo(selected.index);
       });
     }
+    final sessions = context.watch<SessionsProvider>();
+    final session = sessions.active;
+    final machine =
+        (session == null ? null : sessions.machineOf(session)) ??
+        switch (context.watch<ShellProvider>().selection) {
+          MachineSelection(:final machineId) => context.watch<MachinesProvider>().byId(machineId),
+          _ => null,
+        };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -62,7 +75,11 @@ class _DockPanelState extends State<DockPanel> with SingleTickerProviderStateMix
         Expanded(
           child: TabBarView(
             controller: _tabs,
-            children: [for (final tab in DockTab.values) _EmptyPanel(tab)],
+            // Swipes would steal horizontal drags from the terminal, the editor and the tree.
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              for (final tab in DockTab.values) DockTabBody(tab: tab, session: session, machine: machine),
+            ],
           ),
         ),
       ],
@@ -77,38 +94,3 @@ String dockTabLabel(Translations t, DockTab tab) => switch (tab) {
   DockTab.files => t.dock.files,
   DockTab.terminal => t.dock.terminal,
 };
-
-class _EmptyPanel extends StatelessWidget {
-  const _EmptyPanel(this.tab);
-
-  final DockTab tab;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final icon = switch (tab) {
-      DockTab.agents => Icons.hub_outlined,
-      DockTab.todos => Icons.checklist,
-      DockTab.tree => Icons.account_tree_outlined,
-      DockTab.files => Icons.folder_outlined,
-      DockTab.terminal => Icons.terminal,
-    };
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 32, color: theme.colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(
-              context.t.dock.noSession,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

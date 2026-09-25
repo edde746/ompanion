@@ -1,0 +1,241 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:omp_core/host.dart';
+import 'package:omp_core/session.dart';
+import 'package:omp_core/transport.dart';
+import 'package:provider/provider.dart';
+
+import '../../i18n/strings.g.dart';
+import '../../models/machine.dart';
+import '../../sessions/sessions_provider.dart';
+import '../machines/connect_dialogs.dart';
+
+/// Installs omp on [machine] (docs/PLAN.md D12): omp's own installer pinned to a release when the machine has
+/// curl or wget, otherwise the release asset downloaded here and uploaded, checked against its SHA-256 on the
+/// machine. Shows the manual command too.
+Future<void> showInstallOmpDialog(BuildContext context, Machine machine) => showDialog<void>(
+  context: context,
+  barrierDismissible: false,
+  builder: (_) => _InstallOmpDialog(machine: machine),
+);
+
+sealed class _Phase {
+  const _Phase();
+}
+
+final class _Ready extends _Phase {
+  const _Ready();
+}
+
+final class _Running extends _Phase {
+  const _Running(this.message, {this.fraction});
+
+  final String message;
+  final double? fraction;
+}
+
+final class _Done extends _Phase {
+  const _Done(this.version);
+
+  final String version;
+}
+
+final class _Failed extends _Phase {
+  const _Failed(this.message);
+
+  final String message;
+}
+
+enum _Method { installer, upload }
+
+class _InstallOmpDialog extends StatefulWidget {
+  const _InstallOmpDialog({required this.machine});
+
+  final Machine machine;
+
+  @override
+  State<_InstallOmpDialog> createState() => _InstallOmpDialogState();
+}
+
+class _InstallOmpDialogState extends State<_InstallOmpDialog> {
+  _Phase _phase = const _Ready();
+
+  /// The newest release the app supports.
+  static final _version = ompReleases.last.version;
+
+  MachineRuntime get _runtime => context.read<SessionsProvider>().runtimeFor(widget.machine);
+
+  static _Method _method(HostProbe probe) =>
+      probe.isWindows || probe.curl || probe.wget ? _Method.installer : _Method.upload;
+
+  static String _manualCommand(HostProbe probe) =>
+      probe.isWindows ? windowsInstallCommand(probe, _version) : posixInstallCommand(probe, _version);
+
+  Future<void> _install(HostProbe probe) async {
+    final t = context.t;
+    final sessions = context.read<SessionsProvider>();
+    final runtime = _runtime;
+    try {
+      final link = runtime.link;
+      switch (_method(probe)) {
+        case _Method.installer:
+          setState(() => _phase = _Running(t.install.runningInstaller));
+          final result = probe.isWindows
+              ? await runPowerShell(link, probe.commandShell, windowsInstallCommand(probe, _version))
+              : await runPosixScript(link, posixInstallCommand(probe, _version));
+          if (result.exit.code != 0) throw result.failure(t.install.installerFailed);
+        case _Method.upload:
+          await _upload(link, probe);
+      }
+      setState(() => _phase = _Running(t.install.checking));
+      final installed = await runtime.connectAndProbe();
+      final version = installed.ompVersion;
+      if (runtime.status is! MachineOnline || version == null) {
+        final reason = switch (runtime.status) {
+          MachineNeedsOmp(:final reason) => reason,
+          final status => '$status',
+        };
+        throw HostLinkException(t.install.stillMissing(reason: reason));
+      }
+      unawaited(sessions.refresh(widget.machine));
+      if (mounted) setState(() => _phase = _Done(version));
+    } on Object catch (error) {
+      if (mounted) setState(() => _phase = _Failed(describeConnectError(t, error)));
+    }
+  }
+
+  /// Streams the release asset from GitHub straight into `uploadOmp`, which appends it over SFTP in 4 MiB
+  /// pieces, so the binary is never held in memory whole.
+  Future<void> _upload(HostLink link, HostProbe probe) async {
+    final t = context.t;
+    final asset = probe.releaseAsset;
+    if (asset == null) throw HostLinkException(t.install.noAsset(os: probe.os.name, arch: probe.arch));
+    final url = ompRelease(_version)!.assetUrl(asset);
+    final client = HttpClient();
+    try {
+      setState(() => _phase = _Running(t.install.downloading(asset: asset)));
+      final response = await (await client.getUrl(url)).close();
+      if (response.statusCode != HttpStatus.ok) {
+        throw HostLinkException(t.install.downloadFailed(status: response.statusCode, url: '$url'));
+      }
+      final total = response.contentLength;
+      var sent = 0;
+      var lastShown = DateTime.fromMillisecondsSinceEpoch(0);
+      final bytes = response.map((chunk) {
+        sent += chunk.length;
+        final now = DateTime.now();
+        if (mounted && now.difference(lastShown) > const Duration(milliseconds: 200)) {
+          lastShown = now;
+          setState(
+            () => _phase = _Running(
+              t.install.transferring(asset: asset, done: _mb(sent), total: total > 0 ? _mb(total) : '?'),
+              fraction: total > 0 ? sent / total : null,
+            ),
+          );
+        }
+        return chunk;
+      });
+      await uploadOmp(link, probe, _version, asset: bytes);
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  static String _mb(int bytes) => (bytes / (1 << 20)).toStringAsFixed(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final theme = Theme.of(context);
+    final status = _runtime.status;
+    final probe = switch (status) {
+      MachineNeedsOmp(:final probe) || MachineOnline(:final probe) => probe,
+      _ => null,
+    };
+    final reason = status is MachineNeedsOmp ? status.reason : null;
+    final phase = _phase;
+    final running = phase is _Running;
+    return AlertDialog(
+      title: Text(t.install.title(machine: widget.machine.name)),
+      content: SizedBox(
+        width: 560,
+        child: probe == null
+            ? Text(t.install.notConnected)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (reason != null) Text(reason),
+                  const SizedBox(height: 8),
+                  Text(
+                    t.install.facts(
+                      os: probe.os.name,
+                      arch: probe.arch,
+                      version: _version,
+                      dir: defaultInstallDir(probe),
+                    ),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(switch (_method(probe)) {
+                    _Method.installer => t.install.viaInstaller,
+                    _Method.upload => t.install.viaUpload,
+                  }),
+                  const SizedBox(height: 12),
+                  Text(t.install.manual, style: theme.textTheme.labelMedium),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: const BorderRadius.all(Radius.circular(8)),
+                          ),
+                          child: SelectableText(
+                            _manualCommand(probe),
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: t.common.copy,
+                        icon: const Icon(Icons.copy),
+                        onPressed: () => unawaited(Clipboard.setData(ClipboardData(text: _manualCommand(probe)))),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  switch (phase) {
+                    _Ready() => const SizedBox.shrink(),
+                    _Running(:final message, :final fraction) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [LinearProgressIndicator(value: fraction), const SizedBox(height: 6), Text(message)],
+                    ),
+                    _Done(:final version) => Text(
+                      t.install.done(version: version),
+                      style: TextStyle(color: theme.colorScheme.primary),
+                    ),
+                    _Failed(:final message) => Text(message, style: TextStyle(color: theme.colorScheme.error)),
+                  },
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: running ? null : () => Navigator.pop(context),
+          child: Text(phase is _Done ? t.common.close : t.common.cancel),
+        ),
+        if (probe != null && phase is! _Done)
+          FilledButton(
+            onPressed: running ? null : () => unawaited(_install(probe)),
+            child: Text(phase is _Failed ? t.common.retry : t.install.install),
+          ),
+      ],
+    );
+  }
+}

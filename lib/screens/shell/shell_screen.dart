@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
 import '../../i18n/strings.g.dart';
@@ -7,9 +10,15 @@ import '../../models/machine.dart';
 import '../../providers/machines_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/shell_provider.dart';
+import '../../sessions/sessions_provider.dart';
+import '../chat/chat_header.dart';
+import '../chat/chat_screen.dart';
+import '../config/machine_config_screen.dart';
+import '../dock/dock_controller.dart';
 import '../keys/keys_pane.dart';
 import '../machines/machine_detail_pane.dart';
 import '../machines/machine_editor.dart';
+import '../sessions/new_session_dialog.dart';
 import '../settings/settings_pane.dart';
 import 'dock_panel.dart';
 import 'layout.dart';
@@ -31,6 +40,12 @@ class ShellScreen extends StatelessWidget {
   }
 }
 
+/// The session the center pane shows: the active one while the chat is selected.
+LiveSession? shownSession(BuildContext context) {
+  final selection = context.watch<ShellProvider>().selection;
+  return selection is SessionSelection ? context.watch<SessionsProvider>().active : null;
+}
+
 /// Binds the app shortcuts. Callbacks left null disable their intent in that layout.
 class _ShellShortcuts extends StatelessWidget {
   const _ShellShortcuts({
@@ -44,6 +59,22 @@ class _ShellShortcuts extends StatelessWidget {
   final VoidCallback onTogglePanels;
   final ValueChanged<DockTab> onShowPanelTab;
   final Widget child;
+
+  /// The chat on screen, if any.
+  LiveSession? _session(BuildContext context) =>
+      context.read<ShellProvider>().selection is SessionSelection ? context.read<SessionsProvider>().active : null;
+
+  /// Where Cmd/Ctrl+N starts a session: the shown session's machine, else the selected machine, else the first.
+  Machine? _newSessionMachine(BuildContext context) {
+    final sessions = context.read<SessionsProvider>();
+    final machines = context.read<MachinesProvider>();
+    final session = _session(context);
+    if (session != null) return sessions.machineOf(session);
+    if (context.read<ShellProvider>().selection case MachineSelection(:final machineId)) {
+      return machines.byId(machineId);
+    }
+    return machines.machines.firstOrNull;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,10 +91,53 @@ class _ShellShortcuts extends StatelessWidget {
           OpenSettingsIntent: CallbackAction<OpenSettingsIntent>(
             onInvoke: (_) => context.read<ShellProvider>().select(const SettingsSelection()),
           ),
+          NewSessionIntent: CallbackAction<NewSessionIntent>(
+            onInvoke: (_) {
+              final machine = _newSessionMachine(context);
+              if (machine != null) unawaited(showNewSessionDialog(context, machine));
+              return null;
+            },
+          ),
+          TogglePauseIntent: _SessionAction<TogglePauseIntent>(
+            session: () => _session(context),
+            onInvoke: (session) => unawaited(togglePause(context, session)),
+          ),
+          OpenPaletteIntent: _SessionAction<OpenPaletteIntent>(
+            session: () => _session(context),
+            onInvoke: (session) => context.read<SessionsProvider>().draftOf(session).openPalette(),
+          ),
+          AbortRunIntent: _SessionAction<AbortRunIntent>(
+            session: () => _session(context),
+            // Esc passes through to other handlers unless a run is there to abort.
+            enabled: (session) => session.view.run.running,
+            onInvoke: (session) => unawaited(abortRun(context, session)),
+          ),
         },
         child: Focus(autofocus: true, child: child),
       ),
     );
+  }
+}
+
+/// An action on the shown session; disabled (the key passes on) while no chat is shown.
+class _SessionAction<T extends Intent> extends Action<T> {
+  _SessionAction({required this.session, required this.onInvoke, this.enabled});
+
+  final LiveSession? Function() session;
+  final void Function(LiveSession session) onInvoke;
+  final bool Function(LiveSession session)? enabled;
+
+  @override
+  bool isEnabled(T intent) {
+    final current = session();
+    return current != null && (enabled?.call(current) ?? true);
+  }
+
+  @override
+  Object? invoke(T intent) {
+    final current = session();
+    if (current != null) onInvoke(current);
+    return null;
   }
 }
 
@@ -78,6 +152,19 @@ class _WideShell extends StatefulWidget {
 
 class _WideShellState extends State<_WideShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  late final StreamSubscription<DockTab> _reveals;
+
+  @override
+  void initState() {
+    super.initState();
+    _reveals = context.read<DockController>().reveals.listen(_showPanelTab);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_reveals.cancel());
+    super.dispose();
+  }
 
   void _toggleSidebar() {
     final settings = context.read<SettingsProvider>();
@@ -125,7 +212,7 @@ class _WideShellState extends State<_WideShell> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (sidebarOpen) ...[
-                const SizedBox(width: 280, child: Sidebar(showHeader: true)),
+                const SizedBox(width: 300, child: Sidebar(showHeader: true)),
                 const VerticalDivider(width: 1),
               ],
               Expanded(
@@ -163,6 +250,29 @@ class _CenterPane extends StatelessWidget {
     final t = context.t;
     final selection = context.watch<ShellProvider>().selection;
     final machine = selectedMachine(context, selection);
+    final sidebarButton = IconButton(
+      tooltip: sidebarOpen ? t.shell.hideSidebar : t.shell.showSidebar,
+      icon: Icon(sidebarOpen ? Icons.menu_open : Icons.menu),
+      onPressed: onToggleSidebar,
+    );
+    final panelsButton = IconButton(
+      tooltip: panelsOpen ? t.shell.hidePanels : t.shell.showPanels,
+      icon: Icon(panelsOpen ? Icons.view_sidebar : Icons.view_sidebar_outlined),
+      onPressed: onTogglePanels,
+    );
+    final session = shownSession(context);
+    if (session != null) {
+      // Beside an open sidebar and dock the center can be narrow; the pickers then take a second row.
+      return LayoutBuilder(
+        builder: (context, constraints) => ChatScreen(
+          key: ObjectKey(session),
+          session: session,
+          leading: sidebarButton,
+          trailing: panelsButton,
+          compact: constraints.maxWidth < 760,
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -171,11 +281,7 @@ class _CenterPane extends StatelessWidget {
           child: Row(
             children: [
               const SizedBox(width: 4),
-              IconButton(
-                tooltip: sidebarOpen ? t.shell.hideSidebar : t.shell.showSidebar,
-                icon: Icon(sidebarOpen ? Icons.menu_open : Icons.menu),
-                onPressed: onToggleSidebar,
-              ),
+              sidebarButton,
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -184,11 +290,19 @@ class _CenterPane extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              IconButton(
-                tooltip: panelsOpen ? t.shell.hidePanels : t.shell.showPanels,
-                icon: Icon(panelsOpen ? Icons.view_sidebar : Icons.view_sidebar_outlined),
-                onPressed: onTogglePanels,
-              ),
+              if (machine != null) ...[
+                TextButton.icon(
+                  icon: const Icon(Icons.add_comment_outlined),
+                  label: Text(t.sessions.newSession),
+                  onPressed: () => unawaited(showNewSessionDialog(context, machine)),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.tune),
+                  label: Text(t.sessions.configure),
+                  onPressed: () => unawaited(openMachineConfig(context, machine)),
+                ),
+              ],
+              panelsButton,
               const SizedBox(width: 4),
             ],
           ),
@@ -211,6 +325,19 @@ class _NarrowShellState extends State<_NarrowShell> {
   static const _homeKey = ValueKey('home');
   static const _panelsKey = ValueKey('panels');
   final _navigatorKey = GlobalKey<NavigatorState>();
+  late final StreamSubscription<DockTab> _reveals;
+
+  @override
+  void initState() {
+    super.initState();
+    _reveals = context.read<DockController>().reveals.listen(_showPanelTab);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_reveals.cancel());
+    super.dispose();
+  }
 
   void _showPanelTab(DockTab tab) {
     context.read<SettingsProvider>().set(Prefs.dockTab, tab);
@@ -221,6 +348,7 @@ class _NarrowShellState extends State<_NarrowShell> {
   Widget build(BuildContext context) {
     final shell = context.watch<ShellProvider>();
     final selection = shell.selection;
+    final session = shownSession(context);
     return _ShellShortcuts(
       onTogglePanels: () => shell.setPanelsPageOpen(!shell.panelsPageOpen),
       onShowPanelTab: _showPanelTab,
@@ -230,7 +358,9 @@ class _NarrowShellState extends State<_NarrowShell> {
           key: _navigatorKey,
           pages: [
             const MaterialPage<void>(key: _homeKey, child: _NarrowHomePage()),
-            if (selection is! HomeSelection)
+            if (session != null)
+              MaterialPage<void>(key: ObjectKey(session), child: _NarrowChatPage(session))
+            else if (selection is! HomeSelection)
               MaterialPage<void>(key: ValueKey(selection), child: _NarrowSelectionPage(selection)),
             if (shell.panelsPageOpen) const MaterialPage<void>(key: _panelsKey, child: _NarrowPanelsPage()),
           ],
@@ -266,6 +396,31 @@ class _NarrowHomePage extends StatelessWidget {
         ],
       ),
       body: const SafeArea(child: Sidebar(showHeader: false)),
+    );
+  }
+}
+
+class _NarrowChatPage extends StatelessWidget {
+  const _NarrowChatPage(this.session);
+
+  final LiveSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Scaffold(
+      body: SafeArea(
+        child: ChatScreen(
+          session: session,
+          compact: true,
+          leading: const BackButton(),
+          trailing: IconButton(
+            tooltip: t.shell.showPanels,
+            icon: const Icon(Icons.view_sidebar_outlined),
+            onPressed: () => context.read<ShellProvider>().setPanelsPageOpen(true),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -306,16 +461,17 @@ Machine? selectedMachine(BuildContext context, ShellSelection selection) => swit
 String selectionTitle(BuildContext context, ShellSelection selection, Machine? machine) {
   final t = context.t;
   return switch (selection) {
-    HomeSelection() => t.app.title,
+    HomeSelection() || SessionSelection() => t.app.title,
     MachineSelection() => machine?.name ?? t.app.title,
     KeysSelection() => t.shell.keysTitle,
     SettingsSelection() => t.shell.settingsTitle,
   };
 }
 
+/// Every selection but an open chat, which the layouts show themselves.
 Widget selectionBody(ShellSelection selection, Machine? machine) => switch (selection) {
   MachineSelection() when machine != null => MachineDetailPane(key: ValueKey(machine.id), machine: machine),
-  HomeSelection() || MachineSelection() => const _HomePane(),
+  HomeSelection() || MachineSelection() || SessionSelection() => const _HomePane(),
   KeysSelection() => const KeysPane(),
   SettingsSelection() => const SettingsPane(),
 };

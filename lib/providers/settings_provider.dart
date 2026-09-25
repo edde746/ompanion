@@ -28,6 +28,16 @@ final class BoolPref extends Pref<bool> {
   Object? encode(bool value) => value;
 }
 
+final class StringPref extends Pref<String> {
+  const StringPref(super.key, super.defaultValue);
+
+  @override
+  String decode(Object? json) => json is String ? json : throw FormatException('setting $key: expected a string');
+
+  @override
+  Object? encode(String value) => value;
+}
+
 final class EnumPref<T extends Enum> extends Pref<T> {
   const EnumPref(super.key, super.defaultValue, this.values);
 
@@ -53,6 +63,10 @@ abstract final class Prefs {
 
   /// Set once "this computer" was added automatically, so deleting it sticks.
   static const localMachineSeeded = BoolPref('local_machine_seeded', false);
+
+  /// Namespaces this install's RPC request ids and companion call ids on shared sessions; generated once.
+  /// Empty until `main` generates it.
+  static const deviceId = StringPref('device_id', '');
 }
 
 /// App settings, loaded once at startup; reads are synchronous afterwards.

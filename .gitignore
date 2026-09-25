@@ -54,5 +54,7 @@ local.properties
 # Bun / TypeScript
 node_modules/
 companion/dist/
+# Built by scripts/build_companion.sh
+/assets/companion/ompx.js
 
 .DS_Store

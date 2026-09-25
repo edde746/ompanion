@@ -1,0 +1,171 @@
+Synced 4 new entries from 2 files (2 total)
+
+{
+  "overall": {
+    "totalRequests": 2,
+    "successfulRequests": 2,
+    "failedRequests": 0,
+    "errorRate": 0,
+    "totalInputTokens": 6468,
+    "totalOutputTokens": 2,
+    "totalCacheReadTokens": 0,
+    "totalCacheWriteTokens": 0,
+    "cacheRate": 0,
+    "cacheSavings": 0,
+    "totalCost": 0,
+    "unpricedRequests": 0,
+    "totalPremiumRequests": 0,
+    "avgDuration": 31.51985400000035,
+    "avgTtft": 30.613895500000126,
+    "avgTokensPerSecond": 45.41011192159142,
+    "firstTimestamp": 1790358385569,
+    "lastTimestamp": 1790358387444
+  },
+  "byModel": [
+    {
+      "model": "fake-1",
+      "provider": "fake",
+      "totalRequests": 1,
+      "successfulRequests": 1,
+      "failedRequests": 0,
+      "errorRate": 0,
+      "totalInputTokens": 3233,
+      "totalOutputTokens": 1,
+      "totalCacheReadTokens": 0,
+      "totalCacheWriteTokens": 0,
+      "cacheRate": 0,
+      "cacheSavings": 0,
+      "totalCost": 0,
+      "unpricedRequests": 0,
+      "totalPremiumRequests": 0,
+      "avgDuration": 48.8226250000007,
+      "avgTtft": 47.72345800000039,
+      "avgTokensPerSecond": 20.4823071270745,
+      "firstTimestamp": 1790358385569,
+      "lastTimestamp": 1790358385569
+    },
+    {
+      "model": "fake-think",
+      "provider": "fake",
+      "totalRequests": 1,
+      "successfulRequests": 1,
+      "failedRequests": 0,
+      "errorRate": 0,
+      "totalInputTokens": 3235,
+      "totalOutputTokens": 1,
+      "totalCacheReadTokens": 0,
+      "totalCacheWriteTokens": 0,
+      "cacheRate": 0,
+      "cacheSavings": 0,
+      "totalCost": 0,
+      "unpricedRequests": 0,
+      "totalPremiumRequests": 0,
+      "avgDuration": 14.217083000000002,
+      "avgTtft": 13.50433299999986,
+      "avgTokensPerSecond": 70.33791671610835,
+      "firstTimestamp": 1790358387444,
+      "lastTimestamp": 1790358387444
+    }
+  ],
+  "byFolder": [
+    {
+      "folder": "-work-demo-project",
+      "totalRequests": 2,
+      "successfulRequests": 2,
+      "failedRequests": 0,
+      "errorRate": 0,
+      "totalInputTokens": 6468,
+      "totalOutputTokens": 2,
+      "totalCacheReadTokens": 0,
+      "totalCacheWriteTokens": 0,
+      "cacheRate": 0,
+      "cacheSavings": 0,
+      "totalCost": 0,
+      "unpricedRequests": 0,
+      "totalPremiumRequests": 0,
+      "avgDuration": 31.51985400000035,
+      "avgTtft": 30.613895500000126,
+      "avgTokensPerSecond": 45.41011192159142,
+      "firstTimestamp": 1790358385569,
+      "lastTimestamp": 1790358387444
+    }
+  ],
+  "byAgentType": [
+    {
+      "agentType": "main",
+      "totalRequests": 2,
+      "totalInputTokens": 6468,
+      "totalOutputTokens": 2,
+      "totalCacheReadTokens": 0,
+      "totalCacheWriteTokens": 0,
+      "totalCost": 0
+    }
+  ],
+  "timeSeries": [
+    {
+      "timestamp": 1790355600000,
+      "requests": 2,
+      "errors": 0,
+      "tokens": 6470,
+      "cost": 0
+    }
+  ],
+  "modelSeries": [
+    {
+      "timestamp": 1790355600000,
+      "model": "fake-1",
+      "provider": "fake",
+      "requests": 1
+    },
+    {
+      "timestamp": 1790355600000,
+      "model": "fake-think",
+      "provider": "fake",
+      "requests": 1
+    }
+  ],
+  "modelPerformanceSeries": [
+    {
+      "timestamp": 1790355600000,
+      "model": "fake-1",
+      "provider": "fake",
+      "requests": 1,
+      "avgTtft": 47.72345800000039,
+      "avgTokensPerSecond": 20.4823071270745
+    },
+    {
+      "timestamp": 1790355600000,
+      "model": "fake-think",
+      "provider": "fake",
+      "requests": 1,
+      "avgTtft": 13.50433299999986,
+      "avgTokensPerSecond": 70.33791671610835
+    }
+  ],
+  "costSeries": [
+    {
+      "timestamp": 1790294400000,
+      "model": "fake-1",
+      "provider": "fake",
+      "cost": 0,
+      "unpricedRequests": 0,
+      "costInput": 0,
+      "costOutput": 0,
+      "costCacheRead": 0,
+      "costCacheWrite": 0,
+      "requests": 1
+    },
+    {
+      "timestamp": 1790294400000,
+      "model": "fake-think",
+      "provider": "fake",
+      "cost": 0,
+      "unpricedRequests": 0,
+      "costInput": 0,
+      "costOutput": 0,
+      "costCacheRead": 0,
+      "costCacheWrite": 0,
+      "requests": 1
+    }
+  ]
+}

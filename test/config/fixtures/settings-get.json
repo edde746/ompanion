@@ -1,0 +1,208 @@
+{
+  "settings": [
+    {
+      "path": "auth.broker.token",
+      "value": null,
+      "provenance": "default"
+    },
+    {
+      "path": "enabledModels",
+      "value": [],
+      "provenance": "default"
+    },
+    {
+      "path": "modelRoleStorage",
+      "value": "global",
+      "provenance": "default"
+    },
+    {
+      "path": "modelRoles",
+      "value": {
+        "default": "fake/fake-1"
+      },
+      "provenance": "runtime"
+    },
+    {
+      "path": "autoResume",
+      "value": false,
+      "provenance": "default"
+    },
+    {
+      "path": "theme.dark",
+      "value": "titanium",
+      "provenance": "default"
+    },
+    {
+      "path": "composer.shape",
+      "value": "band",
+      "provenance": "default"
+    },
+    {
+      "path": "statusLine.leftSegments",
+      "value": [
+        "vim",
+        "model",
+        "mode",
+        "path",
+        "git",
+        "pr"
+      ],
+      "provenance": "default"
+    },
+    {
+      "path": "tui.hyperlinks",
+      "value": "auto",
+      "provenance": "default"
+    },
+    {
+      "path": "steeringMode",
+      "value": "one-at-a-time",
+      "provenance": "default"
+    },
+    {
+      "path": "loop.conditionTimeoutMs",
+      "value": 30000,
+      "provenance": "default"
+    },
+    {
+      "path": "startup.checkUpdate",
+      "value": false,
+      "provenance": "global"
+    },
+    {
+      "path": "externalThinking",
+      "value": false,
+      "provenance": "default"
+    },
+    {
+      "path": "model.loopGuard.enabled",
+      "value": true,
+      "provenance": "default"
+    },
+    {
+      "path": "retry.enabled",
+      "value": true,
+      "provenance": "default"
+    },
+    {
+      "path": "advisor.enabled",
+      "value": false,
+      "provenance": "runtime"
+    },
+    {
+      "path": "compaction.methodOrder",
+      "value": [
+        "remote",
+        "snapcompact",
+        "handoff",
+        "shake",
+        "soft"
+      ],
+      "provenance": "default"
+    },
+    {
+      "path": "mnemopi.embeddingModel",
+      "value": null,
+      "provenance": "default"
+    },
+    {
+      "path": "mnemopi.embeddingApiKey",
+      "value": null,
+      "provenance": "default"
+    },
+    {
+      "path": "hindsight.recallBudget",
+      "value": "mid",
+      "provenance": "default"
+    },
+    {
+      "path": "ttsr.disabledRules",
+      "value": [],
+      "provenance": "default"
+    },
+    {
+      "path": "edit.fuzzyThreshold",
+      "value": 0.95,
+      "provenance": "default"
+    },
+    {
+      "path": "tools.approval",
+      "value": {},
+      "provenance": "default"
+    },
+    {
+      "path": "bashInterceptor.patterns",
+      "value": [
+        {
+          "pattern": "^\\s*(cat|head|tail|less|more)\\s+",
+          "tool": "read",
+          "message": "Use the `read` tool instead of cat/head/tail. It provides better context and handles binary files."
+        },
+        {
+          "pattern": "^\\s*(grep|rg|ripgrep|ag|ack)\\s+",
+          "tool": "grep",
+          "message": "Use the `grep` tool instead of grep/rg. It respects .gitignore and provides structured output."
+        },
+        {
+          "pattern": "^\\s*(find|fd|locate)\\s+.*(-name|-iname|-type|--type|-glob)",
+          "tool": "glob",
+          "message": "Use the `glob` tool instead of find/fd. It respects .gitignore and is faster for glob patterns."
+        },
+        {
+          "pattern": "^\\s*sed\\s+(-i|--in-place)",
+          "tool": "edit",
+          "message": "Use the `edit` tool instead of sed -i. It provides diff preview and fuzzy matching."
+        },
+        {
+          "pattern": "^\\s*perl\\s+.*-[pn]?i",
+          "tool": "edit",
+          "message": "Use the `edit` tool instead of perl -i. It provides diff preview and fuzzy matching."
+        },
+        {
+          "pattern": "^\\s*awk\\s+.*-i\\s+inplace",
+          "tool": "edit",
+          "message": "Use the `edit` tool instead of awk -i inplace. It provides diff preview and fuzzy matching."
+        },
+        {
+          "pattern": "^\\s*(echo|printf|cat\\s*<<)\\s+(?:(?:[^\"'>]|\"[^\"]*\"|'[^']*')|(?<!\\|)>{1,2}\\|?\\s*(?:\"/dev/(?:null|tty|stdout|stderr)\"|'/dev/(?:null|tty|stdout|stderr)'|/dev/(?:null|tty|stdout|stderr))(?:[\\s;&|]|$))*(?<!\\|)>{1,2}\\|?\\s*(?!(?:\"/dev/(?:null|tty|stdout|stderr)\"|'/dev/(?:null|tty|stdout|stderr)'|/dev/(?:null|tty|stdout|stderr))(?:[\\s;&|]|$))[$\\w./~\"'-]",
+          "tool": "write",
+          "message": "Use the `write` tool instead of echo/cat redirection. It handles encoding and provides confirmation."
+        },
+        {
+          "pattern": "^\\s*nohup\\s+|(?<!&)\\&\\s*$",
+          "tool": "bash",
+          "message": "Use `bash` with `name` instead of nohup or background shell syntax so the service stays observable and managed."
+        },
+        {
+          "pattern": "^\\s*(?:(?:bun|npm|pnpm|yarn)\\s+(?:run\\s+)?(?:dev|start)(?:\\s|$)|(?:vite|next\\s+dev|nuxt\\s+dev|nodemon|lldb|gdb|tail\\s+-f)(?:\\s|$)|docker\\s+compose\\s+up(?!.*(?:\\s-d(?:\\s|$)|--detach))(?:\\s|$))",
+          "tool": "bash",
+          "message": "Use `bash` with `name` for services, watchers, and debuggers; inspect with `read proc://<name>`."
+        },
+        {
+          "pattern": "^\\s*(?:(?:bun|npm|pnpm|yarn)\\s+(?:run\\s+)?\\S+|cargo\\s+watch|watchexec|pytest|vitest|jest|tsc)(?:.|\\n)*(?:--watch|-w)(?:\\s|$)",
+          "tool": "bash",
+          "message": "Use `bash` with `name` for watch mode so its output, input, and lifecycle stay managed."
+        }
+      ],
+      "provenance": "default"
+    },
+    {
+      "path": "images.urls.credentials",
+      "provenance": "default",
+      "redacted": true
+    }
+  ],
+  "conditions": {
+    "hasImageProtocol": false,
+    "advisorEnabled": false,
+    "usageAwareFallbackEnabled": false,
+    "autoThinkingActive": false,
+    "vimModeEnabled": false,
+    "macOS": true,
+    "autolearnActive": false,
+    "mnemopiActive": false,
+    "hindsightActive": false,
+    "planModeEnabled": true,
+    "planAutosaveEnabled": false
+  }
+}

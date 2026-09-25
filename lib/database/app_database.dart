@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../app/dev_overrides.dart';
 import 'tables.dart';
 
 export 'tables.dart';
@@ -12,13 +15,19 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
-  /// The app's database file in the platform's application support directory.
+  /// The app's database file in the platform's application support directory, or in `OMP_APP_DATA_DIR`.
   factory AppDatabase.open() => AppDatabase(
     driftDatabase(
       name: 'omp_app',
-      native: const DriftNativeOptions(databaseDirectory: getApplicationSupportDirectory),
+      native: DriftNativeOptions(databaseDirectory: _databaseDirectory),
     ),
   );
+
+  static Future<Directory> _databaseDirectory() async {
+    final override = devDataDir;
+    if (override == null) return getApplicationSupportDirectory();
+    return Directory(override).create(recursive: true);
+  }
 
   @override
   int get schemaVersion => 1;
