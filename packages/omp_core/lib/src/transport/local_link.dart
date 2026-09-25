@@ -71,6 +71,12 @@ final class _LocalProcess implements HostProcess {
 
   @override
   void kill() => _process.kill();
+
+  @override
+  Future<void> close() async {
+    _process.kill();
+    await _process.exitCode;
+  }
 }
 
 final class _LocalFiles implements HostFiles {
@@ -167,7 +173,15 @@ final class _LocalFiles implements HostFiles {
   Future<void> removeDir(String path) => Directory(_native(path)).delete();
 
   @override
-  Future<void> rename(String from, String to) => File(_native(from)).rename(_native(to));
+  Future<void> rename(String from, String to) async {
+    final native = _native(from);
+    // SFTP renames directories as well; dart:io's File.rename refuses them.
+    if (await FileSystemEntity.isDirectory(native)) {
+      await Directory(native).rename(_native(to));
+    } else {
+      await File(native).rename(_native(to));
+    }
+  }
 
   @override
   Future<String> home() async {

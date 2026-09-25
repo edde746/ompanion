@@ -6,15 +6,21 @@ import '../store/session_view.dart';
 
 /// One open omp session as the UI sees it: a live view plus the clients to command it.
 ///
-/// Owned by `SessionRuntime` (lib/src/session/session_runtime.dart), which launches or attaches the
-/// run, feeds every frame through the reducer, reconnects after link loss and resyncs the view.
-/// The UI never talks to transports directly.
+/// Created by `MachineRuntime.open` and `MachineRuntime.control`, which launch or attach the run, feed every
+/// frame through the reducer, reconnect after link loss and resync the view. The UI never talks to transports
+/// directly.
 abstract interface class LiveSession {
-  /// Identifies the run directory on the machine; stable across reconnects and devices.
+  /// Identifies the run directory on the machine; stable across reconnects and devices. `control` for the
+  /// machine's control session, which has no run directory.
   String get runId;
 
-  /// Absolute session file path on the machine, or null for a session omp has not persisted yet.
+  /// Absolute session file path on the machine as omp reports it (`get_state.sessionFile`); omp writes the
+  /// file with the first message. Null for the control session (`--no-session`). Follows session switches
+  /// inside the run (`new_session`, `switch_session`, `branch`, fork, …).
   String? get sessionPath;
+
+  /// Host-native working directory omp runs in (`--cwd`).
+  String get cwd;
 
   /// Current view. Replaced, never mutated; compare with `identical`.
   SessionView get view;
@@ -35,7 +41,23 @@ abstract interface class LiveSession {
   /// Companion client of the current connection; same lifetime rules as [rpc].
   CompanionClient get companion;
 
-  /// Detaches this device. The omp process keeps running for other devices.
+  /// The companion's `hello` from the first attach: its version, verbs and events. Null when the process has no
+  /// companion; then every [companion] call would reach the model as a prompt, so never make one.
+  CompanionHello? get companionHello;
+
+  /// Closes request [id] in this device's view at once: after answering it here (every device also closes it
+  /// when the answer reaches `in.jsonl`), or for one-shot requests (`EditorTextRequest`, `OpenUrlRequest`) and
+  /// dialogs whose timeout passed.
+  void dismissRequest(String id);
+
+  /// Removes toast [seq] from the view.
+  void dismissNotice(int seq);
+
+  /// While [linkState] is [LinkReconnecting]: starts the next attempt now instead of at `nextTry`.
+  void reconnectNow();
+
+  /// Detaches this device. The omp process keeps running for other devices. The control session's process
+  /// ends; the next `MachineRuntime.control` starts a new one.
   Future<void> detach();
 
   /// Stops the omp process gracefully (EOF on its stdin), then detaches.

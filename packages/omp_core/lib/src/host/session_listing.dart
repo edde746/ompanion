@@ -19,6 +19,7 @@ final class SessionSummary {
     this.created,
     this.parentSession,
     this.version,
+    this.runId,
   });
 
   /// Host-native absolute path of the `.jsonl` file.
@@ -46,6 +47,27 @@ final class SessionSummary {
 
   /// Session format version; null for v1 files.
   final int? version;
+
+  /// The live run holding this session on the machine; set by `MachineRuntime.listSessions`, null from the plain
+  /// listing and for sessions no omp process holds.
+  final String? runId;
+
+  bool get running => runId != null;
+
+  SessionSummary withRun(String? runId) => SessionSummary(
+    path: path,
+    size: size,
+    modified: modified,
+    id: id,
+    profile: profile,
+    title: title,
+    titleSource: titleSource,
+    cwd: cwd,
+    created: created,
+    parentSession: parentSession,
+    version: version,
+    runId: runId,
+  );
 }
 
 /// Lists the session files of every omp profile on the machine in one round trip: `<sessions>/*/*.jsonl`

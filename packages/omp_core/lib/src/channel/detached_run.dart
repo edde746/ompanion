@@ -218,16 +218,78 @@ Future<List<String>> removeDeadRuns(HostLink link, HostProbe probe, {Duration ol
 /// meanwhile. Call it only while the session is settled: output omp writes during the rotation lands in the
 /// new generation ahead of its first line. Attached channels continue seamlessly when they had read
 /// everything, otherwise their `lines` fail with [RunLogGap]. POSIX only: cmd.exe's `>>` keeps writing at
-/// its old offset after a truncation. Returns the new generation.
-Future<int> rotateRunOutput(HostLink link, HostProbe probe, DetachedRun run) async {
+/// its old offset after a truncation. Returns the new generation, or the current one when `out.jsonl` holds
+/// fewer than [minSize] bytes under the lock (another device rotated first) and was left alone.
+Future<int> rotateRunOutput(HostLink link, HostProbe probe, DetachedRun run, {int minSize = 0}) async {
   if (probe.isWindows) throw UnsupportedError('out.jsonl is not rotated on Windows hosts');
   final marker = newMarker();
   final result = await runPosixScript(
     link,
-    'm=${shQuote(marker)}; d=${shQuote(run.dir)}\n$posixLockFunctions$_processFunctions$_rotateBody',
+    'm=${shQuote(marker)}; d=${shQuote(run.dir)}; min=$minSize\n$posixLockFunctions$_processFunctions$_rotateBody',
   );
   if (result.exit.code != 0) throw result.failure('rotating ${run.dir}/out.jsonl failed');
   return int.parse(result.payload(marker).trim().split(' ').first);
+}
+
+/// Records [sessionPath] as the session [run] holds in its `meta.json`, so a device opening that session finds this
+/// run instead of launching a second omp. omp changes files inside a run (`new_session`, `switch_session`,
+/// `branch`, fork), and a run launched without `--session` learns its file from `get_state`. Holds the launch lock,
+/// so a launch looking for the session sees either record, and on POSIX the append lock, so a rotation's own
+/// rewrite of `meta.json` cannot interleave. Returns whether `meta.json` changed.
+Future<bool> recordRunSession(HostLink link, HostProbe probe, DetachedRun run, String sessionPath) async {
+  final meta = run.meta;
+  if (meta == null) throw HostLinkException('run ${run.id} has no readable meta.json');
+  if (probe.isWindows) return _recordWindowsRunSession(link, probe, run, sessionPath);
+  final generation = '"generation":${meta.generation}';
+  final text = jsonEncode(_withSession(meta, sessionPath).toJson());
+  // String values escape every `"`, so the key occurs once; the script puts the current generation between the halves.
+  final at = text.indexOf('$generation,');
+  final marker = newMarker();
+  final result = await runPosixScript(
+    link,
+    'm=${shQuote(marker)}; R=${shQuote(runRoot(probe))}; d=${shQuote(run.dir)}\n'
+    'session=${shQuote('"sessionPath":${jsonEncode(sessionPath)},')}\n'
+    'head=${shQuote(text.substring(0, at + '"generation":'.length))}; tail=${shQuote(text.substring(at + generation.length))}\n'
+    '$posixLockFunctions$_recordBody',
+  );
+  if (result.exit.code != 0) throw result.failure('recording the session of run ${run.id} failed');
+  return result.payload(marker).trim() == 'updated';
+}
+
+RunMeta _withSession(RunMeta meta, String sessionPath) => RunMeta(
+  id: meta.id,
+  cwd: meta.cwd,
+  omp: meta.omp,
+  ompVersion: meta.ompVersion,
+  args: meta.args,
+  generation: meta.generation,
+  created: meta.created,
+  sessionPath: sessionPath,
+  companion: meta.companion,
+);
+
+/// Windows runs are never rotated, so `meta.json` is rewritten whole, under the SFTP launch lock.
+Future<bool> _recordWindowsRunSession(HostLink link, HostProbe probe, DetachedRun run, String sessionPath) async {
+  final files = await link.files();
+  try {
+    final lock = toSftpPath('${runRoot(probe)}\\.launch.lock');
+    await acquireDirLock(files, lock, timeout: const Duration(seconds: 60), stale: const Duration(seconds: 60));
+    try {
+      final path = '${toSftpPath(run.dir)}/meta.json';
+      final meta = parseRunMeta(utf8.decode(await files.read(path), allowMalformed: true));
+      if (meta == null) throw HostLinkException('run ${run.id} has no readable meta.json');
+      if (meta.sessionPath == sessionPath) return false;
+      final temp = '$path.${newMarker()}.tmp';
+      await files.write(temp, utf8.encode('${jsonEncode(_withSession(meta, sessionPath).toJson())}\n'));
+      await files.remove(path);
+      await files.rename(temp, path);
+      return true;
+    } finally {
+      await files.removeDir(lock);
+    }
+  } finally {
+    await files.close();
+  }
 }
 
 final _random = Random.secure();
@@ -478,9 +540,27 @@ lock "$d/in.lock" 30 || { echo "no run directory $d" >&2; exit 1; }
 trap 'rmdir "$d/in.lock" 2>/dev/null' EXIT
 g=$(sed -n 's/.*"generation":\([0-9][0-9]*\).*/\1/p' "$d/meta.json")
 if [ -z "$g" ]; then echo "no generation in $d/meta.json" >&2; exit 1; fi
-n=$((g + 1)); s=$(size "$d/out.jsonl")
+s=$(size "$d/out.jsonl")
+if [ "$s" -lt "$min" ]; then printf '%s:begin\n%s %s\n%s:end\n' "$m" "$g" "$s" "$m"; exit 0; fi
+n=$((g + 1))
 sed "s/\"generation\":$g/\"generation\":$n/" "$d/meta.json" > "$d/meta.json.tmp" && mv -f "$d/meta.json.tmp" "$d/meta.json" || exit 1
 : > "$d/out.jsonl"
 printf '{"type":"omp_app_rotate","generation":%d,"previousSize":%d}\n' "$n" "$s" >> "$d/out.jsonl"
 printf '%s:begin\n%s %s\n%s:end\n' "$m" "$n" "$s" "$m"
+''';
+
+/// Lock order: launch lock, then append lock (rotation takes only the latter, launches only the former).
+const _recordBody = r'''
+lock "$R/.launch.lock" 60 || exit 1
+trap 'rmdir "$R/.launch.lock" 2>/dev/null' EXIT
+lock "$d/in.lock" 30 || { echo "no run directory $d" >&2; exit 1; }
+trap 'rmdir "$d/in.lock" 2>/dev/null; rmdir "$R/.launch.lock" 2>/dev/null' EXIT
+r=same
+if ! grep -qF "$session" "$d/meta.json"; then
+  g=$(sed -n 's/.*"generation":\([0-9][0-9]*\).*/\1/p' "$d/meta.json")
+  if [ -z "$g" ]; then echo "no generation in $d/meta.json" >&2; exit 1; fi
+  printf '%s%s%s\n' "$head" "$g" "$tail" > "$d/meta.json.tmp" && mv -f "$d/meta.json.tmp" "$d/meta.json" || exit 1
+  r=updated
+fi
+printf '%s:begin\n%s\n%s:end\n' "$m" "$r" "$m"
 ''';

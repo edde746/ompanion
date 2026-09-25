@@ -52,6 +52,10 @@ abstract interface class HostProcess {
 
   /// Best effort: SIGTERM over SSH, `Process.kill` locally.
   void kill();
+
+  /// Ends the process for good: over SSH the channel closes, so sshd hangs up a PTY session (interactive shells
+  /// ignore [kill]'s SIGTERM); locally the process is killed. Completes when the channel or process is gone.
+  Future<void> close();
 }
 
 final class HostExit {

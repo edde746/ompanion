@@ -136,57 +136,69 @@ session is open, the companion's `listAllSessions()` gives titles, message count
 
 Closing an rpc process's stdin or stdout disposes the session, and dispose aborts the running turn
 (`rpc-mode.ts` 837-840, `agent-session.ts` 4908). That is why sessions do not run on the SSH channel
-itself.
+itself. Measurements and the reason for each step: `research/m0-detached-sessions.md`. Code:
+`packages/omp_core/lib/src/channel/` (run directories) and `lib/src/session/` (`MachineRuntime`,
+`LiveSession`); `dart run omp_core:ompctl` drives both from a terminal.
 
-### Detached (macOS and Linux hosts, and this computer on macOS/Linux)
+### Detached runs (macOS and Linux hosts, and this computer on macOS/Linux)
 
 Run directory `~/.omp-app/run/<runId>/`, mode 0700:
 
 | File | Purpose |
 |---|---|
 | `in.jsonl` | every command from every device, one JSON line each |
-| `out.jsonl` | omp's stdout, appended |
+| `out.jsonl` | omp's stdout, plus the app's markers: `omp_app_exit` after omp exits, `omp_app_rotate` first in a rotated generation |
 | `err.log` | omp's stderr |
-| `meta.json` | session path, cwd, omp version, companion build, launch args, generation |
-| `omp.pid`, `tail.pid`, `exit` | liveness and exit code |
-| `overlay.yml` | per-launch `--config` overlay (below); its path is also the process marker |
-| `in.lock/` | `mkdir` lock held for the duration of one append |
+| `meta.json` | session file, cwd, omp, companion, launch args, `out.jsonl` generation |
+| `run.sh`, `omp.pid`, `tail.pid`, `exit` | the pipeline, liveness, exit code |
+| `overlay.yml` | the `--config` overlay; its path in omp's command line identifies the process |
+| `in.lock/` | `mkdir` lock held for one append, a rotation or a `meta.json` update |
 
-Launch (sent over stdin to `sh -s`; `$OMP` is the probed absolute path, `--session` is omp's alias of
-`--resume`):
-
-```sh
-cd "$CWD" || exit 1
-nohup sh -c 'tail -c +1 -f "$0/in.jsonl" & echo $! > "$0/tail.pid"; wait' "$D" 2>/dev/null </dev/null \
-  | nohup sh -c '"$1" --mode rpc-ui --config "$0/overlay.yml" -e "$3" --session "$2"; echo $? > "$0/exit"' \
-      "$D" "$OMP" "$SESSION" "$COMPANION" >> "$D/out.jsonl" 2>> "$D/err.log" &
-```
-
-- Attach: `tail -c +<offset+1> -F out.jsonl` and the same on `in.jsonl`. Devices keep their offsets.
-- Send: take `in.lock`, append one line, release. Large payloads (images) are uploaded to a temp file
-  first and appended with `cat` under the lock.
-- Stop: kill the `tail`; omp drains and exits 0. Fallback SIGTERM (exit 143).
-- Rotation: `out.jsonl` is truncated only while the session is settled; devices that missed the window
-  resync from RPC state. A restarted omp gets a new run directory, never an old `in.jsonl`.
-- Garbage collection: run directories whose omp pid is dead and whose session is closed are removed.
-- Secrets never go through `in.jsonl`: API keys reach the companion as a 0600 file uploaded over SFTP and
+- Launch (`openRun`, under `~/.omp-app/run/.launch.lock`): a running run whose `meta.json` names the
+  session is reused. Otherwise `run.sh` starts in a new session (`setsid`, Perl's on macOS):
+  `tail -f in.jsonl | omp --mode rpc-ui --config overlay.yml --cwd <cwd> -e <companion> [--session <file>]
+  [--model …] [--thinking …] >> out.jsonl 2>> err.log`, then records omp's exit code.
+- Session file: a new session starts without `--session`, so omp names its file
+  (`sessions/<cwd>/<time>_<id>.jsonl`) and writes it with the first message. The first attach reads
+  `get_state.sessionFile` and records it in `meta.json` before `open` returns; every later switch inside
+  the run (`new_session`, `switch_session`, `branch`, fork, `/clear`, tree navigation) is recorded the same
+  way. A device opening that file attaches to the run instead of launching a second omp.
+- Attach: `tail -F` from saved offsets on both files. A device's first attach reads `out.jsonl` from the
+  start of its generation and `in.jsonl` from 0 (open dialogs and the answers that closed them), then seeds
+  the view from `get_state`, `get_entries`, `get_available_commands`, `get_subagents` and the companion's
+  `hello`, `state.snapshot` and `agents.list`. Every frame, and every `extension_ui_response` any device
+  appends, goes through the reducer.
+- Send: one long-running appender per channel takes `in.lock` per line; lines over 64 KiB are uploaded
+  first.
+- Link loss: a session reconnects with jittered backoff (1 s doubling to 30 s) and continues from the last
+  frame boundary it read; a rotation it missed rebuilds the view from RPC. Refused credentials or host
+  keys, a removed run and an omp that cannot start end the session.
+- Stop: kill the feeding `tail`; omp drains and exits 0. Force: SIGTERM (exit 143).
+- Rotation: every `message_update` carries the whole message, so one 1.5 KB streamed answer wrote 270 KB.
+  When a run settles and `out.jsonl` holds 8 MiB, the device that read past that mark truncates it under
+  `in.lock`; devices that had read everything follow, the others rebuild from RPC. A restarted omp gets a
+  new run directory, never an old `in.jsonl`.
+- Garbage collection: `removeDeadRuns` deletes the directories of runs whose omp is gone.
+- Secrets never go through `in.jsonl`: they reach the companion as 0600 files uploaded over SFTP and
   deleted after use.
 
-Measured on macOS with omp 18.3.0: two independent appenders both got responses, and omp exited 0 two
-seconds after its `tail` was killed. A FIFO instead of the inbox file does not work: omp never sees EOF on
-a FIFO stdin on macOS. Not yet measured: survival after the launching SSH channel closes, Linux, BSD vs
-GNU `tail` on truncation, log growth over a long session.
+### Control process
+
+Settings, roles, accounts, login and model lists need no session. One `omp --mode rpc-ui --no-session -e
+<companion>` per machine runs on an exec channel of the link, started on first use and again after it
+exits. omp refuses rpc mode on a machine with no usable model at all ("No models available"), so the first
+login there needs another route.
 
 ### Windows hosts (and this computer on Windows)
 
-Same run directory layout under `%USERPROFILE%\.omp-app\run\<runId>\`. Differences, all from
-`research/windows-hosts.md`:
+Same run directory layout under `%USERPROFILE%\.omp-app\run\<runId>\`, implemented and not yet run on
+Windows. Differences, all from `research/windows-hosts.md`:
 
 - Launch: sshd puts the channel's first process in a job with `KILL_ON_JOB_CLOSE`, so children started
   with `Start-Process`, `start` or `&` die with the channel. omp is started through WMI
   `Win32_Process.Create` with `CREATE_BREAKAWAY_FROM_JOB` (0x01000000); WMI-created processes are
   outside that job. Command line: `cmd.exe /d /s /c "powershell -NoProfile -File feed.ps1 <run> |
-  <omp.exe> --mode rpc-ui --config <run>\overlay.yml -e <companion> --session <path> >> <run>\out.jsonl
+  <omp.exe> --mode rpc-ui --config <run>\overlay.yml -e <companion> [--session <path>] >> <run>\out.jsonl
   2>> <run>\err.log"`. cmd redirection passes bytes through unchanged; PowerShell 5.1 redirection does
   not.
 - Feed: `feed.ps1` is a byte pump from `in.jsonl` (opened with ReadWrite sharing) to stdout, polling
@@ -195,19 +207,18 @@ Same run directory layout under `%USERPROFILE%\.omp-app\run\<runId>\`. Differenc
 - Scripts run as `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand
   <base64 UTF-16LE>`, which works under a cmd, PowerShell or bash default shell. cmd caps a line at
   8191 characters, so larger scripts are uploaded over SFTP and run with `-File`.
-- Attach: SFTP stat and offset reads on `out.jsonl` and `in.jsonl`. Appends go over SFTP under an SFTP
-  `mkdir` lock.
+- Attach: SFTP stat and offset reads on `out.jsonl` and `in.jsonl`. Appends and `meta.json` updates go
+  over SFTP under SFTP `mkdir` locks. `out.jsonl` is never rotated: cmd.exe's `>>` keeps its offset.
 - Environment: a WMI child gets the provider's environment block, so `USERPROFILE`, `LOCALAPPDATA` and
-  `PATH` are set explicitly [INFERENCE: M0 spike].
+  `PATH` are set explicitly [INFERENCE: not run on Windows].
 - Orphans: found by the overlay path in their command line through `Get-CimInstance Win32_Process`.
-- If the M0 spike fails: attached `omp.exe` on a no-PTY exec channel, where the turn dies with the
-  channel, until the detached form works.
+- If the detached form fails on Windows: attached `omp.exe` on a no-PTY exec channel, where the turn dies
+  with the channel, until it works.
 
 ### Per-launch config overlay
 
-Every rpc process gets a `--config <run>/overlay.yml` the app writes. It forces
-`speech.enabled: false` (otherwise the `ask` tool speaks on the host's speaker) and carries any
-app-imposed session settings.
+Every run gets `overlay.yml`: the app's session settings (`MachineRuntime`'s `overlay`, dotted keys),
+with `speech.enabled: false` forced (otherwise the `ask` tool speaks on the host's speaker).
 
 ## 6. Companion extension
 

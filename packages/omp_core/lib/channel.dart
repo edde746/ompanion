@@ -10,6 +10,7 @@ export 'src/channel/detached_run.dart'
         defaultOverlay,
         listRuns,
         openRun,
+        recordRunSession,
         removeDeadRuns,
         rotateRunOutput,
         runRoot,

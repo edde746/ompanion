@@ -1,0 +1,667 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import '../channel/attached_channel.dart';
+import '../channel/detached_run.dart' hide listRuns;
+import '../channel/detached_run.dart' as runs show listRuns;
+import '../channel/run_log.dart';
+import '../host/companion.dart';
+import '../host/probe.dart';
+import '../host/scripts.dart';
+import '../host/session_listing.dart' hide listSessions;
+import '../host/session_listing.dart' as listing show listSessions;
+import '../transport/host_link.dart';
+import 'live_session.dart';
+import 'run_session.dart';
+
+/// The oldest omp the app drives.
+const minimumOmpVersion = '18.3.1';
+
+/// `out.jsonl` size from which a settled run's log is rotated.
+const rotateOutputAt = 8 << 20;
+
+/// Connection state of one machine.
+sealed class MachineStatus {
+  const MachineStatus();
+}
+
+final class MachineOffline extends MachineStatus {
+  const MachineOffline();
+}
+
+final class MachineConnecting extends MachineStatus {
+  const MachineConnecting();
+}
+
+/// Connected, probed, omp [minimumOmpVersion] or newer found and the companion uploaded.
+final class MachineOnline extends MachineStatus {
+  const MachineOnline(this.probe);
+
+  final HostProbe probe;
+}
+
+/// Connecting or probing failed.
+final class MachineFailed extends MachineStatus {
+  const MachineFailed(this.cause);
+
+  final Object cause;
+}
+
+/// Connected, but omp is missing or older than [minimumOmpVersion]: offer the install. The link works.
+final class MachineNeedsOmp extends MachineStatus {
+  const MachineNeedsOmp(this.probe, this.reason);
+
+  final HostProbe probe;
+  final String reason;
+}
+
+/// What `MachineRuntime.open` opens.
+sealed class SessionOpen {
+  const SessionOpen();
+}
+
+/// A new session in [cwd] (host-native path). [model] (`provider/id`) and [thinkingLevel] become omp's `--model`
+/// and `--thinking`; without them omp uses its configured defaults. omp names the session file; the run records
+/// it at the first attach.
+final class NewSession extends SessionOpen {
+  const NewSession(this.cwd, {this.model, this.thinkingLevel});
+
+  final String cwd;
+  final String? model;
+  final String? thinkingLevel;
+}
+
+/// The session in file [sessionPath]: attaches to the live run holding it, or launches one in the session's
+/// directory (the home directory when that is gone).
+final class ResumeSession extends SessionOpen {
+  const ResumeSession(this.sessionPath);
+
+  final String sessionPath;
+}
+
+/// The live run [runId] (`DetachedRun.id`). Throws [RunEnded] for a run whose omp exited: resume its session
+/// instead.
+final class AttachRun extends SessionOpen {
+  const AttachRun(this.runId);
+
+  final String runId;
+}
+
+/// A local TCP port forwarded to a port on the machine's loopback.
+abstract interface class LocalForward {
+  int get localPort;
+  int get remotePort;
+
+  /// Stops listening and closes every forwarded connection.
+  Future<void> close();
+}
+
+typedef _Connection = ({HostLink link, HostProbe probe, String? companion, String? problem});
+
+typedef _Ready = ({HostLink link, HostProbe probe, String companion});
+
+/// Everything the app does with one machine: the connection, the probe, the companion upload, the session list and
+/// the open sessions. Sessions share one link; after it drops, each reconnects through [connect].
+final class MachineRuntime {
+  /// [connect] opens a fresh link; it is called again after the link dropped. [deviceId] is stable per app install
+  /// and namespaces RPC ids. [companionBytes] supplies the companion build for an omp version. [overlay] holds
+  /// config keys (dotted paths, values written as YAML) for every run's `--config` overlay, which always forces
+  /// `speech.enabled: false`.
+  MachineRuntime({
+    required this._connect,
+    required this.deviceId,
+    required this._companionBytes,
+    Map<String, String> overlay = const {},
+  }) : _overlay = renderOverlay(overlay);
+
+  final Future<HostLink> Function() _connect;
+  final Future<List<int>> Function(String ompVersion) _companionBytes;
+  final String _overlay;
+  final String deviceId;
+
+  final _statuses = StreamController<MachineStatus>.broadcast();
+  MachineStatus _status = const MachineOffline();
+  _Connection? _connection;
+  Future<_Connection>? _connecting;
+
+  /// Open sessions by run id, including ones still attaching.
+  final _opens = <String, Future<RunSession>>{};
+  final _sessions = <RunSession>{};
+  RunSession? _control;
+  Future<RunSession>? _controlStarting;
+  final _forwards = <_Forward>{};
+  bool _disposed = false;
+
+  /// Emits every new [status]. Broadcast.
+  Stream<MachineStatus> get statuses => _statuses.stream;
+
+  MachineStatus get status => _status;
+
+  /// The current link. Throws [StateError] while the machine is not connected.
+  HostLink get link => _connection?.link ?? (throw StateError('not connected; call connectAndProbe() first'));
+
+  /// Connects unless connected, probes once per connection, and uploads the companion for the probed omp. Returns
+  /// the probe; [status] is [MachineNeedsOmp] when omp is missing or too old, and the link stays usable. Throws
+  /// when connecting or probing fails ([MachineFailed]).
+  Future<HostProbe> connectAndProbe() async => (await _connected()).probe;
+
+  /// Session files on the machine, newest first, each with the live run holding it. Sessions of live runs that omp
+  /// has not written yet (no message so far) are included.
+  Future<List<SessionSummary>> listSessions() async {
+    final connection = await _connected();
+    final results = await Future.wait<Object>([
+      listing.listSessions(connection.link, connection.probe),
+      runs.listRuns(connection.link, connection.probe),
+    ]);
+    final sessions = results[0] as List<SessionSummary>;
+    final live = <String, DetachedRun>{
+      for (final run in results[1] as List<DetachedRun>)
+        if (run.state == RunState.running && run.meta?.sessionPath != null) run.meta!.sessionPath!: run,
+    };
+    return [
+      for (final session in sessions)
+        if (live.remove(session.path) case final run?) session.withRun(run.id) else session,
+      for (final run in live.values) _unwrittenSession(run),
+    ]..sort((a, b) => b.modified.compareTo(a.modified));
+  }
+
+  /// Every run directory on the machine, oldest first.
+  Future<List<DetachedRun>> listRuns() async {
+    final connection = await _connected();
+    return runs.listRuns(connection.link, connection.probe);
+  }
+
+  /// Opens a session: launches or finds its run, attaches, and completes once the view is built. An open session
+  /// is returned again for the same run or session file. Throws [OmpUnavailable] when omp is missing or too old,
+  /// [OmpStartFailed] when omp exits before it is ready, [RunEnded], [RunGone], or the transport's error.
+  Future<LiveSession> open(SessionOpen request) async {
+    final ready = await _ready();
+    switch (request) {
+      case AttachRun(:final runId):
+        if (_opens[runId] case final open?) return open;
+        final run = (await runs.listRuns(ready.link, ready.probe)).where((run) => run.id == runId).firstOrNull;
+        if (run == null) throw RunGone('no run $runId on ${ready.link.label}');
+        if (!run.live) throw RunEnded(runId, run.exitCode);
+        return _openRun(run, ready.probe);
+      case ResumeSession(:final sessionPath):
+        for (final session in _sessions) {
+          // The open's future: completes once a session still attaching is ready.
+          if (session.sessionPath == sessionPath) return _opens[session.runId] ?? session;
+        }
+        final live = (await runs.listRuns(ready.link, ready.probe))
+            .where((run) => run.state == RunState.running && run.meta?.sessionPath == sessionPath)
+            .firstOrNull;
+        if (live != null) return _openRun(live, ready.probe);
+        final cwd = await _sessionCwd(ready.link, ready.probe, sessionPath);
+        // The launch looks for a live run of the session again, under the machine's launch lock.
+        final (:run, launched: _) = await openRun(ready.link, ready.probe, _spec(ready, cwd, sessionPath: sessionPath));
+        return _openRun(run, ready.probe);
+      case NewSession(:final cwd, :final model, :final thinkingLevel):
+        final args = [
+          if (model != null) ...['--model', model],
+          if (thinkingLevel != null) ...['--thinking', thinkingLevel],
+        ];
+        final (:run, launched: _) = await openRun(ready.link, ready.probe, _spec(ready, cwd, args: args));
+        return _openRun(run, ready.probe);
+    }
+  }
+
+  /// The machine-level `omp --mode rpc-ui --no-session` on the link itself, for settings, roles, accounts, login,
+  /// models and session lists: started on first use, restarted after it exits, shared by every caller. Throws like
+  /// [open]; [OmpStartFailed.stderr] carries omp's reason (for example no usable model on the machine).
+  Future<LiveSession> control() {
+    final current = _control;
+    if (current != null && current.linkState is! LinkClosed) return Future.value(current);
+    return _controlStarting ??= _startControl().whenComplete(() => _controlStarting = null);
+  }
+
+  /// Listens on 127.0.0.1:[localPort] (0 picks a free port) and forwards each connection to 127.0.0.1:[remotePort]
+  /// on the machine, over the link current at that moment.
+  Future<LocalForward> forwardLocal(int remotePort, {int localPort = 0}) async {
+    await _connected();
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, localPort);
+    final forward = _Forward(server, remotePort, () async => (await _connected()).link);
+    forward.onClosed = () => _forwards.remove(forward);
+    _forwards.add(forward);
+    return forward;
+  }
+
+  /// Detaches every session (their runs keep going on the machine), ends the control process, closes forwards and
+  /// the link.
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    await Future.wait([
+      for (final session in _sessions.toList()) session.detach(),
+      if (_control case final control?) control.detach(),
+      for (final forward in _forwards.toList()) forward.close(),
+    ]);
+    final connection = _connection;
+    _connection = null;
+    await connection?.link.close();
+    _setStatus(const MachineOffline());
+    await _statuses.close();
+  }
+
+  // Connection ------------------------------------------------------------------------------------------------------
+
+  Future<_Connection> _connected() {
+    if (_disposed) throw StateError('the machine runtime was disposed');
+    final current = _connection;
+    if (current != null) return Future.value(current);
+    return _connecting ??= _open().whenComplete(() => _connecting = null);
+  }
+
+  Future<_Ready> _ready() async {
+    final connection = await _connected();
+    final companion = connection.companion;
+    if (companion == null) throw OmpUnavailable(connection.problem ?? 'omp is not usable on ${connection.link.label}');
+    return (link: connection.link, probe: connection.probe, companion: companion);
+  }
+
+  Future<_Connection> _open() async {
+    _setStatus(const MachineConnecting());
+    final HostLink link;
+    try {
+      link = await _connect();
+    } on Object catch (error) {
+      if (!_disposed) _setStatus(MachineFailed(error));
+      rethrow;
+    }
+    try {
+      final probe = await probeHost(link);
+      final problem = ompProblem(probe);
+      final version = probe.ompVersion;
+      final companion = problem == null && version != null
+          ? await uploadCompanion(link, ompVersion: version, bytes: await _companionBytes(version))
+          : null;
+      if (_disposed) throw StateError('the machine runtime was disposed');
+      final connection = (link: link, probe: probe, companion: companion, problem: problem);
+      _connection = connection;
+      unawaited(link.done.then((_) => _dropped(link)));
+      _setStatus(problem == null ? MachineOnline(probe) : MachineNeedsOmp(probe, problem));
+      return connection;
+    } on Object catch (error) {
+      unawaited(link.close());
+      if (!_disposed) _setStatus(MachineFailed(error));
+      rethrow;
+    }
+  }
+
+  void _dropped(HostLink link) {
+    if (!identical(_connection?.link, link)) return;
+    _connection = null;
+    if (!_disposed) _setStatus(const MachineOffline());
+  }
+
+  void _setStatus(MachineStatus status) {
+    _status = status;
+    if (!_statuses.isClosed) _statuses.add(status);
+  }
+
+  // Sessions --------------------------------------------------------------------------------------------------------
+
+  RunSpec _spec(_Ready ready, String cwd, {String? sessionPath, List<String> args = const []}) => RunSpec(
+    omp: ready.probe.ompPath!,
+    ompVersion: ready.probe.ompVersion!,
+    cwd: cwd,
+    sessionPath: sessionPath,
+    companion: ready.companion,
+    overlay: _overlay,
+    args: args,
+  );
+
+  Future<RunSession> _openRun(DetachedRun run, HostProbe probe) => _opens[run.id] ??= _startRun(run, probe);
+
+  Future<RunSession> _startRun(DetachedRun run, HostProbe probe) async {
+    final session = RunSession(
+      runId: run.id,
+      cwd: run.meta?.cwd ?? probe.home,
+      access: _DetachedAccess(this, run, windows: probe.isWindows),
+      deviceId: deviceId,
+      recordedPath: run.meta?.sessionPath,
+    );
+    session.onClosed = () {
+      _sessions.remove(session);
+      _opens.remove(run.id);
+    };
+    _sessions.add(session);
+    await session.start();
+    return session;
+  }
+
+  Future<RunSession> _startControl() async {
+    final ready = await _ready();
+    final session = RunSession(runId: 'control', cwd: ready.probe.home, access: _ControlAccess(this), deviceId: deviceId);
+    session.onClosed = () {
+      if (identical(_control, session)) _control = null;
+    };
+    await session.start();
+    _control = session;
+    return session;
+  }
+
+  /// The session header's `cwd` when that directory still exists, else the home directory.
+  static Future<String> _sessionCwd(HostLink link, HostProbe probe, String sessionPath) async {
+    final files = await link.files();
+    try {
+      // The title slot (256 bytes), then the header line.
+      final head = utf8.decode(await files.read(toSftpPath(sessionPath), length: 16384), allowMalformed: true);
+      for (final line in const LineSplitter().convert(head).take(2)) {
+        final Object? json;
+        try {
+          json = jsonDecode(line);
+        } on FormatException {
+          // A header longer than the read is cut off; the home directory stands in.
+          continue;
+        }
+        if (json case {'type': 'session', 'cwd': final String cwd}) {
+          final stat = await files.stat(toSftpPath(cwd));
+          return stat != null && stat.isDirectory ? cwd : probe.home;
+        }
+      }
+      return probe.home;
+    } finally {
+      await files.close();
+    }
+  }
+
+  /// A live run's session whose file omp has not written yet; its name carries omp's session id.
+  static SessionSummary _unwrittenSession(DetachedRun run) {
+    final meta = run.meta!;
+    final path = meta.sessionPath!;
+    final name = path.split(RegExp(r'[/\\]')).last;
+    return SessionSummary(
+      path: path,
+      size: 0,
+      modified: run.lastWrite ?? meta.created,
+      id: RegExp(r'_([^_]+)\.jsonl$').firstMatch(name)?.group(1) ?? name,
+      cwd: meta.cwd,
+      created: meta.created,
+      runId: run.id,
+    );
+  }
+}
+
+/// Why omp on the probed machine cannot be driven, or null when it can.
+String? ompProblem(HostProbe probe) {
+  final path = probe.ompPath;
+  final version = probe.ompVersion;
+  if (path == null) return 'omp is not installed';
+  if (version == null) return 'omp at $path did not report its version';
+  if (compareOmpVersions(version, minimumOmpVersion) < 0) return 'omp $version is older than $minimumOmpVersion';
+  return null;
+}
+
+/// Orders `major.minor.patch[-pre]` versions; a pre-release sorts before its release.
+int compareOmpVersions(String a, String b) {
+  (List<int>, String?) parse(String version) {
+    final dash = version.indexOf('-');
+    final core = dash < 0 ? version : version.substring(0, dash);
+    final parts = core.split('.').map(int.parse).toList();
+    if (parts.length != 3) throw FormatException('not a major.minor.patch version', version);
+    return (parts, dash < 0 ? null : version.substring(dash + 1));
+  }
+
+  final (coreA, preA) = parse(a);
+  final (coreB, preB) = parse(b);
+  for (var i = 0; i < 3; i++) {
+    final order = coreA[i].compareTo(coreB[i]);
+    if (order != 0) return order;
+  }
+  if (preA == preB) return 0;
+  if (preA == null) return 1;
+  if (preB == null) return -1;
+  return preA.compareTo(preB);
+}
+
+/// The `--config` overlay of every run: [overlay]'s dotted keys as nested YAML, values written verbatim, and
+/// `speech.enabled: false` so the `ask` tool never speaks on the host's speaker.
+String renderOverlay(Map<String, String> overlay) {
+  final root = <String, Object>{};
+  for (final MapEntry(:key, :value) in {...overlay, 'speech.enabled': 'false'}.entries) {
+    final parts = key.split('.');
+    if (parts.any((part) => part.isEmpty)) throw ArgumentError.value(key, 'overlay', 'has an empty key segment');
+    if (value.contains('\n')) throw ArgumentError.value(value, 'overlay[$key]', 'spans lines');
+    var node = root;
+    for (final part in parts.take(parts.length - 1)) {
+      final child = node.putIfAbsent(part, () => <String, Object>{});
+      if (child is! Map<String, Object>) throw ArgumentError.value(key, 'overlay', 'nests under a value');
+      node = child;
+    }
+    if (node[parts.last] is Map) throw ArgumentError.value(key, 'overlay', 'is also a section');
+    node[parts.last] = value;
+  }
+  final yaml = StringBuffer();
+  void write(Map<String, Object> node, String indent) {
+    for (final MapEntry(:key, :value) in node.entries) {
+      final name = RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(key) ? key : jsonEncode(key);
+      if (value is Map<String, Object>) {
+        yaml.writeln('$indent$name:');
+        write(value, '$indent  ');
+      } else {
+        yaml.writeln('$indent$name: $value');
+      }
+    }
+  }
+
+  write(root, '');
+  return yaml.toString();
+}
+
+/// A detached run in `~/.omp-app/run/<id>/`.
+final class _DetachedAccess implements RunAccess {
+  _DetachedAccess(this._machine, this._run, {required bool windows}) : rotateAt = windows ? null : rotateOutputAt;
+
+  final MachineRuntime _machine;
+  final DetachedRun _run;
+
+  @override
+  final int? rotateAt;
+
+  @override
+  bool get persistent => true;
+
+  @override
+  Future<RunChannel> attach({int? generation, int offset = 0, int inboxOffset = 0}) async {
+    final ready = await _machine._ready();
+    try {
+      return await attachRun(
+        ready.link,
+        ready.probe,
+        _run,
+        generation: generation,
+        offset: offset,
+        inboxOffset: inboxOffset,
+      );
+    } on Object catch (error, stack) {
+      final List<DetachedRun> present;
+      try {
+        present = await runs.listRuns(ready.link, ready.probe);
+      } on Object {
+        // The link is down as well; the attach error says what happened.
+        Error.throwWithStackTrace(error, stack);
+      }
+      if (!present.any((run) => run.id == _run.id)) throw RunGone('run ${_run.id} is gone from ${ready.link.label}');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> recordSession(String sessionPath) async {
+    final connection = await _machine._connected();
+    await recordRunSession(connection.link, connection.probe, _run, sessionPath);
+  }
+
+  @override
+  Future<void> rotate() async {
+    final connection = await _machine._connected();
+    await rotateRunOutput(connection.link, connection.probe, _run, minSize: rotateAt ?? 0);
+  }
+
+  @override
+  Future<int?> stop() async {
+    final connection = await _machine._connected();
+    return stopRun(connection.link, connection.probe, _run);
+  }
+
+  @override
+  Future<String> errorLog() async {
+    final files = await (await _machine._connected()).link.files();
+    try {
+      final path = '${toSftpPath(_run.dir)}/err.log';
+      final size = (await files.stat(path))?.size ?? 0;
+      const tail = 8192;
+      final from = size > tail ? size - tail : 0;
+      return utf8.decode(await files.read(path, offset: from), allowMalformed: true);
+    } finally {
+      await files.close();
+    }
+  }
+}
+
+/// The control process: omp on an exec channel of the link, restarted by a new attach.
+final class _ControlAccess implements RunAccess {
+  _ControlAccess(this._machine);
+
+  final MachineRuntime _machine;
+  AttachedChannel? _channel;
+
+  @override
+  bool get persistent => false;
+
+  @override
+  int? get rotateAt => null;
+
+  @override
+  Future<RunChannel> attach({int? generation, int offset = 0, int inboxOffset = 0}) async {
+    final ready = await _machine._ready();
+    final spec = RunSpec(
+      omp: ready.probe.ompPath!,
+      ompVersion: ready.probe.ompVersion!,
+      cwd: ready.probe.home,
+      companion: ready.companion,
+      overlay: _machine._overlay,
+      args: const ['--no-session'],
+    );
+    final channel = _channel = await AttachedChannel.start(ready.link, ready.probe, spec);
+    return _ProcessChannel(channel);
+  }
+
+  @override
+  Future<void> recordSession(String sessionPath) =>
+      throw StateError('the control session runs with --no-session and has no session file');
+
+  @override
+  Future<void> rotate() => throw StateError('the control session has no log to rotate');
+
+  @override
+  Future<int?> stop() async {
+    final channel = _channel;
+    if (channel == null) return null;
+    await channel.close();
+    return channel.exitCode;
+  }
+
+  @override
+  Future<String> errorLog() async => _channel?.stderr ?? '';
+}
+
+/// An attached omp process as a [RunChannel]: its output starts at `ready` and cannot be resumed.
+final class _ProcessChannel implements RunChannel {
+  _ProcessChannel(this._channel);
+
+  final AttachedChannel _channel;
+
+  @override
+  Stream<String> get lines => _channel.lines;
+
+  @override
+  Future<void> send(String line) => _channel.send(line);
+
+  @override
+  Future<void> close() => _channel.close();
+
+  @override
+  int get offset => 0;
+
+  @override
+  int get generation => 1;
+
+  @override
+  int? get exitCode => _channel.exitCode;
+
+  @override
+  Stream<InboxLine> get inbox => const Stream.empty();
+
+  @override
+  int get inboxOffset => 0;
+}
+
+final class _Forward implements LocalForward {
+  _Forward(this._server, this.remotePort, this._link) {
+    _server.listen((socket) => unawaited(_accept(socket)));
+  }
+
+  final ServerSocket _server;
+  final Future<HostLink> Function() _link;
+  final _ends = <void Function()>{};
+  void Function()? onClosed;
+  bool _closed = false;
+
+  @override
+  final int remotePort;
+
+  @override
+  int get localPort => _server.port;
+
+  Future<void> _accept(Socket socket) async {
+    final HostSocket remote;
+    try {
+      remote = await (await _link()).connect('127.0.0.1', remotePort);
+    } on Object {
+      // The client sees its connection reset, as with `ssh -L` when the channel cannot open.
+      socket.destroy();
+      return;
+    }
+    var open = true;
+    void end() {
+      if (!open) return;
+      open = false;
+      socket.destroy();
+      unawaited(remote.close());
+    }
+
+    if (_closed) return end();
+    _ends.add(end);
+    remote.input.listen(
+      (data) {
+        if (open) socket.add(data);
+      },
+      onDone: end,
+      onError: (Object _) => end(),
+    );
+    socket.listen(
+      (data) {
+        if (open) remote.add(data);
+      },
+      onDone: end,
+      onError: (Object _) => end(),
+    );
+    await remote.done;
+    _ends.remove(end);
+    end();
+  }
+
+  @override
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    await _server.close();
+    for (final end in _ends.toList()) {
+      end();
+    }
+    onClosed?.call();
+  }
+}

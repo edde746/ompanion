@@ -593,6 +593,12 @@ final class _SshProcess implements HostProcess {
   void kill() {
     if (!_closed) _session.kill(SSHSignal.TERM);
   }
+
+  @override
+  Future<void> close() async {
+    if (!_closed) _session.close();
+    await _session.done;
+  }
 }
 
 final class _SftpFiles implements HostFiles {

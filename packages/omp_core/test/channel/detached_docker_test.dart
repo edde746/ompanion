@@ -7,7 +7,6 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:omp_core/channel.dart';
 import 'package:omp_core/host.dart';
-import 'package:omp_core/src/host/scripts.dart' show shQuote;
 import 'package:omp_core/ssh.dart';
 import 'package:test/test.dart';
 

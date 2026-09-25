@@ -145,6 +145,7 @@ final class RunOutput {
   /// [endedWith] is the exit code of a run that had already ended when the channel attached.
   RunOutput({required this.generation, required int offset, required this.onEnd, this.endedWith})
     : offset = offset,
+      _parsing = generation,
       _cursor = LogCursor(offset);
 
   /// Called once when the log ended: exit marker, gap, or [finish].
@@ -153,6 +154,9 @@ final class RunOutput {
   int generation;
   int offset;
   int? exitCode;
+
+  /// Generation of the bytes [add] parses; ahead of [generation] until the consumer reached the rotation.
+  int _parsing;
   final LogCursor _cursor;
   final _events = StreamController<_Event>();
   bool _ended = false;
@@ -189,6 +193,9 @@ final class RunOutput {
           _events.add(_Exited(code));
           finish();
           return;
+        case RunRotated(:final generation) when generation == _parsing:
+          // The first line of the generation this channel attached to at offset 0, not a rotation it follows.
+          _events.add(_Rotated(generation, end));
         case RunRotated(:final generation, :final previousSize):
           // The marker is the first line of the new generation; everything before it was the old one.
           final markerEnd = utf8.encode(text).length + 1;
@@ -199,6 +206,7 @@ final class RunOutput {
           }
           shift += markerEnd - end;
           end = markerEnd;
+          _parsing = generation;
           _events.add(_Rotated(generation, end));
         case null:
           _events.add(_Line(text, end));

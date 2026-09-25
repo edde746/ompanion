@@ -70,4 +70,14 @@ void main() {
     expect((await files.stat(path))!.size, 6);
     expect(await files.stat('$path.missing'), isNull);
   });
+
+  test('rename moves directories like SFTP does', () async {
+    final files = await link.files();
+    final home = await files.home();
+    await files.mkdir('$home/old');
+    await files.write('$home/old/inside', utf8.encode('x'));
+    await files.rename('$home/old', '$home/new');
+    expect(await files.stat('$home/old'), isNull);
+    expect(utf8.decode(await files.read('$home/new/inside')), 'x');
+  });
 }
