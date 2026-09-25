@@ -1,0 +1,17 @@
+name: omp_core
+description: Transport, SSH, host scripts, session channels, RPC and companion clients, and the session store for omp-app.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  # Exact pin: 3.1.0 and 4.0.1 fixed channel-stall and flow-control bugs; bump only with a transport soak test.
+  dartssh2: 4.1.0
+  meta: ^1.16.0
+  path: ^1.9.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.26.0

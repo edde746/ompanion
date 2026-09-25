@@ -1,0 +1,37 @@
+# Downloaded omp binaries and throwaway test homes
+/.tools/
+
+# Dart / Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/
+coverage/
+**/doc/api/
+.pub-cache/
+.pub/
+
+# Platform build output
+**/Pods/
+**/.symlinks/
+**/Flutter/ephemeral/
+**/Flutter/Generated.xcconfig
+**/Flutter/flutter_export_environment.sh
+**/xcuserdata/
+local.properties
+**/android/.gradle/
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+
+# Bun / TypeScript
+node_modules/
+companion/dist/
+
+.DS_Store
