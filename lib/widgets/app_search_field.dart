@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../app/theme.dart';
+
 /// Search that filters as you type: [onChanged] fires [debounce] after the last keystroke, at once on
 /// Enter and on clear. No separate search button (docs/design.md rule 7).
 class AppSearchField extends StatefulWidget {
@@ -62,7 +64,13 @@ class _AppSearchFieldState extends State<AppSearchField> {
     },
     decoration: InputDecoration(
       hintText: widget.hint,
-      prefixIcon: const Icon(Icons.search, size: 18),
+      // The glyph's ink sits 12 px from the field's edge and 12 px from the text, the field's own text inset:
+      // Icons.search draws 2.25 px inside its 18 px box, and the decorator adds 4 px before the text.
+      prefixIcon: const Padding(
+        padding: EdgeInsetsDirectional.only(start: 10, end: 5),
+        child: Icon(Icons.search, size: 18),
+      ),
+      prefixIconConstraints: const BoxConstraints(minHeight: AppSizes.control),
       suffixIcon: ValueListenableBuilder(
         valueListenable: _controller,
         builder: (context, value, _) => value.text.isEmpty
