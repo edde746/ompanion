@@ -1,0 +1,244 @@
+@Tags(['omp'])
+library;
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:omp_core/rpc.dart';
+import 'package:omp_core/session.dart';
+import 'package:omp_core/transport.dart';
+import 'package:test/test.dart';
+
+import 'support.dart';
+
+/// Sessions the app did not start, against omp 18.3.1 on this computer with the fake provider:
+///
+/// - another omp process holds the session file (a second writer must never be launched; the app reads the file),
+/// - a run the app started that is already busy when a device attaches (the attaching device must see it running,
+///   with its queue).
+void main() {
+  late FakeProvider fake;
+  late DevMachine machine;
+  final runtimes = <MachineRuntime>[];
+
+  MachineRuntime runtime(String device) {
+    final created = machine.runtime(device);
+    runtimes.add(created);
+    return created;
+  }
+
+  setUpAll(() async {
+    fake = await FakeProvider.start();
+    machine = await DevMachine.create(fake.port);
+  });
+
+  setUp(() => fake.reset());
+
+  tearDown(() async {
+    for (final created in runtimes) {
+      await created.dispose();
+    }
+    runtimes.clear();
+  });
+
+  tearDownAll(() async {
+    await machine.dispose();
+    await fake.stop();
+  });
+
+  /// A session file the app wrote and closed: device A starts it, one turn, then its omp is stopped, so the file
+  /// belongs to no process until the test opens it.
+  Future<String> closedSession(String device) async {
+    final first = runtime(device);
+    await fake.enqueue([
+      {
+        'steps': [
+          {'text': 'Started here'},
+        ],
+      },
+    ]);
+    final session = await first.open(NewSession(machine.project, model: 'fake/fake-1'));
+    await session.rpc.prompt('Start a session');
+    await viewWhere(session, (view) => idle(view) && answers(view).isNotEmpty);
+    final path = session.sessionPath;
+    expect(path, isNotNull);
+    await session.stop();
+    return path!;
+  }
+
+  test('a session another omp process holds is read, and never written by a second omp', () async {
+    final path = await closedSession('device-a');
+    final listed = runtime('device-a');
+    expect(
+      (await listed.listSessions()).where((summary) => summary.path == path).single.runId,
+      isNull,
+      reason: 'the app has no live run for the file, so its sidebar shows no run either',
+    );
+
+    // The other process: a plain `omp --mode rpc-ui --session <file>` on this computer, held open while it runs a
+    // turn that streams slowly — what a terminal omp looks like to the machine, minus the terminal.
+    await fake.enqueue([
+      {
+        'steps': [
+          {'text': 'The foreign turn'},
+          {'delayMs': 12000},
+          {'text': ' ends.'},
+        ],
+      },
+    ]);
+    final foreignLink = LocalLink(environment: machine.environment);
+    addTearDown(foreignLink.close);
+    final pidFile = '${machine.root.path}/foreign.pid';
+    final process = await foreignLink.exec(
+      'cd ${_quote(machine.project)} && echo \$\$ > ${_quote(pidFile)} && exec env -i HOME="\$HOME" PATH="\$PATH" '
+      '${_quote('${machine.home}/.local/bin/omp')} --mode rpc-ui --model fake/fake-1 --session ${_quote(path)}',
+    );
+    await _eventually(() async => File(pidFile).existsSync());
+    final foreignPid = int.parse(await File(pidFile).readAsString());
+    final ready = Completer<void>();
+    final output = process.stdout
+        .cast<List<int>>()
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen(
+          (line) {
+            if (line.contains('"type":"ready"') && !ready.isCompleted) ready.complete();
+          },
+          onDone: () {
+            if (!ready.isCompleted) ready.completeError(StateError('the foreign omp exited before ready'));
+          },
+        );
+    addTearDown(output.cancel);
+    addTearDown(process.close);
+    await ready.future.timeout(const Duration(seconds: 60));
+    process.write(utf8.encode('${jsonEncode({'id': 'turn', 'type': 'prompt', 'message': 'foreign prompt'})}\n'));
+    await _eventually(() async => (await holdersOf(path)).contains(foreignPid));
+
+    final sessions = runtime('device-b');
+    final opened = await sessions.open(ResumeSession(path));
+    expect(opened, isA<ExternalSession>(), reason: 'the app must not launch a second omp for a held session');
+    expect(opened.view.external, isNotNull);
+    expect(opened.view.external!.pids, contains(foreignPid));
+    expect(opened.view.run.running, isFalse, reason: 'no run of ours is streaming');
+    expect(
+      prompts(opened.view),
+      containsAll(['Start a session', 'foreign prompt']),
+      reason: 'the transcript is read from the file, so it holds what the other process wrote',
+    );
+    expect(() => opened.rpc, throwsA(isA<UnsupportedError>()));
+
+    // No second writer: no live run of the app for the file, and exactly the foreign omp holds it.
+    expect(
+      (await sessions.listRuns()).where((run) => run.live && run.meta?.sessionPath == path),
+      isEmpty,
+      reason: 'the app launched no omp of its own',
+    );
+    expect(await holdersOf(path), [foreignPid]);
+
+    // The turn ends; the foreign omp stays alive at its prompt, still holding the session. The app must keep
+    // reading the file rather than starting its own omp for it, and its own poll must say the writer is idle.
+    await viewWhere(
+      opened,
+      (view) => answers(view).any((answer) => answer.contains('The foreign turn')),
+      timeout: const Duration(seconds: 60),
+    );
+    await viewWhere(opened, (view) => view.external?.busy == false, timeout: const Duration(seconds: 30));
+    final again = await sessions.open(ResumeSession(path));
+    expect(again, isA<ExternalSession>(), reason: 'an idle omp still owns the session in memory');
+    expect(await holdersOf(path), [foreignPid]);
+
+    await opened.detach();
+    process.kill();
+    await process.exit;
+    // The foreign omp is gone, so the file is free: opening it launches the app's own run and attaches to it.
+    await _eventually(() async => (await holdersOf(path)).isEmpty);
+    final ours = await sessions.open(ResumeSession(path));
+    expect(ours, isNot(isA<ExternalSession>()));
+    expect(ours.view.external, isNull);
+    expect(prompts(ours.view), contains('foreign prompt'), reason: 'the app read the file the other omp wrote');
+    await ours.detach();
+  }, timeout: const Timeout(Duration(minutes: 5)));
+
+  test('a device attaching to an already busy run sees it running, with its queue', () async {
+    final first = runtime('device-a');
+    await fake.enqueue([
+      {
+        'steps': [
+          {'text': 'A long answer'},
+          {'delayMs': 8000},
+          {'text': ' that takes its time'},
+        ],
+      },
+      {
+        'steps': [
+          {'text': 'Answered'},
+        ],
+      },
+    ]);
+    final started = await first.open(NewSession(machine.project, model: 'fake/fake-1'));
+    await started.rpc.prompt('Do something long');
+    await viewWhere(started, (view) => view.run.running);
+    // A message while the turn runs: omp queues it as a follow-up, exactly as the composer's Follow-up does.
+    await started.rpc.prompt('And then this', streamingBehavior: StreamingBehavior.followUp);
+    await viewWhere(started, (view) => view.queue.count > 0);
+
+    // The run is busy before this device attaches.
+    final second = runtime('device-b');
+    final attached = await second.open(ResumeSession(started.sessionPath!));
+    expect(attached.runId, started.runId, reason: 'the attaching device joins the run, it does not launch one');
+
+    expect(attached.view.run.running, isTrue, reason: 'a turn was in flight before this device attached');
+    expect(attached.view.run.paused, isFalse);
+    expect(attached.view.external, isNull);
+    expect(
+      attached.view.queue.count,
+      greaterThan(0),
+      reason: 'the queue the first device built is part of the run state this device seeds from',
+    );
+    expect(answers(attached.view), isNotEmpty);
+
+    final done = await viewWhere(attached, (view) => idle(view) && answers(view).length >= 2);
+    expect(answers(done).last, 'Answered', reason: 'the queued follow-up ran and its answer reached this device');
+    expect(prompts(done), contains('And then this'));
+
+    await attached.detach();
+    await started.detach();
+  }, timeout: const Timeout(Duration(minutes: 3)));
+}
+
+String _quote(String value) => "'${value.replaceAll("'", r"'\''")}'";
+
+/// Pids holding [path] open for writing, as `lsof` reports them on this computer (macOS and Linux both list the
+/// access mode in the FD column).
+Future<List<int>> holdersOf(String path) async {
+  final lsof = await _lsof();
+  if (lsof == null) return const [];
+  final result = await Process.run(lsof, ['-w', '--', path]);
+  final pids = <int>[];
+  for (final line in const LineSplitter().convert(result.stdout as String)) {
+    final fields = line.trim().split(RegExp(r'\s+'));
+    if (fields.length < 5 || fields.first == 'COMMAND') continue;
+    if (!RegExp(r'[wu]$').hasMatch(fields[3])) continue;
+    if (int.tryParse(fields[1]) case final pid?) pids.add(pid);
+  }
+  return pids;
+}
+
+Future<String?> _lsof() async {
+  for (final candidate in ['lsof', '/usr/sbin/lsof', '/usr/bin/lsof']) {
+    final result = await Process.run('sh', ['-c', 'command -v $candidate']);
+    final found = (result.stdout as String).trim();
+    if (result.exitCode == 0 && found.isNotEmpty) return found;
+  }
+  return null;
+}
+
+Future<void> _eventually(Future<bool> Function() test, {Duration timeout = const Duration(seconds: 30)}) async {
+  final deadline = DateTime.now().add(timeout);
+  for (;;) {
+    if (await test()) return;
+    if (DateTime.now().isAfter(deadline)) throw StateError('condition not reached within $timeout');
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+  }
+}

@@ -485,6 +485,9 @@ class Translations$machines$en {
 	/// en: 'Shell'
 	String get shell => 'Shell';
 
+	/// en: 'Login PATH'
+	String get loginPath => 'Login PATH';
+
 	/// en: 'Home'
 	String get home => 'Home';
 
@@ -1208,8 +1211,14 @@ class Translations$sessions$en {
 	/// en: 'Model (optional)'
 	String get model => 'Model (optional)';
 
-	/// en: 'provider/model, e.g. anthropic/claude-sonnet-4-5'
-	String get modelHint => 'provider/model, e.g. anthropic/claude-sonnet-4-5';
+	/// en: 'Default (from omp's settings)'
+	String get modelDefault => 'Default (from omp\'s settings)';
+
+	/// en: 'Choose a model'
+	String get modelPick => 'Choose a model';
+
+	/// en: 'Use the model from omp's settings'
+	String get modelUseDefault => 'Use the model from omp\'s settings';
 
 	/// en: 'Start'
 	String get create => 'Start';
@@ -1228,6 +1237,9 @@ class Translations$sessions$en {
 
 	/// en: 'Use this directory'
 	String get chooseDirectory => 'Use this directory';
+
+	/// en: 'In omp on the machine'
+	String get external => 'In omp on the machine';
 }
 
 // Path: install
@@ -1450,6 +1462,15 @@ class Translations$chat$en {
 
 	/// en: 'Could not branch: $error'
 	String branchFailed({required Object error}) => 'Could not branch: ${error}';
+
+	/// en: 'Earlier replies are kept in the session tree.'
+	String get resetKept => 'Earlier replies are kept in the session tree.';
+
+	/// en: 'Open the tree'
+	String get openTree => 'Open the tree';
+
+	/// en: 'Could not reset: $error'
+	String resetFailed({required Object error}) => 'Could not reset: ${error}';
 }
 
 // Path: attachments
@@ -1543,6 +1564,36 @@ class Translations$composer$en {
 
 	/// en: 'Not sent: $error'
 	String sendFailed({required Object error}) => 'Not sent: ${error}';
+
+	/// en: 'Running in omp on $machine'
+	String externalRunning({required Object machine}) => 'Running in omp on ${machine}';
+
+	/// en: 'Open in omp on $machine'
+	String externalIdle({required Object machine}) => 'Open in omp on ${machine}';
+
+	/// en: 'terminal $terminal'
+	String externalTerminal({required Object terminal}) => 'terminal ${terminal}';
+
+	/// en: 'Another omp process is writing this session file. ompanion reads its transcript live, but sending is off: two writers would overwrite each other. Messages queued in that process are not visible here.'
+	String get externalBody => 'Another omp process is writing this session file. ompanion reads its transcript live, but sending is off: two writers would overwrite each other. Messages queued in that process are not visible here.';
+
+	/// en: 'The other omp process still owns this session. Take it over once it has exited.'
+	String get externalWait => 'The other omp process still owns this session. Take it over once it has exited.';
+
+	/// en: 'Take over'
+	String get takeOver => 'Take over';
+
+	/// en: 'Running in omp'
+	String get externalRunningNoMachine => 'Running in omp';
+
+	/// en: 'Open in omp'
+	String get externalIdleNoMachine => 'Open in omp';
+
+	/// en: 'The other omp process has stopped'
+	String get externalGone => 'The other omp process has stopped';
+
+	/// en: 'The other omp process is gone. Take the session over to send messages from here.'
+	String get externalBodyGone => 'The other omp process is gone. Take the session over to send messages from here.';
 }
 
 // Path: queue
@@ -1712,6 +1763,12 @@ class Translations$transcript$en {
 	/// en: 'Branch from here'
 	String get branchFromHere => 'Branch from here';
 
+	/// en: 'Reset to here'
+	String get resetHere => 'Reset to here';
+
+	/// en: 'Wait for the turn to finish, or stop it, before resetting'
+	String get resetRunning => 'Wait for the turn to finish, or stop it, before resetting';
+
 	/// en: 'Copy message'
 	String get copyMessage => 'Copy message';
 
@@ -1727,8 +1784,11 @@ class Translations$transcript$en {
 	/// en: 'Automatic message'
 	String get automatic => 'Automatic message';
 
-	/// en: 'Waiting for the model…'
-	String get waiting => 'Waiting for the model…';
+	/// en: 'Waiting for a reply'
+	String get waiting => 'Waiting for a reply';
+
+	/// en: 'Waiting for a reply · ${seconds}s'
+	String waitingElapsed({required Object seconds}) => 'Waiting for a reply · ${seconds}s';
 
 	/// en: 'Thinking…'
 	String get thinking => 'Thinking…';
@@ -3690,6 +3750,7 @@ extension on Translations {
 			'machines.os' => 'OS',
 			'machines.arch' => 'Architecture',
 			'machines.shell' => 'Shell',
+			'machines.loginPath' => 'Login PATH',
 			'machines.home' => 'Home',
 			'machines.omp' => 'omp',
 			'machines.ompVersion' => 'omp version',
@@ -3891,13 +3952,16 @@ extension on Translations {
 			'sessions.notADirectory' => ({required Object path, required Object machine}) => '${path} is not a directory on ${machine}.',
 			'sessions.recentDirectories' => 'Recent projects',
 			'sessions.model' => 'Model (optional)',
-			'sessions.modelHint' => 'provider/model, e.g. anthropic/claude-sonnet-4-5',
+			'sessions.modelDefault' => 'Default (from omp\'s settings)',
+			'sessions.modelPick' => 'Choose a model',
+			'sessions.modelUseDefault' => 'Use the model from omp\'s settings',
 			'sessions.create' => 'Start',
 			'sessions.browse' => 'Browse the machine',
 			'sessions.browseTitle' => 'Choose a directory',
 			'sessions.up' => 'Parent directory',
 			'sessions.showHidden' => 'Show hidden directories',
 			'sessions.chooseDirectory' => 'Use this directory',
+			'sessions.external' => 'In omp on the machine',
 			'install.title' => ({required Object machine}) => 'Install omp on ${machine}',
 			'install.notConnected' => 'Connect to the machine first.',
 			'install.viaDownload' => 'The machine downloads this release from GitHub and checks its SHA-256 before installing it.',
@@ -3924,12 +3988,12 @@ extension on Translations {
 			'chat.modelsFailed' => ({required Object error}) => 'Could not load models: ${error}',
 			'chat.modelFailed' => ({required Object error}) => 'Could not switch the model: ${error}',
 			'chat.contextWindow' => ({required Object tokens}) => '${tokens} context',
+			_ => null,
+		} ?? switch (path) {
 			'chat.reasoning' => 'reasoning',
 			'chat.thinking' => ({required Object level}) => 'Thinking: ${level}',
 			'chat.noThinking' => 'This model has no thinking levels.',
 			'chat.thinkingFailed' => ({required Object error}) => 'Could not change the thinking level: ${error}',
-			_ => null,
-		} ?? switch (path) {
 			'chat.contextTooltip' => ({required Object tokens, required Object window, required Object percent, required Object cost}) => 'Context: ${tokens} of ${window} tokens (${percent}%) · cost ${cost}',
 			'chat.contextUnknown' => ({required Object cost}) => 'Context usage not known yet · cost ${cost}',
 			'chat.pause' => 'Pause',
@@ -3968,6 +4032,9 @@ extension on Translations {
 			'chat.branchTitle' => 'Branch from this message?',
 			'chat.branchBody' => ({required Object text}) => 'A new session file starts before this message, and the message goes back into the composer:\n\n${text}',
 			'chat.branchFailed' => ({required Object error}) => 'Could not branch: ${error}',
+			'chat.resetKept' => 'Earlier replies are kept in the session tree.',
+			'chat.openTree' => 'Open the tree',
+			'chat.resetFailed' => ({required Object error}) => 'Could not reset: ${error}',
 			'attachments.paste' => 'The large paste',
 			'attachments.missing' => ({required Object name}) => '${name} is no longer on this device. Nothing was sent.',
 			'attachments.tooLarge' => ({required Object name, required Object size, required Object limit}) => '${name} is ${size}; attachments can be at most ${limit}. Nothing was sent.',
@@ -3992,6 +4059,16 @@ extension on Translations {
 			'composer.uploading' => ({required Object sent, required Object total}) => 'Uploading ${sent} of ${total}',
 			'composer.unknownCommand' => ({required Object name}) => '/${name} is not a command of this session. Nothing was sent.',
 			'composer.sendFailed' => ({required Object error}) => 'Not sent: ${error}',
+			'composer.externalRunning' => ({required Object machine}) => 'Running in omp on ${machine}',
+			'composer.externalIdle' => ({required Object machine}) => 'Open in omp on ${machine}',
+			'composer.externalTerminal' => ({required Object terminal}) => 'terminal ${terminal}',
+			'composer.externalBody' => 'Another omp process is writing this session file. ompanion reads its transcript live, but sending is off: two writers would overwrite each other. Messages queued in that process are not visible here.',
+			'composer.externalWait' => 'The other omp process still owns this session. Take it over once it has exited.',
+			'composer.takeOver' => 'Take over',
+			'composer.externalRunningNoMachine' => 'Running in omp',
+			'composer.externalIdleNoMachine' => 'Open in omp',
+			'composer.externalGone' => 'The other omp process has stopped',
+			'composer.externalBodyGone' => 'The other omp process is gone. Take the session over to send messages from here.',
 			'queue.steer' => 'Steering',
 			'queue.followUp' => 'Follow-up',
 			'queue.more' => ({required Object n}) => '+${n} more',
@@ -4033,12 +4110,15 @@ extension on Translations {
 			'transcript.loadEarlier' => 'Load earlier messages',
 			'transcript.messageActions' => 'Message actions',
 			'transcript.branchFromHere' => 'Branch from here',
+			'transcript.resetHere' => 'Reset to here',
+			'transcript.resetRunning' => 'Wait for the turn to finish, or stop it, before resetting',
 			'transcript.copyMessage' => 'Copy message',
 			'transcript.copyCode' => 'Copy code',
 			'transcript.copyOutput' => 'Copy output',
 			'transcript.fromAgent' => 'Sent by the agent',
 			'transcript.automatic' => 'Automatic message',
-			'transcript.waiting' => 'Waiting for the model…',
+			'transcript.waiting' => 'Waiting for a reply',
+			'transcript.waitingElapsed' => ({required Object seconds}) => 'Waiting for a reply · ${seconds}s',
 			'transcript.thinking' => 'Thinking…',
 			'transcript.thought' => 'Thought',
 			'transcript.thoughtFor' => ({required Object duration}) => 'Thought for ${duration}',

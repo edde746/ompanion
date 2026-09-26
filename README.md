@@ -35,6 +35,7 @@ come from Actions → Build → Run workflow as artifacts named `ompanion-<platf
 
 ### <img src="assets/readme_icons/chat.svg" height="20" alt="" align="center" /> Chat & transcript
 - Streaming transcript with markdown, LaTeX math, highlighted code, collapsible thinking and images
+- A quiet "Waiting for a reply" line at the end of the transcript fills the silence from sending until the reply streams, counting the seconds it has waited; it goes the moment thinking, text or a tool call arrives, and while a step's tool result has not yet been answered it comes back
 - Finished turns fold their thinking, tool calls and interim messages under a one-line summary (time, tool calls, files edited) and open on a click
 - Steer the running turn or queue a follow-up; edit or remove queued messages
 - `/` command palette from the session's own command list; a slash command omp does not list is never sent to the model
@@ -57,7 +58,9 @@ come from Actions → Build → Run workflow as artifacts named `ompanion-<platf
 - Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread; a project stays collapsed across restarts and shows on its row when a session in it waits for input or works
 - Search the listed sessions of every machine by title or project path from the sidebar (Cmd/Ctrl+F)
 - Resume any session on the machine, including ones started in omp's terminal UI
+- A session another omp process is writing (omp's terminal UI, `omp -p`, another client) is read, never written: ompanion follows the session file live, refuses to send into it, and names the terminal that holds it. Take over starts the app's own omp for the file once that process has exited (`docs/contracts/session-writer.md`)
 - Session tree: search, filters, labels, branch into a new session, and navigate with an optional summary
+- Reset the conversation to any message from its menu: your own message goes back into the composer, an assistant reply becomes the point to continue from, and the replies left behind stay in the session tree (the snackbar opens it)
 - Compactions show as dividers with their summary and file lists
 - Several devices on one live session: each sees what the others send, and the first answer to a dialog settles it everywhere
 - New sessions start in a recent project or a folder picked on the machine, optionally with a model

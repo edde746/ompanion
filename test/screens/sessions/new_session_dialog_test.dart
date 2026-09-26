@@ -17,9 +17,13 @@ import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
+import 'package:omp_core/host.dart';
+import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
+
+import '../../config/fake_machine.dart';
 
 /// Records whether it was closed.
 final class _Files implements HostFiles {
@@ -108,6 +112,129 @@ final class _Connector extends MachineConnector {
   bool searchSystemPaths(Machine machine) => false;
 }
 
+/// What the dialog uses of [SessionsProvider]: the fake machine's [runtime], the recent project directories of
+/// its listing, its model list, and the session requests [open] records. [controlPending], while set, stands for
+/// a control process that has not started yet; [controlFailure] for one that does not start.
+final class _Sessions extends ChangeNotifier implements SessionsProvider {
+  _Sessions(this.runtime, {this.catalogue = const [], this.recent = const []});
+
+  /// Every other member of [SessionsProvider] is out of this fake's scope.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  final MachineRuntime runtime;
+  List<RpcModel> catalogue;
+  List<String> recent;
+  Completer<LiveSession>? controlPending;
+  Object? controlFailure;
+  final opened = <SessionOpen>[];
+
+  @override
+  MachineRuntime runtimeFor(Machine machine) => runtime;
+
+  @override
+  Future<LiveSession> control(Machine machine) async {
+    if (controlPending case final pending?) return pending.future;
+    if (controlFailure case final failure?) throw failure;
+    return FakeSession();
+  }
+
+  @override
+  Future<List<RpcModel>> models(Machine machine, RpcClient rpc, {bool refresh = false}) async => catalogue;
+
+  @override
+  SessionListing listingOf(Machine machine) => SessionListing(
+    sessions: [
+      for (final (index, cwd) in recent.indexed)
+        SessionSummary(
+          path: '/home/u/.omp/agent/sessions/s$index/s$index.jsonl',
+          size: 0,
+          modified: DateTime(2026, 1, 1),
+          id: 's$index',
+          cwd: cwd,
+        ),
+    ],
+  );
+
+  @override
+  Future<LiveSession> open(Machine machine, SessionOpen request) async {
+    opened.add(request);
+    return FakeSession();
+  }
+}
+
+/// The machine's models: `fake/fast` and `fake/reasoning`, as the fake provider serves them.
+final _models = [
+  RpcModel.fromJson(const {
+    'provider': 'fake',
+    'id': 'fast',
+    'name': 'Fast',
+    'reasoning': false,
+    'input': ['text'],
+    'contextWindow': 128000,
+    'maxTokens': 8192,
+  }),
+  RpcModel.fromJson(const {
+    'provider': 'fake',
+    'id': 'reasoning',
+    'name': 'Reasoning',
+    'reasoning': true,
+    'input': ['text'],
+    'contextWindow': 128000,
+    'maxTokens': 8192,
+  }),
+];
+
+/// Opens the dialog on a machine whose files are [files], holding [recent] project directories and
+/// [catalogue] as its model list.
+Future<_Sessions> _pumpDialog(
+  WidgetTester tester, {
+  List<String> recent = const [],
+  List<RpcModel> catalogue = const [],
+  Object? controlFailure,
+  Map<String, String> files = const {},
+}) async {
+  final memory = MemoryFiles()..texts.addAll(files);
+  final sessions = _Sessions(await probedRuntime(FakeLink(memory)), catalogue: catalogue, recent: recent)
+    ..controlFailure = controlFailure;
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<SessionsProvider>.value(value: sessions),
+        ChangeNotifierProvider(create: (_) => ShellProvider()),
+      ],
+      child: TranslationProvider(
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => unawaited(showNewSessionDialog(context, testMachine)),
+              child: const Text('new'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('new'));
+  await tester.pumpAndSettle();
+  return sessions;
+}
+
+/// The directory field's text.
+String _cwdField(WidgetTester tester) =>
+    tester.widget<TextField>(find.byKey(const ValueKey('new-session-cwd'))).controller!.text;
+
+/// Taps Start and returns the new-session request the provider received. Pumped in steps, not settled: a
+/// spinner the dialog shows meanwhile never stops animating.
+Future<NewSession> _startSession(WidgetTester tester, _Sessions sessions) async {
+  await tester.tap(find.byKey(const ValueKey('new-session-create')));
+  for (var i = 0; i < 50 && sessions.opened.isEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+  await tester.pump(const Duration(milliseconds: 20));
+  return sessions.opened.single as NewSession;
+}
+
 void main() {
   testWidgets('a directory picker closed while its SFTP channel opens closes the channel', (tester) async {
     final home = Directory.systemTemp.createTempSync('ompanion-picker-');
@@ -182,5 +309,73 @@ void main() {
       machines.dispose();
       await db.close();
     });
+  });
+
+  testWidgets('a recent project row puts its directory in the working directory field', (tester) async {
+    await _pumpDialog(tester, recent: ['/home/u/alpha', '/home/u/.cache/deep/beta']);
+
+    await tester.tap(find.byKey(const ValueKey('new-session-recent-/home/u/.cache/deep/beta')));
+    await tester.pumpAndSettle();
+
+    expect(_cwdField(tester), '/home/u/.cache/deep/beta');
+  });
+
+  testWidgets('the session opens with the model picked in the picker', (tester) async {
+    final sessions = await _pumpDialog(tester, catalogue: _models, files: {'/home/u/project/README.md': 'x'});
+    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
+
+    await tester.tap(find.byKey(const ValueKey('new-session-model')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fast'));
+    await tester.pumpAndSettle();
+
+    final request = await _startSession(tester, sessions);
+    expect(request.cwd, '/home/u/project');
+    expect(request.model, 'fake/fast');
+  });
+
+  testWidgets('clearing the model starts the session on omp\'s default', (tester) async {
+    final sessions = await _pumpDialog(tester, catalogue: _models, files: {'/home/u/project/README.md': 'x'});
+    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
+    await tester.tap(find.byKey(const ValueKey('new-session-model')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reasoning'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('new-session-model-default')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('new-session-model-default')), findsNothing);
+
+    expect((await _startSession(tester, sessions)).model, isNull);
+  });
+
+  testWidgets('a model list still loading leaves Start on omp\'s default', (tester) async {
+    final sessions = await _pumpDialog(tester, files: {'/home/u/project/README.md': 'x'});
+    sessions.controlPending = Completer<LiveSession>();
+    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
+
+    await tester.tap(find.byKey(const ValueKey('new-session-model')));
+    await tester.pump();
+
+    // The picker waits for the machine's control process; Start does not.
+    expect(find.text('Choose a model'), findsNothing);
+    expect(tester.widget<FilledButton>(find.byKey(const ValueKey('new-session-create'))).onPressed, isNotNull);
+    expect((await _startSession(tester, sessions)).model, isNull);
+  });
+
+  testWidgets('a model list that does not load leaves Start working, on omp\'s default', (tester) async {
+    final sessions = await _pumpDialog(
+      tester,
+      controlFailure: StateError('rpc mode refused'),
+      files: {'/home/u/project/README.md': 'x'},
+    );
+    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
+
+    await tester.tap(find.byKey(const ValueKey('new-session-model')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Could not load models'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byKey(const ValueKey('new-session-create'))).onPressed, isNotNull);
+    expect((await _startSession(tester, sessions)).model, isNull);
   });
 }

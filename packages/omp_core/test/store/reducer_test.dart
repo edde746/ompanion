@@ -414,6 +414,24 @@ void main() {
       expect(view.status, isA<RunIdle>());
     });
 
+    test('a prompt the UI sent stops waiting once the run starts or its outcome arrives', () {
+      final sent = SessionView().copyWith(promptPending: true);
+      expect(reduce(sent, running).promptPending, isFalse, reason: 'the run describes the session from here');
+
+      final streaming = sent.copyWith(run: const RunState(running: true));
+      expect(reduce(streaming, agentEnd(const [])).promptPending, isFalse);
+      expect(
+        reduce(streaming, {
+          'type': 'prompt_result',
+          'id': 'p1',
+          'agentInvoked': false,
+          'status': 'error',
+        }).promptPending,
+        isFalse,
+      );
+      expect(reduce(streaming, {'type': 'session_settled'}).promptPending, isFalse);
+    });
+
     test('an agent_end compacted over 1 MiB takes the outcome from the reply it already streamed', () {
       final failed = assistant(200, [text('partial')], stopReason: 'error', errorMessage: '500 upstream overloaded');
       final view = apply(SessionView(), [

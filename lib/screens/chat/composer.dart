@@ -207,6 +207,15 @@ class _ComposerState extends State<Composer> {
         final draft = _draft;
         setState(() => _sending = true);
         draft.clear();
+        // The transcript shows its awaiting-reply row from here: the upload and the round trip before omp's first
+        // stream event are silent otherwise (SessionView.promptPending).
+        session.setPromptPending(true);
+        // A send that reached nothing, or that omp refused: the row goes and the draft comes back.
+        void giveBack() {
+          session.setPromptPending(false);
+          draft.giveBack(text, attachments: attachments);
+        }
+
         try {
           final prompt = await preparePrompt(
             text: message,
@@ -221,20 +230,14 @@ class _ComposerState extends State<Composer> {
             },
           );
           if (mounted) setState(() => _upload = null);
-          await _prompt(
-            session.rpc,
-            prompt.message,
-            images: prompt.images,
-            behavior: behavior,
-            onRefused: () => draft.giveBack(text, attachments: attachments),
-          );
+          await _prompt(session, prompt.message, images: prompt.images, behavior: behavior, onRefused: giveBack);
         } on AttachmentException catch (error) {
           // Nothing went to omp: the whole draft comes back, with what kept it from going.
-          draft.giveBack(text, attachments: attachments);
+          giveBack();
           messenger.showSnackBar(SnackBar(content: Text(error.describe(t))));
         } on Object catch (error) {
           // Nothing was queued: give the draft back.
-          draft.giveBack(text, attachments: attachments);
+          giveBack();
           messenger.showSnackBar(SnackBar(content: Text(t.composer.sendFailed(error: '$error'))));
         } finally {
           if (mounted) {
@@ -338,14 +341,17 @@ class _ComposerState extends State<Composer> {
 
   /// Sends [message] as a prompt; throws when omp rejects it. omp acknowledges a prompt before it starts it, so one it
   /// then cannot start (no model or API key, another prompt still starting) fails only in its `prompt_result`, and
-  /// [onRefused] runs. A run that started and then failed is in the transcript already.
+  /// [onRefused] runs. A run that started and then failed is in the transcript already. A command that finished in
+  /// omp itself starts no run, so the awaiting-reply row goes when its acknowledgement says so; every other outcome
+  /// clears [SessionView.promptPending] through the reducer, when the run starts or ends.
   static Future<void> _prompt(
-    RpcClient rpc,
+    LiveSession session,
     String message, {
     required List<RpcImage> images,
     required StreamingBehavior? behavior,
     required VoidCallback onRefused,
   }) async {
+    final rpc = session.rpc;
     String? id;
     // The result can arrive before the acknowledgement is read, so listening starts before the prompt goes out.
     final early = <PromptResultFrame>[];
@@ -370,9 +376,10 @@ class _ComposerState extends State<Composer> {
       unawaited(results.cancel());
       rethrow;
     }
-    // A command that finished locally gets no result.
+    // A command that finished locally gets no result, and starts no run.
     if (ack.agentInvoked == false) {
       unawaited(results.cancel());
+      session.setPromptPending(false);
       return;
     }
     id = ack.id;
@@ -391,6 +398,11 @@ class _ComposerState extends State<Composer> {
         session: session,
         select: _select,
         builder: (context, data) {
+          // A session another omp process writes has nothing here to send to; its composer is the explanation and
+          // the take-over, not a field that would start a second omp on the same file.
+          if (session is ExternalSession) {
+            return _ExternalComposer(session: session, writer: data.external, machine: machine);
+          }
           // A closed session has no omp to talk to; its model, thinking level and context are gone with it.
           final closed = link is LinkClosed;
           final palette = _paletteItems(session.view);
@@ -615,6 +627,7 @@ final class _PickersLayout extends MultiChildLayoutDelegate {
 /// What the composer shows besides the draft; compared field by field so streamed tokens do not rebuild it.
 typedef _ComposerData = ({
   bool running,
+  ExternalWriter? external,
   List<SlashCommand> commands,
   ModelRef? model,
   String? thinking,
@@ -624,9 +637,101 @@ typedef _ComposerData = ({
 
 _ComposerData _select(SessionView view) => (
   running: view.run.running,
+  external: view.external,
   commands: view.commands,
   model: view.config.model,
   thinking: view.config.thinkingLevel,
   context: view.contextUsage,
   cost: view.usageTotals.cost,
 );
+
+/// The composer of a session another omp process is writing: there is no run here to send to, so the field and
+/// its toolbar are replaced by what is true about the session and the one action that is safe, the take-over.
+class _ExternalComposer extends StatelessWidget {
+  const _ExternalComposer({required this.session, required this.writer, required this.machine});
+
+  final LiveSession session;
+
+  /// The writer the last poll found; null once the other process is gone, which is when the session can be taken
+  /// over safely.
+  final ExternalWriter? writer;
+
+  final Machine? machine;
+
+  Future<void> _takeOver(BuildContext context) async {
+    final t = context.t;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final taken = await context.read<SessionsProvider>().takeOver(session);
+      if (identical(taken, session)) {
+        messenger.showSnackBar(SnackBar(content: Text(t.composer.externalWait)));
+      }
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: '$error'))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final theme = Theme.of(context);
+    final name = machine?.name;
+    final writer = this.writer;
+    final terminal = writer?.terminal;
+    final busy = writer?.busy ?? false;
+    final String state = switch ((writer == null, busy)) {
+      (true, _) => t.composer.externalGone,
+      (false, true) => name == null ? t.composer.externalRunningNoMachine : t.composer.externalRunning(machine: name),
+      (false, false) => name == null ? t.composer.externalIdleNoMachine : t.composer.externalIdle(machine: name),
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: Material(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: const BorderRadius.all(Radius.circular(AppSizes.cardRadius)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.terminal, size: 18, color: theme.colorScheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      state,
+                      key: const ValueKey('external-state'),
+                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      [
+                        if (terminal != null) t.composer.externalTerminal(terminal: terminal),
+                        writer == null ? t.composer.externalBodyGone : t.composer.externalBody,
+                      ].join(' · '),
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Tooltip(
+                message: writer == null ? t.composer.takeOver : t.composer.externalWait,
+                child: TextButton(
+                  key: const ValueKey('take-over'),
+                  // Only once the other process is gone: taking the file over while an omp still holds it in memory
+                  // would leave two writers on one session.
+                  onPressed: writer == null ? () => unawaited(_takeOver(context)) : null,
+                  child: Text(t.composer.takeOver),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

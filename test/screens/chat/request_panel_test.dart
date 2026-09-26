@@ -58,6 +58,9 @@ final class _Session implements LiveSession {
   void dismissRequest(String id) => emit(store.dismissRequest(_view, id));
 
   @override
+  void setPromptPending(bool pending) {}
+
+  @override
   SessionView get view => _view;
 
   @override

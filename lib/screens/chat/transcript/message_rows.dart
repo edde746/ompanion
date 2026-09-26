@@ -8,6 +8,7 @@ import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/message_mentions.dart';
 import '../../../utils/token_count.dart';
+import '../../dock/tree/session_tree.dart';
 import '../mention_spans.dart';
 import 'code_style.dart';
 import 'images.dart';
@@ -54,7 +55,7 @@ class TranscriptRowView extends StatelessWidget {
         6.0,
       ),
       final AssistantFooterRow row => (_AssistantFooter(row.item, retryFailed: row.retryFailed), 4.0),
-      PendingRow() => (const _Pending(), 10.0),
+      final AwaitingReplyRow row => (_AwaitingReply(row), 10.0),
       final TurnSummaryRow row => (_TurnSummary(row, onToggle: onToggle), 6.0),
     };
     return Align(
@@ -120,6 +121,32 @@ bool get _touchFirst => switch (defaultTargetPlatform) {
   _ => false,
 };
 
+/// What a message's menu offers.
+enum _MessageAction { branch, reset, copy }
+
+/// The menu of one message. Built when the menu opens, not when the row is built, so a run that started since still
+/// shows Reset to here disabled.
+List<PopupMenuEntry<_MessageAction>> _messageMenu(
+  BuildContext context, {
+  required String? entryId,
+  required TreeEntryKind kind,
+}) {
+  final t = context.t.transcript;
+  final actions = TranscriptScope.of(context);
+  final canReset = actions.canReset?.call() ?? true;
+  return [
+    if (entryId != null && kind == TreeEntryKind.user && actions.onBranchFrom != null)
+      PopupMenuItem(value: _MessageAction.branch, child: Text(t.branchFromHere)),
+    if (entryId != null && actions.onResetTo != null)
+      PopupMenuItem(
+        value: _MessageAction.reset,
+        enabled: canReset,
+        child: canReset ? Text(t.resetHere) : Tooltip(message: t.resetRunning, child: Text(t.resetHere)),
+      ),
+    PopupMenuItem(value: _MessageAction.copy, child: Text(t.copyMessage)),
+  ];
+}
+
 class _UserMessage extends StatefulWidget {
   const _UserMessage(this.item);
 
@@ -166,8 +193,9 @@ List<MessagePart> _head(List<MessagePart> parts, int end) {
 }
 
 class _UserMessageState extends State<_UserMessage> {
-  final _menu = MenuController();
+  final _menu = GlobalKey<PopupMenuButtonState<_MessageAction>>();
   bool _hovered = false;
+  bool _menuOpen = false;
   bool _expanded = false;
   late List<MessagePart> _parts = splitMentions(widget.item.text);
 
@@ -190,7 +218,21 @@ class _UserMessageState extends State<_UserMessage> {
     PageStorage.maybeOf(context)?.writeState(context, _expanded, identifier: _storageId);
   }
 
-  void _open([Offset? position]) => _menu.open(position: position);
+  void _open() => _menu.currentState?.showButtonMenu();
+
+  void _act(_MessageAction action) {
+    if (mounted) setState(() => _menuOpen = false);
+    final actions = TranscriptScope.of(context);
+    final entryId = widget.item.entryId;
+    switch (action) {
+      case _MessageAction.branch:
+        if (entryId != null) actions.onBranchFrom?.call(entryId);
+      case _MessageAction.reset:
+        if (entryId != null) actions.onResetTo?.call(entryId, TreeEntryKind.user);
+      case _MessageAction.copy:
+        actions.onCopy(widget.item.text);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -198,9 +240,7 @@ class _UserMessageState extends State<_UserMessage> {
     final scheme = theme.colorScheme;
     final t = context.t.transcript;
     final item = widget.item;
-    final actions = TranscriptScope.of(context);
     final entryId = item.entryId;
-    final branch = actions.onBranchFrom;
     final agent = item.synthetic || item.attribution == 'agent';
     final images = item.images.toList();
     final text = item.text;
@@ -284,42 +324,38 @@ class _UserMessageState extends State<_UserMessage> {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MenuAnchor(
-            controller: _menu,
-            menuChildren: [
-              if (entryId != null && branch != null)
-                MenuItemButton(
-                  leadingIcon: const Icon(Icons.call_split),
-                  onPressed: () => TranscriptScope.of(context).onBranchFrom?.call(entryId),
-                  child: Text(t.branchFromHere),
-                ),
-              MenuItemButton(
-                leadingIcon: const Icon(Icons.copy_outlined),
-                onPressed: () => TranscriptScope.of(context).onCopy(text),
-                child: Text(t.copyMessage),
-              ),
-            ],
-            builder: (context, controller, child) => AnimatedOpacity(
-              opacity: _hovered || controller.isOpen || _touchFirst ? 1 : 0,
-              duration: const Duration(milliseconds: 120),
-              child: IconButton(
-                visualDensity: VisualDensity.compact,
-                iconSize: 18,
-                tooltip: t.messageActions,
-                onPressed: () => controller.isOpen ? controller.close() : _open(),
-                icon: Icon(Icons.more_horiz, color: scheme.onSurfaceVariant),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
           Flexible(
             child: LayoutBuilder(
-              builder: (context, constraints) => Align(
-                alignment: Alignment.centerRight,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.9),
-                  child: GestureDetector(onSecondaryTapUp: (details) => _open(), child: bubble),
-                ),
+              // The button hugs the bubble's left side: the row shrinks to its content, and only the bubble takes
+              // the 90 % cap of the transcript's width.
+              builder: (context, constraints) => Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AnimatedOpacity(
+                    opacity: _hovered || _menuOpen || _touchFirst ? 1 : 0,
+                    duration: const Duration(milliseconds: 120),
+                    child: PopupMenuButton<_MessageAction>(
+                      key: _menu,
+                      tooltip: t.messageActions,
+                      icon: Icon(Icons.more_horiz, color: scheme.onSurfaceVariant),
+                      iconSize: 18,
+                      padding: EdgeInsets.zero,
+                      style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+                      onOpened: () => setState(() => _menuOpen = true),
+                      onCanceled: () => setState(() => _menuOpen = false),
+                      onSelected: _act,
+                      itemBuilder: (context) => _messageMenu(context, entryId: entryId, kind: TreeEntryKind.user),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.9),
+                      child: GestureDetector(onSecondaryTapUp: (details) => _open(), child: bubble),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -505,66 +541,150 @@ class _AssistantFooter extends StatelessWidget {
       if (item.duration != null) t.seconds(value: _seconds(item.duration!)),
     ];
     final recovery = item.retryRecovery;
+    // The menu lives in the footer: the footer is the tail of an assistant message that ended a turn, so this is where
+    // the message is reachable whatever the turn's folding.
+    final actions = item.entryId != null && TranscriptScope.of(context).onResetTo != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SelectionContainer.disabled(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (item.stopReason == StopReason.error && recovery == null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(color: colors.errorSurface, borderRadius: BorderRadius.circular(8)),
+                  child: Text(
+                    item.errorMessage ?? t.failed,
+                    style: theme.textTheme.bodySmall?.copyWith(color: colors.error),
+                  ),
+                ),
+              if (item.stopReason == StopReason.aborted)
+                Row(
+                  children: [
+                    Icon(Icons.stop_circle_outlined, size: 14, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Text(t.interrupted, style: dim),
+                  ],
+                ),
+              if (item.stopReason == StopReason.length)
+                Text(t.lengthLimit, style: dim?.copyWith(color: colors.warning)),
+              if (recovery != null)
+                Text(
+                  retryFailed
+                      ? t.retryFailed(attempt: recovery.attempt)
+                      : recovery.recovered
+                      ? t.retryRecovered(attempt: recovery.attempt)
+                      : t.retrySuperseded(attempt: recovery.attempt),
+                  style: dim,
+                ),
+              if ((item.stopReason != StopReason.error || recovery != null) && (usage != null || item.duration != null))
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(facts.join('  ·  '), style: dim),
+                ),
+            ],
+          ),
+        ),
+        if (actions)
+          Align(
+            alignment: Alignment.centerRight,
+            child: PopupMenuButton<_MessageAction>(
+              tooltip: t.messageActions,
+              icon: Icon(Icons.more_horiz, color: scheme.onSurfaceVariant),
+              iconSize: 18,
+              padding: EdgeInsets.zero,
+              style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+              onSelected: (action) => _actOnAssistant(context, action, item),
+              itemBuilder: (context) => _messageMenu(context, entryId: item.entryId, kind: TreeEntryKind.assistant),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// What an assistant message's menu does: Reset moves the session's leaf to the message, Copy copies its text.
+void _actOnAssistant(BuildContext context, _MessageAction action, AssistantItem item) {
+  final actions = TranscriptScope.of(context);
+  switch (action) {
+    case _MessageAction.branch:
+      break;
+    case _MessageAction.reset:
+      if (item.entryId case final entryId?) actions.onResetTo?.call(entryId, TreeEntryKind.assistant);
+    case _MessageAction.copy:
+      actions.onCopy(item.text);
+  }
+}
+
+/// Wait in seconds before the awaiting line counts them: a short wait needs no number.
+const _awaitingSecondsAfter = 3;
+
+/// The turn is working on an answer and has produced nothing to show yet: one quiet line in the place the reply will
+/// take, so the wait is visible and the transcript does not jump when the reply arrives. The seconds appear once the
+/// wait is long enough to be worth counting, and the dots step one per second; a device that asks for less motion
+/// gets the three dots still.
+class _AwaitingReply extends StatelessWidget {
+  const _AwaitingReply(this.row);
+
+  final AwaitingReplyRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final t = context.t.transcript;
+    final seconds = row.seconds;
     return SelectionContainer.disabled(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (item.stopReason == StopReason.error && recovery == null)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(color: colors.errorSurface, borderRadius: BorderRadius.circular(8)),
-              child: Text(
-                item.errorMessage ?? t.failed,
-                style: theme.textTheme.bodySmall?.copyWith(color: colors.error),
-              ),
-            ),
-          if (item.stopReason == StopReason.aborted)
-            Row(
-              children: [
-                Icon(Icons.stop_circle_outlined, size: 14, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 4),
-                Text(t.interrupted, style: dim),
-              ],
-            ),
-          if (item.stopReason == StopReason.length) Text(t.lengthLimit, style: dim?.copyWith(color: colors.warning)),
-          if (recovery != null)
-            Text(
-              retryFailed
-                  ? t.retryFailed(attempt: recovery.attempt)
-                  : recovery.recovered
-                  ? t.retryRecovered(attempt: recovery.attempt)
-                  : t.retrySuperseded(attempt: recovery.attempt),
-              style: dim,
-            ),
-          if ((item.stopReason != StopReason.error || recovery != null) && (usage != null || item.duration != null))
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(facts.join('  ·  '), style: dim),
-            ),
+          _WaitingDots(seconds: seconds, still: MediaQuery.disableAnimationsOf(context)),
+          const SizedBox(width: 6),
+          Text(
+            seconds < _awaitingSecondsAfter ? t.waiting : t.waitingElapsed(seconds: seconds),
+            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
         ],
       ),
     );
   }
 }
 
-class _Pending extends StatelessWidget {
-  const _Pending();
+/// Three 3 px dots in `onSurfaceVariant`, the leading one dimmed and stepped once a second while the wait goes on.
+/// They are the whole of the row's mark: one 14 px block, centred on the text's line.
+class _WaitingDots extends StatelessWidget {
+  const _WaitingDots({required this.seconds, required this.still});
+
+  final int seconds;
+
+  /// Less motion asked for: the dots stay lit.
+  final bool still;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SelectionContainer.disabled(
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    final lead = still ? -1 : seconds % 3;
+    return SizedBox(
+      width: 14,
+      height: 14,
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 1.5)),
-          const SizedBox(width: 8),
-          Text(
-            context.t.transcript.waiting,
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
+          for (var index = 0; index < 3; index++)
+            Container(
+              width: 3,
+              height: 3,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: index == lead ? 0.4 : 1),
+                shape: BoxShape.circle,
+              ),
+            ),
         ],
       ),
     );

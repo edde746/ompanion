@@ -54,6 +54,12 @@ abstract interface class LiveSession {
   /// dialogs whose timeout passed.
   void dismissRequest(String id);
 
+  /// Marks whether a prompt this device sent is still waiting for omp to start answering it
+  /// ([SessionView.promptPending]). The chat shows its awaiting-reply row from the send until omp's first stream
+  /// event, which is sooner than `agent_start` for a prompt that reaches omp over a slow link. The caller clears it
+  /// when its send fails; the reducer clears it when the run starts or ends.
+  void setPromptPending(bool pending);
+
   /// Removes toast [seq] from the view.
   void dismissNotice(int seq);
 

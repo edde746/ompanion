@@ -208,6 +208,11 @@ class _TranscriptViewState extends State<TranscriptView> {
   /// The session worked on its latest turn at the last update.
   bool _live = false;
 
+  /// Whether the awaiting-reply row shows, and how many seconds it has counted.
+  bool _awaiting = false;
+  int _awaitedSeconds = 0;
+  Timer? _awaitingTick;
+
   /// Index of the first row of the center sliver in [TranscriptRowModel.rows].
   var _splitRow = 0;
 
@@ -246,13 +251,16 @@ class _TranscriptViewState extends State<TranscriptView> {
       _turns.removeListener(_onTurns);
       _attachTurns();
       _update(initial: false);
-    } else if (!identical(widget.view.transcript, _transcript) || _inProgress(widget.view) != _live) {
+    } else if (!identical(widget.view.transcript, _transcript) ||
+        _inProgress(widget.view) != _live ||
+        awaitingReply(widget.view) != _awaiting) {
       _update(initial: false);
     }
   }
 
   @override
   void dispose() {
+    _awaitingTick?.cancel();
     _turns.removeListener(_onTurns);
     _ownTurns?.dispose();
     _scroll.dispose();
@@ -277,6 +285,10 @@ class _TranscriptViewState extends State<TranscriptView> {
     _reveal();
     _model.refold();
     setState(() => _splitRow = _model.rowOf(_split(_transcript ?? const [])));
+    if (_turns.takeJumpToEnd()) {
+      // A tree navigation moved the leaf: the rebuilt transcript ends where the reader should now be.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToLatest());
+    }
   }
 
   /// Opens the turn of the entry [TurnExpansion.reveal] asked for, once the transcript holds it. An entry before the
@@ -319,6 +331,28 @@ class _TranscriptViewState extends State<TranscriptView> {
     _turns.setOpen(row.head, !row.open);
   }
 
+  /// Keeps the awaiting-reply row and its count in step with the view: the row shows while [awaitingReply] holds, and
+  /// counts one second at a time while it does. The count starts over for each wait.
+  void _updateAwaiting() {
+    final awaiting = awaitingReply(widget.view);
+    if (awaiting == _awaiting) return;
+    _awaiting = awaiting;
+    _awaitingTick?.cancel();
+    _awaitingTick = null;
+    _awaitedSeconds = 0;
+    if (awaiting) _awaitingTick = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    _model.showAwaiting(awaiting ? 0 : null);
+  }
+
+  /// Counts one more second of waiting.
+  void _tick() {
+    if (!mounted || !_awaiting) return;
+    setState(() {
+      _awaitedSeconds++;
+      _model.showAwaiting(_awaitedSeconds);
+    });
+  }
+
   void _update({required bool initial}) {
     final transcript = widget.view.transcript;
     _transcript = transcript;
@@ -347,7 +381,9 @@ class _TranscriptViewState extends State<TranscriptView> {
       }
     }
     _live = _inProgress(widget.view);
+    // The awaiting row goes on after the items' rows, so it stays the last one.
     _model.update(transcript, live: _live);
+    _updateAwaiting();
     _reveal();
     _splitRow = _model.rowOf(split);
     final rows = _model.rows;

@@ -282,6 +282,9 @@ class _Facts extends StatelessWidget {
           _Fact(m.os, osLabel(probe)),
           _Fact(m.arch, probe.arch),
           _Fact(m.shell, probe.shell ?? (probe.isWindows ? 'cmd.exe' : '—')),
+          // omp runs with the machine's own PATH when the login shell gave none, so tools the user's shell
+          // has may be missing from its bash tool. Say why.
+          if (probe.loginProblem case final problem?) _Fact(m.loginPath, problem, color: colors.warning),
           _Fact(m.home, probe.home),
           _Fact(m.omp, probe.ompPath ?? m.notFound),
           _Fact(m.ompVersion, probe.ompVersion ?? '—'),

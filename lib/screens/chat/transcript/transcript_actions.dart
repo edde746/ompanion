@@ -1,12 +1,15 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../sessions/machine_images.dart';
+import '../../dock/tree/session_tree.dart';
 
 /// What the transcript asks of the screen that shows it. Null callbacks hide their affordance (a subagent's transcript
 /// cannot be branched, a fully seeded one has nothing earlier to load).
 final class TranscriptActions {
   const TranscriptActions({
     this.onBranchFrom,
+    this.onResetTo,
+    this.canReset,
     required this.onCopy,
     required this.onOpenFile,
     required this.onOpenSubagent,
@@ -16,6 +19,14 @@ final class TranscriptActions {
 
   /// Branch the session from the user message with this session entry id.
   final void Function(String entryId)? onBranchFrom;
+
+  /// Move the session's leaf to the entry with this id (`/tree` in place, companion `tree.navigate`): a user message
+  /// goes back into the composer, anything else becomes the leaf. [TreeEntryKind] says which the entry is.
+  final void Function(String entryId, TreeEntryKind kind)? onResetTo;
+
+  /// Whether omp will navigate now; a turn that runs makes it refuse. Called when the menu is built, so it follows a
+  /// run that starts or ends while the row keeps its widget.
+  final bool Function()? canReset;
 
   /// Put [text] on the clipboard (and confirm it).
   final void Function(String text) onCopy;

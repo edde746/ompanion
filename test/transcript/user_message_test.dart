@@ -69,6 +69,22 @@ void main() {
     expect(copied, [message]);
   });
 
+  testWidgets('the message actions button sits beside the bubble, not at the row edge', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(tester, 'first question');
+    final button = tester.getRect(find.byTooltip('Message actions'));
+    // The bubble's left edge is its text's left edge minus the bubble's 14 px horizontal padding.
+    final bubbleLeft = tester.getRect(bubbleText).left - 14;
+    expect(button.right, lessThanOrEqualTo(bubbleLeft));
+    expect(
+      bubbleLeft - button.right,
+      lessThan(30),
+      reason: 'the button hugs the bubble: a 4 px gap plus its own padding, not the row edge',
+    );
+  });
+
   testWidgets('a long message shows its first lines until the reader shows all, and stays open when rebuilt', (
     tester,
   ) async {

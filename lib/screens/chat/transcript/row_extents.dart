@@ -54,7 +54,7 @@ double estimateRowExtent(TranscriptRow row, double width) {
     AssistantImageRow() => 6 + 200,
     ToolRow() => 6 + 36,
     AssistantFooterRow() => 4 + 20,
-    PendingRow() => 10 + 20,
+    AwaitingReplyRow() => 10 + 20,
     TurnSummaryRow() => 6 + 24,
   };
 }

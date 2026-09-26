@@ -7,10 +7,13 @@ import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
 import '../../i18n/strings.g.dart';
+import '../../models/dock_tab.dart';
 import '../../sessions/machine_images.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../dock/dock_controller.dart';
+import '../dock/tree/navigate_tree.dart';
+import '../dock/tree/session_tree.dart';
 import 'attachment_drop.dart';
 import 'chat_header.dart';
 import 'composer.dart';
@@ -41,6 +44,8 @@ class ChatScreen extends StatelessWidget {
     // A large session opens with its latest part; the transcript asks for earlier pages as the reader scrolls up.
     TranscriptActions actions(Future<void> Function()? loadEarlier) => TranscriptActions(
       onBranchFrom: (entryId) => unawaited(branchFrom(context, session, entryId)),
+      onResetTo: (entryId, kind) => unawaited(resetToEntry(context, session, entryId, kind)),
+      canReset: () => !session.view.run.running && session.view.external == null,
       onCopy: (text) => unawaited(_copy(context, text)),
       onOpenFile: (path, {line}) => context.read<DockController>().openFile(path, line: line),
       onOpenSubagent: (id) => context.read<DockController>().openSubagent(id),
@@ -82,6 +87,35 @@ class ChatScreen extends StatelessWidget {
     final copied = context.t.common.copied;
     await Clipboard.setData(ClipboardData(text: text));
     messenger.showSnackBar(SnackBar(content: Text(copied), duration: const Duration(seconds: 1)));
+  }
+}
+
+/// Moves the session's leaf to [entryId] in place (omp's `/tree`, companion `tree.navigate`), as the Tree tab's Go here
+/// does: a user message goes back into the composer, any other entry becomes the leaf and the chat opens its turn. The
+/// abandoned replies stay in the session tree, so the snackbar says where to find them.
+Future<void> resetToEntry(BuildContext context, LiveSession session, String entryId, TreeEntryKind kind) async {
+  final t = context.t;
+  final messenger = ScaffoldMessenger.of(context);
+  if (session.companionHello == null) {
+    // Without the companion a `/ompx` call would reach the model as a prompt.
+    messenger.showSnackBar(SnackBar(content: Text(t.chat.noCompanion)));
+    return;
+  }
+  final sessions = context.read<SessionsProvider>();
+  final dock = context.read<DockController>();
+  try {
+    final outcome = await navigateTree(session, sessions, entryId: entryId, kind: kind);
+    if (outcome != TreeNavigation.moved) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(t.chat.resetKept),
+        action: SnackBarAction(label: t.chat.openTree, onPressed: () => dock.show(DockTab.tree)),
+        // An action makes a SnackBar persist by default, and this one sits over the composer's send button.
+        persist: false,
+      ),
+    );
+  } on Object catch (error) {
+    messenger.showSnackBar(SnackBar(content: Text(t.chat.resetFailed(error: '$error'))));
   }
 }
 

@@ -61,6 +61,8 @@ decisions.
 | D17 | Flutter stack follows Plezy: `provider`, `drift`, `slang`, `window_manager`, `flutter_secure_storage`. Markdown `gpt_markdown` 1.3.0 with a CommonMark code-fence rule (its own parser mishandles nested and `~~~` fences); settled segments cached, only the streaming tail re-parsed. Highlighting `re_highlight` in an isolate. Transcript list: built-in slivers around a center anchor with a stick-to-bottom `ScrollPhysics`, no list package. Terminal `xterm2` 5.2.0 in every build (MIT); PTY `flutter_pty2` 2.0.0, and ompanion paces PTY output into the terminal itself (`lib/terminal/frame_writer.dart`: one character budget per frame), which `xterm3` shipped and `xterm2` does not. Code viewer/editor `re_editor` 0.10.0; diffs rendered from omp's numbered diff format and `git diff`. | Same conventions as the author's other Flutter app. Evidence and rejected options: `research/ui-libraries.md`. |
 | D18 | Repository: Flutter app at the root; `packages/omp_core/` (pure Dart: transport, SSH, host scripts, session channels, RPC and companion clients, session store); `companion/` (TypeScript, Bun); `testing/` (fake OpenAI-compatible provider, isolated omp homes, recorded fixtures, SSH test containers); `docs/`. | The app and the companion version together; the companion is built per supported omp version. Pure Dart keeps the protocol and transport testable with `dart test` and drivable from a CLI without Flutter. Tests never call a paid provider: omp runs against the fake provider in an isolated `HOME`. |
 | D19 | Material 3 look. omp theme palettes are not used for the app's own colours. | User choice. omp's `theme` settings stay editable as TUI settings. |
+| D20 | The probe asks the account's login shell for its PATH once per connection (`$SHELL -l -i -c`, falling back to `-l -c`, bounded, between markers into a private file), and every launch puts that PATH in front of omp's own. On POSIX only. | An SSH exec channel's PATH is sshd's default, so Homebrew, `~/.local/bin` and nvm are missing from omp's bash tool (`gh` exit 127); the same for a Dock-launched app on macOS. `-i` because PATH commonly lives in `.zshrc`/`.bashrc`. The wrapper's own `tail`/`ps` keep sshd's PATH. Contract: `contracts/host-launch.md`. |
+| D21 | A session file another omp process holds (a process with it open for writing, or omp's terminal breadcrumb with a live omp on that tty) is read, never launched into: the app shows the transcript from the file, refuses to send, and offers Take over only once that process is gone. POSIX only; Windows keeps the old behaviour. | Two writers on one session file interleave turns and each process's next rewrite drops the other's entries (measured: a terminal omp mid-turn plus the app's second omp, `session_exit` written into the terminal's live session). omp's steering/follow-up queue is in that process's memory only, so the app says so instead of faking it. Contract: `contracts/session-writer.md`. |
 
 ## 3. Architecture
 
@@ -126,7 +128,8 @@ Machine records, host keys and settings live in drift; private keys and password
 | Tailscale | MagicDNS name or 100.x over SSH | SSH key or Tailscale SSH `none` | `tailscale status --json` (desktop), import |
 
 Per-host facts the app stores after the probe: OS, arch, libc, shell, home, agent dir, absolute omp path,
-omp version, and for Windows the OpenSSH default shell and PowerShell version.
+omp version, the login shell's PATH (or why it could not be read: `contracts/host-launch.md`), and for
+Windows the OpenSSH default shell and PowerShell version.
 
 Liveness: dartssh2's keepalive never declares a peer dead, so the app pings with a timeout (3 × 15 s),
 probes on app resume and network change, reconnects with jittered backoff, and stops on auth failure.
@@ -162,7 +165,9 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 - Launch (`openRun`, under `~/.ompanion/run/.launch.lock`): a running run whose `meta.json` names the
   session is reused. Otherwise `run.sh` starts in a new session (`setsid`, Perl's on macOS):
   `tail -f in.jsonl | omp --mode rpc-ui --config overlay.yml --cwd <cwd> -e <companion> [--session <file>]
-  [--model …] [--thinking …] >> out.jsonl 2>> err.log`, then records omp's exit code.
+  [--model …] [--thinking …] >> out.jsonl 2>> err.log`, then records omp's exit code. omp runs with the
+  login shell's PATH in front of its own, and the pipeline's `tail`/`ps` keeps sshd's
+  (`contracts/host-launch.md`).
 - Session file: a new session starts without `--session`, so omp names its file
   (`sessions/<cwd>/<time>_<id>.jsonl`) and writes it with the first message. The first attach reads
   `get_state.sessionFile` and records it in `meta.json` before `open` returns; every later switch inside
@@ -194,11 +199,11 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 ### Control process
 
 Settings, roles, accounts, login and model lists need no session. One `omp --mode rpc-ui --no-session -e
-<companion>` per machine runs on an exec channel of the link, started on first use and again after it
-exits. omp refuses rpc mode on a machine with no usable model ("No models available"); the control then runs
-in bootstrap mode: `--model minimax/MiniMax-M2 --api-key ompanion-bootstrap`. The model is bundled in omp's
-catalog and has no discovery. `--api-key` is a runtime override that is never persisted. The channel refuses
-every model call (prompts other than `/ompx`, `btw` and `tree.navigate` calls, `compact`, `handoff`). After
+<companion>` per machine runs on an exec channel of the link, started on first use and again after it exits,
+with the login shell's PATH like every other launch (`contracts/host-launch.md`). omp refuses rpc mode on a
+machine with no usable model ("No models available"); the control then runs in bootstrap mode:
+`--model minimax/MiniMax-M2 --api-key ompanion-bootstrap`. The model is bundled in omp's catalog and has no
+discovery. `--api-key` is a runtime override that is never persisted. The channel refuses every model call (prompts other than `/ompx`, `btw` and `tree.navigate` calls, `compact`, `handoff`). After
 `accounts.setKey` or a successful `login`, the next `control()` starts a normal process.
 
 ### Windows hosts (and this computer on Windows)

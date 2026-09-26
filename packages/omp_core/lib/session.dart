@@ -2,6 +2,7 @@
 /// launch or attach detached runs, feed the reducer, reconnect and resync.
 library;
 
+export 'src/session/external_session.dart';
 export 'src/session/live_session.dart';
 export 'src/session/machine_runtime.dart';
 export 'src/session/run_session.dart' show OmpStartFailed, OmpUnavailable, PermanentConnectFailure, RunEnded, RunGone;

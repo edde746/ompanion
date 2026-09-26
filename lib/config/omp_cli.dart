@@ -15,8 +15,9 @@ final class OmpCliException implements Exception {
 }
 
 /// Runs the probed omp binary with [args] on [link], in [cwd] (host-native) when given, else in the login
-/// directory. The environment is the link's, so a development build's isolated `HOME` applies. Throws
-/// [OmpCliException] on a non-zero exit.
+/// directory. The environment is the link's, so a development build's isolated `HOME` applies, with the login
+/// shell's `PATH` in front ([HostProbe.loginPathExport]), which is what a shell the user runs omp from has.
+/// Throws [OmpCliException] on a non-zero exit.
 Future<ScriptResult> runOmp(HostLink link, HostProbe probe, List<String> args, {String? cwd}) async {
   final omp = probe.ompPath;
   if (omp == null) throw StateError('omp is not installed on ${link.label}');
@@ -24,6 +25,7 @@ Future<ScriptResult> runOmp(HostLink link, HostProbe probe, List<String> args, {
     CommandShell.posix => await runPosixScript(
       link,
       [
+        probe.loginPathExport,
         if (cwd != null) 'cd ${shQuote(cwd)} || exit 1',
         [shQuote(omp), ...args.map(shQuote)].join(' '),
       ].join('\n'),

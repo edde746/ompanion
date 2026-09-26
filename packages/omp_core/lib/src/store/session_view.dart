@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'external_writer.dart';
 import 'transcript.dart';
 
 /// Everything the chat UI renders for one session. Immutable: the reducer returns a new view and reuses every
@@ -24,6 +25,8 @@ final class SessionView {
     this.transcript = const [],
     this.historyLength = 0,
     this.stateStale = false,
+    this.promptPending = false,
+    this.external,
     this.resyncReason,
     this.nextSeq = 0,
     this.settledRequestIds = const [],
@@ -75,6 +78,17 @@ final class SessionView {
   /// `get_state` has news no frame carried (model, todos, context usage, queue, settings). Cleared by `withState`.
   final bool stateStale;
 
+  /// This device sent a prompt and omp has not started producing output for it yet. Set by the UI that sent it
+  /// ([LiveSession.setPromptPending]) and shown as the chat's awaiting-reply row while it holds, so the round trip
+  /// before `agent_start` (and before `get_state.isStreaming` says so) is not silent. The reducer clears it once the
+  /// run starts, its prompt's result arrives or the run ends.
+  final bool promptPending;
+
+  /// Another process on the machine writes this session file, and what is known about it. Set only by
+  /// `ExternalSession`, whose view is read from the file: such a view has no RPC, no queue and no dialogs, and the
+  /// app must not start an omp of its own for the session. Null for a view of a run this app started.
+  final ExternalWriter? external;
+
   /// The conversation behind this view was replaced (another session id, a `new_session`/`switch_session`/`branch`/
   /// `open_session`/`handoff` response, an auto-handoff, the companion's `session.changed`): rebuild a fresh view
   /// from `get_state` and the messages or entries. The value names the cause.
@@ -120,6 +134,8 @@ final class SessionView {
     List<TranscriptItem>? transcript,
     int? historyLength,
     bool? stateStale,
+    bool? promptPending,
+    Object? external = _keep,
     Object? resyncReason = _keep,
     int? nextSeq,
     List<String>? settledRequestIds,
@@ -142,6 +158,8 @@ final class SessionView {
     transcript: transcript ?? this.transcript,
     historyLength: historyLength ?? this.historyLength,
     stateStale: stateStale ?? this.stateStale,
+    promptPending: promptPending ?? this.promptPending,
+    external: identical(external, _keep) ? this.external : external as ExternalWriter?,
     resyncReason: identical(resyncReason, _keep) ? this.resyncReason : resyncReason as String?,
     nextSeq: nextSeq ?? this.nextSeq,
     settledRequestIds: settledRequestIds ?? this.settledRequestIds,

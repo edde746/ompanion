@@ -10,12 +10,12 @@ import 'package:provider/provider.dart';
 
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
-import '../../../sessions/composer_attachments.dart';
 import '../../../sessions/sessions_provider.dart';
 import '../../../utils/token_count.dart';
 import '../../../widgets/app_search_field.dart';
 import '../../../widgets/labeled_field.dart';
 import '../dock_empty_state.dart';
+import 'navigate_tree.dart';
 import 'session_tree.dart';
 
 /// The session tree (`/tree`): every branch of the conversation, the current leaf highlighted. Navigate the leaf
@@ -163,27 +163,17 @@ class _TreeTabState extends State<TreeTab> {
       _summarizing = summarize;
     });
     try {
-      final result = await session.companion.call('tree.navigate', {
-        'entryId': entry.id,
-        if (summarize) 'summarize': true,
-        if (summarize && instructions != null && instructions.trim().isNotEmpty)
-          'customInstructions': instructions.trim(),
-      });
-      if (result case {'cancelled': true, 'aborted': final bool aborted}) {
-        if (mounted) _snack(aborted ? t.summaryAborted : t.navigationCancelled);
+      final outcome = await navigateTree(
+        session,
+        sessions,
+        entryId: entry.id,
+        kind: entry.kind,
+        summarize: summarize,
+        instructions: instructions,
+      );
+      if (outcome != TreeNavigation.moved) {
+        if (mounted) _snack(outcome == TreeNavigation.aborted ? t.summaryAborted : t.navigationCancelled);
         return;
-      }
-      // A user message goes back into the editor; anything else becomes the leaf, and the chat opens its turn.
-      if (entry.kind != TreeEntryKind.user) sessions.turnsOf(session).reveal(entry.id);
-      if (result case {'editorText': final String? text, 'editorImages': final List<Object?> images}) {
-        final attachments = [
-          for (final image in images)
-            if (image case {'data': final String data, 'mimeType': final String mimeType})
-              ImageAttachment(RpcImage(data: data, mimeType: mimeType)),
-        ];
-        if ((text != null && text.isNotEmpty) || attachments.isNotEmpty) {
-          sessions.setDraft(session, text ?? '', attachments: attachments);
-        }
       }
       await _reload();
     } on CompanionException catch (error) {

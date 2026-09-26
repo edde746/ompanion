@@ -115,6 +115,78 @@ void main() {
     });
   });
 
+  group('login shell PATH', () {
+    late Directory temp;
+
+    setUp(() async => temp = await Directory.systemTemp.createTemp('probe login '));
+    tearDown(() => temp.delete(recursive: true));
+
+    /// A stand-in login shell: the flags land in `$flags`, then [body] runs with the command to run as `$1`.
+    Future<String> fakeShell(String body) async {
+      final path = '${temp.path}/shell';
+      await File(path).writeAsString('#!/bin/sh\nflags=\$*\nwhile [ \$# -gt 1 ]; do shift; done\n$body\n');
+      await Process.run('chmod', ['755', path]);
+      return path;
+    }
+
+    /// Runs the real probe script with [shell] as the machine's login shell. [loginWait] is the probe's own
+    /// budget in tenths of a second, kept short so a hanging shell test stays fast.
+    Future<HostProbe> run(String shell, {int loginWait = 20}) async {
+      final link = LocalLink(environment: {'HOME': temp.path, 'PATH': '/usr/bin:/bin', 'SHELL': shell});
+      addTearDown(link.close);
+      final marker = newMarker();
+      final result = await runPosixScript(
+        link,
+        posixProbeScript(marker, searchSystemPaths: false, loginWait: loginWait),
+      );
+      return parsePosixProbe(result.payload(marker));
+    }
+
+    test('reads the PATH the login shell gives its children, past rc noise', () async {
+      final shell = await fakeShell(
+        'echo "welcome to my shell"\n'
+        'PATH=/opt/homebrew/bin:/home/me/.local/bin:/usr/bin\n'
+        'export PATH\n'
+        r'eval "$1"'
+        '\n'
+        'echo "prompt %"',
+      );
+      final probe = await run(shell);
+      expect(probe.loginPath, '/opt/homebrew/bin:/home/me/.local/bin:/usr/bin');
+      expect(probe.loginProblem, isNull);
+    });
+
+    test('a shell that refuses -i still answers as a login shell', () async {
+      final shell = await fakeShell(
+        r'case $flags in *-i*) echo "illegal option -- i" >&2; exit 2;; esac'
+        '\n'
+        'PATH=/from-login-shell:/usr/bin\n'
+        'export PATH\n'
+        r'eval "$1"',
+      );
+      expect((await run(shell)).loginPath, '/from-login-shell:/usr/bin');
+    });
+
+    test('a shell that answers nothing leaves the exec PATH and says why', () async {
+      final quiet = await run(await fakeShell(':'));
+      expect(quiet.loginPath, isNull);
+      expect(quiet.loginProblem, 'the login shell reported no PATH');
+    });
+
+    test('a shell that hangs is killed after the wait, and the probe returns', () async {
+      final started = DateTime.now();
+      final stuck = await run(await fakeShell('while :; do sleep 0.1; done'), loginWait: 2);
+      expect(stuck.loginPath, isNull);
+      expect(stuck.loginProblem, 'the login shell reported no PATH');
+      expect(DateTime.now().difference(started), lessThan(const Duration(seconds: 10)));
+    });
+
+    test(r'an empty $SHELL falls back to the account login shell from passwd', () async {
+      final probe = await run('');
+      expect(probe.loginPath, contains('/usr/bin'));
+    });
+  });
+
   test('POSIX probe payloads map to release assets', () {
     HostProbe parse(Map<String, Object> fields) => parsePosixProbe(
       jsonEncode({'v': '1', 'home': '/home/u', 'agentDir': '/home/u/.omp/agent', 'omps': <Object>[], ...fields}),

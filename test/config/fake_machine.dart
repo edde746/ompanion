@@ -105,6 +105,9 @@ final class FakeSession implements LiveSession {
   void dismissRequest(String id) {}
 
   @override
+  void setPromptPending(bool pending) {}
+
+  @override
   void dismissNotice(int seq) {}
 
   @override

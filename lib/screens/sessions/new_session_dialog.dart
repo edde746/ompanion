@@ -2,16 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:omp_core/host.dart';
+import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
+import '../../config/accounts.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../widgets/labeled_field.dart';
+import '../config/model_picker.dart';
 import '../machines/connect_dialogs.dart';
 import 'machine_sessions.dart';
 
@@ -38,9 +41,13 @@ class _NewSessionDialog extends StatefulWidget {
 
 class _NewSessionDialogState extends State<_NewSessionDialog> {
   late final TextEditingController _cwd = TextEditingController(text: widget.initialCwd ?? '');
-  final _model = TextEditingController();
+
+  /// The chosen model: [selector] (`provider/id[:thinking]`) is what omp gets, [name] (the model's name and
+  /// provider) is what the field shows. Null leaves omp on its configured default.
+  ({String selector, String name})? _model;
   HostProbe? _probe;
   bool _connecting = true;
+  bool _loadingModels = false;
   bool _creating = false;
   String? _error;
 
@@ -56,7 +63,6 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
   @override
   void dispose() {
     _cwd.dispose();
-    _model.dispose();
     super.dispose();
   }
 
@@ -125,8 +131,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
         }
         return;
       }
-      final model = _model.text.trim();
-      final session = await sessions.open(widget.machine, NewSession(cwd, model: model.isEmpty ? null : model));
+      final session = await sessions.open(widget.machine, NewSession(cwd, model: _model?.selector));
       if (mounted) Navigator.pop(context, session);
     } on Object catch (error) {
       if (mounted) {
@@ -136,6 +141,45 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
         });
       }
     }
+  }
+
+  /// Opens the machine's model picker. The machine's control process may have to start first; a failure leaves
+  /// the form usable and Start on omp's default model.
+  Future<void> _pickModel() async {
+    final t = context.t;
+    final sessions = context.read<SessionsProvider>();
+    setState(() {
+      _loadingModels = true;
+      _error = null;
+    });
+    final List<RpcModel> models;
+    try {
+      final control = await sessions.control(widget.machine);
+      models = await sessions.models(widget.machine, control.rpc);
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() {
+          _loadingModels = false;
+          _error = t.chat.modelsFailed(error: describeConnectError(t, error));
+        });
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _loadingModels = false);
+    final selector = await pickModel(context, models: models, title: t.sessions.modelPick, current: _model?.selector);
+    if (!mounted || selector == null) return;
+    setState(() => _model = (selector: selector, name: _modelName(models, selector)));
+  }
+
+  /// [selector] as the picker lists it: the model's name and provider, or the selector itself for a typed
+  /// selector omp does not list here.
+  static String _modelName(List<RpcModel> models, String selector) {
+    final id = splitSelector(selector).model;
+    for (final model in models) {
+      if ('${model.provider}/${model.id}' == id) return '${model.name} · ${model.provider}';
+    }
+    return selector;
   }
 
   Future<void> _browse() async {
@@ -198,24 +242,63 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
             ),
             if (recent.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text(t.sessions.recentDirectories, style: theme.textTheme.labelMedium),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final cwd in recent)
-                    ActionChip(label: Text(shortPath(cwd, _probe?.home)), tooltip: cwd, onPressed: () => _setCwd(cwd)),
-                ],
+              LabeledField(
+                label: t.sessions.recentDirectories,
+                child: ConstrainedBox(
+                  // Five rows at most; a longer list scrolls, so the dialog keeps one height.
+                  constraints: BoxConstraints(
+                    maxHeight: (sidebarTouch(context) ? AppSizes.rowHeightTouch : AppSizes.rowHeight) * 5,
+                  ),
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _cwd,
+                    builder: (context, value, _) {
+                      final current = _expand(value.text.trim());
+                      return ListView.builder(
+                        key: const ValueKey('new-session-recent'),
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: recent.length,
+                        itemBuilder: (context, index) {
+                          final cwd = recent[index];
+                          return _RecentProject(
+                            key: ValueKey('new-session-recent-$cwd'),
+                            path: cwd,
+                            home: _probe?.home,
+                            selected: cwd == current,
+                            onTap: () => _setCwd(cwd),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
             const SizedBox(height: 12),
             LabeledField(
               label: t.sessions.model,
-              child: TextField(
-                controller: _model,
-                decoration: InputDecoration(hintText: t.sessions.modelHint),
-                onSubmitted: ready ? (_) => unawaited(_create()) : null,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ModelField(
+                      label: _model?.name ?? t.sessions.modelDefault,
+                      tooltip: _model?.selector,
+                      busy: _loadingModels,
+                      onPressed: _loadingModels || _probe == null ? null : () => unawaited(_pickModel()),
+                    ),
+                  ),
+                  if (_model != null) ...[
+                    const SizedBox(width: AppSizes.gap),
+                    // The same clear control the roles page uses to drop an assignment.
+                    IconButton(
+                      key: const ValueKey('new-session-model-default'),
+                      tooltip: t.sessions.modelUseDefault,
+                      color: theme.colorScheme.onSurface,
+                      onPressed: () => setState(() => _model = null),
+                      icon: const Icon(Icons.clear, size: 18),
+                    ),
+                  ],
+                ],
               ),
             ),
             if (error != null) ...[
@@ -236,6 +319,89 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
         ),
       ],
     );
+  }
+}
+
+/// One recent project directory: a dense row that puts its path in the directory field, [selected] when it is
+/// the one the field holds. The full path is the row's tooltip.
+class _RecentProject extends StatelessWidget {
+  const _RecentProject({
+    super.key,
+    required this.path,
+    required this.home,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String path;
+  final String? home;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final shown = shortPath(path, home);
+    final cut = shown.lastIndexOf(RegExp(r'[/\\]'));
+    // Only the directories above the last segment are cut away, so the segment that tells two long `.cache`
+    // paths apart stays readable.
+    final head = cut < 0 ? '' : shown.substring(0, cut + 1);
+    final tail = cut < 0 ? shown : shown.substring(cut + 1);
+    final style = theme.textTheme.bodyMedium;
+    return SidebarRow(
+      selected: selected,
+      onTap: onTap,
+      builder: (context, _) => Tooltip(
+        message: path,
+        child: Row(
+          children: [
+            Icon(Icons.folder_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            if (head.isNotEmpty)
+              Flexible(
+                child: Text(head, maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
+              ),
+            Text(tail, maxLines: 1, style: style),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The model form field: a flat control showing the chosen model and opening the model picker, with a spinner
+/// while the machine's models load.
+class _ModelField extends StatelessWidget {
+  const _ModelField({required this.label, required this.tooltip, required this.busy, required this.onPressed});
+
+  final String label;
+  final String? tooltip;
+  final bool busy;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final button = FilledButton.tonal(
+      key: const ValueKey('new-session-model'),
+      onPressed: busy ? null : onPressed,
+      style: const ButtonStyle(
+        padding: WidgetStatePropertyAll(EdgeInsetsDirectional.only(start: 12, end: 8)),
+        alignment: AlignmentDirectional.centerStart,
+      ),
+      child: Row(
+        children: [
+          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 4),
+          if (busy)
+            const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2))
+          else
+            Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+        ],
+      ),
+    );
+    final tooltip = this.tooltip;
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
   }
 }
 

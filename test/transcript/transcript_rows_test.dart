@@ -65,7 +65,7 @@ List<String> shown(List<TranscriptRow> rows) => [
       ToolRow(:final callId) => 'tool $callId',
       AssistantFooterRow(:final item, :final retryFailed) =>
         'footer ${item.stopReason.name}${retryFailed ? ' retry failed' : ''}',
-      PendingRow() => 'pending',
+      AwaitingReplyRow() => 'awaiting',
       TurnSummaryRow(:final open) => open ? 'summary open' : 'summary',
     },
 ];
@@ -97,8 +97,8 @@ void main() {
       expect(rows.map((row) => row.runtimeType), [AssistantTextRow]);
     });
 
-    test('a response that has shown nothing yet is a pending row; the last thinking block is live', () {
-      expect(rowsOf([assistant(1, const [], streaming: true)]).single, isA<PendingRow>());
+    test('a response that has shown nothing yet has no rows; the last thinking block is live', () {
+      expect(rowsOf([assistant(1, const [], streaming: true)]), isEmpty);
       final rows = rowsOf([
         assistant(1, const [ThinkingBlock('plan'), TextBlock('a'), ThinkingBlock('')], streaming: true),
       ]);

@@ -52,7 +52,10 @@ final class AttachedChannel implements LineChannel {
     final args = spec.ompArgs(native);
     final process = probe.isWindows && probe.commandShell != CommandShell.posix
         ? await link.exec(windowsAttachedCommand(probe.commandShell, spec.cwd, spec.omp, args, native))
-        : await startPosixScript(link, posixAttachedScript(spec.cwd, spec.omp, args, native));
+        : await startPosixScript(
+            link,
+            posixAttachedScript(spec.cwd, spec.omp, args, native, loginPathExport: probe.loginPathExport),
+          );
     return AttachedChannel._(process, closeTimeout);
   }
 
@@ -98,9 +101,12 @@ final class AttachedChannel implements LineChannel {
 }
 
 /// `exec` is not used, so the overlay can be removed after omp exits.
-String posixAttachedScript(String cwd, String omp, List<String> args, String overlay) =>
+/// [loginPathExport] ([HostProbe.loginPathExport]) puts the login shell's PATH in front of omp's own, so the
+/// tools its bash tool runs are the ones the user's shell gives them; empty when the probe read none.
+String posixAttachedScript(String cwd, String omp, List<String> args, String overlay, {String loginPathExport = ''}) =>
     '''
 cd ${shQuote(cwd)} || exit 1
+${loginPathExport.isEmpty ? ':' : loginPathExport}
 ${[omp, ...args].map(shQuote).join(' ')}
 code=\$?
 rm -f ${shQuote(overlay)}

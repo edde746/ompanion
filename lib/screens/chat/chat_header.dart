@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omp_core/host.dart' show SessionSummary;
 import 'package:omp_core/session.dart';
+import 'package:omp_core/store.dart' show ExternalWriter;
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
@@ -16,11 +17,12 @@ import '../../sessions/sessions_provider.dart';
 import 'queue_list.dart';
 
 /// What the header shows; compared field by field so streamed tokens do not rebuild it.
-typedef _HeaderData = ({String name, bool paused, bool running});
+typedef _HeaderData = ({String name, bool paused, bool running, ExternalWriter? external});
 
 /// Session title, directory and machine, with the pause toggle while a run goes or waits paused, Stop while a run
-/// goes, and the session menu. A closed session shows its state instead of the run controls. [leading] and
-/// [trailing] carry the shell's sidebar and panel toggles.
+/// goes, and the session menu. A closed session shows its state instead of the run controls, and a session another
+/// omp process writes says so instead of offering controls that would need a run of ours. [leading] and [trailing]
+/// carry the shell's sidebar and panel toggles.
 class ChatHeader extends StatelessWidget {
   const ChatHeader({super.key, required this.session, this.leading, this.trailing, this.compact = false});
 
@@ -42,9 +44,15 @@ class ChatHeader extends StatelessWidget {
       session: session,
       builder: (context, link) => SessionViewSelector<_HeaderData>(
         session: session,
-        select: (view) => (name: liveSessionName(t, view, summary), paused: view.run.paused, running: view.run.running),
+        select: (view) => (
+          name: liveSessionName(t, view, summary),
+          paused: view.run.paused,
+          running: view.run.running,
+          external: view.external,
+        ),
         builder: (context, data) {
           final closed = link is LinkClosed;
+          final external = data.external;
           final title = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -73,6 +81,21 @@ class ChatHeader extends StatelessWidget {
                   const SizedBox(width: AppSizes.gap),
                   if (closed)
                     Text(t.chat.closedState, key: const ValueKey('closed-state'), style: muted)
+                  else if (external != null)
+                    // No run of ours to pause or stop: what the session is doing lives in the other process.
+                    Row(
+                      key: const ValueKey('external-state'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          external.busy ? Icons.sync : Icons.terminal,
+                          size: 16,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(external.busy ? t.sessions.working : t.sessions.external, style: muted),
+                      ],
+                    )
                   else ...[
                     if (data.running || data.paused)
                       _PauseButton(session: session, paused: data.paused, iconOnly: compact),
@@ -224,7 +247,7 @@ class _SessionMenu extends StatelessWidget {
         ),
         MenuItemButton(
           leadingIcon: const Icon(Icons.power_settings_new),
-          onPressed: () => unawaited(_stop(context, session)),
+          onPressed: session.view.external == null ? () => unawaited(_stop(context, session)) : null,
           child: Text(t.chat.stopSession),
         ),
       ],

@@ -18,6 +18,54 @@ sealed class TranscriptRow {
   Object get content;
 }
 
+/// Whether the transcript shows its awaiting-reply row: a turn is running (or a prompt this device just sent is on
+/// its way to omp, [SessionView.promptPending]) and nothing on screen is producing output yet, so the wait for the
+/// model would otherwise be silent. It covers the whole wait, also the one between a tool result and the next
+/// assistant message.
+///
+/// It stays away where something else already says what is going on: a compacting, retrying or parked run (the
+/// status strip), a request the run waits on (an approval, a question), a streaming message with a row of its own
+/// (its spinner) or a running tool (its progress).
+bool awaitingReply(SessionView view) {
+  final run = view.run;
+  if (!run.running && !view.promptPending) return false;
+  if (run.compacting != null || run.retrying != null || run.paused) return false;
+  if (view.requests.any(_waitsForAnAnswer)) return false;
+  return !view.transcript.any(isProducing);
+}
+
+/// Whether [item] is producing something the reader can see right now: a streaming message with a row on screen, or
+/// a running tool.
+bool isProducing(TranscriptItem item) => switch (item) {
+  final AssistantItem item when item.streaming => _showsContent(item),
+  ToolResultItem(state: ToolState.running) => true,
+  _ => false,
+};
+
+/// Whether a streaming assistant message has a row yet: the block conditions of [_assistantRows]. A streaming
+/// message's last thinking block shows while it is still empty, since that row carries the spinner.
+bool _showsContent(AssistantItem item) {
+  final content = item.content;
+  for (var index = 0; index < content.length; index++) {
+    final last = index == content.length - 1;
+    final shows = switch (content[index]) {
+      TextBlock(:final text) => text.trim().isNotEmpty,
+      ThinkingBlock(:final thinking) => thinking.trim().isNotEmpty || last,
+      RedactedThinkingBlock() || ImageBlock() || ToolCallBlock() => true,
+      OtherBlock() => false,
+    };
+    if (shows) return true;
+  }
+  return false;
+}
+
+/// Whether [request] is one the run is blocked on: an approval, a question, a select or a companion `ask`. The
+/// one-shot requests (an editor text, an open URL) leave the run working.
+bool _waitsForAnAnswer(UiRequest request) => switch (request) {
+  EditorTextRequest() || OpenUrlRequest() => false,
+  _ => true,
+};
+
 /// A whole item rendered by one widget: user messages, executions, custom messages, dividers and markers.
 final class ItemRow extends TranscriptRow {
   const ItemRow(this.item);
@@ -143,17 +191,19 @@ final class AssistantFooterRow extends TranscriptRow {
   Object get content => (item, retryFailed);
 }
 
-/// A response has started but shows nothing yet.
-final class PendingRow extends TranscriptRow {
-  const PendingRow(this.item);
+/// The turn is working on an answer and has produced nothing to show yet: one line where the reply will be, counting
+/// the wait. Not an item's row: it is kept at the end of the transcript while [awaitingReply] holds. [seconds] is the
+/// wait so far, ticked by the transcript.
+final class AwaitingReplyRow extends TranscriptRow {
+  const AwaitingReplyRow(this.seconds);
 
-  final AssistantItem item;
+  final int seconds;
 
   @override
-  String get key => '${item.key}#pending';
+  String get key => '#awaiting-reply';
 
   @override
-  Object get content => item;
+  Object get content => seconds;
 }
 
 /// What a folded turn did, from what its items carry: how long it worked (when they carry the times), its tool calls,
@@ -241,6 +291,9 @@ final class TranscriptRowModel {
   List<TranscriptItem> _items = const [];
   bool _live = false;
 
+  /// Seconds the current wait has lasted, while the awaiting-reply row shows.
+  int? _awaiting;
+
   /// Every row of every item, in transcript order.
   final _all = <TranscriptRow>[];
 
@@ -267,6 +320,8 @@ final class TranscriptRowModel {
   /// Takes [transcript]; [live] means the session works on its latest turn.
   void update(List<TranscriptItem> transcript, {bool live = false}) {
     if (identical(transcript, _items) && live == _live) return;
+    // The awaiting row goes back last at the end of the update; taken off first, it cannot end up between rows.
+    _cutAwaiting();
     final shared = math.min(transcript.length, _items.length);
     var from = 0;
     while (from < shared && identical(transcript[from], _items[from])) {
@@ -292,6 +347,7 @@ final class TranscriptRowModel {
     } else {
       _showFrom(math.max(turn, 0));
     }
+    showAwaiting(_awaiting);
   }
 
   /// Shows again, from the first one, the folded turns whose open state [isOpen] changed.
@@ -302,9 +358,24 @@ final class TranscriptRowModel {
       final (:head, row: _, :fold) = _turns[turn];
       if ((fold == _Fold.closed || fold == _Fold.open) && (fold == _Fold.open) != open(_items[head])) {
         _showFrom(turn);
+        showAwaiting(_awaiting);
         return;
       }
     }
+  }
+
+  /// Keeps the awaiting-reply row the last row while [seconds] is set, so it takes the place the reply will occupy and
+  /// the transcript does not jump when the reply arrives. [update] and [refold] put it back; the transcript calls this
+  /// as the wait counts up.
+  void showAwaiting(int? seconds) {
+    _awaiting = seconds;
+    _cutAwaiting();
+    if (seconds != null) _show(AwaitingReplyRow(seconds));
+  }
+
+  /// Takes the awaiting-reply row off [rows]; it is always the last one while it shows.
+  void _cutAwaiting() {
+    if (rows.isNotEmpty && rows.last is AwaitingReplyRow) _cutRows(rows.length - 1);
   }
 
   /// Whether the update changed only items from [from] on inside the live latest turn [turn], which still shows every
@@ -539,8 +610,7 @@ bool _keeps(TranscriptRow row, AssistantItem? answer) => switch (row) {
   ItemRow(:final item) => item is! CustomItem,
   AssistantTextRow(:final item) => identical(item, answer),
   AssistantFooterRow(:final item) => identical(item, answer) || _failed(item),
-  PendingRow() => true,
-  ThinkingRow() || AssistantImageRow() || ToolRow() || TurnSummaryRow() => false,
+  ThinkingRow() || AssistantImageRow() || ToolRow() || TurnSummaryRow() || AwaitingReplyRow() => false,
 };
 
 /// An error or abort that no retry recovered.
@@ -580,11 +650,7 @@ List<TranscriptRow> _assistantRows(AssistantItem item) {
         break;
     }
   }
-  if (item.streaming) {
-    if (rows.isEmpty) rows.add(PendingRow(item));
-  } else if (hasFooter(item)) {
-    rows.add(AssistantFooterRow(item));
-  }
+  if (!item.streaming && hasFooter(item)) rows.add(AssistantFooterRow(item));
   return rows;
 }
 

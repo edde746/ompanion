@@ -9,6 +9,7 @@ import 'package:omp_core/store.dart';
 class TurnExpansion extends ChangeNotifier {
   final _open = <String>{};
   String? _reveal;
+  bool _toEnd = false;
 
   bool isOpen(TranscriptItem head) => _open.contains(head.key) || _open.contains(head.entryId);
 
@@ -32,6 +33,20 @@ class TurnExpansion extends ChangeNotifier {
   void revealedIn(TranscriptItem head) {
     _reveal = null;
     _set(head, true);
+  }
+
+  /// Asks the chat to show the end of the transcript once it has rebuilt: a tree navigation moved the leaf, so the
+  /// kept conversation is what the reader should now see.
+  void jumpToEnd() {
+    _toEnd = true;
+    notifyListeners();
+  }
+
+  /// Whether the chat should scroll to the end, once.
+  bool takeJumpToEnd() {
+    final toEnd = _toEnd;
+    _toEnd = false;
+    return toEnd;
   }
 
   void _set(TranscriptItem head, bool open) {

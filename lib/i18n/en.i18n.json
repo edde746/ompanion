@@ -320,6 +320,7 @@
     "os": "OS",
     "arch": "Architecture",
     "shell": "Shell",
+    "loginPath": "Login PATH",
     "home": "Home",
     "omp": "omp",
     "ompVersion": "omp version",
@@ -550,13 +551,16 @@
     "notADirectory": "$path is not a directory on $machine.",
     "recentDirectories": "Recent projects",
     "model": "Model (optional)",
-    "modelHint": "provider/model, e.g. anthropic/claude-sonnet-4-5",
+    "modelDefault": "Default (from omp's settings)",
+    "modelPick": "Choose a model",
+    "modelUseDefault": "Use the model from omp's settings",
     "create": "Start",
     "browse": "Browse the machine",
     "browseTitle": "Choose a directory",
     "up": "Parent directory",
     "showHidden": "Show hidden directories",
-    "chooseDirectory": "Use this directory"
+    "chooseDirectory": "Use this directory",
+    "external": "In omp on the machine"
   },
   "install": {
     "title": "Install omp on $machine",
@@ -628,7 +632,10 @@
     "branch": "Branch",
     "branchTitle": "Branch from this message?",
     "branchBody": "A new session file starts before this message, and the message goes back into the composer:\n\n$text",
-    "branchFailed": "Could not branch: $error"
+    "branchFailed": "Could not branch: $error",
+    "resetKept": "Earlier replies are kept in the session tree.",
+    "openTree": "Open the tree",
+    "resetFailed": "Could not reset: $error"
   },
   "attachments": {
     "paste": "The large paste",
@@ -659,7 +666,17 @@
     "attachFailed": "Could not attach: $error",
     "uploading": "Uploading $sent of $total",
     "unknownCommand": "/$name is not a command of this session. Nothing was sent.",
-    "sendFailed": "Not sent: $error"
+    "sendFailed": "Not sent: $error",
+    "externalRunning": "Running in omp on $machine",
+    "externalIdle": "Open in omp on $machine",
+    "externalTerminal": "terminal $terminal",
+    "externalBody": "Another omp process is writing this session file. ompanion reads its transcript live, but sending is off: two writers would overwrite each other. Messages queued in that process are not visible here.",
+    "externalWait": "The other omp process still owns this session. Take it over once it has exited.",
+    "takeOver": "Take over",
+    "externalRunningNoMachine": "Running in omp",
+    "externalIdleNoMachine": "Open in omp",
+    "externalGone": "The other omp process has stopped",
+    "externalBodyGone": "The other omp process is gone. Take the session over to send messages from here."
   },
   "queue": {
     "steer": "Steering",
@@ -711,12 +728,15 @@
     "loadEarlier": "Load earlier messages",
     "messageActions": "Message actions",
     "branchFromHere": "Branch from here",
+    "resetHere": "Reset to here",
+    "resetRunning": "Wait for the turn to finish, or stop it, before resetting",
     "copyMessage": "Copy message",
     "copyCode": "Copy code",
     "copyOutput": "Copy output",
     "fromAgent": "Sent by the agent",
     "automatic": "Automatic message",
-    "waiting": "Waiting for the model…",
+    "waiting": "Waiting for a reply",
+    "waitingElapsed": "Waiting for a reply · ${seconds}s",
     "thinking": "Thinking…",
     "thought": "Thought",
     "thoughtFor": "Thought for $duration",
@@ -813,7 +833,6 @@
       "one": "Show all ($n line)",
       "other": "Show all ($n lines)"
     },
-    "showLess": "Show less",
     "branchSummary": "Summary of the branch you left",
     "summaryFiles": "Files",
     "fileRead": "read",

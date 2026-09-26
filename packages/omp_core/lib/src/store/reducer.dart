@@ -30,6 +30,8 @@ SessionView _reduce(SessionView view, Map<String, Object?> frame) => switch (fra
     run: view.run.copyWith(running: true, retrying: null, outcome: const RunIdle()),
     // A new run cannot inherit a streaming message or a foreground tool; omp's TUI seals them here too.
     transcript: _interruptTools(_finishStreaming(view.transcript)),
+    // The run the UI waited on started; its own state describes it from here.
+    promptPending: false,
   ),
   'agent_end' => _agentEnd(view, frame),
   'message_start' => _messageStart(view, frame),
@@ -325,12 +327,14 @@ SessionView _agentEnd(SessionView view, Map<String, Object?> frame) {
 SessionView _finishRun(SessionView view) => view.copyWith(
   run: view.run.copyWith(running: false, compacting: null, retrying: null),
   transcript: _interruptTools(_finishStreaming(view.transcript)),
+  promptPending: false,
 );
 
 /// The session went quiet (`session_settled`): nothing runs, background jobs included.
 SessionView _settle(SessionView view) => view.copyWith(
   run: view.run.copyWith(running: false, compacting: null, retrying: null),
   transcript: _settledTranscript(view.transcript),
+  promptPending: false,
 );
 
 List<TranscriptItem> _settledTranscript(List<TranscriptItem> transcript) => _mapWhere(
@@ -345,7 +349,7 @@ SessionView _promptResult(SessionView view, Map<String, Object?> frame) {
     'error' => RunFailed(frame.optObject('error')?.optString('message')),
     _ => view.run.outcome,
   };
-  final next = view.copyWith(run: view.run.copyWith(outcome: outcome));
+  final next = view.copyWith(run: view.run.copyWith(outcome: outcome), promptPending: false);
   return (frame.optBool('sessionSettled') ?? false) ? _settle(next) : next;
 }
 

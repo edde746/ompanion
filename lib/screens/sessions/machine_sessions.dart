@@ -465,6 +465,11 @@ class _ProjectMark extends StatelessWidget {
 }
 
 SessionStatus _liveStatus(SessionView view) {
+  // A session another omp process writes: working while it writes, held by omp otherwise. There is no run here to
+  // show a failure or a dialogs prompt for; the file is all the app has.
+  if (view.external case final external?) {
+    return external.busy ? SessionStatus.working : SessionStatus.runningOnMachine;
+  }
   if (view.requests.any((request) => request is! EditorTextRequest)) return SessionStatus.needsInput;
   return switch (view.run.status) {
     RunStreaming() || RunCompacting() || RunRetrying() => SessionStatus.working,

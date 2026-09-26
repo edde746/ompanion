@@ -20,6 +20,8 @@ final class HostProbe {
     this.profile,
     this.ompPath,
     this.ompVersion,
+    this.loginPath,
+    this.loginProblem,
     this.curl = false,
     this.wget = false,
     this.powershellVersion,
@@ -40,6 +42,8 @@ final class HostProbe {
     profile: json.optString('profile'),
     ompPath: json.optString('ompPath'),
     ompVersion: json.optString('ompVersion'),
+    loginPath: json.optString('loginPath'),
+    loginProblem: json.optString('loginProblem'),
     curl: json.optBool('curl') ?? false,
     wget: json.optBool('wget') ?? false,
     powershellVersion: json.optString('powershellVersion'),
@@ -76,6 +80,15 @@ final class HostProbe {
 
   /// `18.3.1` from `omp --version`.
   final String? ompVersion;
+
+  /// The `PATH` the account's login shell gives its own children, read with `$SHELL -l -i -c` (an interactive
+  /// login shell, what a terminal runs); null when the probe could not read one ([loginProblem] says which way
+  /// it failed), which is always the case on Windows.
+  final String? loginPath;
+
+  /// Why [loginPath] is null on a POSIX machine: no login shell, or one that answered with no `PATH`.
+  final String? loginProblem;
+
   final bool curl;
   final bool wget;
 
@@ -85,6 +98,12 @@ final class HostProbe {
   final String? sshdVersion;
 
   bool get isWindows => os == HostOs.windows;
+
+  /// The shell statement that puts [loginPath] in front of a launch script's `PATH`, for a script that starts
+  /// omp directly; empty when the probe read none. The login PATH goes first and the script's own `PATH`
+  /// (sshd's, or launchd's on this computer) stays behind it, so the script keeps resolving the tools it
+  /// uses itself.
+  String get loginPathExport => loginPath == null ? '' : 'PATH=${shQuote('$loginPath:')}"\$PATH"; export PATH';
 
   /// The omp release asset that runs here, e.g. `omp-linux-musl-arm64`; null when omp ships none.
   String? get releaseAsset {
@@ -109,6 +128,8 @@ final class HostProbe {
     'profile': profile,
     'ompPath': ompPath,
     'ompVersion': ompVersion,
+    'loginPath': loginPath,
+    'loginProblem': loginProblem,
     'curl': curl,
     'wget': wget,
     'powershellVersion': powershellVersion,
@@ -160,9 +181,10 @@ CommandShell parseShellProbe(String output) {
 /// POSIX probe, printed as one JSON object between marker lines. `LC_ALL=C` keeps `tr` and `sed` from
 /// rejecting non-UTF-8 bytes in paths. `omps` lists the omp on PATH and the first other one in the install
 /// locations, `~/.local/bin` first (where both installers and `uploadOmp` put it), each with the first
-/// line of its `--version`; [parsePosixProbe] picks one.
-String posixProbeScript(String marker, {bool searchSystemPaths = true}) =>
-    'm=${shQuote(marker)}; sys=${searchSystemPaths ? '1' : ''}\n$_posixProbeBody';
+/// line of its `--version`; [parsePosixProbe] picks one. The probe also asks the login shell for its `PATH`
+/// ([HostProbe.loginPath]) and waits at most `loginWait` tenths of a second for each of its two attempts.
+String posixProbeScript(String marker, {bool searchSystemPaths = true, int loginWait = 50}) =>
+    'm=${shQuote(marker)}; sys=${searchSystemPaths ? '1' : ''}; lwait=$loginWait\n$_posixProbeBody';
 
 const _posixProbeBody = r'''
 LC_ALL=C; export LC_ALL
@@ -186,6 +208,56 @@ fi
 cfg="$HOME/${PI_CONFIG_DIR:-.omp}"
 prof=${OMP_PROFILE-${PI_PROFILE-}}
 if [ -n "$prof" ]; then agent="$cfg/profiles/$prof/agent"; else agent=${PI_CODING_AGENT_DIR:-$cfg/agent}; fi
+# A terminal's shell is a login and interactive one, and that is where the user's PATH comes from: Homebrew's
+# shellenv and path_helper in .zprofile, ~/.local/bin, version managers and Android in .zshrc/.bashrc. The exec
+# channel this probe runs on is neither, so a program started from it sees sshd's default PATH, which is
+# missing all of that. Ask the login shell for the PATH its own children get, in the account's home directory
+# (the app may run omp with another HOME, e.g. an isolated one, which must not change the answer). `env` is read
+# instead of "$PATH" because fish joins its PATH list into the exported, colon-separated variable. The answers
+# arrive between markers in a 0600 temp file, so rc noise (motd, echoes, prompts, .zcompdump) cannot corrupt
+# them; a shell that never answers is killed after lwait tenths of a second.
+llogin=
+lwhy=
+luser=$(id -un 2>/dev/null)
+lrow=
+if has getent; then lrow=$(getent passwd "$luser" 2>/dev/null); fi
+lhome=
+if [ -n "$lrow" ]; then lhome=$(printf '%s' "$lrow" | cut -d: -f6); fi
+if [ -z "$lhome" ] && has dscl; then lhome=$(dscl . -read "/Users/$luser" NFSHomeDirectory 2>/dev/null | cut -d' ' -f2-); fi
+lshell=${SHELL:-}
+if [ -n "$lshell" ] && [ ! -x "$lshell" ]; then lshell=; fi
+if [ -z "$lshell" ] && [ -n "$lrow" ]; then lshell=$(printf '%s' "$lrow" | cut -d: -f7); fi
+if [ -z "$lshell" ] && has dscl; then lshell=$(dscl . -read "/Users/$luser" UserShell 2>/dev/null | cut -d' ' -f2-); fi
+if [ -z "$lhome" ]; then lhome=$HOME; fi
+case $lhome in /*) ;; *) lhome=$HOME ;; esac
+if [ -z "$lshell" ] || [ ! -x "$lshell" ]; then
+  lwhy='no login shell'
+else
+  lout=${TMPDIR:-/tmp}/ompanion-login-$$
+  lm=login-$m
+  ltry() {
+    (umask 077; : >"$lout")
+    HOME="$lhome" "$lshell" "$@" "printf '%s\n' $lm; env; printf '%s\n' $lm" </dev/null >"$lout" 2>/dev/null &
+    lp=$!
+    ln=0
+    while [ "$(grep -c "$lm" "$lout" 2>/dev/null)" -lt 2 ] && kill -0 $lp 2>/dev/null && [ $ln -lt $lwait ]; do
+      sleep 0.1 2>/dev/null || sleep 1
+      ln=$((ln + 1))
+    done
+    kill $lp 2>/dev/null
+    lk=0
+    while kill -0 $lp 2>/dev/null && [ $lk -lt 10 ]; do
+      sleep 0.1 2>/dev/null || sleep 1
+      lk=$((lk + 1))
+    done
+    kill -9 $lp 2>/dev/null
+    llogin=$(awk -v m="$lm" 'n == 0 && $0 == m { n = 1; next } n == 1 && /^PATH=/ { print substr($0, 6); exit }' "$lout")
+    if [ -z "$llogin" ]; then lwhy='the login shell reported no PATH'; else lwhy=; fi
+  }
+  ltry -l -i -c
+  if [ -z "$llogin" ]; then ltry -l -c; fi
+  rm -f "$lout"
+fi
 p=
 if [ -n "$sys" ]; then
   p=$(command -v omp 2>/dev/null)
@@ -207,6 +279,7 @@ wget=; if has wget; then wget=1; fi
 printf '\n%s:begin\n{"v":"1"' "$m"
 o kernel "$kernel"; o machine "$machine"; o arm64 "$arm64"; o libc "$libc"; o shell "$SHELL"; o home "$HOME"
 o agentDir "$agent"; o profile "$prof"; o curl "$curl"; o wget "$wget"
+o loginPath "$llogin"; o loginProblem "$lwhy"
 printf ',"omps":['
 if [ -n "$p" ]; then e "$p" "$pv"; fi
 if [ -n "$p" ] && [ -n "$c" ]; then printf ','; fi
@@ -240,6 +313,8 @@ HostProbe parsePosixProbe(String payload) {
     profile: json.optString('profile'),
     ompPath: omp?.path,
     ompVersion: omp?.version,
+    loginPath: json.optString('loginPath'),
+    loginProblem: json.optString('loginProblem'),
     curl: json.optString('curl') == '1',
     wget: json.optString('wget') == '1',
   );

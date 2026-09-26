@@ -317,7 +317,10 @@ size() { if [ -f "$1" ]; then wc -c < "$1" | tr -d ' '; else echo 0; fi; }
 Future<({DetachedRun run, bool launched})> _openPosixRun(HostLink link, HostProbe probe, RunSpec spec) async {
   final marker = newMarker();
   final root = runRoot(probe);
-  final result = await runPosixScript(link, posixLaunchScript(marker, root, newRunId(), spec));
+  final result = await runPosixScript(
+    link,
+    posixLaunchScript(marker, root, newRunId(), spec, loginPath: probe.loginPath),
+  );
   if (result.exit.code != 0) throw result.failure('launching omp in ${spec.cwd} failed');
   final reply = result.payload(marker).trim().split(' ');
   if (reply.length != 2) throw result.failure('unexpected launch reply "${reply.join(' ')}"');
@@ -331,8 +334,10 @@ Future<({DetachedRun run, bool launched})> _openPosixRun(HostLink link, HostProb
 /// terminal hangup nor a Ctrl-C in the launching process group reaches omp, and every descriptor points at
 /// run-directory files, so the launching channel can close. `umask 077` is for the run directory only:
 /// `run.sh` starts with the launching shell's umask, so the files omp and its tools create get the same
-/// permissions as under an attached omp.
-String posixLaunchScript(String marker, String root, String id, RunSpec spec) {
+/// permissions as under an attached omp. [loginPath] is the login shell's PATH ([HostProbe.loginPath]): it
+/// goes in front of omp's own PATH, and only there — the wrapper's `tail`, `ps` and `mkdir` keep resolving
+/// through the PATH sshd gave this script.
+String posixLaunchScript(String marker, String root, String id, RunSpec spec, {String? loginPath}) {
   final dir = '$root/$id';
   final args = spec.ompArgs('$dir/overlay.yml');
   final meta = RunMeta(
@@ -352,22 +357,30 @@ String posixLaunchScript(String marker, String root, String id, RunSpec spec) {
 m=${shQuote(marker)}; R=${shQuote(root)}; D=${shQuote(dir)}; cwd=${shQuote(spec.cwd)}; session=${shQuote(session)}
 overlay=${shQuote(overlay)}
 meta=${shQuote(jsonEncode(meta.toJson()))}
-runsh=${shQuote(posixRunScript(dir, spec.omp, args))}
+runsh=${shQuote(posixRunScript(dir, spec.omp, args, loginPath: loginPath))}
 $posixLockFunctions$_processFunctions$_launchBody''';
 }
 
 /// `run.sh`: the pipeline's right side runs omp in the foreground, then records its exit code in `exit` and,
 /// as the last line, in `out.jsonl`. The feeding `tail` would only notice omp's death at its next write, so
 /// that side kills it too. (`wait $!` cannot be used: bash and dash wait for the whole background pipeline.)
-String posixRunScript(String dir, String omp, List<String> args) =>
+/// [loginPath], the login shell's PATH, reaches omp as `$1` of the inner `sh -c` and is prepended there: the
+/// pipeline's own commands keep the PATH sshd gave `run.sh`.
+String posixRunScript(String dir, String omp, List<String> args, {String? loginPath}) =>
     '''
 d=${shQuote(dir)}
 $_processFunctions
 $posixTailPoll
 sh -c 'echo \$\$ > "\$0/tail.pid"; exec tail \$1 -c +1 -f "\$0/in.jsonl"' "\$d" "\$tailpoll" 2>/dev/null | {
-  sh -c 'echo \$\$ > "\$0/omp.pid"; exec "\$@"' "\$d" ${[omp, ...args].map(shQuote).join(' ')} >> "\$d/out.jsonl" 2>> "\$d/err.log"
+  sh -c '$_ompExecBody' "\$d" ${shQuote(loginPath ?? '')} ${[omp, ...args].map(shQuote).join(' ')} >> "\$d/out.jsonl" 2>> "\$d/err.log"
 $_runTail}
 ''';
+
+/// The command the pipeline's right side runs omp with, after `$0` (the run directory) and `$1` (the login
+/// shell's PATH, empty when the probe read none): omp's pid goes into `omp.pid` first, so the pid file names
+/// the process `exec` leaves behind.
+const _ompExecBody =
+    r'''echo $$ > "$0/omp.pid"; if [ -n "$1" ]; then PATH="$1:$PATH"; export PATH; fi; shift; exec "$@"''';
 
 const _runTail = r'''
   code=$?

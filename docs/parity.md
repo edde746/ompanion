@@ -27,6 +27,7 @@ what stock lacks.
 | Feature | TUI entry | Route | Surface | M |
 |---|---|---|---|---|
 | Prompt, stream, abort | Enter, Esc | RPC `prompt`, `abort`, events; abort first takes the queue back (companion `queue.clear` with `interrupt`) and releases a pause | composer, transcript | M2 |
+| Waiting for a reply | — | RPC `prompt` acknowledgement, `agent_start`, `get_state.isStreaming`; APP marks the send | transcript row (elapsed seconds) | M2 |
 | Steer, follow-up | Enter while streaming, Ctrl+Q | RPC `steer`, `follow_up` | composer | M2 |
 | Queue after yield | `/queue` | RPC `follow_up` | composer | M2 |
 | Queued message list, dequeue | Alt+Up | CE `getQueuedMessages`, `popLastQueuedMessage`, `clearQueue`; companion `queue.take` | queue rows in the composer (edit, remove) | M2 |
@@ -92,6 +93,8 @@ what stock lacks.
 |---|---|---|---|---|
 | List sessions, all projects | `/resume` | FS listing script; CE `listAllSessions` for titles, counts, status | session browser | M4 |
 | Resume | `/resume` | launch `--session`; RPC `switch_session`, `open_session` | session browser | M2 |
+| Read a session another omp process holds | — (another terminal, `omp -p`, another client) | FS listing script; host probe for write descriptors and omp's terminal breadcrumb (`contracts/session-writer.md`) | chat (read-only), sidebar badge | M4 |
+| Take a held session over | — (after that omp exits) | re-probe, then launch `--session` | composer card, Take over | M4 |
 | New | `/new` | RPC `new_session` | sidebar | M2 |
 | Rename | `/rename` | RPC `set_session_name`; `session_info_update` | inline edit | M4 |
 | Pin | `/pin` | TXT `/pin` | session browser | M4 |
@@ -100,6 +103,7 @@ what stock lacks.
 | Fork | `/fork` | CE `session.fork()` | menu | M4 |
 | Branch from a message | `/branch`, double-Esc | RPC `get_branch_messages`, `branch` | message menu | M4 |
 | Tree view | `/tree` | RPC `get_tree`, `get_entries` | tree panel | M4 |
+| Reset to a message (same session file) | `/tree`, double-Esc | CE `navigateTree(id, {summarize})` (companion `tree.navigate`) | message menu, tree panel | M4 |
 | Navigate tree with summary | `/tree` | CE `navigateTree(id, {summarize})` | tree panel | M4 |
 | Labels | `/tree` | CE `sessionManager.appendLabelChange` | tree panel | M4 |
 | Move, worktree, workspace dirs | `/move`, `/wt`, `/add-dir`, `/dirs` | TXT; CLI `worktree --json` | workspace menu | M4 |
