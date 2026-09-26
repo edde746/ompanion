@@ -316,6 +316,17 @@ jobs:
           security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
+          # The certificate chains to one of Apple's two Developer ID intermediates; an identity whose chain cannot be
+          # built is not valid for signing, so both go into the keychain, pinned by their SHA-256.
+          while read -r name sha256; do
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/$name.cer" "https://www.apple.com/certificateauthority/$name.cer"
+            echo "$sha256  $RUNNER_TEMP/$name.cer" | shasum -a 256 -c -
+            security import "$RUNNER_TEMP/$name.cer" -k "$KEYCHAIN_PATH"
+          done <<'EOF'
+          DeveloperIDCA 7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f
+          DeveloperIDG2CA f16cd3c54c7f83cea4bf1a3e6a0819c8aaa8e4a1528fd144715f350643d2df3a
+          EOF
+
           # codesign searches the keychains in this list.
           security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
 
@@ -324,8 +335,17 @@ jobs:
         run: |
           IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -1 | grep -o '".*"' | tr -d '"')
           if [ -z "$IDENTITY" ]; then
-            echo "The imported certificate holds no Developer ID Application identity:" >&2
-            security find-identity -v -p codesigning "$KEYCHAIN_PATH" >&2
+            # None of this is secret: certificate names, whether keys came along, and why an identity is not valid.
+            echo "::error title=No signing identity::MACOS_CERTIFICATE_BASE64 yields no valid Developer ID Application identity; see the log."
+            echo "Certificates in the imported keychain:"
+            security find-certificate -a "$KEYCHAIN_PATH" | grep '"labl"' || echo "  none"
+            keys=$(security dump-keychain "$KEYCHAIN_PATH" | grep -c 'class: 0x00000010' || true)
+            echo "Private keys in the imported keychain: $keys"
+            echo "Code-signing identities, valid or not, with the reason:"
+            security find-identity -p codesigning "$KEYCHAIN_PATH"
+            if [ "$keys" -eq 0 ]; then
+              echo "The .p12 holds no private key. In Keychain Access, open My Certificates, expand \"Developer ID Application: ...\" to see its key, and export from there."
+            fi
             exit 1
           fi
           echo "Signing with $IDENTITY"
