@@ -58,6 +58,18 @@ static void my_application_activate(GApplication* application) {
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 
+  // CMakeLists.txt installs the icon next to icudtl.dat in the bundle's data
+  // directory.
+  g_autofree gchar* data_dir =
+      g_path_get_dirname(fl_dart_project_get_icu_data_path(project));
+  g_autofree gchar* icon_path =
+      g_build_filename(data_dir, "ompanion.png", nullptr);
+  g_autoptr(GError) icon_error = nullptr;
+  if (!gtk_window_set_icon_from_file(window, icon_path, &icon_error)) {
+    g_warning("Failed to load window icon %s: %s", icon_path,
+              icon_error->message);
+  }
+
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;
   // Background defaults to black, override it here if necessary, e.g. #00000000

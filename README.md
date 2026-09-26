@@ -1,32 +1,210 @@
-# ompanion
+<h1>
+  <img src="assets/ompanion.png" alt="ompanion logo" height="24" style="vertical-align: middle;" />
+  ompanion
+</h1>
 
-Flutter client for [omp](https://github.com/can1357/oh-my-pi). Plan and decisions: `docs/PLAN.md`; agent
-guide: `AGENTS.md`.
+A GUI client for omp, the oh-my-pi coding agent, on this computer and on remote machines over SSH, jump hosts and Tailscale, with no daemon on the host.
 
-## Build
+<p>
+  <a href="#download">Download</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#building-from-source">Building from Source</a> ·
+  <a href="LICENSE">License</a> ·
+  <a href="https://github.com/can1357/oh-my-pi">omp</a>
+</p>
 
-The app bundles the companion extension it uploads to every machine (`docs/contracts/ompx.md`). The
-bundle is a build artifact, so build it before any `flutter build`, `flutter run` or `flutter test`:
+<p align="center">
+  <img src="assets/readme-showcase.webp" alt="ompanion on a desktop and a phone" width="900" />
+</p>
 
-```sh
-scripts/build_companion.sh      # companion/dist/ompx.js → assets/companion/ompx.js (needs bun)
-flutter build macos
+## Download
+
+There is no release yet. Build the app from source: see [Building from Source](#building-from-source).
+
+## Features
+
+### <img src="assets/readme_icons/chat.svg" height="20" alt="" align="center" /> Chat & transcript
+- Streaming transcript with markdown, LaTeX math, highlighted code, collapsible thinking and images
+- Steer the running turn or queue a follow-up; edit or remove queued messages
+- `/` command palette from the session's own command list; a slash command omp does not list is never sent to the model
+- Model and thinking-level pickers, and a context and cost meter
+- `!` shell and `$` Python runs on the machine, streamed into the chat
+- Pause and resume every agent of a session; Stop aborts the run and puts queued messages back into the composer
+- Image attachments
+- Copy messages, code and tool output; branch from any of your messages
+
+### <img src="assets/readme_icons/tools.svg" height="20" alt="" align="center" /> Tools & approvals
+- Tool cards for bash, read, edit and write with word-level diffs, eval, todo, task subagents, web search and fetch; other tools show their output and images
+- Tool approvals answered inline
+- The `ask` tool as a form: several questions, option previews, multi-select, your own answer and notes
+- Extension dialogs (select, confirm, input, editor), status lines and toasts
+- Files named in tool cards open in the Files panel at the line; task cards open the subagent in the Agent Hub
+
+### <img src="assets/readme_icons/sessions.svg" height="20" alt="" align="center" /> Sessions & branching
+- Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread
+- Resume any session on the machine, including ones started in omp's terminal UI
+- Session tree: search, filters, labels, branch into a new session, and navigate with an optional summary
+- Compactions show as dividers with their summary and file lists
+- Several devices on one live session: each sees what the others send, and the first answer to a dialog settles it everywhere
+- New sessions start in a recent project or a folder picked on the machine, optionally with a model
+
+### <img src="assets/readme_icons/machines.svg" height="20" alt="" align="center" /> Machines
+- This computer[^desktop], any SSH host, hosts behind a chain of jump hosts, and Tailscale peers
+- No daemon: the app runs stock omp and uploads a small companion extension for what omp's RPC lacks
+- Sessions run detached on the machine, so a dropped connection, a locked phone or a closed app does not stop the turn; the app reconnects and catches up
+- Key, password, keyboard-interactive, ssh-agent[^agent] and Tailscale SSH authentication
+- Import hosts from `~/.ssh/config`, jump chains included, and peers from `tailscale status`[^desktop]
+- Host-key checks on every hop, honouring `~/.ssh/known_hosts` on desktop
+- Probes each machine and installs omp with a checksum check, or shows the commands to run by hand
+- Generate Ed25519 keys or import OpenSSH and PEM keys; private keys stay in the platform's secure storage
+- Export and import machines; private keys never leave the device
+- Windows hosts[^windows]
+
+### <img src="assets/readme_icons/dock.svg" height="20" alt="" align="center" /> Dock
+- Agent Hub: subagent roster with progress, tokens and cost, each agent's transcript, and steer, kill and revive
+- Todos by phase
+- Session tree
+- Files: browse, create, rename and delete; an editor with find and replace; git status and diffs against HEAD
+- Terminal tabs on the machine, over SSH or locally[^desktop]
+
+### <img src="assets/readme_icons/configuration.svg" height="20" alt="" align="center" /> Configuration
+- Settings from omp's own schema, global or per project, with search and where each value comes from
+- Model roles, global or per project
+- Providers and accounts: OAuth login (the callback port is forwarded from remote machines), API keys, logout, and pinning an account to a session
+- MCP servers: add, remove, enable, test, reload, resources, prompts and Smithery search
+- Plugins and marketplaces: install, enable, upgrade and remove
+- Skills: search, install, update and remove
+- Stats from `omp stats`: requests, tokens, cost and speed by model, project and agent
+
+### <img src="assets/readme_icons/usage.svg" height="20" alt="" align="center" /> Usage
+- Subscription limits from every online machine in one place, one entry per account even when several machines share it
+- Reset times, account priority and reserve, re-login countdowns and disabled credentials
+- Refresh, or ask the providers again (`omp usage invalidate`)
+
+### <img src="assets/readme_icons/platform.svg" height="20" alt="" align="center" /> Platform & design
+- One Flutter codebase for macOS, Windows, Linux, iOS and Android
+- Wide windows show machines, chat and dock side by side; narrow ones show one screen at a time
+- Monochrome, flat design with an OLED-black dark theme and a light theme
+- Keyboard shortcuts (Cmd on Apple platforms, Ctrl elsewhere)
+- English UI
+
+[^desktop]: Desktop only.
+[^agent]: Desktop only, and not yet on Windows.
+[^windows]: Implemented, like this computer on Windows, but not yet tested on Windows.
+
+## Building from Source
+
+### Prerequisites
+- Flutter SDK 3.47.0+
+- [Bun](https://bun.sh), to build the companion extension
+- omp 18.3.1 or newer on each machine you connect to; the app can install 18.3.1 on a machine that lacks it
+
+### Setup
+
+```bash
+flutter pub get
+scripts/build_companion.sh
+flutter run
 ```
 
-Without it `pubspec.yaml` names a missing asset and the build fails; a build that still lacks the file
-reports every machine as failed with "This build has no companion".
+<details>
+<summary>The companion bundle</summary>
 
-## Development
+The app bundles the companion extension it uploads to every machine ([docs/contracts/ompx.md](docs/contracts/ompx.md)). The bundle is a build artifact, so build it before any `flutter build`, `flutter run` or `flutter test`:
 
-Run the app against an isolated omp home and the fake provider, never your real `~/.omp`: see
-`testing/README.md`, section "Dev machine", for the demo server and the `OMPANION_LOCAL_HOME`,
-`OMPANION_DATA_DIR` and `OMPANION_SECRET_PREFIX` defines (`lib/app/dev_overrides.dart`).
+```bash
+scripts/build_companion.sh      # companion/dist/ompx.js → assets/companion/ompx.js
+```
 
-The chat transcript has a streaming benchmark, a profile-mode target (2,000-item session, a 12 KB reply streamed at
-50 updates per second). It prints frame build and raster percentiles and writes them to
-`build/integration_response_data.json`; results are in `docs/research/ui-libraries.md`, section "Performance":
+Without it `pubspec.yaml` names a missing asset and the build fails; a build that still lacks the file reports every machine as failed with "This build has no companion".
 
-```sh
+</details>
+
+<details>
+<summary>Dev machine</summary>
+
+Run the app against an isolated omp home and the fake provider, never your real `~/.omp`. It needs the omp 18.3.1 [release binary](https://github.com/can1357/oh-my-pi/releases/tag/v18.3.1) for your platform in `.tools/omp/18.3.1/`, checked against the release's `SHA256SUMS.txt`.
+
+```bash
+bun testing/fake-provider/server.ts --port 18999 --demo    # keep it running
+testing/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
+flutter run -d macos --dart-define=OMPANION_LOCAL_HOME=/tmp/omp-dev-home \
+  --dart-define=OMPANION_DATA_DIR=/tmp/ompanion-data --dart-define=OMPANION_SECRET_PREFIX=dev
+```
+
+The three defines are read in `lib/app/dev_overrides.dart`. Start the app without provider API keys in its environment: with a key set, picking a real model makes a paid call. [testing/README.md](testing/README.md), section "Dev machine", covers the demo scenarios and running several instances at once.
+
+</details>
+
+<details>
+<summary>Code generation</summary>
+
+After editing translations in `lib/i18n/en.i18n.json`:
+
+```bash
+dart run slang
+```
+
+After changing the drift tables in `lib/database/`:
+
+```bash
+dart run build_runner build
+```
+
+After a schema change with a new `schemaVersion`, export the schema and regenerate the migration steps and tests:
+
+```bash
+dart run drift_dev make-migrations
+```
+
+After changing the app icon in `assets/ompanion.svg` or `assets/ompanion_glyph.svg` (needs `rsvg-convert` and ImageMagick):
+
+```bash
+scripts/generate_icons.sh
+```
+
+</details>
+
+<details>
+<summary>Local checks</summary>
+
+```bash
+flutter analyze
+flutter test
+(cd packages/omp_core && dart pub get && dart analyze && dart test)
+(cd companion && bun run typecheck && bun test)
+```
+
+In `packages/omp_core`, tests that start omp or need Docker are tagged and skipped by default; `dart test -P integration` runs them (the Docker ones need `testing/sshd/up.sh`). In `companion/`, `bun run test:e2e` runs the tests that start omp.
+
+</details>
+
+<details>
+<summary>Transcript benchmark</summary>
+
+The chat transcript has a streaming benchmark, a profile-mode target: a 2,000-item session with a 12 KB reply streamed at 50 updates per second. It prints frame build and raster percentiles and writes them to `build/integration_response_data.json`; results are in [docs/research/ui-libraries.md](docs/research/ui-libraries.md), section "Performance".
+
+```bash
 flutter drive --profile -d macos --driver=test_driver/integration_test.dart \
   --target=integration_test/transcript_benchmark_test.dart
 ```
+
+</details>
+
+## Contributing
+
+See [AGENTS.md](AGENTS.md) for the conventions (writing, code and tests) and [docs/PLAN.md](docs/PLAN.md) for the architecture and its decisions. [docs/parity.md](docs/parity.md) maps every omp feature to the route the app reaches it by.
+
+## License
+
+ompanion is licensed under [GPL-3.0](LICENSE).
+
+## Acknowledgments
+
+- Built with [Flutter](https://flutter.dev)
+- Drives [omp (oh-my-pi)](https://github.com/can1357/oh-my-pi)
+- SSH by [dartssh2](https://pub.dev/packages/dartssh2); terminal by [xterm3](https://pub.dev/packages/xterm3) and [flutter_pty2](https://pub.dev/packages/flutter_pty2)
+- Markdown by [gpt_markdown](https://pub.dev/packages/gpt_markdown); code viewing, editing and highlighting by [re_editor](https://pub.dev/packages/re_editor) and [re_highlight](https://pub.dev/packages/re_highlight)
+- Storage by [drift](https://pub.dev/packages/drift) and [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage); translations by [slang](https://pub.dev/packages/slang); state by [provider](https://pub.dev/packages/provider); desktop windows by [window_manager](https://pub.dev/packages/window_manager)
+- Layout after [T3 Code](https://github.com/pingdotgg/t3code)
+- Section icons from [Material Icons](https://github.com/google/material-design-icons) (Apache-2.0)
