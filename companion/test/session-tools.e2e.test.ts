@@ -143,7 +143,10 @@ describe("exec", () => {
 			ok: true,
 			result: { output: "one\ntwo\n", exitCode: 0, cancelled: false, timedOut: false, workingDir: omp.cwd },
 		});
-		expect(streamed(since, "exec.chunk", reply.callId ?? "")).toEqual(["one\n", "two\n"]);
+		// Where the output splits into chunks is up to the OS; the output that follows the sleep arrives in a later chunk.
+		const chunks = streamed(since, "exec.chunk", reply.callId ?? "");
+		expect(chunks.join("")).toBe("one\ntwo\n");
+		expect(chunks.findIndex(chunk => chunk.includes("two"))).toBeGreaterThan(0);
 		const recorded = (await transcript()).at(-1);
 		expect(recorded).toMatchObject({ role: "bashExecution", output: "one\ntwo\n", excludeFromContext: false });
 		const [event] = appended(since);
