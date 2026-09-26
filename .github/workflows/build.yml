@@ -1,9 +1,13 @@
 name: Build
-run-name: Build ${{ github.sha }}
+run-name: ${{ inputs.release_tag != '' && format('Release {0}', inputs.release_tag) || format('Build {0}', github.sha) }}
 
 on:
   workflow_dispatch:
     inputs:
+      release_tag:
+        description: Version to release as a draft, e.g. 0.1.0 (must match pubspec.yaml); omit for Actions artifacts only
+        default: ""
+        type: string
       build_android:
         description: Build Android
         default: true
@@ -33,16 +37,47 @@ env:
 
 jobs:
   name:
-    name: Name artifacts
+    name: Name artifacts and check the release
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions: {}
+    permissions:
+      contents: read
     outputs:
       sha: ${{ steps.sha.outputs.short }}
     steps:
       - name: Short commit
         id: sha
         run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: ${{ inputs.release_tag != '' }}
+        with:
+          sparse-checkout: pubspec.yaml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      # Before any build starts, so a release that could not be published fails in seconds rather than after the
+      # macOS and iOS builds.
+      - name: Check the release
+        if: ${{ inputs.release_tag != '' }}
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ALL_PLATFORMS: ${{ inputs.build_android && inputs.build_ios && inputs.build_macos && inputs.build_windows && inputs.build_linux }}
+          MACOS_SIGNING: ${{ secrets.MACOS_CERTIFICATE_BASE64 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.KEYCHAIN_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          fail() {
+            echo "::error title=Release not started::$1"
+            exit 1
+          }
+          [ "$GITHUB_REF" = refs/heads/main ] || fail "Releases are built from main, not $GITHUB_REF."
+          [ "$ALL_PLATFORMS" = true ] || fail "A release needs all five platforms: select every build input."
+          [ "$MACOS_SIGNING" = true ] || fail "A release ships a signed, notarized DMG: set the six signing secrets (README, Releasing)."
+          version=$(sed -n 's/^version: *\([^+ ]*\).*/\1/p' pubspec.yaml)
+          [ "$RELEASE_TAG" = "$version" ] || fail "The release tag $RELEASE_TAG is not pubspec.yaml's version $version."
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            fail "The tag $RELEASE_TAG already exists."
+          fi
 
   build-android:
     name: Build Android
@@ -104,12 +139,16 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
+      - name: Name the APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk ompanion-android.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.ARTIFACT }}
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: ompanion-android.apk
           if-no-files-found: error
+          compression-level: 0
 
   build-ios:
     name: Build iOS
@@ -156,15 +195,19 @@ jobs:
       - name: Build iOS (no codesign)
         run: flutter build ios --release --no-codesign
 
-      # ditto keeps the bundle's symlinks and permissions, which the artifact zip would drop.
-      - name: Zip Runner.app
-        run: ditto -c -k --keepParent build/ios/iphoneos/Runner.app "$ARTIFACT.zip"
+      # An .ipa is the app in a Payload folder, zipped. Unsigned: sideloading tools sign it for the device. ditto
+      # keeps the bundle's symlinks and permissions.
+      - name: Package the IPA
+        run: |
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R build/ios/iphoneos/Runner.app "$RUNNER_TEMP/ipa/Payload/"
+          ditto -c -k --keepParent "$RUNNER_TEMP/ipa/Payload" ompanion-ios.ipa
 
-      - name: Upload Runner.app
+      - name: Upload the IPA
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.ARTIFACT }}
-          path: ${{ env.ARTIFACT }}.zip
+          path: ompanion-ios.ipa
           if-no-files-found: error
           compression-level: 0
 
@@ -399,12 +442,17 @@ jobs:
       - name: Build Windows
         run: flutter build windows --release
 
-      - name: Upload the Release folder
+      - name: Zip the Release folder
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ompanion-windows-x64.zip
+
+      - name: Upload the zip
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.ARTIFACT }}
-          path: build/windows/x64/runner/Release/
+          path: ompanion-windows-x64.zip
           if-no-files-found: error
+          compression-level: 0
 
   build-linux:
     name: Build Linux
@@ -459,12 +507,50 @@ jobs:
       # zip keeps the executable bits, which the artifact zip would drop.
       - name: Zip the bundle
         working-directory: build/linux/x64/release/bundle
-        run: zip -qr "$GITHUB_WORKSPACE/$ARTIFACT.zip" .
+        run: zip -qr "$GITHUB_WORKSPACE/ompanion-linux-x64.zip" .
 
       - name: Upload the bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.ARTIFACT }}
-          path: ${{ env.ARTIFACT }}.zip
+          path: ompanion-linux-x64.zip
           if-no-files-found: error
           compression-level: 0
+
+  release:
+    name: Draft the release
+    needs: [name, build-android, build-ios, build-macos, build-windows, build-linux]
+    # Runs only when every build succeeded; "Check the release" made sure all five were selected.
+    if: ${{ inputs.release_tag != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - name: Download the builds
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ompanion-*-${{ needs.name.outputs.sha }}
+          path: release
+          merge-multiple: true
+
+      # A draft holds no tag yet: publishing it creates the tag on the commit that was built.
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l release
+          count=$(find release -maxdepth 1 -type f | wc -l)
+          if [ "$count" -ne 5 ]; then
+            echo "::error::Expected the five platform files, found $count." >&2
+            exit 1
+          fi
+          # Drafts are visible only to a token that can write, so this check lives here, not before the builds.
+          if gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::A release named $RELEASE_TAG already exists: delete it or release the next version." >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" release/* -R "$GITHUB_REPOSITORY" \
+            --draft --target "$GITHUB_SHA" --title "$RELEASE_TAG"

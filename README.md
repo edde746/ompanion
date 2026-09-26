@@ -18,10 +18,17 @@ A GUI client for omp, the oh-my-pi coding agent, on this computer and on remote 
 
 ## Download
 
-There is no release yet. Build the app from source: see [Building from Source](#building-from-source). The
-[build workflow](.github/workflows/build.yml), run from Actions → Build → Run workflow, produces artifacts
-named `ompanion-<platform>-<sha>`; the macOS one is unsigned until the signing secrets in "Building from
-Source" → Releasing are set.
+| Platform | Download |
+| --- | --- |
+| macOS | [ompanion-macos.dmg](https://github.com/edde746/ompanion/releases/latest/download/ompanion-macos.dmg) |
+| Windows x64 | [ompanion-windows-x64.zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-windows-x64.zip) |
+| Linux x64 | [ompanion-linux-x64.zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.zip) (needs GTK 3 and libsecret) |
+| Android | [ompanion-android.apk](https://github.com/edde746/ompanion/releases/latest/download/ompanion-android.apk) |
+| iOS | [ompanion-ios.ipa](https://github.com/edde746/ompanion/releases/latest/download/ompanion-ios.ipa) (unsigned: install it with a sideloading tool such as AltStore or Sideloadly) |
+
+Every file is on the [latest release](https://github.com/edde746/ompanion/releases/latest). Builds of any commit
+come from Actions → Build → Run workflow as artifacts named `ompanion-<platform>-<sha>`. To build it yourself, see
+[Building from Source](#building-from-source).
 
 ## Features
 
@@ -213,6 +220,8 @@ flutter drive --profile -d macos --driver=test_driver/integration_test.dart \
 
 <details>
 <summary>Releasing</summary>
+
+To publish a release, set `version` in `pubspec.yaml`, push it to main, and run Actions → Build → Run workflow on main with every platform selected and the release tag set to that version (e.g. `0.1.0`). Before building anything the run checks the branch, the tag, the platforms and the macOS signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip` and `ompanion-linux-x64.zip` to a draft release. Write the notes and publish the draft; publishing creates the tag on the commit that was built.
 
 [build.yml](.github/workflows/build.yml), run from Actions → Build → Run workflow, signs the macOS app, notarizes the app and the DMG, and staples the tickets so Gatekeeper accepts the DMG in the artifact named `ompanion-macos-<sha>`. It reads six repository secrets, the same names [Plezy](https://github.com/edde746/plezy) uses:
 
