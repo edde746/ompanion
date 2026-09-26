@@ -110,6 +110,13 @@ jobs:
             ~/.pub-cache
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
 
+      # The runner ships pwsh, so windows_scripts_test.dart runs its PowerShell 7 group, where csh stands in for a
+      # login shell that misreads sh quoting. Ubuntu has no csh by default.
+      - name: Install csh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends csh
+
       - name: Install dependencies
         run: dart pub get --enforce-lockfile
 
@@ -191,6 +198,12 @@ jobs:
 
       - name: Start the SSH test machines
         run: testing/sshd/up.sh
+
+      # -P integration runs the whole suite, so the PowerShell group needs csh here too (see the core job).
+      - name: Install csh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends csh
 
       - name: Install omp_core dependencies
         working-directory: packages/omp_core
