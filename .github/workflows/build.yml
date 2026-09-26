@@ -297,10 +297,13 @@ jobs:
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          # Delete the temporary keychain only if the run created one, so write both paths first. The p12 is
-          # the exported Developer ID Application certificate and its private key.
-          echo "KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain" >> "$GITHUB_ENV"
-          echo "CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12" >> "$GITHUB_ENV"
+          # The p12 is the exported Developer ID Application certificate and its private key. $GITHUB_ENV reaches
+          # only later steps (the keychain cleanup), so this step uses its own copies of the paths. They are written
+          # there first, so a failure below still deletes the keychain.
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "CERTIFICATE_PATH=$CERTIFICATE_PATH" >> "$GITHUB_ENV"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
