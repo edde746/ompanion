@@ -31,6 +31,9 @@ const _imageTypes = {
   'webp': 'image/webp',
 };
 
+/// The toolbar's icon buttons: one control tall, as its pickers and text buttons are (docs/design.md rule 4).
+const _toolbarIcon = BoxConstraints.tightFor(width: AppSizes.control, height: AppSizes.control);
+
 /// The prompt box: one flat block with the queued messages on top, the text in the middle and a toolbar with the
 /// model, thinking level and context meter, attach and send at the bottom. Enter sends (Shift+Enter is a new
 /// line); while a run streams Enter steers and Alt/Option+Enter queues a follow-up. `/` opens the palette of the
@@ -48,6 +51,9 @@ class _ComposerState extends State<Composer> {
   late final FocusNode _focus = FocusNode(onKeyEvent: _onKey);
   late ComposerDraft _draft;
   int _paletteIndex = 0;
+
+  /// The block the toolbar's menus open above.
+  final _block = GlobalKey();
 
   /// The palette query the user dismissed with Esc; it reopens once the text changes.
   String? _dismissedQuery;
@@ -308,6 +314,7 @@ class _ComposerState extends State<Composer> {
                     ),
                   ),
                 Material(
+                  key: _block,
                   color: theme.colorScheme.surfaceContainer,
                   borderRadius: const BorderRadius.all(Radius.circular(AppSizes.cardRadius)),
                   child: Column(
@@ -342,11 +349,17 @@ class _ComposerState extends State<Composer> {
                         decoration: InputDecoration(
                           hintText: data.running && !closed ? t.composer.hintRunning : t.composer.hint,
                           filled: false,
-                          contentPadding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+                          // No outline: the theme's field border adds its gap to the start and centres the text
+                          // vertically, which moves the text off these insets.
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          // 11 + the glyphs' side bearing puts the text's ink on the 12 px edge of the model icon below;
+                          // 12 above the line box leaves as much space over the text as under the toolbar's labels.
+                          contentPadding: const EdgeInsets.fromLTRB(11, 12, 12, 0),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(4, 0, 6, 6),
+                        padding: const EdgeInsets.fromLTRB(4, 0, 8, 8),
                         child: LayoutBuilder(
                           builder: (context, constraints) {
                             // Phones: Follow-up and Steer as icons, so the pickers keep their room.
@@ -365,11 +378,16 @@ class _ComposerState extends State<Composer> {
                                             children: [
                                               LayoutId(
                                                 id: _Picker.model,
-                                                child: ModelPicker(session: session, machine: machine, model: data.model),
+                                                child: ModelPicker(
+                                                  session: session,
+                                                  machine: machine,
+                                                  model: data.model,
+                                                  above: _block,
+                                                ),
                                               ),
                                               LayoutId(
                                                 id: _Picker.thinking,
-                                                child: ThinkingPicker(session: session, level: data.thinking),
+                                                child: ThinkingPicker(session: session, level: data.thinking, above: _block),
                                               ),
                                               LayoutId(
                                                 id: _Picker.meter,
@@ -382,6 +400,7 @@ class _ComposerState extends State<Composer> {
                                 IconButton(
                                   tooltip: t.composer.attachImage,
                                   icon: const Icon(Icons.image_outlined, size: 20),
+                                  constraints: _toolbarIcon,
                                   color: theme.colorScheme.onSurfaceVariant,
                                   onPressed: closed ? null : () => unawaited(_attachImages()),
                                 ),
@@ -391,6 +410,7 @@ class _ComposerState extends State<Composer> {
                                     key: const ValueKey('follow-up'),
                                     tooltip: t.composer.followUp,
                                     icon: const Icon(Icons.schedule, size: 20),
+                                    constraints: _toolbarIcon,
                                     onPressed: canSend ? followUp : null,
                                   ),
                                   const SizedBox(width: 4),
@@ -398,6 +418,7 @@ class _ComposerState extends State<Composer> {
                                     key: const ValueKey('steer'),
                                     tooltip: t.composer.steer,
                                     icon: const Icon(Icons.subdirectory_arrow_right, size: 20),
+                                    constraints: _toolbarIcon,
                                     onPressed: canSend ? steer : null,
                                   ),
                                 ] else if (data.running && !closed) ...[
@@ -417,6 +438,7 @@ class _ComposerState extends State<Composer> {
                                     key: const ValueKey('send'),
                                     tooltip: t.composer.send,
                                     icon: const Icon(Icons.arrow_upward, size: 20),
+                                    constraints: _toolbarIcon,
                                     onPressed: canSend ? steer : null,
                                   ),
                               ],

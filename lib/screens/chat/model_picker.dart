@@ -13,14 +13,23 @@ import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../widgets/app_search_field.dart';
 
-/// The composer's model button: opens a searchable list of the machine's models next to it and switches [session]
-/// to the picked one (RPC `set_model`, this session only).
+/// The composer's model button: opens a searchable list of the machine's models above the composer and switches
+/// [session] to the picked one (RPC `set_model`, this session only).
 class ModelPicker extends StatefulWidget {
-  const ModelPicker({super.key, required this.session, required this.machine, required this.model});
+  const ModelPicker({
+    super.key,
+    required this.session,
+    required this.machine,
+    required this.model,
+    required this.above,
+  });
 
   final LiveSession session;
   final Machine? machine;
   final ModelRef? model;
+
+  /// The composer block the list opens above.
+  final GlobalKey above;
 
   @override
   State<ModelPicker> createState() => _ModelPickerState();
@@ -28,6 +37,8 @@ class ModelPicker extends StatefulWidget {
 
 class _ModelPickerState extends State<ModelPicker> {
   final _menu = MenuController();
+  Offset _offset = Offset.zero;
+  double _width = _ModelList.maxWidth;
 
   Future<void> _pick(RpcModel picked) async {
     _menu.close();
@@ -43,18 +54,18 @@ class _ModelPickerState extends State<ModelPicker> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final theme = Theme.of(context);
     final model = widget.model;
     final machine = widget.machine;
     return MenuAnchor(
       controller: _menu,
-      style: MenuStyle(backgroundColor: WidgetStatePropertyAll(theme.colorScheme.surfaceContainer)),
+      alignmentOffset: _offset,
       menuChildren: [
         if (machine != null)
           _ModelList(
             load: ({required bool refresh}) =>
                 context.read<SessionsProvider>().models(machine, widget.session.rpc, refresh: refresh),
             current: model,
+            width: _width,
             onPick: (picked) => unawaited(_pick(picked)),
           ),
       ],
@@ -63,10 +74,29 @@ class _ModelPickerState extends State<ModelPicker> {
         icon: Icons.auto_awesome_outlined,
         label: model == null ? t.chat.noModel : (model.name ?? model.id),
         tooltip: model?.selector,
-        onPressed: machine == null ? null : () => controller.isOpen ? controller.close() : controller.open(),
+        onPressed: machine == null
+            ? null
+            : () {
+                if (controller.isOpen) return controller.close();
+                // The wide list starts where the composer does and is at most as wide.
+                setState(() {
+                  _offset = menuOffsetAbove(this.context, widget.above, alignStart: true);
+                  _width = math.min(_ModelList.maxWidth, widget.above.currentContext!.size!.width);
+                });
+                controller.open();
+              },
       ),
     );
   }
+}
+
+/// The `alignmentOffset` of a composer toolbar menu opened from [button]: the menu ends [AppSizes.gap] above the
+/// composer block [above] instead of covering it, and starts at the block's start with [alignStart], else at the
+/// button's. A menu does not fit below the composer, so MenuAnchor flips it up by the offset's `dy`.
+Offset menuOffsetAbove(BuildContext button, GlobalKey above, {required bool alignStart}) {
+  final anchor = button.findRenderObject()! as RenderBox;
+  final block = anchor.globalToLocal((above.currentContext!.findRenderObject()! as RenderBox).localToGlobal(Offset.zero));
+  return Offset(alignStart ? block.dx : 0, AppSizes.gap - block.dy);
 }
 
 /// A low-emphasis toolbar control: icon, label and a chevron, the height of every other control.
@@ -120,10 +150,13 @@ class ToolbarButton extends StatelessWidget {
 }
 
 class _ModelList extends StatefulWidget {
-  const _ModelList({required this.load, required this.current, required this.onPick});
+  const _ModelList({required this.load, required this.current, required this.width, required this.onPick});
+
+  static const double maxWidth = 440;
 
   final Future<List<RpcModel>> Function({required bool refresh}) load;
   final ModelRef? current;
+  final double width;
   final ValueChanged<RpcModel> onPick;
 
   @override
@@ -148,10 +181,11 @@ class _ModelListState extends State<_ModelList> {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final screen = MediaQuery.sizeOf(context);
     Widget message(Widget child) =>
         Padding(padding: const EdgeInsets.all(24), child: Center(heightFactor: 1, child: child));
-    final width = math.min(440.0, screen.width - 32);
+    final width = widget.width;
     // As tall as the models it lists, up to the cap; a longer list scrolls.
     return ConstrainedBox(
       constraints: BoxConstraints(minWidth: width, maxWidth: width, maxHeight: math.min(420, screen.height * 0.6)),
@@ -164,10 +198,21 @@ class _ModelListState extends State<_ModelList> {
             Row(
               children: [
                 Expanded(
-                  child: AppSearchField(
-                    autofocus: true,
-                    hint: t.chat.searchModels,
-                    onChanged: (query) => setState(() => _query = query),
+                  // Inside the popover, tones step up from the popover's own (docs/design.md): onSurface overlays
+                  // stand apart from it in both themes, where the field tones of the container ladder would not.
+                  child: Theme(
+                    data: theme.copyWith(
+                      inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+                        fillColor: WidgetStateColor.resolveWith(
+                          (states) => scheme.onSurface.withValues(alpha: states.contains(WidgetState.focused) ? 0.08 : 0.06),
+                        ),
+                      ),
+                    ),
+                    child: AppSearchField(
+                      autofocus: true,
+                      hint: t.chat.searchModels,
+                      onChanged: (query) => setState(() => _query = query),
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSizes.gap),
@@ -204,11 +249,16 @@ class _ModelListState extends State<_ModelList> {
                               padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
                               child: Text(
                                 model.provider,
-                                style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
                               ),
                             ),
                           ListTile(
                             dense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(AppSizes.radius)),
+                            ),
+                            selectedTileColor: scheme.onSurface.withValues(alpha: 0.14),
                             selected: isCurrent(model),
                             title: Text(model.name),
                             subtitle: Text(

@@ -211,136 +211,292 @@ List<InstalledSkill> parseInstalledSkills({required String? manifest, required S
 
 // `omp usage --json`
 
-/// `omp usage --json`: provider usage limits of every authenticated account.
+/// `omp usage --json` (`usage-cli.ts` `runUsageCommand`): the usage report of every stored account whose provider
+/// has a usage endpoint, the stored accounts no report covers, and the credentials omp disabled that need a new
+/// login. omp drops the providers' raw payloads and never collapses shared limits in this output.
 final class UsageSnapshot {
   UsageSnapshot.fromJson(Map<String, Object?> json)
     : generatedAt = _time(json.number('generatedAt'))!,
       reports = [for (final report in json.objects('reports')) UsageReport.fromJson(report)],
       accountsWithoutUsage = [for (final account in json.objects('accountsWithoutUsage')) UsageAccount.fromJson(account)],
-      disabledCredentials = [for (final account in json.objects('disabledCredentials')) UsageAccount.fromJson(account)],
-      capacity = {
-        for (final MapEntry(:key, :value) in json.object('capacity').entries)
-          key: [
-            for (final (index, item) in (value is List ? value : const []).indexed)
-              UsageCapacity.fromJson(asJsonObject(item, 'capacity $key[$index]')),
-          ],
-      };
+      disabledCredentials = [
+        for (final account in json.objects('disabledCredentials')) DisabledCredential.fromJson(account),
+      ];
 
   final DateTime generatedAt;
   final List<UsageReport> reports;
 
-  /// Stored credentials of providers whose usage endpoint reported nothing for them.
+  /// Stored credentials no report could be attributed to (`collectUnreportedAccounts`).
   final List<UsageAccount> accountsWithoutUsage;
 
-  /// Credentials omp disabled (failed refresh, revoked), with [UsageAccount.cause].
-  final List<UsageAccount> disabledCredentials;
-
-  /// Per provider: how many accounts are left in each limit window.
-  final Map<String, List<UsageCapacity>> capacity;
+  /// OAuth credentials omp tore down itself, already reduced to the actionable ones (`isActionableDisable`).
+  final List<DisabledCredential> disabledCredentials;
 
   bool get isEmpty => reports.isEmpty && accountsWithoutUsage.isEmpty && disabledCredentials.isEmpty;
 }
 
+/// The identity fields omp matches accounts by (`OAuthAccountIdentity`).
+typedef UsageIdentity = ({String? email, String? accountId, String? projectId, String? orgId, String? orgName});
+
 /// One account's usage as its provider reports it.
 final class UsageReport {
   UsageReport.fromJson(Map<String, Object?> json)
+    : this._(json, json.optObject('metadata') ?? const {}, [
+        for (final limit in json.objects('limits')) UsageLimit.fromJson(limit),
+      ]);
+
+  UsageReport._(Map<String, Object?> json, Map<String, Object?> metadata, this.limits)
     : provider = json.string('provider'),
       fetchedAt = _time(json.optNumber('fetchedAt')),
-      account = _accountLabel(json),
-      planType = json.optObject('metadata')?.optString('planType'),
-      limits = [for (final limit in json.objects('limits')) UsageLimit.fromJson(limit)];
+      notes = json.optStrings('notes') ?? const [],
+      planType = _metadataString(metadata, 'planType')?.trim(),
+      daybreak = metadata['daybreak'] == true,
+      resetCredits = switch (json.optObject('resetCredits')) {
+        final credits? => UsageResetCredits.fromJson(credits),
+        null => null,
+      },
+      accountLabel =
+          _metadataString(metadata, 'email') ??
+          _metadataString(metadata, 'accountId') ??
+          _metadataString(metadata, 'projectId') ??
+          limits.map((l) => l.scopeAccountId ?? l.scopeProjectId).nonNulls.firstOrNull,
+      // `metadataIdentity`: the metadata's fields, else the first limit scoped to one.
+      identity = (
+        email: _metadataString(metadata, 'email'),
+        accountId: _metadataString(metadata, 'accountId') ?? limits.map((l) => l.scopeAccountId).nonNulls.firstOrNull,
+        projectId: _metadataString(metadata, 'projectId') ?? limits.map((l) => l.scopeProjectId).nonNulls.firstOrNull,
+        orgId: _metadataString(metadata, 'orgId') ?? limits.map((l) => l.scopeOrgId).nonNulls.firstOrNull,
+        orgName: _metadataString(metadata, 'orgName'),
+      );
+
+  UsageReport.withLimits(UsageReport report, this.limits)
+    : provider = report.provider,
+      fetchedAt = report.fetchedAt,
+      notes = report.notes,
+      planType = report.planType,
+      daybreak = report.daybreak,
+      resetCredits = report.resetCredits,
+      accountLabel = report.accountLabel,
+      identity = report.identity;
 
   final String provider;
   final DateTime? fetchedAt;
-
-  /// Email, account id or project id, as omp labels the account.
-  final String? account;
-  final String? planType;
   final List<UsageLimit> limits;
+
+  /// Provider-wide disclaimers, shown once per provider.
+  final List<String> notes;
+  final String? planType;
+
+  /// Codex: the account has daybreak access.
+  final bool daybreak;
+  final UsageResetCredits? resetCredits;
+
+  /// `reportAccountLabel`: email, account id or project id; null when the report names no account, which omp then
+  /// numbers ("account 2").
+  final String? accountLabel;
+  final UsageIdentity identity;
 }
 
-String? _accountLabel(Map<String, Object?> json) {
-  final metadata = json.optObject('metadata') ?? const {};
-  for (final key in const ['email', 'accountId', 'projectId']) {
-    final value = metadata[key];
-    if (value is String && value.isNotEmpty) return value;
-  }
-  final org = metadata['orgName'] ?? metadata['orgId'];
-  return org is String && org.isNotEmpty ? org : null;
-}
+String? _metadataString(Map<String, Object?> metadata, String key) =>
+    switch (metadata[key]) { final String value when value.isNotEmpty => value, _ => null };
+
+/// `UsageStatus`; a status omp does not name reads as unknown.
+enum UsageStatus { ok, warning, exhausted, unknown }
 
 final class UsageLimit {
   UsageLimit.fromJson(Map<String, Object?> json)
+    : this._(json, json.object('scope'), json.optObject('window'), json.object('amount'));
+
+  UsageLimit._(Map<String, Object?> json, Map<String, Object?> scope, Map<String, Object?>? window, Map<String, Object?> amount)
     : id = json.string('id'),
       label = json.string('label'),
-      tier = json.optObject('scope')?.optString('tier'),
-      windowLabel = json.optObject('window')?.optString('label') ?? json.optObject('scope')?.optString('windowId'),
-      resetsAt = _time(json.optObject('window')?.optNumber('resetsAt')),
-      unit = json.object('amount').optString('unit') ?? 'unknown',
-      used = json.object('amount').optNumber('used'),
-      limit = json.object('amount').optNumber('limit'),
-      remaining = json.object('amount').optNumber('remaining'),
-      usedFraction = _usedFraction(json.object('amount')),
+      tier = scope.optString('tier'),
+      windowId = scope.optString('windowId'),
+      sharedGroup = scope.optString('sharedGroup'),
+      scopeAccountId = _nonEmpty(scope.optString('accountId')),
+      scopeProjectId = _nonEmpty(scope.optString('projectId')),
+      scopeOrgId = _nonEmpty(scope.optString('orgId')),
+      windowLabel = window?.optString('label'),
+      duration = window?.optMilliseconds('durationMs'),
+      resetsAt = _time(window?.optNumber('resetsAt')),
+      resetLabel = window?.optString('resetLabel'),
+      status = UsageStatus.values.asNameMap()[json.optString('status')],
+      unit = amount.optString('unit') ?? 'unknown',
+      used = amount.optNumber('used'),
+      limit = amount.optNumber('limit'),
+      remaining = amount.optNumber('remaining'),
+      remainingFraction = amount.optNumber('remainingFraction')?.toDouble(),
+      usedFraction = _usedFraction(amount),
       notes = json.optStrings('notes') ?? const [];
 
   final String id;
   final String label;
   final String? tier;
+  final String? windowId;
+
+  /// Routing-specific copies of one upstream quota share this; omp shows the first.
+  final String? sharedGroup;
+  final String? scopeAccountId;
+  final String? scopeProjectId;
+  final String? scopeOrgId;
   final String? windowLabel;
+  final Duration? duration;
   final DateTime? resetsAt;
+
+  /// The verb before the reset countdown ("tick", "regen"); omp's default is "resets".
+  final String? resetLabel;
+
+  /// What the provider said; [usageLimitStatus] resolves a missing or unknown one from [usedFraction].
+  final UsageStatus? status;
 
   /// `tokens`, `requests`, `credits`, `minutes`, `bytes`, `percent`, `usd` or `unknown`.
   final String unit;
   final num? used;
   final num? limit;
   final num? remaining;
+  final double? remainingFraction;
 
-  /// 0 to 1 (can exceed 1 when over the limit); null when the provider gives no way to tell.
+  /// 0 to 1 (more when over the limit); null when the provider gives no way to tell.
   final double? usedFraction;
   final List<String> notes;
 }
 
-/// omp's own rule (`usage` CLI): the reported fraction, else used over limit, else one minus what remains.
+String? _nonEmpty(String? value) => value == null || value.isEmpty ? null : value;
+
+/// omp's `resolveUsedFraction`: the reported fraction, else used over limit, else a percent reading, else one minus
+/// what remains.
 double? _usedFraction(Map<String, Object?> amount) {
   final fraction = amount.optNumber('usedFraction');
   if (fraction != null) return fraction.toDouble();
   final used = amount.optNumber('used');
   final limit = amount.optNumber('limit');
   if (used != null && limit != null && limit > 0) return used / limit;
+  if (amount.optString('unit') == 'percent' && used != null) return used / 100;
   final remaining = amount.optNumber('remainingFraction');
-  return remaining == null ? null : 1 - remaining.toDouble();
+  return remaining == null ? null : (1 - remaining.toDouble()).clamp(0, double.infinity).toDouble();
 }
 
-/// An account in `accountsWithoutUsage` or `disabledCredentials`.
+/// Saved rate-limit resets an account can redeem (`UsageResetCredits`).
+final class UsageResetCredits {
+  UsageResetCredits.fromJson(Map<String, Object?> json)
+    : availableCount = json.number('availableCount').truncate(),
+      redeemableCount = json.optNumber('redeemableCount')?.truncate(),
+      nextCreditId = json.optString('nextCreditId'),
+      eligible = json.optBool('eligible'),
+      reason = json.optString('reason'),
+      cooldownUntil = json.optString('cooldownUntil'),
+      credits = [for (final credit in json.optObjects('credits') ?? const <Map<String, Object?>>[]) UsageResetCredit.fromJson(credit)];
+
+  final int availableCount;
+  final int? redeemableCount;
+  final String? nextCreditId;
+  final bool? eligible;
+  final String? reason;
+
+  /// ISO 8601, as the provider sent it.
+  final String? cooldownUntil;
+  final List<UsageResetCredit> credits;
+}
+
+final class UsageResetCredit {
+  UsageResetCredit.fromJson(Map<String, Object?> json)
+    : id = json.optString('id'),
+      remainingCount = json.optNumber('remainingCount'),
+      usable = json.optBool('usable'),
+      blocking = json.optStrings('blocking') ?? const [],
+      expiresAt = json.optString('expiresAt'),
+      status = json.optString('status');
+
+  final String? id;
+  final num? remainingCount;
+  final bool? usable;
+
+  /// Limit ids that keep the credit from being redeemed now.
+  final List<String> blocking;
+
+  /// ISO 8601, as the provider sent it.
+  final String? expiresAt;
+  final String? status;
+}
+
+/// An account in `accountsWithoutUsage` (`UsageAccountIdentity`).
 final class UsageAccount {
   UsageAccount.fromJson(Map<String, Object?> json)
     : provider = json.string('provider'),
-      type = json.optString('type'),
-      label = json.optString('email') ?? json.optString('accountId') ?? json.optString('projectId') ?? json.optString('orgName'),
-      cause = json.optString('cause');
+      apiKey = json.string('type') == 'api_key',
+      enterpriseUrl = json.optString('enterpriseUrl'),
+      authorizedAt = _time(json.optNumber('authorizedAt')),
+      identity = (
+        email: json.optString('email'),
+        accountId: json.optString('accountId'),
+        projectId: json.optString('projectId'),
+        orgId: json.optString('orgId'),
+        orgName: json.optString('orgName'),
+      );
 
   final String provider;
 
-  /// `oauth` or `api_key`.
-  final String? type;
-  final String? label;
-  final String? cause;
+  /// An API key rather than an OAuth login.
+  final bool apiKey;
+  final String? enterpriseUrl;
+
+  /// The interactive login that minted the OAuth grant; Anthropic grants expire ~30 days after it.
+  final DateTime? authorizedAt;
+  final UsageIdentity identity;
 }
 
-final class UsageCapacity {
-  UsageCapacity.fromJson(Map<String, Object?> json)
-    : window = json.string('window'),
-      meter = json.optString('meter'),
-      accounts = json.number('accounts').toInt(),
-      usedAccounts = json.number('usedAccounts').toDouble(),
-      remainingAccounts = json.number('remainingAccounts').toDouble();
+/// An entry of `disabledCredentials` (`DisabledCredentialSummary`).
+final class DisabledCredential {
+  DisabledCredential.fromJson(Map<String, Object?> json)
+    : provider = json.string('provider'),
+      cause = json.string('cause'),
+      disabledAt = _time(json.optNumber('disabledAtMs')),
+      identity = (
+        email: json.optString('email'),
+        accountId: json.optString('accountId'),
+        projectId: null,
+        orgId: json.optString('orgId'),
+        orgName: json.optString('orgName'),
+      );
 
-  final String window;
-  final String? meter;
-  final int accounts;
-  final double usedAccounts;
-  final double remainingAccounts;
+  final String provider;
+
+  /// Verbatim, as omp recorded it when it tore the credential down.
+  final String cause;
+  final DateTime? disabledAt;
+  final UsageIdentity identity;
 }
+
+/// One `auth.accountPolicies` entry: routing priority and protected reserve of the account its selector matches.
+final class AccountPolicy {
+  AccountPolicy.fromJson(Map<String, Object?> json)
+    : this._(json, json.object('account'));
+
+  AccountPolicy._(Map<String, Object?> json, Map<String, Object?> account)
+    : provider = json.string('provider'),
+      priority = json.optNumber('priority'),
+      reservePct = json.optNumber('reservePct'),
+      selector = (
+        email: account.optString('email'),
+        accountId: account.optString('accountId'),
+        projectId: account.optString('projectId'),
+        orgId: account.optString('orgId'),
+        orgName: null,
+      );
+
+  final String provider;
+  final num? priority;
+  final num? reservePct;
+
+  /// Every field it sets must equal the account's (`matchesAuthAccountSelector`).
+  final UsageIdentity selector;
+}
+
+/// `omp config get auth.accountPolicies --json`.
+List<AccountPolicy> parseAccountPolicies(Map<String, Object?> json) => [
+  for (final (index, policy) in json.list('value').indexed)
+    AccountPolicy.fromJson(asJsonObject(policy, 'auth.accountPolicies[$index]')),
+];
 
 // `omp stats --json`
 

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omp_app/app/theme.dart';
 import 'package:omp_app/database/app_database.dart';
 import 'package:omp_app/i18n/strings.g.dart';
 import 'package:omp_app/models/machine.dart';
@@ -346,6 +347,7 @@ void main() {
       'input': ['text'],
       'contextWindow': 128000,
     };
+    final block = GlobalKey();
     Future<Rect> openList(int count) async {
       session.omp.models = [for (var n = 0; n < count; n++) model(n)];
       await tester.pumpWidget(
@@ -356,7 +358,18 @@ void main() {
               home: Scaffold(
                 body: Align(
                   alignment: Alignment.bottomLeft,
-                  child: ModelPicker(key: ValueKey(count), session: session, machine: machine(count), model: null),
+                  child: Container(
+                    key: block,
+                    width: 600,
+                    padding: const EdgeInsets.only(top: 40),
+                    child: ModelPicker(
+                      key: ValueKey(count),
+                      session: session,
+                      machine: machine(count),
+                      model: null,
+                      above: block,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -366,7 +379,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('model-picker')));
       await tester.pumpAndSettle();
       // The menu surface is the closest Material around the search field.
-      return tester.getRect(find.ancestor(of: find.byType(AppSearchField), matching: find.byType(Material)).first);
+      final menu = tester.getRect(find.ancestor(of: find.byType(AppSearchField), matching: find.byType(Material)).first);
+      expect(tester.getRect(find.byKey(block)).top - menu.bottom, AppSizes.gap, reason: 'the list opens above the block');
+      return menu;
     }
 
     final short = await openList(2);

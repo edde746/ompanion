@@ -1,0 +1,215 @@
+{
+  "generatedAt": 1790387260522,
+  "reports": [
+    {
+      "provider": "anthropic",
+      "fetchedAt": 1790387019751,
+      "limits": [
+        {
+          "id": "anthropic:5h",
+          "label": "Claude 5 Hour",
+          "scope": {
+            "provider": "anthropic",
+            "windowId": "5h",
+            "shared": true
+          },
+          "window": {
+            "id": "5h",
+            "label": "5 Hour",
+            "durationMs": 18000000,
+            "resetsAt": 1790395299751
+          },
+          "amount": {
+            "used": 35,
+            "limit": 100,
+            "remaining": 65,
+            "usedFraction": 0.35,
+            "remainingFraction": 0.65,
+            "unit": "percent"
+          },
+          "status": "ok"
+        },
+        {
+          "id": "anthropic:7d",
+          "label": "Claude 7 Day",
+          "scope": {
+            "provider": "anthropic",
+            "windowId": "7d",
+            "shared": true
+          },
+          "window": {
+            "id": "7d",
+            "label": "7 Day",
+            "durationMs": 604800000,
+            "resetsAt": 1790581659751
+          },
+          "amount": {
+            "used": 83,
+            "limit": 100,
+            "remaining": 17,
+            "usedFraction": 0.83,
+            "remainingFraction": 0.17000000000000004,
+            "unit": "percent"
+          },
+          "status": "warning"
+        },
+        {
+          "id": "anthropic:7d:fable",
+          "label": "Claude 7 Day (Fable)",
+          "scope": {
+            "provider": "anthropic",
+            "windowId": "7d",
+            "tier": "fable"
+          },
+          "window": {
+            "id": "7d",
+            "label": "7 Day",
+            "durationMs": 604800000,
+            "resetsAt": 1790581659751
+          },
+          "amount": {
+            "used": 11,
+            "limit": 100,
+            "remaining": 89,
+            "usedFraction": 0.11,
+            "remainingFraction": 0.89,
+            "unit": "percent"
+          },
+          "status": "ok"
+        },
+        {
+          "id": "anthropic:extra",
+          "label": "Claude Extra Usage",
+          "scope": {
+            "provider": "anthropic",
+            "windowId": "extra"
+          },
+          "amount": {
+            "used": 18.4,
+            "unit": "usd",
+            "limit": 50,
+            "remaining": 31.6,
+            "usedFraction": 0.368,
+            "remainingFraction": 0.632
+          },
+          "status": "ok"
+        }
+      ],
+      "metadata": {
+        "endpoint": "https://api.anthropic.com/api/oauth/usage",
+        "accountId": "acc_dev_7f3a",
+        "email": "dev@example.com"
+      }
+    },
+    {
+      "provider": "anthropic",
+      "fetchedAt": 1790387189751,
+      "limits": [
+        {
+          "id": "anthropic:5h",
+          "label": "Claude 5 Hour",
+          "scope": {
+            "provider": "anthropic",
+            "windowId": "5h",
+            "shared": true
+          },
+          "window": {
+            "id": "5h",
+            "label": "5 Hour",
+            "durationMs": 18000000,
+            "resetsAt": 1790395299751
+          },
+          "amount": {
+            "used": 93,
+            "limit": 100,
+            "remaining": 7,
+            "usedFraction": 0.93,
+            "remainingFraction": 0.06999999999999995,
+            "unit": "percent"
+          },
+          "status": "warning"
+        },
+        {
+          "id": "anthropic:7d",
+          "label": "Claude 7 Day",
+          "scope": {
+            "provider": "anthropic",
+            "windowId": "7d",
+            "shared": true
+          },
+          "window": {
+            "id": "7d",
+            "label": "7 Day",
+            "durationMs": 604800000,
+            "resetsAt": 1790581659751
+          },
+          "amount": {
+            "used": 61,
+            "limit": 100,
+            "remaining": 39,
+            "usedFraction": 0.61,
+            "remainingFraction": 0.39,
+            "unit": "percent"
+          },
+          "status": "ok"
+        }
+      ],
+      "metadata": {
+        "endpoint": "https://api.anthropic.com/api/oauth/usage",
+        "accountId": "acc_team_91b0",
+        "email": "team@example.com"
+      }
+    }
+  ],
+  "accountsWithoutUsage": [
+    {
+      "provider": "openai-codex",
+      "type": "oauth",
+      "email": "ci@example.com",
+      "accountId": "acct-ci-5e22"
+    }
+  ],
+  "disabledCredentials": [
+    {
+      "id": 3,
+      "provider": "anthropic",
+      "type": "oauth",
+      "cause": "oauth refresh failed: 400 {\"error\":\"invalid_grant\",\"error_description\":\"Refresh token has been revoked\"}",
+      "email": "ops@example.com",
+      "accountId": "acc_ops_33d8",
+      "disabledAtMs": 1790196442000
+    }
+  ],
+  "capacity": {
+    "anthropic": [
+      {
+        "window": "5h",
+        "durationMs": 18000000,
+        "accounts": 2,
+        "usedAccounts": 1.28,
+        "remainingAccounts": 0.72
+      },
+      {
+        "window": "7d",
+        "durationMs": 604800000,
+        "accounts": 2,
+        "usedAccounts": 1.44,
+        "remainingAccounts": 0.56
+      },
+      {
+        "window": "7d",
+        "durationMs": 604800000,
+        "meter": "fable",
+        "accounts": 1,
+        "usedAccounts": 0.11,
+        "remainingAccounts": 0.89
+      },
+      {
+        "window": "extra",
+        "accounts": 1,
+        "usedAccounts": 0.368,
+        "remainingAccounts": 0.632
+      }
+    ]
+  }
+}

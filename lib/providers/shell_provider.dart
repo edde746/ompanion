@@ -25,6 +25,11 @@ final class KeysSelection extends ShellSelection {
   const KeysSelection();
 }
 
+/// Provider usage of every machine's accounts.
+final class UsageSelection extends ShellSelection {
+  const UsageSelection();
+}
+
 final class SettingsSelection extends ShellSelection {
   const SettingsSelection();
 }

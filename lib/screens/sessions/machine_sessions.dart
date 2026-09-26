@@ -215,9 +215,11 @@ class _MachineSectionState extends State<MachineSection> {
       sessions.openSessions.any((session) => sessions.machineOf(session)?.id == widget.machine.id);
 }
 
-/// Left insets of the sidebar's levels, from the row's rounded tone.
+/// Left insets of the sidebar's levels, from the row's rounded tone: the icon column (a project's folder icon, a
+/// session's mark) and the text column (the project's path, the session titles).
 const double _projectIndent = 26;
-const double _sessionIndent = 40;
+const double _iconSize = 14;
+const double _sessionIndent = _projectIndent + _iconSize + 6;
 
 /// Phones and tablets have no hover: row actions stay visible there.
 bool _touch(BuildContext context) => switch (Theme.of(context).platform) {
@@ -497,8 +499,8 @@ class _Project extends StatelessWidget {
           indent: _projectIndent,
           builder: (context, hovered) => Row(
             children: [
-              Icon(Icons.folder_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: 6),
+              Icon(Icons.folder_outlined, size: _iconSize, color: theme.colorScheme.onSurfaceVariant),
+              const SizedBox(width: _sessionIndent - _projectIndent - _iconSize),
               Expanded(
                 child: Tooltip(
                   message: cwd,
@@ -537,7 +539,7 @@ class _Project extends StatelessWidget {
 }
 
 /// What a session row says about its session, beside unread.
-enum _Status { none, opening, working, needsInput, failed, disconnected, runningOnMachine }
+enum SessionStatus { none, opening, working, needsInput, failed, disconnected, runningOnMachine }
 
 class _SessionTile extends StatelessWidget {
   const _SessionTile({required this.machineId, required this.entry, required this.opening, required this.onTap});
@@ -556,9 +558,9 @@ class _SessionTile extends StatelessWidget {
     final session = entry.session;
     final summary = entry.summary;
     final selected = session != null && identical(sessions.active, session) && shell.selection is SessionSelection;
-    Widget tile(String title, _Status status, bool unread) => _SessionRow(
+    Widget tile(String title, SessionStatus status, bool unread) => SessionRow(
       title: title,
-      status: opening ? _Status.opening : status,
+      status: opening ? SessionStatus.opening : status,
       unread: unread && !selected,
       modified: entry.modified,
       selected: selected,
@@ -567,35 +569,38 @@ class _SessionTile extends StatelessWidget {
     if (session == null) {
       return tile(
         sessionName(t, title: summary?.title, firstMessage: summary?.firstMessage),
-        summary?.running ?? false ? _Status.runningOnMachine : _Status.none,
+        summary?.running ?? false ? SessionStatus.runningOnMachine : SessionStatus.none,
         summary != null && reads.isListedUnread(machineId, summary),
       );
     }
     return LinkStateBuilder(
       session: session,
-      builder: (context, link) => SessionViewSelector<(String, _Status)>(
+      builder: (context, link) => SessionViewSelector<(String, SessionStatus)>(
         session: session,
         select: (view) => (liveSessionName(t, view, summary), _liveStatus(view)),
         builder: (context, data) {
           final (name, status) = data;
-          return tile(name, link is LinkClosed ? _Status.disconnected : status, reads.isLiveUnread(session));
+          return tile(name, link is LinkClosed ? SessionStatus.disconnected : status, reads.isLiveUnread(session));
         },
       ),
     );
   }
 
-  static _Status _liveStatus(SessionView view) {
-    if (view.requests.any((request) => request is! EditorTextRequest)) return _Status.needsInput;
+  static SessionStatus _liveStatus(SessionView view) {
+    if (view.requests.any((request) => request is! EditorTextRequest)) return SessionStatus.needsInput;
     return switch (view.run.status) {
-      RunStreaming() || RunCompacting() || RunRetrying() => _Status.working,
-      RunFailed() => _Status.failed,
-      RunIdle() || RunAborted() => _Status.none,
+      RunStreaming() || RunCompacting() || RunRetrying() => SessionStatus.working,
+      RunFailed() => SessionStatus.failed,
+      RunIdle() || RunAborted() => SessionStatus.none,
     };
   }
 }
 
-class _SessionRow extends StatelessWidget {
-  const _SessionRow({
+/// A session in the sidebar: one mark in the icon column, then the title and the relative time. A status (working,
+/// needs input, failed, …) takes the mark over the unread dot; unread then shows through the title's weight alone.
+class SessionRow extends StatelessWidget {
+  const SessionRow({
+    super.key,
     required this.title,
     required this.status,
     required this.unread,
@@ -605,7 +610,7 @@ class _SessionRow extends StatelessWidget {
   });
 
   final String title;
-  final _Status status;
+  final SessionStatus status;
   final bool unread;
   final DateTime? modified;
   final bool selected;
@@ -617,59 +622,57 @@ class _SessionRow extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final colors = AppColors.of(context);
-    final modified = this.modified;
-    final (Widget? indicator, String? words) = switch (status) {
-      _Status.none => (null, null),
-      _Status.opening => (const _Spinner(), t.sessions.opening),
-      _Status.working => (const _Spinner(), t.sessions.working),
-      _Status.needsInput => (Icon(Icons.help, size: 14, color: colors.warning), t.sessions.needsInput),
-      _Status.failed => (Icon(Icons.error, size: 14, color: colors.error), t.sessions.failed),
-      _Status.disconnected => (Icon(Icons.link_off, size: 14, color: scheme.onSurfaceVariant), t.sessions.disconnected),
-      _Status.runningOnMachine => (_Dot(color: scheme.onSurfaceVariant), t.sessions.runningOnMachine),
+    final (Widget? statusMark, String? statusWords) = switch (status) {
+      SessionStatus.none => (null, null),
+      SessionStatus.opening => (const _Spinner(), t.sessions.opening),
+      SessionStatus.working => (const _Spinner(), t.sessions.working),
+      SessionStatus.needsInput => (Icon(Icons.help, size: _iconSize, color: colors.warning), t.sessions.needsInput),
+      SessionStatus.failed => (Icon(Icons.error, size: _iconSize, color: colors.error), t.sessions.failed),
+      SessionStatus.disconnected => (
+        Icon(Icons.link_off, size: _iconSize, color: scheme.onSurfaceVariant),
+        t.sessions.disconnected,
+      ),
+      SessionStatus.runningOnMachine => (_Dot(color: scheme.onSurfaceVariant), t.sessions.runningOnMachine),
     };
+    final mark = statusMark ?? (unread ? _Dot(color: scheme.onSurface) : null);
+    final states = [?statusWords, if (unread) t.sessions.unread];
+    final modified = this.modified;
+    final time = modified == null ? null : relativeTime(t, modified, DateTime.now());
     return SidebarRow(
-      indent: _sessionIndent - 12,
+      indent: _projectIndent,
       selected: selected,
       onTap: onTap,
-      builder: (context, _) => Row(
-        children: [
-          SizedBox(
-            width: 12,
-            child: unread
-                ? Tooltip(
-                    message: t.sessions.unread,
-                    child: _Dot(color: scheme.onSurface),
-                  )
-                : null,
-          ),
-          Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: unread ? FontWeight.w700 : FontWeight.w400,
-                color: unread || selected ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.85),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      builder: (context, _) => Semantics(
+        selected: selected,
+        label: [title, ...states, ?time].join(', '),
+        excludeSemantics: true,
+        child: Row(
+          children: [
+            SizedBox.square(
+              dimension: _iconSize,
+              child: mark == null
+                  ? null
+                  : Tooltip(message: states.join(' · '), child: Center(child: mark)),
             ),
-          ),
-          if (indicator != null && words != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 6),
-              child: Tooltip(
-                message: words,
-                child: SizedBox.square(dimension: 14, child: Center(child: indicator)),
-              ),
-            ),
-          if (modified != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 6, right: 4),
+            const SizedBox(width: _sessionIndent - _projectIndent - _iconSize),
+            Expanded(
               child: Text(
-                relativeTime(t, modified, DateTime.now()),
-                style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+                title,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: unread ? FontWeight.w700 : FontWeight.w400,
+                  color: unread || selected ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.85),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-        ],
+            if (time != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 6, right: 4),
+                child: Text(time, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+              ),
+          ],
+        ),
       ),
     );
   }

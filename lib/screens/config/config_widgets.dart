@@ -122,8 +122,8 @@ class ConfigBanner extends StatelessWidget {
   }
 }
 
-/// A horizontally scrolling strip of flat pills; the selected one sits one tone lighter. Section switchers
-/// and settings tabs.
+/// A horizontally scrolling strip of flat pills; the selected one is a stadium one tone lighter. Section
+/// switchers and settings tabs.
 class ConfigPills<T> extends StatelessWidget {
   const ConfigPills({super.key, required this.value, required this.items, required this.onChanged, this.padding = EdgeInsets.zero});
 
@@ -136,7 +136,7 @@ class ConfigPills<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final radius = BorderRadius.circular(AppSizes.radius);
+    const shape = StadiumBorder();
     return SizedBox(
       height: AppSizes.control,
       child: ListView(
@@ -148,9 +148,9 @@ class ConfigPills<T> extends StatelessWidget {
               padding: const EdgeInsets.only(right: 4),
               child: Material(
                 color: item == value ? scheme.surfaceContainerHighest : Colors.transparent,
-                borderRadius: radius,
+                shape: shape,
                 child: InkWell(
-                  borderRadius: radius,
+                  customBorder: shape,
                   onTap: item == value ? null : () => onChanged(item),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),

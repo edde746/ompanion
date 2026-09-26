@@ -90,57 +90,81 @@ void main() {
   });
 
   group('omp usage --json', () {
+    // usage-mac.json and usage-target.json: omp 18.3.1 without network, in isolated homes whose agent.db holds fake
+    // OAuth accounts and cached usage reports. "This Mac": Anthropic and Codex dev@example.com; "target": the same
+    // Anthropic account, team@example.com near its 5-hour limit, ops@example.com disabled, Codex ci@example.com
+    // without a report, and a policy for team@example.com.
     test('a machine without usage-reporting accounts', () {
-      final usage = UsageSnapshot.fromJson(json('usage.json'));
-      expect(usage.isEmpty, isTrue);
-      expect(usage.capacity, isEmpty);
+      expect(UsageSnapshot.fromJson(json('usage.json')).isEmpty, isTrue);
     });
 
-    test('a limit without a reported fraction is used over limit, else one minus what remains', () {
+    test('reports: account, windows, status, amounts, plan and saved resets', () {
+      final mac = UsageSnapshot.fromJson(json('usage-mac.json'));
+      final claude = mac.reports.first;
+      expect(claude.provider, 'anthropic');
+      expect(claude.accountLabel, 'dev@example.com');
+      expect(claude.identity.accountId, 'acc_dev_7f3a');
+      expect(claude.fetchedAt, DateTime.fromMillisecondsSinceEpoch(1790387219751));
+      final weekly = claude.limits[1];
+      expect(weekly.windowLabel, '7 Day');
+      expect(weekly.duration, const Duration(days: 7));
+      expect(weekly.resetsAt, DateTime.fromMillisecondsSinceEpoch(1790581659751));
+      expect(weekly.status, UsageStatus.warning);
+      expect(weekly.usedFraction, 0.84);
+      expect(claude.limits[2].tier, 'fable');
+      final extra = claude.limits.last;
+      expect((extra.unit, extra.used, extra.limit, extra.duration), ('usd', 18.4, 50, null));
+      final codex = mac.reports.last;
+      expect(codex.planType, 'plus');
+      expect(codex.resetCredits!.availableCount, 1);
+      expect(codex.resetCredits!.redeemableCount, 0);
+      expect(codex.resetCredits!.credits.single.expiresAt, '2026-10-05T01:47:39Z');
+    });
+
+    test('accounts without usage and disabled credentials', () {
+      final target = UsageSnapshot.fromJson(json('usage-target.json'));
+      final ci = target.accountsWithoutUsage.single;
+      expect((ci.provider, ci.apiKey, ci.identity.email), ('openai-codex', false, 'ci@example.com'));
+      final disabled = target.disabledCredentials.single;
+      expect(disabled.identity.email, 'ops@example.com');
+      expect(disabled.disabledAt, DateTime.fromMillisecondsSinceEpoch(1790196442000));
+      expect(disabled.cause, startsWith('oauth refresh failed: 400 {"error":"invalid_grant"'));
+    });
+
+    test('account policies from omp config get', () {
+      final policy = parseAccountPolicies(json('config-get-account-policies.json')).single;
+      expect((policy.provider, policy.priority, policy.reservePct), ('anthropic', 5, 15));
+      expect(policy.selector, (email: 'team@example.com', accountId: null, projectId: null, orgId: null, orgName: null));
+    });
+
+    test('a limit without a reported fraction: used over limit, a percent reading, else one minus what remains', () {
       final usage = UsageSnapshot.fromJson({
         'generatedAt': 1790358389081,
         'reports': [
           {
-            'provider': 'anthropic',
-            'metadata': {'email': 'a@example.com', 'planType': 'max'},
+            'provider': 'zai',
             'limits': [
               {
-                'id': 'anthropic:5h',
-                'label': 'Session',
-                'scope': {'windowId': '5h'},
-                'window': {'label': '5 hours', 'resetsAt': 1790360000000},
+                'id': 'zai:tokens',
+                'label': 'Tokens',
+                'scope': {'accountId': 'acct-7'},
                 'amount': {'unit': 'tokens', 'used': 250, 'limit': 1000},
               },
-              {
-                'id': 'anthropic:7d',
-                'label': 'Weekly',
-                'scope': <String, Object?>{},
-                'amount': {'unit': 'percent', 'remainingFraction': 0.25},
-              },
+              {'id': 'zai:percent', 'label': 'Session', 'scope': <String, Object?>{}, 'amount': {'unit': 'percent', 'used': 40}},
+              {'id': 'zai:left', 'label': 'Weekly', 'scope': <String, Object?>{}, 'amount': {'unit': 'percent', 'remainingFraction': 0.25}},
             ],
           },
         ],
         'accountsWithoutUsage': [
           {'provider': 'openrouter', 'type': 'api_key'},
         ],
-        'disabledCredentials': [
-          {'provider': 'openai-codex', 'type': 'oauth', 'email': 'b@example.com', 'cause': 'refresh failed'},
-        ],
-        'capacity': {
-          'anthropic': [
-            {'window': '5h', 'durationMs': 18000000, 'accounts': 1, 'usedAccounts': 0.25, 'remainingAccounts': 0.75},
-          ],
-        },
+        'disabledCredentials': <Object?>[],
+        'capacity': <String, Object?>{},
       });
       final report = usage.reports.single;
-      expect(report.account, 'a@example.com');
-      expect(report.planType, 'max');
-      expect(report.limits.first.usedFraction, 0.25);
-      expect(report.limits.first.windowLabel, '5 hours');
-      expect(report.limits.last.usedFraction, 0.75);
-      expect(usage.accountsWithoutUsage.single.type, 'api_key');
-      expect(usage.disabledCredentials.single.cause, 'refresh failed');
-      expect(usage.capacity['anthropic']!.single.remainingAccounts, 0.75);
+      expect(report.accountLabel, 'acct-7', reason: 'no metadata: the first limit scoped to an account names it');
+      expect([for (final limit in report.limits) limit.usedFraction], [0.25, 0.4, 0.75]);
+      expect(usage.accountsWithoutUsage.single.apiKey, isTrue);
     });
   });
 

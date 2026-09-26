@@ -71,22 +71,27 @@ class _DockPanelState extends State<DockPanel> with SingleTickerProviderStateMix
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-            // Five labelled tabs do not fit the dock's width; icons with the label as tooltip do.
-            child: TabBar(
-              controller: _tabs,
-              tabs: [
-                for (final tab in DockTab.values)
-                  Tab(
-                    height: AppSizes.control,
-                    child: Tooltip(
-                      message: dockTabLabel(t, tab),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Icon(dockTabIcon(tab), size: 18),
+            // Five labelled tabs do not fit the dock's width; icons with the label as tooltip do. Each icon is
+            // centred in an equal slot without label padding, and the group is centred so its first tab stands
+            // clear of the chat header's dock toggle beside it.
+            child: Center(
+              child: SizedBox(
+                width: DockTab.values.length * _tabSlot,
+                child: TabBar(
+                  controller: _tabs,
+                  labelPadding: EdgeInsets.zero,
+                  tabs: [
+                    for (final tab in DockTab.values)
+                      Tab(
+                        height: AppSizes.control,
+                        child: Tooltip(
+                          message: dockTabLabel(t, tab),
+                          child: SizedBox.expand(child: Center(child: Icon(dockTabIcon(tab), size: 18))),
+                        ),
                       ),
-                    ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
           Expanded(
@@ -104,6 +109,9 @@ class _DockPanelState extends State<DockPanel> with SingleTickerProviderStateMix
     );
   }
 }
+
+/// Width of one dock tab and of its selected pill.
+const double _tabSlot = 56;
 
 String dockTabLabel(Translations t, DockTab tab) => switch (tab) {
   DockTab.agents => t.dock.agents,

@@ -35,6 +35,8 @@ class AppSegmented<T> extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        // The selected segment fills the track's height, inset by _inset on every side.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final (segmentValue, label, icon) in segments)
             Builder(

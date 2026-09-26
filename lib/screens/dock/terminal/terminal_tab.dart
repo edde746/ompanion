@@ -175,11 +175,12 @@ class _TerminalTabButton extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final foreground = selected ? scheme.onSurface : scheme.onSurfaceVariant;
+    const shape = StadiumBorder();
     return Material(
       color: selected ? scheme.surfaceContainerHighest : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppSizes.radius),
+      shape: shape,
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppSizes.radius),
+        customBorder: shape,
         onTap: onSelect,
         child: SizedBox(
           height: AppSizes.control,

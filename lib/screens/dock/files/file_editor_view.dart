@@ -473,6 +473,7 @@ class _DocumentStrip extends StatelessWidget {
               padding: const EdgeInsets.only(right: 4),
               child: TextButton(
                 style: TextButton.styleFrom(
+                  shape: const StadiumBorder(),
                   backgroundColor: identical(document, current) ? scheme.surfaceContainerHighest : null,
                   foregroundColor: identical(document, current) ? scheme.onSurface : scheme.onSurfaceVariant,
                 ),

@@ -10,12 +10,15 @@ import 'model_picker.dart';
 
 /// The thinking level button: loads the model's levels when opened and marks the current one.
 class ThinkingPicker extends StatefulWidget {
-  const ThinkingPicker({super.key, required this.session, required this.level});
+  const ThinkingPicker({super.key, required this.session, required this.level, required this.above});
 
   final LiveSession session;
 
   /// Null when the model reports none, which omp treats as off.
   final String? level;
+
+  /// The composer block the menu opens above.
+  final GlobalKey above;
 
   @override
   State<ThinkingPicker> createState() => _ThinkingPickerState();
@@ -28,6 +31,7 @@ class _ThinkingPickerState extends State<ThinkingPicker> {
   final _menu = MenuController();
   bool _loading = false;
   List<String> _levels = const [];
+  Offset _offset = Offset.zero;
 
   Future<void> _open() async {
     final t = context.t;
@@ -47,7 +51,10 @@ class _ThinkingPickerState extends State<ThinkingPicker> {
       messenger.showSnackBar(SnackBar(content: Text(t.chat.noThinking)));
       return;
     }
-    setState(() => _levels = levels);
+    setState(() {
+      _levels = levels;
+      _offset = menuOffsetAbove(context, widget.above, alignStart: false);
+    });
     _menu.open();
   }
 
@@ -68,6 +75,7 @@ class _ThinkingPickerState extends State<ThinkingPicker> {
     final current = widget.level ?? _off;
     return MenuAnchor(
       controller: _menu,
+      alignmentOffset: _offset,
       menuChildren: [
         for (final level in _levels)
           MenuItemButton(

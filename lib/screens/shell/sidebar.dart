@@ -8,7 +8,7 @@ import '../machines/machine_editor.dart';
 import '../machines/transfer_dialogs.dart';
 import '../sessions/machine_sessions.dart';
 
-/// Machines, then per machine its projects and sessions; SSH keys and settings at the bottom.
+/// Machines, then per machine its projects and sessions; SSH keys, usage and settings at the bottom.
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key, required this.showHeader});
 
@@ -60,6 +60,12 @@ class Sidebar extends StatelessWidget {
             label: t.sidebar.keys,
             selected: selection is KeysSelection,
             onTap: () => context.read<ShellProvider>().select(const KeysSelection()),
+          ),
+          _NavTile(
+            icon: Icons.speed_outlined,
+            label: t.sidebar.usage,
+            selected: selection is UsageSelection,
+            onTap: () => context.read<ShellProvider>().select(const UsageSelection()),
           ),
           _NavTile(
             icon: Icons.settings_outlined,

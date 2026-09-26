@@ -14,16 +14,15 @@ import 'roles_page.dart';
 import 'settings_page.dart';
 import 'skills_page.dart';
 import 'stats_page.dart';
-import 'usage_page.dart';
 
 /// Opens the omp configuration of [machine] as its own page.
 Future<void> openMachineConfig(BuildContext context, Machine machine) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MachineConfigScreen(machine: machine)));
 
-enum ConfigSection { settings, roles, accounts, mcp, plugins, skills, usage, stats }
+enum ConfigSection { settings, roles, accounts, mcp, plugins, skills, stats }
 
 /// Machine-level omp configuration: settings, model roles, providers and accounts, MCP servers, plugins,
-/// skills, usage and stats. Talks to the machine's control process and runs `omp` one-shots.
+/// skills and stats. Talks to the machine's control process and runs `omp` one-shots.
 class MachineConfigScreen extends StatefulWidget {
   const MachineConfigScreen({super.key, required this.machine, this.initialSection = ConfigSection.settings});
 
@@ -67,23 +66,24 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
     // The active session decides the project scope.
     context.watch<SessionsProvider>();
     final runtime = _target.runtime;
-    return Scaffold(
-      appBar: AppBar(title: Text(t.config.title(machine: widget.machine.name))),
-      body: StreamBuilder<MachineStatus>(
-        stream: runtime.statuses,
-        initialData: runtime.status,
-        builder: (context, snapshot) => switch (snapshot.data ?? runtime.status) {
-          MachineOnline() => _sections(context),
-          MachineNeedsOmp(:final reason) => Center(child: ConfigError(t.config.needsOmp(reason: reason))),
-          MachineFailed(:final cause) => Center(child: ConfigError(cause, onRetry: _connect)),
-          MachineConnecting() => _progress(t.config.connecting),
-          MachineOffline() when _connectError != null => Center(child: ConfigError(_connectError!, onRetry: _connect)),
-          MachineOffline() when _connecting => _progress(t.config.connecting),
-          MachineOffline() => Center(
+    final title = Text(t.config.title(machine: widget.machine.name));
+    Widget plain(Widget body) => Scaffold(appBar: AppBar(title: title), body: body);
+    return StreamBuilder<MachineStatus>(
+      stream: runtime.statuses,
+      initialData: runtime.status,
+      builder: (context, snapshot) => switch (snapshot.data ?? runtime.status) {
+        MachineOnline() => _sections(context, title),
+        MachineNeedsOmp(:final reason) => plain(Center(child: ConfigError(t.config.needsOmp(reason: reason)))),
+        MachineFailed(:final cause) => plain(Center(child: ConfigError(cause, onRetry: _connect))),
+        MachineConnecting() => plain(_progress(t.config.connecting)),
+        MachineOffline() when _connectError != null => plain(Center(child: ConfigError(_connectError!, onRetry: _connect))),
+        MachineOffline() when _connecting => plain(_progress(t.config.connecting)),
+        MachineOffline() => plain(
+          Center(
             child: FilledButton.icon(onPressed: _connect, icon: const Icon(Icons.link), label: Text(t.config.connect)),
           ),
-        },
-      ),
+        ),
+      },
     );
   }
 
@@ -94,7 +94,7 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
     ),
   );
 
-  Widget _sections(BuildContext context) {
+  Widget _sections(BuildContext context, Widget title) {
     final t = context.t;
     final labels = {
       ConfigSection.settings: (t.config.sections.settings, Icons.tune),
@@ -103,7 +103,6 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
       ConfigSection.mcp: (t.config.sections.mcp, Icons.hub_outlined),
       ConfigSection.plugins: (t.config.sections.plugins, Icons.extension_outlined),
       ConfigSection.skills: (t.config.sections.skills, Icons.school_outlined),
-      ConfigSection.usage: (t.config.sections.usage, Icons.speed),
       ConfigSection.stats: (t.config.sections.stats, Icons.bar_chart),
     };
     final page = KeyedSubtree(
@@ -115,47 +114,84 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
         ConfigSection.mcp => McpPage(target: _target),
         ConfigSection.plugins => PluginsPage(target: _target),
         ConfigSection.skills => SkillsPage(target: _target),
-        ConfigSection.usage => UsagePage(target: _target),
         ConfigSection.stats => StatsPage(target: _target),
       },
     );
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= 800) {
-          return Row(
+          final extended = constraints.maxWidth >= 1100;
+          // Like the shell's sidebar with its header, the navigation is one surface from the top edge down with
+          // the back button at its top; the title bar covers only the page.
+          return Scaffold(
+            body: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Material(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  child: SafeArea(
+                    right: false,
+                    child: Column(
+                      // Puts the back button over the rail's icons: the extended rail centres them in its first
+                      // _railWidth, the collapsed one across its width, which its longest label sets.
+                      crossAxisAlignment: extended ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(width: _railWidth, height: kToolbarHeight, child: Center(child: BackButton())),
+                        Expanded(
+                          child: NavigationRail(
+                            minWidth: _railWidth,
+                            extended: extended,
+                            labelType: extended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
+                            selectedIndex: _section.index,
+                            onDestinationSelected: (index) => setState(() => _section = ConfigSection.values[index]),
+                            destinations: [
+                              for (final section in ConfigSection.values)
+                                NavigationRailDestination(icon: Icon(labels[section]!.$2), label: Text(labels[section]!.$1)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AppBar(automaticallyImplyLeading: false, centerTitle: false, title: title),
+                      // The title bar took the top inset; without this, list pages would pad by it again.
+                      Expanded(child: MediaQuery.removePadding(context: context, removeTop: true, child: page)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return Scaffold(
+          appBar: AppBar(title: title),
+          body: Column(
             children: [
-              NavigationRail(
-                extended: constraints.maxWidth >= 1100,
-                labelType: constraints.maxWidth >= 1100 ? NavigationRailLabelType.none : NavigationRailLabelType.all,
-                selectedIndex: _section.index,
-                onDestinationSelected: (index) => setState(() => _section = ConfigSection.values[index]),
-                destinations: [
-                  for (final section in ConfigSection.values)
-                    NavigationRailDestination(icon: Icon(labels[section]!.$2), label: Text(labels[section]!.$1)),
-                ],
+              ColoredBox(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: ConfigPills<ConfigSection>(
+                    value: _section,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    items: [for (final section in ConfigSection.values) (section, labels[section]!.$1, labels[section]!.$2)],
+                    onChanged: (section) => setState(() => _section = section),
+                  ),
+                ),
               ),
               Expanded(child: page),
             ],
-          );
-        }
-        return Column(
-          children: [
-            ColoredBox(
-              color: Theme.of(context).colorScheme.surfaceContainerLow,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: ConfigPills<ConfigSection>(
-                  value: _section,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  items: [for (final section in ConfigSection.values) (section, labels[section]!.$1, labels[section]!.$2)],
-                  onChanged: (section) => setState(() => _section = section),
-                ),
-              ),
-            ),
-            Expanded(child: page),
-          ],
+          ),
         );
       },
     );
   }
 }
+
+/// Width of the collapsed navigation rail (Material 3's default); its icons are centred in it.
+const double _railWidth = 80;

@@ -25,7 +25,78 @@
     "homeTitle": "No machine selected",
     "homeBody": "Select a machine in the sidebar, or add one.",
     "keysTitle": "SSH keys",
+    "usageTitle": "Usage",
     "settingsTitle": "Settings"
+  },
+  "usage": {
+    "fetchAgain": "Ask providers again",
+    "fetched": "Fetched $ago ago",
+    "notFetched": "Not fetched yet",
+    "none": "No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.",
+    "noMachines": "No machines yet. Add one in the sidebar.",
+    "machines": "Machines",
+    "asking": "Asking omp…",
+    "machineAccounts": {
+      "one": "omp $version · $n account",
+      "other": "omp $version · $n accounts"
+    },
+    "providerAccounts": {
+      "one": "$n account",
+      "other": "$n accounts"
+    },
+    "accountN": "account $n",
+    "apiKey": "API key",
+    "oauthAccount": "OAuth account",
+    "plan": "plan: $plan",
+    "daybreak": "daybreak",
+    "savedResets": {
+      "one": "$n saved reset",
+      "other": "$n saved resets"
+    },
+    "usableNow": "$n usable now",
+    "resetExpiresIn": "soonest expires in $duration ($date)",
+    "resetExpired": "expired ($date)",
+    "resetUnavailable": "unavailable: $reason",
+    "resetCooldown": "cooldown until $time",
+    "resetBlocked": "blocked by $windows",
+    "resetNotEligible": "not eligible",
+    "resetNotUsable": "not usable right now",
+    "fetchedAgo": "fetched $ago ago",
+    "policy": "policy: priority $priority · reserve $reserve",
+    "reserveGlobal": "$percent% (global)",
+    "reserveOverride": "$percent% (override)",
+    "reserveUnknown": "reserve unknown",
+    "eligible": "eligible · $percent% left",
+    "insideReserve": "inside reserve · $percent% left",
+    "policyOn": "$line ($machine)",
+    "noLimits": "no limits reported",
+    "notReported": "not reported",
+    "noData": "no data",
+    "amountOf": "$used / $limit",
+    "amountLeft": "$amount left",
+    "amountUsed": "$amount used",
+    "percentUsed": "$percent% used",
+    "percentLeft": "$percent% left",
+    "resets": "resets",
+    "resetsIn": "$verb in $duration",
+    "units": {
+      "tokens": "$value tokens",
+      "requests": "$value requests",
+      "credits": "$value credits",
+      "minutes": "$value min",
+      "bytes": "$value bytes"
+    },
+    "withoutUsage": "no usage data",
+    "disabledAgo": "disabled $ago ago: $cause",
+    "disabled": "disabled: $cause",
+    "reloginToRestore": "(re-login to restore)",
+    "reloginWithin": "re-login within $duration (Anthropic expires OAuth grants ~30d after login)",
+    "reloginNow": "grant is past Anthropic's ~30d lifetime; re-login now",
+    "capacity": "Capacity",
+    "capacityWindow": {
+      "one": "$used/$n account used · $left× quota left",
+      "other": "$used/$n accounts used · $left× quota left"
+    }
   },
   "dock": {
     "agents": "Agents",
@@ -222,6 +293,7 @@
     "importMachines": "Import machines…",
     "exportMachines": "Export machines…",
     "keys": "SSH keys",
+    "usage": "Usage",
     "settings": "Settings",
     "noMachines": "No machines yet."
   },
@@ -711,7 +783,6 @@
       "mcp": "MCP servers",
       "plugins": "Plugins",
       "skills": "Skills",
-      "usage": "Usage",
       "stats": "Stats"
     },
     "scope": {
@@ -909,20 +980,6 @@
       "downloadsTotal": "Downloads: $weekly weekly, $total total",
       "shipsScripts": "Ships scripts.",
       "noHits": "Nothing on skills.omp.sh matches \"$query\"."
-    },
-    "usage": {
-      "generated": "Fetched at $time",
-      "fetchAgain": "Ask providers again",
-      "none": "No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.",
-      "plan": "plan $plan",
-      "capacity": "Capacity",
-      "capacityLine": "$remaining of $accounts accounts left",
-      "withoutUsage": "Accounts without usage data",
-      "disabled": "Disabled credentials",
-      "left": "$amount left",
-      "used": "$percent% used",
-      "resets": "resets in $duration",
-      "noData": "no data"
     },
     "stats": {
       "span": "$from – $to",

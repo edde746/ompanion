@@ -44,6 +44,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$app$en app = Translations$app$en.internal(_root);
 	late final Translations$common$en common = Translations$common$en.internal(_root);
 	late final Translations$shell$en shell = Translations$shell$en.internal(_root);
+	late final Translations$usage$en usage = Translations$usage$en.internal(_root);
 	late final Translations$dock$en dock = Translations$dock$en.internal(_root);
 	late final Translations$sidebar$en sidebar = Translations$sidebar$en.internal(_root);
 	late final Translations$machines$en machines = Translations$machines$en.internal(_root);
@@ -160,8 +161,181 @@ class Translations$shell$en {
 	/// en: 'SSH keys'
 	String get keysTitle => 'SSH keys';
 
+	/// en: 'Usage'
+	String get usageTitle => 'Usage';
+
 	/// en: 'Settings'
 	String get settingsTitle => 'Settings';
+}
+
+// Path: usage
+class Translations$usage$en {
+	Translations$usage$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Ask providers again'
+	String get fetchAgain => 'Ask providers again';
+
+	/// en: 'Fetched $ago ago'
+	String fetched({required Object ago}) => 'Fetched ${ago} ago';
+
+	/// en: 'Not fetched yet'
+	String get notFetched => 'Not fetched yet';
+
+	/// en: 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.'
+	String get none => 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.';
+
+	/// en: 'No machines yet. Add one in the sidebar.'
+	String get noMachines => 'No machines yet. Add one in the sidebar.';
+
+	/// en: 'Machines'
+	String get machines => 'Machines';
+
+	/// en: 'Asking omp…'
+	String get asking => 'Asking omp…';
+
+	/// en: '(one) {omp $version · $n account} (other) {omp $version · $n accounts}'
+	String machineAccounts({required num n, required Object version}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: 'omp ${version} · ${n} account',
+		other: 'omp ${version} · ${n} accounts',
+	);
+
+	/// en: '(one) {$n account} (other) {$n accounts}'
+	String providerAccounts({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} account',
+		other: '${n} accounts',
+	);
+
+	/// en: 'account $n'
+	String accountN({required Object n}) => 'account ${n}';
+
+	/// en: 'API key'
+	String get apiKey => 'API key';
+
+	/// en: 'OAuth account'
+	String get oauthAccount => 'OAuth account';
+
+	/// en: 'plan: $plan'
+	String plan({required Object plan}) => 'plan: ${plan}';
+
+	/// en: 'daybreak'
+	String get daybreak => 'daybreak';
+
+	/// en: '(one) {$n saved reset} (other) {$n saved resets}'
+	String savedResets({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} saved reset',
+		other: '${n} saved resets',
+	);
+
+	/// en: '$n usable now'
+	String usableNow({required Object n}) => '${n} usable now';
+
+	/// en: 'soonest expires in $duration ($date)'
+	String resetExpiresIn({required Object duration, required Object date}) => 'soonest expires in ${duration} (${date})';
+
+	/// en: 'expired ($date)'
+	String resetExpired({required Object date}) => 'expired (${date})';
+
+	/// en: 'unavailable: $reason'
+	String resetUnavailable({required Object reason}) => 'unavailable: ${reason}';
+
+	/// en: 'cooldown until $time'
+	String resetCooldown({required Object time}) => 'cooldown until ${time}';
+
+	/// en: 'blocked by $windows'
+	String resetBlocked({required Object windows}) => 'blocked by ${windows}';
+
+	/// en: 'not eligible'
+	String get resetNotEligible => 'not eligible';
+
+	/// en: 'not usable right now'
+	String get resetNotUsable => 'not usable right now';
+
+	/// en: 'fetched $ago ago'
+	String fetchedAgo({required Object ago}) => 'fetched ${ago} ago';
+
+	/// en: 'policy: priority $priority · reserve $reserve'
+	String policy({required Object priority, required Object reserve}) => 'policy: priority ${priority} · reserve ${reserve}';
+
+	/// en: '$percent% (global)'
+	String reserveGlobal({required Object percent}) => '${percent}% (global)';
+
+	/// en: '$percent% (override)'
+	String reserveOverride({required Object percent}) => '${percent}% (override)';
+
+	/// en: 'reserve unknown'
+	String get reserveUnknown => 'reserve unknown';
+
+	/// en: 'eligible · $percent% left'
+	String eligible({required Object percent}) => 'eligible · ${percent}% left';
+
+	/// en: 'inside reserve · $percent% left'
+	String insideReserve({required Object percent}) => 'inside reserve · ${percent}% left';
+
+	/// en: '$line ($machine)'
+	String policyOn({required Object line, required Object machine}) => '${line} (${machine})';
+
+	/// en: 'no limits reported'
+	String get noLimits => 'no limits reported';
+
+	/// en: 'not reported'
+	String get notReported => 'not reported';
+
+	/// en: 'no data'
+	String get noData => 'no data';
+
+	/// en: '$used / $limit'
+	String amountOf({required Object used, required Object limit}) => '${used} / ${limit}';
+
+	/// en: '$amount left'
+	String amountLeft({required Object amount}) => '${amount} left';
+
+	/// en: '$amount used'
+	String amountUsed({required Object amount}) => '${amount} used';
+
+	/// en: '$percent% used'
+	String percentUsed({required Object percent}) => '${percent}% used';
+
+	/// en: '$percent% left'
+	String percentLeft({required Object percent}) => '${percent}% left';
+
+	/// en: 'resets'
+	String get resets => 'resets';
+
+	/// en: '$verb in $duration'
+	String resetsIn({required Object verb, required Object duration}) => '${verb} in ${duration}';
+
+	late final Translations$usage$units$en units = Translations$usage$units$en.internal(_root);
+
+	/// en: 'no usage data'
+	String get withoutUsage => 'no usage data';
+
+	/// en: 'disabled $ago ago: $cause'
+	String disabledAgo({required Object ago, required Object cause}) => 'disabled ${ago} ago: ${cause}';
+
+	/// en: 'disabled: $cause'
+	String disabled({required Object cause}) => 'disabled: ${cause}';
+
+	/// en: '(re-login to restore)'
+	String get reloginToRestore => '(re-login to restore)';
+
+	/// en: 're-login within $duration (Anthropic expires OAuth grants ~30d after login)'
+	String reloginWithin({required Object duration}) => 're-login within ${duration} (Anthropic expires OAuth grants ~30d after login)';
+
+	/// en: 'grant is past Anthropic's ~30d lifetime; re-login now'
+	String get reloginNow => 'grant is past Anthropic\'s ~30d lifetime; re-login now';
+
+	/// en: 'Capacity'
+	String get capacity => 'Capacity';
+
+	/// en: '(one) {$used/$n account used · $left× quota left} (other) {$used/$n accounts used · $left× quota left}'
+	String capacityWindow({required num n, required Object used, required Object left}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${used}/${n} account used · ${left}× quota left',
+		other: '${used}/${n} accounts used · ${left}× quota left',
+	);
 }
 
 // Path: dock
@@ -225,6 +399,9 @@ class Translations$sidebar$en {
 
 	/// en: 'SSH keys'
 	String get keys => 'SSH keys';
+
+	/// en: 'Usage'
+	String get usage => 'Usage';
 
 	/// en: 'Settings'
 	String get settings => 'Settings';
@@ -1579,8 +1756,31 @@ class Translations$config$en {
 	late final Translations$config$mcp$en mcp = Translations$config$mcp$en.internal(_root);
 	late final Translations$config$plugins$en plugins = Translations$config$plugins$en.internal(_root);
 	late final Translations$config$skills$en skills = Translations$config$skills$en.internal(_root);
-	late final Translations$config$usage$en usage = Translations$config$usage$en.internal(_root);
 	late final Translations$config$stats$en stats = Translations$config$stats$en.internal(_root);
+}
+
+// Path: usage.units
+class Translations$usage$units$en {
+	Translations$usage$units$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: '$value tokens'
+	String tokens({required Object value}) => '${value} tokens';
+
+	/// en: '$value requests'
+	String requests({required Object value}) => '${value} requests';
+
+	/// en: '$value credits'
+	String credits({required Object value}) => '${value} credits';
+
+	/// en: '$value min'
+	String minutes({required Object value}) => '${value} min';
+
+	/// en: '$value bytes'
+	String bytes({required Object value}) => '${value} bytes';
 }
 
 // Path: dock.todo
@@ -2231,9 +2431,6 @@ class Translations$config$sections$en {
 	/// en: 'Skills'
 	String get skills => 'Skills';
 
-	/// en: 'Usage'
-	String get usage => 'Usage';
-
 	/// en: 'Stats'
 	String get stats => 'Stats';
 }
@@ -2794,51 +2991,6 @@ class Translations$config$skills$en {
 	String noHits({required Object query}) => 'Nothing on skills.omp.sh matches "${query}".';
 }
 
-// Path: config.usage
-class Translations$config$usage$en {
-	Translations$config$usage$en.internal(this._root);
-
-	final Translations _root; // ignore: unused_field
-
-	// Translations
-
-	/// en: 'Fetched at $time'
-	String generated({required Object time}) => 'Fetched at ${time}';
-
-	/// en: 'Ask providers again'
-	String get fetchAgain => 'Ask providers again';
-
-	/// en: 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.'
-	String get none => 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.';
-
-	/// en: 'plan $plan'
-	String plan({required Object plan}) => 'plan ${plan}';
-
-	/// en: 'Capacity'
-	String get capacity => 'Capacity';
-
-	/// en: '$remaining of $accounts accounts left'
-	String capacityLine({required Object remaining, required Object accounts}) => '${remaining} of ${accounts} accounts left';
-
-	/// en: 'Accounts without usage data'
-	String get withoutUsage => 'Accounts without usage data';
-
-	/// en: 'Disabled credentials'
-	String get disabled => 'Disabled credentials';
-
-	/// en: '$amount left'
-	String left({required Object amount}) => '${amount} left';
-
-	/// en: '$percent% used'
-	String used({required Object percent}) => '${percent}% used';
-
-	/// en: 'resets in $duration'
-	String resets({required Object duration}) => 'resets in ${duration}';
-
-	/// en: 'no data'
-	String get noData => 'no data';
-}
-
 // Path: config.stats
 class Translations$config$stats$en {
 	Translations$config$stats$en.internal(this._root);
@@ -3063,7 +3215,62 @@ extension on Translations {
 			'shell.homeTitle' => 'No machine selected',
 			'shell.homeBody' => 'Select a machine in the sidebar, or add one.',
 			'shell.keysTitle' => 'SSH keys',
+			'shell.usageTitle' => 'Usage',
 			'shell.settingsTitle' => 'Settings',
+			'usage.fetchAgain' => 'Ask providers again',
+			'usage.fetched' => ({required Object ago}) => 'Fetched ${ago} ago',
+			'usage.notFetched' => 'Not fetched yet',
+			'usage.none' => 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.',
+			'usage.noMachines' => 'No machines yet. Add one in the sidebar.',
+			'usage.machines' => 'Machines',
+			'usage.asking' => 'Asking omp…',
+			'usage.machineAccounts' => ({required num n, required Object version}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'omp ${version} · ${n} account', other: 'omp ${version} · ${n} accounts', ), 
+			'usage.providerAccounts' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} account', other: '${n} accounts', ), 
+			'usage.accountN' => ({required Object n}) => 'account ${n}',
+			'usage.apiKey' => 'API key',
+			'usage.oauthAccount' => 'OAuth account',
+			'usage.plan' => ({required Object plan}) => 'plan: ${plan}',
+			'usage.daybreak' => 'daybreak',
+			'usage.savedResets' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} saved reset', other: '${n} saved resets', ), 
+			'usage.usableNow' => ({required Object n}) => '${n} usable now',
+			'usage.resetExpiresIn' => ({required Object duration, required Object date}) => 'soonest expires in ${duration} (${date})',
+			'usage.resetExpired' => ({required Object date}) => 'expired (${date})',
+			'usage.resetUnavailable' => ({required Object reason}) => 'unavailable: ${reason}',
+			'usage.resetCooldown' => ({required Object time}) => 'cooldown until ${time}',
+			'usage.resetBlocked' => ({required Object windows}) => 'blocked by ${windows}',
+			'usage.resetNotEligible' => 'not eligible',
+			'usage.resetNotUsable' => 'not usable right now',
+			'usage.fetchedAgo' => ({required Object ago}) => 'fetched ${ago} ago',
+			'usage.policy' => ({required Object priority, required Object reserve}) => 'policy: priority ${priority} · reserve ${reserve}',
+			'usage.reserveGlobal' => ({required Object percent}) => '${percent}% (global)',
+			'usage.reserveOverride' => ({required Object percent}) => '${percent}% (override)',
+			'usage.reserveUnknown' => 'reserve unknown',
+			'usage.eligible' => ({required Object percent}) => 'eligible · ${percent}% left',
+			'usage.insideReserve' => ({required Object percent}) => 'inside reserve · ${percent}% left',
+			'usage.policyOn' => ({required Object line, required Object machine}) => '${line} (${machine})',
+			'usage.noLimits' => 'no limits reported',
+			'usage.notReported' => 'not reported',
+			'usage.noData' => 'no data',
+			'usage.amountOf' => ({required Object used, required Object limit}) => '${used} / ${limit}',
+			'usage.amountLeft' => ({required Object amount}) => '${amount} left',
+			'usage.amountUsed' => ({required Object amount}) => '${amount} used',
+			'usage.percentUsed' => ({required Object percent}) => '${percent}% used',
+			'usage.percentLeft' => ({required Object percent}) => '${percent}% left',
+			'usage.resets' => 'resets',
+			'usage.resetsIn' => ({required Object verb, required Object duration}) => '${verb} in ${duration}',
+			'usage.units.tokens' => ({required Object value}) => '${value} tokens',
+			'usage.units.requests' => ({required Object value}) => '${value} requests',
+			'usage.units.credits' => ({required Object value}) => '${value} credits',
+			'usage.units.minutes' => ({required Object value}) => '${value} min',
+			'usage.units.bytes' => ({required Object value}) => '${value} bytes',
+			'usage.withoutUsage' => 'no usage data',
+			'usage.disabledAgo' => ({required Object ago, required Object cause}) => 'disabled ${ago} ago: ${cause}',
+			'usage.disabled' => ({required Object cause}) => 'disabled: ${cause}',
+			'usage.reloginToRestore' => '(re-login to restore)',
+			'usage.reloginWithin' => ({required Object duration}) => 're-login within ${duration} (Anthropic expires OAuth grants ~30d after login)',
+			'usage.reloginNow' => 'grant is past Anthropic\'s ~30d lifetime; re-login now',
+			'usage.capacity' => 'Capacity',
+			'usage.capacityWindow' => ({required num n, required Object used, required Object left}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${used}/${n} account used · ${left}× quota left', other: '${used}/${n} accounts used · ${left}× quota left', ), 
 			'dock.agents' => 'Agents',
 			'dock.todos' => 'Todos',
 			'dock.tree' => 'Tree',
@@ -3236,6 +3443,7 @@ extension on Translations {
 			'sidebar.importMachines' => 'Import machines…',
 			'sidebar.exportMachines' => 'Export machines…',
 			'sidebar.keys' => 'SSH keys',
+			'sidebar.usage' => 'Usage',
 			'sidebar.settings' => 'Settings',
 			'sidebar.noMachines' => 'No machines yet.',
 			'machines.thisComputer' => 'This computer',
@@ -3498,6 +3706,8 @@ extension on Translations {
 			'chat.closedState' => 'Closed',
 			'chat.commandOutput' => 'Command output',
 			'chat.extensionError' => ({required Object path, required Object event, required Object error}) => 'Extension error in ${path} (${event}): ${error}',
+			_ => null,
+		} ?? switch (path) {
 			'chat.fallbackServed' => ({required Object model}) => 'Served by the fallback model ${model}.',
 			'chat.fallbackApplied' => ({required Object from, required Object to, required Object reason}) => 'Switched from ${from} to the fallback model ${to}. ${reason}',
 			'chat.compactionCancelled' => 'Compaction was cancelled.',
@@ -3554,8 +3764,6 @@ extension on Translations {
 			'ask.multi' => 'Choose any number.',
 			'ask.otherHint' => 'Other: type your own answer',
 			'ask.note' => 'Note (optional)',
-			_ => null,
-		} ?? switch (path) {
 			'ask.chat' => 'Chat about this',
 			'transcript.jumpToLatest' => 'Jump to latest',
 			'transcript.loadEarlier' => 'Load earlier messages',
@@ -3655,7 +3863,6 @@ extension on Translations {
 			'config.sections.mcp' => 'MCP servers',
 			'config.sections.plugins' => 'Plugins',
 			'config.sections.skills' => 'Skills',
-			'config.sections.usage' => 'Usage',
 			'config.sections.stats' => 'Stats',
 			'config.scope.global' => 'Global',
 			'config.scope.project' => 'Project',
@@ -3831,18 +4038,6 @@ extension on Translations {
 			'config.skills.downloadsTotal' => ({required Object weekly, required Object total}) => 'Downloads: ${weekly} weekly, ${total} total',
 			'config.skills.shipsScripts' => 'Ships scripts.',
 			'config.skills.noHits' => ({required Object query}) => 'Nothing on skills.omp.sh matches "${query}".',
-			'config.usage.generated' => ({required Object time}) => 'Fetched at ${time}',
-			'config.usage.fetchAgain' => 'Ask providers again',
-			'config.usage.none' => 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.',
-			'config.usage.plan' => ({required Object plan}) => 'plan ${plan}',
-			'config.usage.capacity' => 'Capacity',
-			'config.usage.capacityLine' => ({required Object remaining, required Object accounts}) => '${remaining} of ${accounts} accounts left',
-			'config.usage.withoutUsage' => 'Accounts without usage data',
-			'config.usage.disabled' => 'Disabled credentials',
-			'config.usage.left' => ({required Object amount}) => '${amount} left',
-			'config.usage.used' => ({required Object percent}) => '${percent}% used',
-			'config.usage.resets' => ({required Object duration}) => 'resets in ${duration}',
-			'config.usage.noData' => 'no data',
 			'config.stats.span' => ({required Object from, required Object to}) => '${from} – ${to}',
 			'config.stats.none' => 'No requests recorded yet.',
 			'config.stats.requests' => 'Requests',

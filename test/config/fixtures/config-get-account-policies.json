@@ -1,0 +1,15 @@
+{
+  "key": "auth.accountPolicies",
+  "value": [
+    {
+      "provider": "anthropic",
+      "account": {
+        "email": "team@example.com"
+      },
+      "priority": 5,
+      "reservePct": 15
+    }
+  ],
+  "type": "array",
+  "description": ""
+}

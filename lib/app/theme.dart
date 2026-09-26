@@ -18,8 +18,9 @@ ThemeData appTheme(Brightness brightness) {
     _ => false,
   };
 
+  // Popovers open over every other surface tone, so they take one of their own: surfaceBright.
   final menuStyle = MenuStyle(
-    backgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
+    backgroundColor: WidgetStatePropertyAll(scheme.surfaceBright),
     surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
     shadowColor: const WidgetStatePropertyAll(Colors.transparent),
     elevation: const WidgetStatePropertyAll(0),
@@ -207,7 +208,7 @@ ThemeData appTheme(Brightness brightness) {
     ),
     dropdownMenuTheme: DropdownMenuThemeData(menuStyle: menuStyle),
     popupMenuTheme: PopupMenuThemeData(
-      color: scheme.surfaceContainerHigh,
+      color: scheme.surfaceBright,
       elevation: 0,
       surfaceTintColor: Colors.transparent,
       shadowColor: Colors.transparent,
@@ -266,7 +267,7 @@ ThemeData appTheme(Brightness brightness) {
       backgroundColor: scheme.surfaceContainerLow,
       elevation: 0,
       indicatorColor: scheme.surfaceContainerHighest,
-      indicatorShape: controlShape,
+      indicatorShape: const StadiumBorder(),
       selectedIconTheme: IconThemeData(color: scheme.onSurface),
       unselectedIconTheme: IconThemeData(color: scheme.onSurfaceVariant),
       selectedLabelTextStyle: TextStyle(color: scheme.onSurface),
@@ -278,7 +279,7 @@ ThemeData appTheme(Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       shadowColor: Colors.transparent,
       indicatorColor: scheme.surfaceContainerHighest,
-      indicatorShape: controlShape,
+      indicatorShape: const StadiumBorder(),
     ),
     navigationDrawerTheme: NavigationDrawerThemeData(
       backgroundColor: scheme.surfaceContainerLow,
@@ -286,7 +287,7 @@ ThemeData appTheme(Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       shadowColor: Colors.transparent,
       indicatorColor: scheme.surfaceContainerHighest,
-      indicatorShape: controlShape,
+      indicatorShape: const StadiumBorder(),
     ),
     drawerTheme: DrawerThemeData(
       backgroundColor: scheme.surfaceContainerLow,
@@ -511,7 +512,7 @@ const _darkScheme = ColorScheme(
   surface: Color(0xFF000000),
   onSurface: Color(0xFFEDEDED),
   surfaceDim: Color(0xFF000000),
-  surfaceBright: Color(0xFF262626),
+  surfaceBright: Color(0xFF2E2E2E),
   surfaceContainerLowest: Color(0xFF000000),
   surfaceContainerLow: Color(0xFF0B0B0B),
   surfaceContainer: Color(0xFF121212),
@@ -549,7 +550,7 @@ const _lightScheme = ColorScheme(
   surface: Color(0xFFFFFFFF),
   onSurface: Color(0xFF111111),
   surfaceDim: Color(0xFFDDDDDD),
-  surfaceBright: Color(0xFFFFFFFF),
+  surfaceBright: Color(0xFFD4D4D4),
   surfaceContainerLowest: Color(0xFFFFFFFF),
   surfaceContainerLow: Color(0xFFF7F7F7),
   surfaceContainer: Color(0xFFF0F0F0),
@@ -579,7 +580,7 @@ WidgetStateColor _stateColor(Color base, {Color? selected, Color? focused, Color
       return base;
     });
 
-/// Selected tab: a control-height pill behind the label, centred in the tab. No underline.
+/// Selected tab: a stadium, at most one control tall, filling the tab's width. No underline.
 class _PillIndicator extends Decoration {
   const _PillIndicator(this.color);
 
@@ -599,9 +600,6 @@ class _PillPainter extends BoxPainter {
     final size = configuration.size!;
     final height = size.height < AppSizes.control ? size.height : AppSizes.control;
     final rect = Rect.fromLTWH(offset.dx, offset.dy + (size.height - height) / 2, size.width, height);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(AppSizes.radius)),
-      Paint()..color = color,
-    );
+    canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(height / 2)), Paint()..color = color);
   }
 }

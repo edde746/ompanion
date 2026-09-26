@@ -55,7 +55,7 @@ Column meanings:
 | Move / worktree / workspace dirs | `/move`, `/wt`, `/add-dir`, `/remove-dir`, `/dirs` | text (all have handlers) | `omp worktree --json` | workspace menu |
 | Export / dump / share | `/export`, `/dump`, `/share` | `export_html`; text `/dump`, `/share`; `get_state.systemPrompt` / `dumpTools` | `omp --export`, `omp share <id>` | menu |
 | Trace / stats | `/trace`, `/stats` | text; starts a stats server inside the remote omp and the URL is that host's localhost | `omp stats --json` | stats page |
-| Usage limits | `/usage` | text `/usage [show\|reset]` | `omp usage --json` | usage page |
+| Usage limits | `/usage` | text `/usage [show\|reset]` | `omp usage --json` | usage pane (all machines) |
 | Context breakdown | `/context` | `get_state.contextUsage`, text `/context` | — | meter |
 | Tools list | `/tools` | `get_state.dumpTools`, text `/tools` | — | tools panel |
 | Background jobs | `/jobs` | text `/jobs` | `omp ps --json` | jobs panel |

@@ -20,6 +20,7 @@ import '../machines/machine_detail_pane.dart';
 import '../machines/machine_editor.dart';
 import '../sessions/new_session_dialog.dart';
 import '../settings/settings_pane.dart';
+import '../usage/usage_pane.dart';
 import 'dock_panel.dart';
 import 'layout.dart';
 import 'shortcuts.dart';
@@ -485,6 +486,7 @@ String selectionTitle(BuildContext context, ShellSelection selection, Machine? m
     HomeSelection() || SessionSelection() => t.app.title,
     MachineSelection() => machine?.name ?? t.app.title,
     KeysSelection() => t.shell.keysTitle,
+    UsageSelection() => t.shell.usageTitle,
     SettingsSelection() => t.shell.settingsTitle,
   };
 }
@@ -494,6 +496,7 @@ Widget selectionBody(ShellSelection selection, Machine? machine) => switch (sele
   MachineSelection() when machine != null => MachineDetailPane(key: ValueKey(machine.id), machine: machine),
   HomeSelection() || MachineSelection() || SessionSelection() => const _HomePane(),
   KeysSelection() => const KeysPane(),
+  UsageSelection() => const UsagePane(),
   SettingsSelection() => const SettingsPane(),
 };
 
