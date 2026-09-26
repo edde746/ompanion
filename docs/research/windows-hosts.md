@@ -62,7 +62,7 @@ XDG only applies on Linux (dirs.ts:7-11,340-376).
 ## 5. Attached mode on Windows
 
 - **Launch:** exec with no PTY. With the cmd default shell: `"%LOCALAPPDATA%\omp\omp.exe" --mode rpc-ui -e "C:\…\companion.ts"`. rpc-ui already sets `PI_NO_PTY=1` (main.ts:1838-1840).
-- **PowerShell default shell:** use `& "$env:LOCALAPPDATA\omp\omp.exe" …`. [INFERENCE: whether omp's stdout passes through the PowerShell host byte-for-byte must be spiked. Run a UTF-8 round-trip self-test; if it fails, use the file transport below.]
+- **PowerShell default shell:** the app never runs omp attached through the default shell; every Windows session uses the cmd-redirect and `feed.ps1` file transport of §6, which works under a cmd, PowerShell or bash default shell. `packages/omp_core/test/windows/windows_session_test.dart` runs a session with PowerShell set as `OpenSSH\DefaultShell`.
 - **Environment:** can't be sent over SSH (AcceptEnv is unsupported). Use a `--config` overlay or a `set X=Y&&` prefix.
 - **Self-termination:** omp exits on stdin EOF (rpc-mode.ts:1745-1758) or when stdout delivery fails (780-783). Because of #1751, still assume orphans are possible: on reconnect, find `omp.exe` processes via `Get-CimInstance Win32_Process` and match a unique marker in the command line (for example a per-session `-e` or `--config` path).
 - **Kill:** `Stop-Process -Id <pid> -Force` or `taskkill /PID <pid> /T /F` (`/T` kills the child tree, `/F` forces; https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/taskkill). Both are TerminateProcess. omp's own Windows tree-kill uses a Toolhelp walk (ptree.ts:198-210,383-384). omp does not detach its launch daemons on Windows (launch/spawn-options.ts:12-16).
@@ -87,7 +87,7 @@ XDG only applies on Linux (dirs.ts:7-11,340-376).
   - `>` / `>>` write UTF-16LE, and `Get-Content` reads BOM-less files as ANSI (about_character_encoding 5.1).
   - `-Wait` polls once per second (Get-Content docs, line 749).
   - pwsh ≥ 7.4 does preserve native stdout bytes on redirection and piping, but not after `2>&1` (about_redirection 7.5, lines 112, 237, 265). pwsh often isn't installed.
-- ✓ Recommended [INFERENCE: untested sketch]:
+- ✓ Built (`packages/omp_core/lib/src/channel/windows_run.dart`, exercised by `packages/omp_core/test/windows/` and CI's `windows-host` job):
   - Use WMI to create `cmd.exe /d /s /c "powershell -NoProfile -File feed.ps1 in.jsonl | "%LOCALAPPDATA%\omp\omp.exe" --mode rpc-ui -e companion.ts >> out.jsonl 2>> err.log"`. cmd redirection passes bytes through unchanged.
   - `feed.ps1` is a byte pump: `[IO.File]::Open(path,'OpenOrCreate','Read','ReadWrite')` → `[Console]::OpenStandardOutput()`, polling about every 50 ms. It exits when an `in.jsonl.stop` sentinel appears. omp then sees stdin EOF, disposes and exits gracefully.
   - Client writes: keep a byte-appender exec channel open. SFTP appends fail while `feed.ps1` reads: Win32-OpenSSH's sftp-server opens for writing with `FILE_SHARE_WRITE` only (`ERROR_SHARING_VIOLATION`, SFTP status 4; measured in CI, see m0-detached-sessions.md).
@@ -98,4 +98,4 @@ XDG only applies on Linux (dirs.ts:7-11,340-376).
 **Verdict.**
 - Attached rpc-ui over no-PTY exec: **feasible**. Use cmd-default launch strings, byte-transparency self-test, and marker-based stale cleanup.
 - Detached sessions with built-ins only: **feasible** via WMI `Win32_Process.Create` with CREATE_BREAKAWAY_FROM_JOB, stdio sent to files, a byte-pump stdin feeder and an SFTP tail. **Not feasible** with Start-Process/start/background jobs or a plain `Get-Content -Wait` pipe under PowerShell 5.1.
-- Moderate fragility until the spike confirms environment inheritance and file sharing.
+- Environment inheritance and file sharing are settled in CI (`packages/omp_core/test/windows/`); the open question is OpenSSH versions other than 9.5p2.

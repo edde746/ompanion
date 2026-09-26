@@ -15,7 +15,7 @@ Evidence: local clones `/tmp/oh-my-pi-18.3.0` (= installed omp 18.3.0) and `/tmp
   - the extensions / agents / hub dashboards;
   - `/btw`, `/clear`, `/delete`, `/fork`, `/logout`, `/skills`.
 - **CLI `--json` and SFTP** close part of that. A **companion extension** loaded into each rpc process closes nearly all the rest (plan/goal/vibe/loop mode toggles excepted: no extension API found), using only the existing RPC frames.
-- **Main no-daemon risk:** closing stdin disposes the session, and disposal aborts the active turn. Session lifetime is tied to the SSH channel.
+- **Main risk of the attached design (D1):** closing stdin disposes the session, and disposal aborts the active turn. The shipped design detaches (D5), so session lifetime is not tied to the SSH channel.
 - **Upstream has no `omp serve`.** #5742 is open with no maintainer decision. Upstream's RPC direction is per-process: `open_session`, `prompt_result`, `session_settled` and `--no-ui` arrived in 18.3.1.
 
 ## 2. No-daemon surface inventory

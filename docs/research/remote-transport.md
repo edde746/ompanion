@@ -185,10 +185,10 @@ nohup sh -c 'tail -c +1 -f "$0/in.jsonl" & echo $! > "$0/tail.pid"; wait' "$D" 2
 - `in.jsonl` doubles as a durable command log; `tail -c +1` replays it from the start, so it must be rotated together with omp restarts (a restarted omp would otherwise re-run old commands).
 - Stop gracefully: kill `tail` → EOF → drain/dispose/exit 0; fallback SIGTERM (exit 143). Safety net: `--max-time`. GC run dirs whose omp pid is dead.
 - Rotation of `out.jsonl`: truncate between turns (O_APPEND writer continues at 0); clients detect the new generation.
-- Not yet verified: survival when the SSH exec channel that launched it closes (expected: all stdio redirected to files, no controlling tty on non-PTY exec), and Linux behaviour.
-- Caveats: extension UI requests without timeout wait for the next client (re-render unmatched `extension_ui_request` ids from the log); don't register host tools/URI schemes in detached sessions; other clients aren't told when one answers a dialog [INFERENCE]; Windows hosts unsupported → D1.
+- Verified since: a detached session survives its launcher's channel closing, on macOS and on Linux over SSH (`research/m0-detached-sessions.md`, `packages/omp_core/test/channel/detached_omp_test.dart`).
+- Caveats: extension UI requests without timeout wait for the next client (re-render unmatched `extension_ui_request` ids from the log); don't register host tools/URI schemes in detached sessions; other clients aren't told when one answers a dialog [INFERENCE].
 - Pros: turns survive disconnects and mobile suspension; exact replay; multi-reader; no service (process lifetime = session lifetime); the same scripts work locally on macOS/Linux, so the UI can quit mid-turn.
-- Cons: shell plumbing to own; log growth; lease logic; POSIX-only.
+- Cons: shell plumbing to own; log growth; lease logic; two per-host launch paths (POSIX and Windows).
 - D2b (not recommended yet): host the rpc process in omp's daemon broker (`start` spec, `send` data, `logs` cursor/follow) — internal token-authenticated protocol, version-coupled; only if upstream publishes it.
 
 ### D3 — SSH `-L` to a loopback daemon (T3 style; secondary)
@@ -215,7 +215,7 @@ nohup sh -c 'tail -c +1 -f "$0/in.jsonl" & echo $! > "$0/tail.pid"; wait' "$D" 2
 | Replay after reconnect | rebuild from session file | exact byte offset | server-side | server-side | snapshot on join |
 | Multi-client | ✗ | readers ✔ / 1 writer | ✔ | ✔ | ✔ |
 | Mobile | foreground only | ✔ reattach | ✔ | ✔ (no SSH) | ✔ |
-| Windows host | ✔ | ✗ | ✔ | ✔ | ✔ |
+| Windows host | ✔ | ✔ (WMI breakaway + cmd redirect + PowerShell byte pump) | ✔ | ✔ | ✔ |
 | Parity ceiling | RPC + CLI + SFTP | same | full SDK | full SDK | guest subset |
 | Build cost | low | medium | high | high | medium |
 
@@ -242,7 +242,7 @@ Per platform:
 | OpenSSH compat fallback | ✔ | ✔ (no ControlMaster) | ✔ | ✗ | ✗ |
 | Config resolution | `ssh -G` | `ssh -G` | `ssh -G` | manual/import | manual/import |
 | Agent | unix socket | named pipe via FFI [INFERENCE] | unix socket | ✗ (in-app keys, Secure Enclave P-256 via `SSHIdentity.custom` [INFERENCE]) | ✗ (in-app keys) |
-| Tailscale | OS client + status JSON | OS client + status JSON | OS client + status JSON | Tailscale app VPN (+API discovery) | Tailscale app VPN (+API discovery) |
+| Tailscale | OS client + status JSON | OS client + status JSON | OS client + status JSON | Tailscale app VPN | Tailscale app VPN |
 | Local PTY | flutter_pty | flutter_pty | flutter_pty | ✗ | ✗ |
 | Remote PTY / SFTP | ✔ | ✔ | ✔ | ✔ | ✔ |
 | OAuth callback forward | ✔ | ✔ | ✔ | paste fallback (browser backgrounds the app) [INFERENCE] | same |
@@ -266,6 +266,7 @@ Operational rules:
 
 ---
 ## 10. Unverified / open
-- D2 survival across SSH channel close and on Linux, dartssh2 → Tailscale SSH none-auth and check-mode banner, `-R 9224` browser relay, Windows agent pipe, Android background service, TailscaleKit on Android: all [INFERENCE], need smoke tests.
+- Verified since: D2 survival across SSH channel close, on macOS and Linux (`research/m0-detached-sessions.md`).
+- Still [INFERENCE], need smoke tests: dartssh2 → Tailscale SSH none-auth and check-mode banner, `-R 9224` browser relay, Windows agent pipe, Android background service, TailscaleKit on Android.
 - omp cold start measured locally only: 1.7 s to `ready` plus four introspection commands; over SSH not measured.
-- Terminal widget: `xterm2` (MIT) vs `xterm3` (AGPL) depends on the app license.
+- Terminal widget: decided — `xterm3` (AGPL, usable under the GPLv3 project licence); `xterm2` (MIT) for App Store builds (PLAN.md D17).

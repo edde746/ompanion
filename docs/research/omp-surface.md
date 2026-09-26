@@ -299,8 +299,8 @@ Sub-actions:
 ## 8. No-daemon gap closure
 
 **Companion extension** (`omp --mode rpc -e companion.ts`; explicit `-e` works even with `--no-extensions`):
-- It registers `/gui:*` commands, which appear in the command list with source `extension` and run immediately even while the agent is streaming.
-- It answers through `ctx.ui.notify(JSON)` or `setWidget` frames, each carrying a request id. Negotiate v2 framing for payloads over 1 MiB.
+- It registers one command, `ompx`, which appears in the command list with source `extension` and runs immediately even while the agent is streaming (`companion/src/index.ts`, `contracts/ompx.md`).
+- It answers with `{type: "ompx", …}` frames written through `ctx.ui.output`, falling back to `setStatus("ompx", …)` when that is unavailable. Frames over 1 MiB are chunked by protocol v2 up to 64 MiB (`contracts/ompx.md`).
 
 What it can reach:
 - the live `settings` singleton (`pi.pi.settings`: get/set/setModelRole)
@@ -310,7 +310,7 @@ What it can reach:
 - session-listing exports
 - forwarding of `tool_approval_*` events
 
-What it cannot reach [INFERENCE]: plan / goal / vibe / loop, `/clear`, fork, pause, dequeue, subagent kill / revive — there is no AgentSession handle.
+What it cannot reach: plan mode, goal mode, vibe mode and loop mode. The rest of the list below now goes through `AgentRegistry.global().get(MAIN_AGENT_ID).session`: `/clear`, fork, pause, dequeue, and subagent kill and revive (`contracts/ompx.md`).
 
 **Upstream RPC additions that would close the rest:**
 - `set_plan_mode` plus plan-proposal UI

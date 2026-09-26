@@ -52,7 +52,8 @@ Widget assistantText(String text, bool streaming) => GptMarkdown(
       isStreaming: streaming,
       animation: GptMarkdownAnimation.none,
       blockComponents: kBlocks,
-      useDollarSignsForLatex: true, // decide in the M3 spike (risk 2)
+      // Not `useDollarSignsForLatex`: it also rewrites inline code. The app rewrites `$…$` and `$$…$$`
+      // itself (`rewriteDollarMath`, lib/screens/chat/transcript/markdown.dart).
       onLinkTap: (url, title) => openLink(url),
       imageBuilder: (c, url, w, h) => TranscriptImage(url: url, width: w, height: h),
     );
@@ -301,7 +302,7 @@ CodeEditor(
 );
 ```
 Risks:
-- **Flutter 3.47 is untested.** 0.10.0 was published before Flutter 3.47.0 and the repo has no CI. 0.9.0 had to fix a build error on Flutter 3.44.
+- **Flutter 3.47:** re_editor 0.10.0 builds and its widget test runs on Flutter 3.47.1 in CI (`test/dock/file_editor_view_test.dart`). 0.10.0 was published before 3.47.0; 0.9.0 had to fix a build error on Flutter 3.44.
 - **Fixes on main are unreleased:** a layout loop, PageUp/PageDown, and a highlighting failure when the theme lists no languages (#123-#125). If we hit these, depend on a git commit.
 - **Old dependency pin:** `isolate_manager ^4.1.5+1`, while the latest is 6.3.2. That conflicts with anything else needing 5 or later.
 - **Huge files over SFTP:** set a size cap before opening in the editor [INFERENCE].
@@ -333,7 +334,7 @@ DiffRow? parseOmpDiffLine(String s) {
 ```
 
 ---
-## Decisions to record
+## Decisions
 | Area | Choice | Version, date | License |
 |---|---|---|---|
 | Markdown | gpt_markdown, with the CommonMark fence rule, our own `codeBuilder`, and `animation: none` | 1.3.0, 2026-09-20 | BSD-3 |
@@ -345,11 +346,9 @@ DiffRow? parseOmpDiffLine(String s) {
 | Editor | re_editor | 0.10.0, 2026-07-01 | MIT |
 | Word diff | dartdiff | 1.0.0, 2026-02-27 | MIT |
 
-**M3 spike checks**
-- Replay recorded omp transcripts: nested fences, `~~~` fences, lists, tables and `$` math, compared against the TUI's rendering.
-- Profile-mode frame times on a mid-range phone, streaming a 50 KB reply at 60 updates per second.
-- Scrolling behaviour: fling near the bottom, keyboard, iOS bounce.
-- A build of re_editor on Flutter 3.47.
+**M3 checks**
+- Done: a build of re_editor on Flutter 3.47 (`test/dock/file_editor_view_test.dart` runs on Flutter 3.47.1 in CI), and the markdown renderer (the decisions table above; rows and spaces in `lib/screens/chat/transcript/markdown.dart`).
+- Still open: replay recorded omp transcripts (nested fences, `~~~` fences, lists, tables and `$` math) against the TUI's rendering; profile-mode frame times on a mid-range phone streaming a 50 KB reply at 60 updates per second; fling near the bottom, keyboard and iOS bounce.
 
 ---
 ## Performance
