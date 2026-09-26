@@ -155,6 +155,9 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
                         Expanded(
                           child: NavigationRail(
                             minWidth: _railWidth,
+                            // Seven labelled destinations do not fit below the back button on a landscape tablet
+                            // or in a short window.
+                            scrollable: true,
                             extended: extended,
                             labelType: extended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
                             selectedIndex: _section.index,
