@@ -1,0 +1,148 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in ompanion
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us diagnose and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: What went wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Connect to '...'
+        2. Send '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe what should have happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what actually happened
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: ompanion Version
+      description: The version shown in the app's About dialog.
+      placeholder: e.g., 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device-os
+    attributes:
+      label: Device OS
+      description: Where does the ompanion app itself run?
+      multiple: true
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - iOS
+        - Android
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device Information
+      description: What device are you using?
+      placeholder: e.g., MacBook Pro M3, Pixel 8, Windows 11 desktop
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection Type
+      description: How does the app reach the machine running omp?
+      multiple: true
+      options:
+        - This computer
+        - SSH
+        - SSH through a jump host
+        - Tailscale
+    validations:
+      required: true
+
+  - type: dropdown
+    id: host-os
+    attributes:
+      label: Host OS and Shell
+      description: The machine that runs omp, and the shell omp uses there.
+      multiple: true
+      options:
+        - macOS (zsh/bash)
+        - Linux (zsh/bash)
+        - Windows (cmd.exe)
+        - Windows (PowerShell)
+        - Windows (Git Bash)
+        - FreeBSD or another BSD
+        - Unknown
+    validations:
+      required: true
+
+  - type: input
+    id: omp-version
+    attributes:
+      label: omp Version
+      description: Run `omp --version` on the host machine and paste the output.
+      placeholder: e.g., 18.3.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and Stack Traces
+      description: Paste any relevant logs, error output or stack traces.
+      value: |
+        <details>
+        <summary>Logs</summary>
+
+        ```
+        Paste logs here
+        ```
+
+        </details>
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain your problem
+      placeholder: Drag and drop screenshots here
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here
