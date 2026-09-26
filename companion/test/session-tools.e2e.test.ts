@@ -145,10 +145,12 @@ describe("exec", () => {
 			ok: true,
 			result: { output: "one\ntwo\n", exitCode: 0, cancelled: false, timedOut: false, workingDir: omp.cwd },
 		});
-		// Where the output splits into chunks is up to the OS; the output that follows the sleep arrives in a later chunk.
+		// Where the OS splits output is its business (even mid-word), but nothing after the sleep exists until the
+		// sleep ends, so one chunk ends exactly where "one\n" does: the first line streamed before the second.
 		const chunks = streamed(since, "exec.chunk", reply.callId ?? "");
 		expect(chunks.join("")).toBe("one\ntwo\n");
-		expect(chunks.findIndex(chunk => chunk.includes("two"))).toBeGreaterThan(0);
+		const ends = chunks.map((_, index) => chunks.slice(0, index + 1).join("").length);
+		expect(ends).toContain("one\n".length);
 		const recorded = (await transcript()).at(-1);
 		expect(recorded).toMatchObject({ role: "bashExecution", output: "one\ntwo\n", excludeFromContext: false });
 		const [event] = appended(since);
