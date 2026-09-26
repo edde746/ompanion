@@ -213,15 +213,144 @@ jobs:
       - name: Build macOS
         run: flutter build macos --release
 
-      # ditto keeps the bundle's symlinks and permissions, which the artifact zip would drop.
-      - name: Zip ompanion.app
-        run: ditto -c -k --keepParent build/macos/Build/Products/Release/ompanion.app "$ARTIFACT.zip"
+      # All six are needed together: a certificate without notary credentials, or the other way round,
+      # cannot ship a DMG Gatekeeper accepts. None of them means a fork or a checkout before the
+      # maintainer adds them: build an unsigned DMG rather than fail (README, Releasing).
+      - name: Check the signing secrets
+        id: signing
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=
+          present=0
+          for name in MACOS_CERTIFICATE_BASE64 MACOS_CERTIFICATE_PASSWORD KEYCHAIN_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [ -n "${!name}" ]; then
+              present=$((present + 1))
+            else
+              missing="$missing $name"
+            fi
+          done
 
-      - name: Upload ompanion.app
+          if [ "$present" -eq 6 ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$present" -eq 0 ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Unsigned macOS build::No signing secrets are set, so ompanion-macos.dmg holds an unsigned app that Gatekeeper rejects on another Mac."
+          else
+            echo "Signing is half set up, missing:$missing" >&2
+            echo "Set all six or none: the job signs, notarizes and staples only when every secret is there." >&2
+            exit 1
+          fi
+
+      - name: Import the signing certificate
+        if: steps.signing.outputs.signed == 'true'
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Delete the temporary keychain only if the run created one, so write both paths first. The p12 is
+          # the exported Developer ID Application certificate and its private key.
+          echo "KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain" >> "$GITHUB_ENV"
+          echo "CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12" >> "$GITHUB_ENV"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # `base64 --decode -o` is not in every coreutils on PATH; decoding to stdout works in all of them.
+          echo "$MACOS_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          # -T lets codesign use the key without asking; the partition list opens it to a session with no UI
+          # to answer a prompt in.
+          security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # codesign searches the keychains in this list.
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
+
+      - name: Sign the app
+        if: steps.signing.outputs.signed == 'true'
+        run: |
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -1 | grep -o '".*"' | tr -d '"')
+          if [ -z "$IDENTITY" ]; then
+            echo "The imported certificate holds no Developer ID Application identity:" >&2
+            security find-identity -v -p codesigning "$KEYCHAIN_PATH" >&2
+            exit 1
+          fi
+          echo "Signing with $IDENTITY"
+          echo "IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+          # Inside-out with hardened runtime; the same script signs the local ad-hoc release build.
+          scripts/sign_app.sh "$IDENTITY" build/macos/Build/Products/Release/ompanion.app \
+            macos/Runner/Release.entitlements
+
+      - name: Verify the signature
+        if: steps.signing.outputs.signed == 'true'
+        run: |
+          APP=build/macos/Build/Products/Release/ompanion.app
+          codesign -dvvv "$APP"
+          codesign -d --entitlements :- "$APP" > "$RUNNER_TEMP/entitlements.plist"
+          /usr/libexec/PlistBuddy -c Print "$RUNNER_TEMP/entitlements.plist"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+      - name: Notarize the app
+        if: steps.signing.outputs.signed == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          APP=build/macos/Build/Products/Release/ompanion.app
+          # notarytool takes a .zip, a .dmg or a .pkg; ditto keeps the symlinks and permissions of the bundle.
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/ompanion.zip"
+          scripts/notarize.sh "$RUNNER_TEMP/ompanion.zip" "$RUNNER_TEMP"
+
+          # Only the stapled ticket makes Gatekeeper accept a Developer ID app.
+          spctl -a -vv "$APP"
+
+      - name: Create the DMG
+        run: |
+          # What the user drags into /Applications: the app and a link to that folder.
+          mkdir -p "$RUNNER_TEMP/dmg"
+          cp -R build/macos/Build/Products/Release/ompanion.app "$RUNNER_TEMP/dmg/"
+          ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
+          hdiutil create -format ULMO -srcfolder "$RUNNER_TEMP/dmg" -volname ompanion ompanion-macos.dmg
+
+      - name: Sign the DMG
+        if: steps.signing.outputs.signed == 'true'
+        run: |
+          # A disk image is signed, not hardened: --options runtime and entitlements apply to code.
+          codesign --force --sign "$IDENTITY" --timestamp ompanion-macos.dmg
+          codesign --verify --strict --verbose=2 ompanion-macos.dmg
+
+      - name: Notarize the DMG
+        if: steps.signing.outputs.signed == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          scripts/notarize.sh ompanion-macos.dmg "$RUNNER_TEMP"
+
+          # The app bundle inside was checked before packaging; this is the artifact the user downloads.
+          spctl -a -t open --context context:primary-signature -v ompanion-macos.dmg
+
+      - name: Delete the temporary keychain
+        if: ${{ always() && steps.signing.outputs.signed == 'true' }}
+        run: |
+          if [ -f "$KEYCHAIN_PATH" ]; then security delete-keychain "$KEYCHAIN_PATH"; fi
+          rm -f "$CERTIFICATE_PATH"
+
+      - name: Upload the DMG
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.ARTIFACT }}
-          path: ${{ env.ARTIFACT }}.zip
+          path: ompanion-macos.dmg
           if-no-files-found: error
           compression-level: 0
 
