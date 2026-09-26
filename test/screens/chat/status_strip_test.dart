@@ -10,7 +10,6 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   _Session(this._view);
@@ -92,7 +91,9 @@ void main() {
     final session = _Session(SessionView());
     await _pump(tester, session);
 
-    session.emit(reduce(session.view, const {'type': 'command_output', 'text': 'Compaction failed: nothing to compact'}));
+    session.emit(
+      reduce(session.view, const {'type': 'command_output', 'text': 'Compaction failed: nothing to compact'}),
+    );
     await tester.pumpAndSettle();
     expect(find.textContaining('Compaction failed: nothing to compact'), findsOneWidget);
   });

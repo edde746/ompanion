@@ -49,7 +49,6 @@ class ShellProvider extends ChangeNotifier {
   /// Narrow layout only: the dock panels shown as their own page.
   bool get panelsPageOpen => _panelsPageOpen;
 
-
   void select(ShellSelection selection) {
     if (selection == _selection) return;
     _selection = selection;

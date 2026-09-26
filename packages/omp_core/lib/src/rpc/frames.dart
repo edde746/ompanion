@@ -6,10 +6,11 @@ import 'results.dart';
 /// Frames the app acts on are typed; every other type, and any known type whose fields do not match
 /// omp 18.3.1, is an [UnknownFrame]. No frame is dropped, and [raw] is always the complete object.
 sealed class RpcFrame {
-  RpcFrame(this.raw) : type = switch (raw['type']) {
-    final String type => type,
-    _ => '',
-  };
+  RpcFrame(this.raw)
+    : type = switch (raw['type']) {
+        final String type => type,
+        _ => '',
+      };
 
   factory RpcFrame.fromJson(Map<String, Object?> json) {
     try {

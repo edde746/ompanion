@@ -17,7 +17,8 @@ void main() {
             onPressed: () => showDialog<void>(
               context: context,
               barrierDismissible: false,
-              builder: (_) => RpcLoginDialog(target: target, control: control, providerId: 'openai-codex', providerName: 'OpenAI'),
+              builder: (_) =>
+                  RpcLoginDialog(target: target, control: control, providerId: 'openai-codex', providerName: 'OpenAI'),
             ),
             child: const Text('log in'),
           ),

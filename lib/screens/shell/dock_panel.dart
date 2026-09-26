@@ -103,9 +103,7 @@ class _DockPanelState extends State<DockPanel> with SingleTickerProviderStateMix
               controller: _tabs,
               // Swipes would steal horizontal drags from the terminal, the editor and the tree.
               physics: const NeverScrollableScrollPhysics(),
-              children: [
-                for (final tab in DockTab.values) DockTabBody(tab: tab, session: session, machine: machine),
-              ],
+              children: [for (final tab in DockTab.values) DockTabBody(tab: tab, session: session, machine: machine)],
             ),
           ),
         ],

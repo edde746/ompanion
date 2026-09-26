@@ -14,7 +14,13 @@ Map<String, Object?> _call(Map<String, Object?> prompt) {
   return jsonDecode(message.substring('/ompx '.length)) as Map<String, Object?>;
 }
 
-Map<String, Object?> _reply(String callId, Object? result) => {'type': 'ompx', 'kind': 'reply', 'callId': callId, 'ok': true, 'result': result};
+Map<String, Object?> _reply(String callId, Object? result) => {
+  'type': 'ompx',
+  'kind': 'reply',
+  'callId': callId,
+  'ok': true,
+  'result': result,
+};
 
 Matcher _companionError(String code, String message) => throwsA(
   isA<CompanionException>().having((e) => e.code, 'code', code).having((e) => e.message, 'message', contains(message)),
@@ -45,14 +51,22 @@ void main() {
     expect(call, {'callId': call['callId'], 'verb': 'hello', 'args': <String, Object?>{}});
     expect(call['callId'], allOf(startsWith('phone:'), isNot(prompt['id'])));
     channel.respond(prompt);
-    channel.emit(_reply(call['callId']! as String, {
-      'companion': {'version': '0.1.0'},
-      'omp': {'version': '18.3.1'},
-      'channel': 'output',
-      'verbs': ['hello'],
-      'events': ['request.settled'],
-    }));
-    channel.emit({'type': 'prompt_result', 'id': prompt['id'], 'agentInvoked': false, 'status': 'completed', 'sessionSettled': true});
+    channel.emit(
+      _reply(call['callId']! as String, {
+        'companion': {'version': '0.1.0'},
+        'omp': {'version': '18.3.1'},
+        'channel': 'output',
+        'verbs': ['hello'],
+        'events': ['request.settled'],
+      }),
+    );
+    channel.emit({
+      'type': 'prompt_result',
+      'id': prompt['id'],
+      'agentInvoked': false,
+      'status': 'completed',
+      'sessionSettled': true,
+    });
     final result = await hello;
     expect(result.companionVersion, '0.1.0');
     expect(result.ompVersion, '18.3.1');
@@ -93,8 +107,19 @@ void main() {
     final result = companion.call('hello');
     final prompt = channel.sent.last;
     channel.respond(prompt);
-    channel.emit({'type': 'extension_error', 'extensionPath': 'command:ompx', 'event': 'command', 'error': 'ompx channel not bound'});
-    channel.emit({'type': 'prompt_result', 'id': prompt['id'], 'agentInvoked': false, 'status': 'completed', 'sessionSettled': true});
+    channel.emit({
+      'type': 'extension_error',
+      'extensionPath': 'command:ompx',
+      'event': 'command',
+      'error': 'ompx channel not bound',
+    });
+    channel.emit({
+      'type': 'prompt_result',
+      'id': prompt['id'],
+      'agentInvoked': false,
+      'status': 'completed',
+      'sessionSettled': true,
+    });
     await expectLater(result, _companionError('failed', 'ompx channel not bound'));
   });
 
@@ -127,7 +152,13 @@ void main() {
 
   test('requests arrive on requests; respond sends the value as JSON text, cancel sends cancelled', () async {
     final request = companion.requests.first;
-    channel.emit({'type': 'ompx', 'kind': 'request', 'id': 'ompx-1', 'method': 'ask', 'params': {'question': 'ok?'}});
+    channel.emit({
+      'type': 'ompx',
+      'kind': 'request',
+      'id': 'ompx-1',
+      'method': 'ask',
+      'params': {'question': 'ok?'},
+    });
     final received = await request;
     expect(received.method, 'ask');
     expect(received.params, {'question': 'ok?'});
@@ -150,9 +181,19 @@ void main() {
       'statusKey': companionStatusKey,
       'statusText': jsonEncode(frame),
     });
-    viaStatus({'type': 'ompx', 'kind': 'event', 'event': 'pause.changed', 'data': {'paused': true}});
+    viaStatus({
+      'type': 'ompx',
+      'kind': 'event',
+      'event': 'pause.changed',
+      'data': {'paused': true},
+    });
     viaStatus(_reply(callId, 'over status'));
-    expect((await event).raw, {'type': 'ompx', 'kind': 'event', 'event': 'pause.changed', 'data': {'paused': true}});
+    expect((await event).raw, {
+      'type': 'ompx',
+      'kind': 'event',
+      'event': 'pause.changed',
+      'data': {'paused': true},
+    });
     expect(await result, 'over status');
   });
 

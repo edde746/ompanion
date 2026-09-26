@@ -7,12 +7,7 @@ import 'package:omp_core/store.dart';
 /// One `!`/`!!` or `$`/`$$` run: companion `exec.bash` / `exec.python`, with output streamed through
 /// `exec.chunk` events.
 final class ExecRun {
-  ExecRun({
-    required this.kind,
-    required this.source,
-    required this.excludeFromContext,
-    required this._earlierRows,
-  });
+  ExecRun({required this.kind, required this.source, required this.excludeFromContext, required this._earlierRows});
 
   final ExecutionKind kind;
 
@@ -69,16 +64,19 @@ class ExecRuns extends ChangeNotifier {
     _notify();
     _watches[run] = session.views.listen((view) => _handOver(run, view));
     try {
-      final call = session.companion.start(switch (kind) {
-        ExecutionKind.bash => 'exec.bash',
-        ExecutionKind.python => 'exec.python',
-      }, {
+      final call = session.companion.start(
         switch (kind) {
-          ExecutionKind.bash => 'command',
-          ExecutionKind.python => 'code',
-        }: source,
-        if (excludeFromContext) 'excludeFromContext': true,
-      });
+          ExecutionKind.bash => 'exec.bash',
+          ExecutionKind.python => 'exec.python',
+        },
+        {
+          switch (kind) {
+            ExecutionKind.bash => 'command',
+            ExecutionKind.python => 'code',
+          }: source,
+          if (excludeFromContext) 'excludeFromContext': true,
+        },
+      );
       call.events.listen((event) {
         if (event.event != 'exec.chunk') return;
         if (event.data case {'text': final String text}) {
@@ -87,21 +85,18 @@ class ExecRuns extends ChangeNotifier {
         }
       });
       unawaited(
-        call.result.then(
-          (result) {
-            if (result case {'output': final String output}) run.output = output;
-            if (result case {'exitCode': final int code}) run.exitCode = code;
-            if (result is Map<String, Object?>) {
-              run.cancelled = result['cancelled'] == true;
-              run.truncated = result['truncated'] == true;
-            }
-            run.running = false;
-            _notify();
-            // On an idle session the row arrived before this reply.
-            _handOver(run, session.view);
-          },
-          onError: (Object error) => _fail(run, error),
-        ),
+        call.result.then((result) {
+          if (result case {'output': final String output}) run.output = output;
+          if (result case {'exitCode': final int code}) run.exitCode = code;
+          if (result is Map<String, Object?>) {
+            run.cancelled = result['cancelled'] == true;
+            run.truncated = result['truncated'] == true;
+          }
+          run.running = false;
+          _notify();
+          // On an idle session the row arrived before this reply.
+          _handOver(run, session.view);
+        }, onError: (Object error) => _fail(run, error)),
       );
     } on Object catch (error) {
       _fail(run, error);

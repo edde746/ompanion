@@ -98,7 +98,9 @@ class _ModelPickerState extends State<ModelPicker> {
 /// button's. A menu does not fit below the composer, so MenuAnchor flips it up by the offset's `dy`.
 Offset menuOffsetAbove(BuildContext button, GlobalKey above, {required bool alignStart}) {
   final anchor = button.findRenderObject()! as RenderBox;
-  final block = anchor.globalToLocal((above.currentContext!.findRenderObject()! as RenderBox).localToGlobal(Offset.zero));
+  final block = anchor.globalToLocal(
+    (above.currentContext!.findRenderObject()! as RenderBox).localToGlobal(Offset.zero),
+  );
   return Offset(alignStart ? block.dx : 0, AppSizes.gap - block.dy);
 }
 
@@ -129,10 +131,7 @@ class ToolbarButton extends StatelessWidget {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final button = TextButton(
       onPressed: onPressed,
-      style: TextButton.styleFrom(
-        foregroundColor: muted,
-        padding: const EdgeInsetsDirectional.only(start: 8, end: 4),
-      ),
+      style: TextButton.styleFrom(foregroundColor: muted, padding: const EdgeInsetsDirectional.only(start: 8, end: 4)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -186,8 +185,10 @@ class _ModelListState extends State<_ModelList> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final screen = MediaQuery.sizeOf(context);
-    Widget message(Widget child) =>
-        Padding(padding: const EdgeInsets.all(24), child: Center(heightFactor: 1, child: child));
+    Widget message(Widget child) => Padding(
+      padding: const EdgeInsets.all(24),
+      child: Center(heightFactor: 1, child: child),
+    );
     final width = widget.width;
     // As tall as the models it lists, up to the cap; a longer list scrolls.
     return ConstrainedBox(
@@ -207,7 +208,8 @@ class _ModelListState extends State<_ModelList> {
                     data: theme.copyWith(
                       inputDecorationTheme: theme.inputDecorationTheme.copyWith(
                         fillColor: WidgetStateColor.resolveWith(
-                          (states) => scheme.onSurface.withValues(alpha: states.contains(WidgetState.focused) ? 0.08 : 0.06),
+                          (states) =>
+                              scheme.onSurface.withValues(alpha: states.contains(WidgetState.focused) ? 0.08 : 0.06),
                         ),
                       ),
                     ),
@@ -270,7 +272,8 @@ class _ModelListState extends State<_ModelList> {
                             subtitle: Text(
                               [
                                 model.id,
-                                if (model.contextWindow case final window?) t.chat.contextWindow(tokens: formatTokens(window)),
+                                if (model.contextWindow case final window?)
+                                  t.chat.contextWindow(tokens: formatTokens(window)),
                                 if (model.reasoning) t.chat.reasoning,
                               ].join(' · '),
                             ),

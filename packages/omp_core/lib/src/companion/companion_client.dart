@@ -33,10 +33,7 @@ final class CompanionHello {
 /// `{kind: "event"}`: a state change pushed to every attached device, or progress of the streaming
 /// call [callId].
 final class CompanionEvent {
-  CompanionEvent.fromJson(this.raw)
-    : event = raw.string('event'),
-      data = raw['data'],
-      callId = raw.optString('callId');
+  CompanionEvent.fromJson(this.raw) : event = raw.string('event'), data = raw['data'], callId = raw.optString('callId');
 
   /// The complete `{type: "ompx", kind: "event", …}` frame.
   final Map<String, Object?> raw;
@@ -49,10 +46,7 @@ final class CompanionEvent {
 /// [CompanionClient.respond] or [CompanionClient.cancel]; the first answer from any device wins and
 /// the companion then emits `request.settled {id}`.
 final class CompanionRequest {
-  CompanionRequest.fromJson(this.raw)
-    : id = raw.string('id'),
-      method = raw.string('method'),
-      params = raw['params'];
+  CompanionRequest.fromJson(this.raw) : id = raw.string('id'), method = raw.string('method'), params = raw['params'];
 
   /// The complete `{type: "ompx", kind: "request", …}` frame.
   final Map<String, Object?> raw;

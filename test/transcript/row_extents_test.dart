@@ -4,7 +4,13 @@ import 'package:ompanion/screens/chat/transcript/transcript_rows.dart';
 import 'package:omp_core/store.dart';
 
 AssistantTextRow _text(String text) => AssistantTextRow(
-  AssistantItem(timestamp: 1, content: [TextBlock(text)], provider: 'fake', model: 'fake-1', stopReason: StopReason.stop),
+  AssistantItem(
+    timestamp: 1,
+    content: [TextBlock(text)],
+    provider: 'fake',
+    model: 'fake-1',
+    stopReason: StopReason.stop,
+  ),
   0,
   text,
 );

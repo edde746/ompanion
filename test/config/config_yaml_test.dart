@@ -115,7 +115,13 @@ void main() {
       const leaky = 'auth:\n  broker:\n    token: "sk-live-123\n  other: [\n';
       expect(
         () => ConfigLayer.parse(leaky),
-        throwsA(isA<FormatException>().having((e) => e.message, 'message', allOf(contains('line'), isNot(contains('sk-live-123'))))),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('line'), isNot(contains('sk-live-123'))),
+          ),
+        ),
       );
       expect(() => ConfigLayer.parse('- a\n'), throwsFormatException);
     });

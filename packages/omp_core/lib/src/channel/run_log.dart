@@ -66,8 +66,10 @@ sealed class RunMarker {
     if (value is! Map<String, Object?>) return null;
     return switch (value) {
       {'type': 'ompanion_exit', 'code': final int code} => RunExited(code),
-      {'type': 'ompanion_rotate', 'generation': final int generation, 'previousSize': final int size} =>
-        RunRotated(generation, size),
+      {'type': 'ompanion_rotate', 'generation': final int generation, 'previousSize': final int size} => RunRotated(
+        generation,
+        size,
+      ),
       _ => null,
     };
   }

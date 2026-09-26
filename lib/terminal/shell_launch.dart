@@ -24,7 +24,11 @@ typedef RemoteShellLaunch = ({String command, String? startLine});
 
 /// The user's login shell, started in [cwd] (host-native). [shell] is the OpenSSH `DefaultShell` of a Windows
 /// machine; a POSIX machine runs its own `$SHELL`. Windows shells get [cwd] quoted on the command line.
-RemoteShellLaunch remoteShellLaunch({required CommandShell commandShell, required String? shell, required String? cwd}) {
+RemoteShellLaunch remoteShellLaunch({
+  required CommandShell commandShell,
+  required String? shell,
+  required String? cwd,
+}) {
   switch (commandShell) {
     case CommandShell.posix:
       // `read` ends at the first newline, so a directory whose name holds one starts in the home directory.
@@ -109,10 +113,10 @@ LocalShell localShell({
   }
   final hasLocale = ['LC_ALL', 'LC_CTYPE', 'LANG'].any((key) => (environment[key] ?? '').isNotEmpty);
   if (!hasLocale) extra['LANG'] = 'en_US.UTF-8';
-  final shell = [environment['SHELL'], accountShell].firstWhere(
-    (shell) => shell != null && shell.startsWith('/'),
-    orElse: () => '/bin/sh',
-  )!;
+  final shell = [
+    environment['SHELL'],
+    accountShell,
+  ].firstWhere((shell) => shell != null && shell.startsWith('/'), orElse: () => '/bin/sh')!;
   return (executable: shell, arguments: isolation == null ? const ['-l'] : const [], environment: extra);
 }
 

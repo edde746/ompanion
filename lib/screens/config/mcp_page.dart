@@ -77,7 +77,13 @@ class _McpPageState extends State<McpPage> {
 
   /// Runs `/mcp …` where [scope] lives, shows its output under the list and returns it; null when it failed.
   /// [append] adds the command and its output to the ones shown.
-  Future<String?> _run(String line, McpScope scope, {bool reload = true, bool secret = false, bool append = false}) async {
+  Future<String?> _run(
+    String line,
+    McpScope scope, {
+    bool reload = true,
+    bool secret = false,
+    bool append = false,
+  }) async {
     // A token must not show on screen after the command ran.
     final shown = secret ? line.replaceAll(RegExp(r'--token \S+'), '--token ••••') : line;
     final previous = append ? _output : null;
@@ -156,9 +162,16 @@ class _McpPageState extends State<McpPage> {
       children: [
         ConfigHeader(
           title: t.config.sections.mcp,
-          subtitle: [t.config.mcp.userFile(path: _userFile), if (_projectFile case final file?) t.config.mcp.projectFile(path: file)].join('\n'),
+          subtitle: [
+            t.config.mcp.userFile(path: _userFile),
+            if (_projectFile case final file?) t.config.mcp.projectFile(path: file),
+          ].join('\n'),
           actions: [
-            FilledButton.icon(onPressed: _running ? null : _add, icon: const Icon(Icons.add, size: 18), label: Text(t.config.mcp.add)),
+            FilledButton.icon(
+              onPressed: _running ? null : _add,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(t.config.mcp.add),
+            ),
             RefreshAction(loading: _loading, onPressed: _load),
           ],
         ),
@@ -190,7 +203,8 @@ class _McpPageState extends State<McpPage> {
             children: [
               if (_error != null) ConfigError(_error!, onRetry: _load),
               if (servers == null && _error == null) const Center(child: CircularProgressIndicator()),
-              if (servers != null && servers.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(t.config.mcp.none)),
+              if (servers != null && servers.isEmpty)
+                Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(t.config.mcp.none)),
               for (final server in servers ?? const <McpServer>[])
                 _ServerRow(
                   server: server,
@@ -210,9 +224,16 @@ class _McpPageState extends State<McpPage> {
               ),
               if (_smitherySearching) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
               if (_smitheryOutput case final output?)
-                Padding(padding: const EdgeInsets.only(top: 8), child: CommandOutputView(output.isEmpty ? t.config.noOutput : output)),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: CommandOutputView(output.isEmpty ? t.config.noOutput : output),
+                ),
               const SizedBox(height: 16),
-              Text(t.config.mcp.tuiOnly, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              Text(
+                t.config.mcp.tuiOnly,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
             ],
           ),
         ),
@@ -253,7 +274,11 @@ class _ServerRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
         child: Row(
           children: [
-            Icon(server.transport == 'stdio' ? Icons.terminal : Icons.cloud_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+            Icon(
+              server.transport == 'stdio' ? Icons.terminal : Icons.cloud_outlined,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -261,11 +286,19 @@ class _ServerRow extends StatelessWidget {
                 children: [
                   Text(server.name, style: theme.textTheme.bodyMedium),
                   Text(
-                    [server.transport, server.scope == McpScope.user ? t.config.mcp.userScope : t.config.mcp.projectScope].join(' · '),
+                    [
+                      server.transport,
+                      server.scope == McpScope.user ? t.config.mcp.userScope : t.config.mcp.projectScope,
+                    ].join(' · '),
                     style: muted,
                   ),
                   if (server.target case final target?)
-                    Text(target, style: codeTextStyle(theme).copyWith(fontSize: muted?.fontSize, color: muted?.color), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                      target,
+                      style: codeTextStyle(theme).copyWith(fontSize: muted?.fontSize, color: muted?.color),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                 ],
               ),
             ),
@@ -328,8 +361,16 @@ class _AddServerDialogState extends State<_AddServerDialog> {
     if (_target.text.trim().isEmpty) return;
     // A token in a project session's prompt would land in its run log; only the control process (no log)
     // takes one.
-    final token = _transport != 'stdio' && _scope == McpScope.user && _token.text.trim().isNotEmpty ? _token.text.trim() : null;
-    Navigator.pop(context, (name: name, scope: _scope, transport: _transport, target: _target.text.trim(), token: token));
+    final token = _transport != 'stdio' && _scope == McpScope.user && _token.text.trim().isNotEmpty
+        ? _token.text.trim()
+        : null;
+    Navigator.pop(context, (
+      name: name,
+      scope: _scope,
+      transport: _transport,
+      target: _target.text.trim(),
+      token: token,
+    ));
   }
 
   @override
@@ -359,7 +400,10 @@ class _AddServerDialogState extends State<_AddServerDialog> {
               children: [
                 AppSegmented<McpScope>(
                   value: _scope,
-                  segments: [(McpScope.user, t.config.mcp.userScope, null), (McpScope.project, t.config.mcp.projectScope, null)],
+                  segments: [
+                    (McpScope.user, t.config.mcp.userScope, null),
+                    (McpScope.project, t.config.mcp.projectScope, null),
+                  ],
                   disabled: {if (!widget.projectAvailable) McpScope.project},
                   onChanged: (scope) => setState(() => _scope = scope),
                 ),
@@ -377,7 +421,9 @@ class _AddServerDialogState extends State<_AddServerDialog> {
                 key: const ValueKey('mcp-target'),
                 controller: _target,
                 decoration: InputDecoration(
-                  hintText: _transport == 'stdio' ? 'npx -y @modelcontextprotocol/server-everything' : 'https://example.com/mcp',
+                  hintText: _transport == 'stdio'
+                      ? 'npx -y @modelcontextprotocol/server-everything'
+                      : 'https://example.com/mcp',
                 ),
               ),
             ),

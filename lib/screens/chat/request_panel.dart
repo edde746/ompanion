@@ -316,8 +316,14 @@ class _RequestContentState extends State<RequestContent> {
         [
           for (final option in request.options)
             _isApprove(option)
-                ? FilledButton(onPressed: _busy ? null : () => _respond(value: option), child: Text(option))
-                : FilledButton.tonal(onPressed: _busy ? null : () => _respond(value: option), child: Text(option)),
+                ? FilledButton(
+                    onPressed: _busy ? null : () => _respond(value: option),
+                    child: Text(option),
+                  )
+                : FilledButton.tonal(
+                    onPressed: _busy ? null : () => _respond(value: option),
+                    child: Text(option),
+                  ),
         ],
       ),
       SelectRequest() => (
@@ -388,10 +394,7 @@ class _RequestContentState extends State<RequestContent> {
           children: [
             Text(t.requests.unsupportedBody(method: method)),
             const SizedBox(height: AppSizes.gap),
-            SelectableText(
-              const JsonEncoder.withIndent('  ').convert(params),
-              style: codeTextStyle(theme),
-            ),
+            SelectableText(const JsonEncoder.withIndent('  ').convert(params), style: codeTextStyle(theme)),
           ],
         ),
         [
@@ -416,7 +419,8 @@ class _RequestContentState extends State<RequestContent> {
     );
   }
 
-  static bool _isApprove(String option) => option.toLowerCase().startsWith('approve') || option.toLowerCase() == 'allow';
+  static bool _isApprove(String option) =>
+      option.toLowerCase().startsWith('approve') || option.toLowerCase() == 'allow';
 }
 
 class _ApprovalBody extends StatelessWidget {
@@ -465,7 +469,11 @@ class _ApprovalBody extends StatelessWidget {
             ),
             child: SelectableText(shown, style: codeTextStyle(theme)),
           ),
-        for (final line in details) Padding(padding: const EdgeInsets.only(top: AppSizes.gap), child: Text(line)),
+        for (final line in details)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSizes.gap),
+            child: Text(line),
+          ),
       ],
     );
   }
@@ -498,13 +506,7 @@ class _OpenUrlBody extends StatelessWidget {
         if (instructions != null) ...[Text(instructions), const SizedBox(height: 12)],
         Row(
           children: [
-            Expanded(
-              child: SelectableText(
-                request.url,
-                maxLines: 3,
-                style: codeTextStyle(theme),
-              ),
-            ),
+            Expanded(child: SelectableText(request.url, maxLines: 3, style: codeTextStyle(theme))),
             IconButton(
               tooltip: t.common.copy,
               icon: const Icon(Icons.copy, size: 18),

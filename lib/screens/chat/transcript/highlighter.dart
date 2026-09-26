@@ -191,7 +191,12 @@ List<TextSpan> highlightedSpans(String code, HighlightRuns runs, Map<String, Tex
     if (end > code.length) break;
     final scope = runs.scopes[i];
     final style = scope == null ? null : theme[scope] ?? theme[scope.split('.').first];
-    spans.add(TextSpan(text: code.substring(start, end), style: style?.copyWith(backgroundColor: Colors.transparent)));
+    spans.add(
+      TextSpan(
+        text: code.substring(start, end),
+        style: style?.copyWith(backgroundColor: Colors.transparent),
+      ),
+    );
     start = end;
   }
   if (start < code.length) spans.add(TextSpan(text: code.substring(start)));

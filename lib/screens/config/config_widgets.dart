@@ -65,7 +65,10 @@ class ConfigTag extends StatelessWidget {
       decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(6)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: Text(label, style: theme.textTheme.labelSmall?.copyWith(color: color ?? theme.colorScheme.onSurfaceVariant)),
+        child: Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(color: color ?? theme.colorScheme.onSurfaceVariant),
+        ),
       ),
     );
   }
@@ -115,7 +118,9 @@ class ConfigBanner extends StatelessWidget {
             child: Icon(error ? Icons.error_outline : Icons.info_outline, size: 16, color: foreground),
           ),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: theme.textTheme.bodySmall?.copyWith(color: foreground))),
+          Expanded(
+            child: Text(text, style: theme.textTheme.bodySmall?.copyWith(color: foreground)),
+          ),
         ],
       ),
     );
@@ -125,7 +130,13 @@ class ConfigBanner extends StatelessWidget {
 /// A horizontally scrolling strip of flat pills; the selected one is a stadium one tone lighter. Section
 /// switchers and settings tabs.
 class ConfigPills<T> extends StatelessWidget {
-  const ConfigPills({super.key, required this.value, required this.items, required this.onChanged, this.padding = EdgeInsets.zero});
+  const ConfigPills({
+    super.key,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.padding = EdgeInsets.zero,
+  });
 
   final T value;
   final List<(T value, String label, IconData? icon)> items;
@@ -163,7 +174,9 @@ class ConfigPills<T> extends StatelessWidget {
                         ],
                         Text(
                           label,
-                          style: theme.textTheme.labelLarge?.copyWith(color: item == value ? scheme.onSurface : scheme.onSurfaceVariant),
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: item == value ? scheme.onSurface : scheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -228,7 +241,8 @@ class CommandOutputView extends StatelessWidget {
             icon: const Icon(Icons.copy, size: 16),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints.tightFor(width: 28, height: 28),
-            onPressed: () => Clipboard.setData(ClipboardData(text: text.replaceAll(RegExp(r'\x1B\[[0-9;?]*[A-Za-z]'), ''))),
+            onPressed: () =>
+                Clipboard.setData(ClipboardData(text: text.replaceAll(RegExp(r'\x1B\[[0-9;?]*[A-Za-z]'), ''))),
           ),
         ],
       ),
@@ -255,7 +269,13 @@ class CommandRun extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(command, style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.labelMedium?.fontSize, color: theme.colorScheme.onSurfaceVariant)),
+                child: Text(
+                  command,
+                  style: codeTextStyle(theme).copyWith(
+                    fontSize: theme.textTheme.labelMedium?.fontSize,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
               if (running) const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
             ],
@@ -288,7 +308,11 @@ class ConfigError extends StatelessWidget {
           SelectableText('$error', style: TextStyle(color: AppColors.of(context).error)),
           if (onRetry != null) ...[
             const SizedBox(height: 12),
-            FilledButton.tonalIcon(onPressed: onRetry, icon: const Icon(Icons.refresh, size: 18), label: Text(context.t.common.retry)),
+            FilledButton.tonalIcon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(context.t.common.retry),
+            ),
           ],
         ],
       ),
@@ -318,11 +342,17 @@ class ConfigHeader extends StatelessWidget {
               children: [
                 Text(title, style: theme.textTheme.titleMedium),
                 if (subtitle != null)
-                  Text(subtitle!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  Text(
+                    subtitle!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
               ],
             ),
           ),
-          for (final (index, action) in actions.indexed) ...[if (index > 0) const SizedBox(width: AppSizes.gap), action],
+          for (final (index, action) in actions.indexed) ...[
+            if (index > 0) const SizedBox(width: AppSizes.gap),
+            action,
+          ],
         ],
       ),
     );
@@ -340,13 +370,20 @@ class RefreshAction extends StatelessWidget {
   Widget build(BuildContext context) => IconButton(
     tooltip: context.t.config.refresh,
     onPressed: loading ? null : onPressed,
-    icon: loading ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh),
+    icon: loading
+        ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
+        : const Icon(Icons.refresh),
   );
 }
 
 /// Runs [action], shows its failure as a snack bar, and returns whether it succeeded. Failures are logged
 /// unless [secret]: errors about a secret value may quote it.
-Future<bool> runReporting(BuildContext context, Future<void> Function() action, {String? done, bool secret = false}) async {
+Future<bool> runReporting(
+  BuildContext context,
+  Future<void> Function() action, {
+  String? done,
+  bool secret = false,
+}) async {
   final messenger = ScaffoldMessenger.of(context);
   final errorColor = AppColors.of(context).error;
   try {
@@ -366,7 +403,12 @@ Future<bool> runReporting(BuildContext context, Future<void> Function() action, 
 }
 
 /// Asks a yes/no question; true when confirmed.
-Future<bool> confirmAction(BuildContext context, {required String title, required String body, required String action}) async {
+Future<bool> confirmAction(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required String action,
+}) async {
   final t = context.t;
   final confirmed = await showDialog<bool>(
     context: context,

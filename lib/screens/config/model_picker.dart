@@ -10,11 +10,15 @@ import '../../widgets/app_select.dart';
 
 /// Picks a model selector (`provider/id[:thinking]`) from omp's available models, or a typed one. Returns
 /// null when dismissed.
-Future<String?> pickModel(BuildContext context, {required List<RpcModel> models, required String title, String? current}) =>
-    showDialog<String>(
-      context: context,
-      builder: (context) => _ModelPicker(models: models, title: title, current: current),
-    );
+Future<String?> pickModel(
+  BuildContext context, {
+  required List<RpcModel> models,
+  required String title,
+  String? current,
+}) => showDialog<String>(
+  context: context,
+  builder: (context) => _ModelPicker(models: models, title: title, current: current),
+);
 
 class _ModelPicker extends StatefulWidget {
   const _ModelPicker({required this.models, required this.title, this.current});
@@ -100,12 +104,16 @@ class _ModelPickerState extends State<_ModelPicker> {
                       ListTile(
                         dense: true,
                         selected: '${model.provider}/${model.id}' == current,
-                        leading: Icon(model.reasoning ? Icons.psychology_alt_outlined : Icons.smart_toy_outlined, size: 20),
+                        leading: Icon(
+                          model.reasoning ? Icons.psychology_alt_outlined : Icons.smart_toy_outlined,
+                          size: 20,
+                        ),
                         title: Text(model.name),
                         subtitle: Text(
                           [
                             '${model.provider}/${model.id}',
-                            if (model.contextWindow case final window?) t.config.roles.context(tokens: formatTokens(window)),
+                            if (model.contextWindow case final window?)
+                              t.config.roles.context(tokens: formatTokens(window)),
                             if (model.input.contains('image')) t.config.roles.vision,
                           ].join(' · '),
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),

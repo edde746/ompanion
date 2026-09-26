@@ -20,7 +20,13 @@ String sessionFile({required String id, String title = '', String? source, Strin
   final unpadded = utf8.encode(jsonEncode({...slot, 'pad': ''})).length + 1;
   final line = jsonEncode({...slot, 'pad': ' ' * (256 - unpadded)});
   if (utf8.encode(line).length + 1 != 256) throw StateError('title slot is not 256 bytes');
-  final header = jsonEncode({'type': 'session', 'version': 3, 'id': id, 'timestamp': '2026-09-25T10:00:00.000Z', 'cwd': cwd});
+  final header = jsonEncode({
+    'type': 'session',
+    'version': 3,
+    'id': id,
+    'timestamp': '2026-09-25T10:00:00.000Z',
+    'cwd': cwd,
+  });
   final message = user == null
       ? ''
       : '${jsonEncode({
@@ -68,8 +74,16 @@ Future<void> writeSessionFixtures(String agentHome, String root) async {
   await put('$sessions/-work/half_d.jsonl', sessionFile(id: 'd').substring(0, 300), '202609251003');
   await put('$sessions/-work/notes.txt', 'x', '202609251004');
   await put('$sessions/-work/deeper/nested_e.jsonl', sessionFile(id: 'e'), '202609251005');
-  await put('$agentHome/.omp/profiles/work/agent/sessions/-p/f.jsonl', sessionFile(id: 'f', title: 'Profiled'), '202609251006');
-  await put('$root/custom agent/sessions/-c/g.jsonl', sessionFile(id: 'g', user: 'é${'long words ' * 3000}'), '202609251007');
+  await put(
+    '$agentHome/.omp/profiles/work/agent/sessions/-p/f.jsonl',
+    sessionFile(id: 'f', title: 'Profiled'),
+    '202609251006',
+  );
+  await put(
+    '$root/custom agent/sessions/-c/g.jsonl',
+    sessionFile(id: 'g', user: 'é${'long words ' * 3000}'),
+    '202609251007',
+  );
   await put(
     '$root/session dir/h.jsonl',
     sessionFile(

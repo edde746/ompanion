@@ -50,10 +50,10 @@ void main() {
       final overview = mergeUsage([_machine('This Mac', _mac), _machine('target', _target)]);
       expect([for (final provider in overview.providers) provider.provider], ['anthropic', 'openai-codex']);
       final anthropic = overview.providers.first;
-      expect([for (final account in anthropic.accounts) '${account.report.accountLabel}: ${account.machines.join(', ')}'], [
-        'dev@example.com: This Mac, target',
-        'team@example.com: target',
-      ]);
+      expect(
+        [for (final account in anthropic.accounts) '${account.report.accountLabel}: ${account.machines.join(', ')}'],
+        ['dev@example.com: This Mac, target', 'team@example.com: target'],
+      );
       // Codex: This Mac's dev@example.com and target's ci@example.com, which has no report.
       final codex = overview.providers.last;
       expect(codex.accountCount, 2);
@@ -76,20 +76,23 @@ void main() {
         _machine('b', _reports([('zai', null, 1790387000020), ('zai', 'x@example.com', 1790387000030)])),
         _machine('c', _reports([('zai', 'X@example.com', 1790387000040)])),
       ]);
-      expect([for (final account in overview.providers.single.accounts) account.machines], [
-        ['a'],
-        ['b'],
-        ['b', 'c'],
-      ]);
+      expect(
+        [for (final account in overview.providers.single.accounts) account.machines],
+        [
+          ['a'],
+          ['b'],
+          ['b', 'c'],
+        ],
+      );
     });
 
     test('accounts without usage and disabled credentials stay per machine', () {
       final overview = mergeUsage([_machine('target', _target), _machine('target-copy', _target)]);
       final anthropic = overview.providers.first;
-      expect([for (final entry in anthropic.disabled) (entry.machine, entry.credential.identity.email)], [
-        ('target', 'ops@example.com'),
-        ('target-copy', 'ops@example.com'),
-      ]);
+      expect(
+        [for (final entry in anthropic.disabled) (entry.machine, entry.credential.identity.email)],
+        [('target', 'ops@example.com'), ('target-copy', 'ops@example.com')],
+      );
       expect([for (final entry in overview.providers.last.withoutUsage) entry.machine], ['target', 'target-copy']);
       expect(anthropic.accounts.first.machines, ['target', 'target-copy']);
     });
@@ -98,8 +101,9 @@ void main() {
   test('capacity over merged accounts is what omp computes for the same reports', () {
     // Each fixture's `capacity` is omp's `computeProviderWindowStats` over that machine's reports.
     for (final (snapshot, file) in [(_mac, 'usage-mac.json'), (_target, 'usage-target.json')]) {
-      final omp = (jsonDecode(File('test/config/fixtures/$file').readAsStringSync()) as Map<String, Object?>)['capacity']!
-          as Map<String, Object?>;
+      final omp =
+          (jsonDecode(File('test/config/fixtures/$file').readAsStringSync()) as Map<String, Object?>)['capacity']!
+              as Map<String, Object?>;
       for (final provider in mergeUsage([_machine('m', snapshot)]).providers.where((p) => p.capacity.isNotEmpty)) {
         final ours = provider.capacity;
         final theirs = omp[provider.provider]! as List<Object?>;
@@ -131,15 +135,19 @@ void main() {
     expect(team.remainingPercent!.toStringAsFixed(1), '7.0');
     expect(team.remainingPercent! <= team.reservePercent, isTrue);
     // Without a matching policy omp prints no policy line for the provider.
-    expect(mergeUsage([_machine('This Mac', _mac, policies: _policies)]).providers.first.accounts.single.policies, isEmpty);
+    expect(
+      mergeUsage([_machine('This Mac', _mac, policies: _policies)]).providers.first.accounts.single.policies,
+      isEmpty,
+    );
     // Merged, dev@example.com shows This Mac's newer report and still target's line, from target's own report.
     final merged = mergeUsage([
       _machine('This Mac', _mac, policies: _policies),
       _machine('target', _target, policies: _policies),
     ]).providers.first.accounts.first;
-    expect([for (final (:machine, :policy) in merged.policies) (machine, policy.remainingPercent!.toStringAsFixed(1))], [
-      ('target', '17.0'),
-    ]);
+    expect(
+      [for (final (:machine, :policy) in merged.policies) (machine, policy.remainingPercent!.toStringAsFixed(1))],
+      [('target', '17.0')],
+    );
   });
 
   test('missing limits, saved resets and the disable cause as omp prints them', () {
@@ -148,7 +156,10 @@ void main() {
     final team = anthropic.accounts.last;
     // omp usage: team@example.com shows "○ Claude 7 Day (Fable) … not reported" and "○ Claude Extra Usage … not reported".
     expect(
-      [for (final template in anthropic.templates) if (!team.report.limits.any((l) => l.id == template.id)) template.title],
+      [
+        for (final template in anthropic.templates)
+          if (!team.report.limits.any((l) => l.id == template.id)) template.title,
+      ],
       ['Claude 7 Day (Fable)', 'Claude Extra Usage'],
     );
     // omp usage: "✗ ops@example.com — disabled 2d5h ago: Refresh token has been revoked (re-login to restore)".
@@ -177,10 +188,18 @@ void main() {
 
   test("formatting follows omp's", () {
     expect(
-      [for (final ms in [850, 1500, 35500, 1815000, 8040000, 190800000, 86400000]) formatUsageDuration(Duration(milliseconds: ms))],
+      [
+        for (final ms in [850, 1500, 35500, 1815000, 8040000, 190800000, 86400000])
+          formatUsageDuration(Duration(milliseconds: ms)),
+      ],
       ['850ms', '1.5s', '35.5s', '30m15s', '2h14m', '2d5h', '1d'],
     );
-    expect([for (final n in [999, 18.4, 1500, 25000, 1500000]) formatUsageNumber(n)], ['999', '18.4', '1.5K', '25K', '1.5M']);
+    expect(
+      [
+        for (final n in [999, 18.4, 1500, 25000, 1500000]) formatUsageNumber(n),
+      ],
+      ['999', '18.4', '1.5K', '25K', '1.5M'],
+    );
     expect(formatProviderName('openai-codex'), 'Openai Codex');
     expect(limitTitle(_target.reports.first.limits.first), 'Claude 5 Hour');
   });

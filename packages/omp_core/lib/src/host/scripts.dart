@@ -162,7 +162,11 @@ tailpoll=; if tail -s 0.05 -c 1 /dev/null >/dev/null 2>&1; then tailpoll='-s 0.0
 
 /// Closes [process]'s stdin, which ends the app's long-running scripts, and waits up to [timeout] for
 /// [done] (its stdout fully read); kills the process when it does not finish in time.
-Future<void> finishProcess(HostProcess process, Future<void> done, {Duration timeout = const Duration(seconds: 5)}) async {
+Future<void> finishProcess(
+  HostProcess process,
+  Future<void> done, {
+  Duration timeout = const Duration(seconds: 5),
+}) async {
   try {
     await process.closeStdin();
   } on Object {

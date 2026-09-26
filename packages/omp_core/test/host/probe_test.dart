@@ -64,7 +64,10 @@ void main() {
     });
 
     test('honours PI_CODING_AGENT_DIR, and OMP_PROFILE over it', () async {
-      expect((await probe({'PI_CODING_AGENT_DIR': '/elsewhere/agent', 'OMP_PROFILE': ''})).agentDir, '/elsewhere/agent');
+      expect(
+        (await probe({'PI_CODING_AGENT_DIR': '/elsewhere/agent', 'OMP_PROFILE': ''})).agentDir,
+        '/elsewhere/agent',
+      );
       final profiled = await probe({'PI_CODING_AGENT_DIR': '/elsewhere/agent', 'OMP_PROFILE': 'work'});
       expect(profiled.agentDir, '${home.path}/.omp/profiles/work/agent');
       expect(profiled.profile, 'work');
@@ -87,7 +90,11 @@ void main() {
       expect(only.ompPath, isNull, reason: 'PATH is not searched');
       await fakeOmp('${home.path}/.local/bin/omp', '18.2.0');
       final none = await probe({'PATH': '${home.path}/bin:/usr/bin:/bin'});
-      expect((none.ompPath, none.ompVersion), (old, '18.3.0'), reason: 'no usable omp: the first one found is reported');
+      expect(
+        (none.ompPath, none.ompVersion),
+        (old, '18.3.0'),
+        reason: 'no usable omp: the first one found is reported',
+      );
     });
 
     test('without system paths omp is looked for only in the home directory', () async {
@@ -114,8 +121,11 @@ void main() {
     );
     expect(parse({'kernel': 'Linux', 'machine': 'aarch64', 'libc': 'musl'}).releaseAsset, 'omp-linux-musl-arm64');
     expect(parse({'kernel': 'Linux', 'machine': 'x86_64', 'libc': 'glibc'}).releaseAsset, 'omp-linux-x64');
-    expect(parse({'kernel': 'Darwin', 'machine': 'x86_64', 'arm64': '1'}).releaseAsset, 'omp-darwin-arm64',
-        reason: 'uname -m under Rosetta says x86_64');
+    expect(
+      parse({'kernel': 'Darwin', 'machine': 'x86_64', 'arm64': '1'}).releaseAsset,
+      'omp-darwin-arm64',
+      reason: 'uname -m under Rosetta says x86_64',
+    );
     expect(parse({'kernel': 'Linux', 'machine': 'riscv64', 'libc': 'glibc'}).releaseAsset, isNull);
     expect(parse({'kernel': 'MINGW64_NT-10.0-26100', 'machine': 'x86_64'}).os, HostOs.windows);
     expect(() => parse({'kernel': 'Linux', 'home': ''}), throwsFormatException);
@@ -123,19 +133,32 @@ void main() {
 
   test('the probe drives the first omp found that is new enough, else reports the first one', () {
     (String?, String?) pick(List<(String, String)> omps) {
-      final probe = parsePosixProbe(jsonEncode({
-        'v': '1',
-        'kernel': 'Linux',
-        'home': '/home/u',
-        'agentDir': '/home/u/.omp/agent',
-        'omps': [for (final (path, version) in omps) {'path': path, 'version': version}],
-      }));
+      final probe = parsePosixProbe(
+        jsonEncode({
+          'v': '1',
+          'kernel': 'Linux',
+          'home': '/home/u',
+          'agentDir': '/home/u/.omp/agent',
+          'omps': [
+            for (final (path, version) in omps) {'path': path, 'version': version},
+          ],
+        }),
+      );
       return (probe.ompPath, probe.ompVersion);
     }
 
-    expect(pick([('/usr/bin/omp', 'omp/18.3.1'), ('/home/u/.local/bin/omp', 'omp/19.0.0')]), ('/usr/bin/omp', '18.3.1'));
-    expect(pick([('/usr/bin/omp', 'omp/18.3.0'), ('/home/u/.local/bin/omp', 'omp/18.3.1')]), ('/home/u/.local/bin/omp', '18.3.1'));
-    expect(pick([('/usr/bin/omp', 'omp/18.3.1-rc.1'), ('/home/u/.local/bin/omp', 'omp/18.3.1')]), ('/home/u/.local/bin/omp', '18.3.1'));
+    expect(pick([('/usr/bin/omp', 'omp/18.3.1'), ('/home/u/.local/bin/omp', 'omp/19.0.0')]), (
+      '/usr/bin/omp',
+      '18.3.1',
+    ));
+    expect(pick([('/usr/bin/omp', 'omp/18.3.0'), ('/home/u/.local/bin/omp', 'omp/18.3.1')]), (
+      '/home/u/.local/bin/omp',
+      '18.3.1',
+    ));
+    expect(pick([('/usr/bin/omp', 'omp/18.3.1-rc.1'), ('/home/u/.local/bin/omp', 'omp/18.3.1')]), (
+      '/home/u/.local/bin/omp',
+      '18.3.1',
+    ));
     expect(pick([('/usr/bin/omp', ''), ('/home/u/.local/bin/omp', 'omp/18.0.0')]), ('/usr/bin/omp', null));
     expect(pick([]), (null, null));
   });
@@ -168,17 +191,23 @@ void main() {
       const marker = 'OMPANION_test';
       final profile = '${temp.path}/Users/me';
       final script = '$powershellPreamble${windowsProbeScript(marker, searchSystemPaths: searchSystemPaths)}';
-      final result = await Process.run(_pwsh!, ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodePowerShell(script)],
-          environment: {
-            'PATH': path,
-            'USERPROFILE': profile,
-            'LOCALAPPDATA': '$profile/AppData/Local',
-            'SystemRoot': '${temp.path}/Windows',
-            'ProgramFiles': '${temp.path}/Program Files',
-            'PI_INSTALL_DIR': '',
-          });
+      final result = await Process.run(
+        _pwsh!,
+        ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodePowerShell(script)],
+        environment: {
+          'PATH': path,
+          'USERPROFILE': profile,
+          'LOCALAPPDATA': '$profile/AppData/Local',
+          'SystemRoot': '${temp.path}/Windows',
+          'ProgramFiles': '${temp.path}/Program Files',
+          'PI_INSTALL_DIR': '',
+        },
+      );
       expect(result.exitCode, 0, reason: '${result.stderr}');
-      return parseWindowsProbe(ScriptResult('${result.stdout}', '', const HostExit(code: 0)).payload(marker), CommandShell.powershell);
+      return parseWindowsProbe(
+        ScriptResult('${result.stdout}', '', const HostExit(code: 0)).payload(marker),
+        CommandShell.powershell,
+      );
     }
 
     Future<String> fakeOmp(String path, String version) async {
@@ -188,17 +217,20 @@ void main() {
       return path;
     }
 
-    test('an omp on PATH older than the minimum gives way to the one in LOCALAPPDATA, and PATH can be left out', () async {
-      final bin = '${temp.path}/bin';
-      final onPath = await fakeOmp('$bin/omp.exe', '18.3.0');
-      final installed = await fakeOmp('${temp.path}/Users/me/AppData/Local/omp/omp.exe', '18.3.1');
-      final path = '$bin:/usr/bin:/bin';
-      final found = await probe(path: path);
-      expect((found.ompPath, found.ompVersion), (installed, '18.3.1'));
-      await File(installed).delete();
-      expect((await probe(path: path)).ompPath, onPath, reason: 'no usable omp: the first one found is reported');
-      expect((await probe(path: path, searchSystemPaths: false)).ompPath, isNull);
-    });
+    test(
+      'an omp on PATH older than the minimum gives way to the one in LOCALAPPDATA, and PATH can be left out',
+      () async {
+        final bin = '${temp.path}/bin';
+        final onPath = await fakeOmp('$bin/omp.exe', '18.3.0');
+        final installed = await fakeOmp('${temp.path}/Users/me/AppData/Local/omp/omp.exe', '18.3.1');
+        final path = '$bin:/usr/bin:/bin';
+        final found = await probe(path: path);
+        expect((found.ompPath, found.ompVersion), (installed, '18.3.1'));
+        await File(installed).delete();
+        expect((await probe(path: path)).ompPath, onPath, reason: 'no usable omp: the first one found is reported');
+        expect((await probe(path: path, searchSystemPaths: false)).ompPath, isNull);
+      },
+    );
   });
 }
 

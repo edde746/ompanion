@@ -17,7 +17,13 @@ void main() {
     await control.attach();
     final started = Completer<LiveSession>();
     final sessions = FakeSessions(testMachine)..onControl = () => started.future;
-    await tester.pumpWidget(configHost(RolesPage(target: ConfigTarget(machine: testMachine, sessions: sessions))));
+    await tester.pumpWidget(
+      configHost(
+        RolesPage(
+          target: ConfigTarget(machine: testMachine, sessions: sessions),
+        ),
+      ),
+    );
     await tester.pumpWidget(const SizedBox());
 
     started.complete(control);

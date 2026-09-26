@@ -16,7 +16,10 @@ bool opensWithoutAsking(Uri uri) => isWebLink(uri) || uri.isScheme('mailto');
 /// URL first and opens only when the user confirms.
 Future<void> openExternalLink(BuildContext context, Uri uri) async {
   if (!opensWithoutAsking(uri)) {
-    final confirmed = await showDialog<bool>(context: context, builder: (_) => _ConfirmLinkDialog(uri: uri));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _ConfirmLinkDialog(uri: uri),
+    );
     if (confirmed != true) return;
   }
   await _launch(uri);

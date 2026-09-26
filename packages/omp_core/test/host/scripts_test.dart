@@ -36,7 +36,11 @@ void main() {
   });
 
   test('the payload is found between its markers, whatever the shell printed around it', () {
-    const result = ScriptResult('Last login: today\nOMPANION_1:begin\n{"a":1}\nOMPANION_1:end\nbye\n', '', HostExit(code: 0));
+    const result = ScriptResult(
+      'Last login: today\nOMPANION_1:begin\n{"a":1}\nOMPANION_1:end\nbye\n',
+      '',
+      HostExit(code: 0),
+    );
     expect(result.payload('OMPANION_1'), '{"a":1}');
     expect(() => result.payload('OMPANION_2'), throwsA(isA<HostLinkException>()));
   });
@@ -83,17 +87,26 @@ void main() {
     final twoMinutesAgo = DateTime.now().subtract(const Duration(minutes: 2));
     await Process.run('touch', ['-t', _touchTime(twoMinutesAgo), lock]);
     await acquireDirLock(ahead, lock, timeout: const Duration(seconds: 1), stale: const Duration(minutes: 1));
-    expect(Directory(lock).statSync().modified.isAfter(twoMinutesAgo.add(const Duration(minutes: 1))), isTrue,
-        reason: 'the stale lock was replaced');
+    expect(
+      Directory(lock).statSync().modified.isAfter(twoMinutesAgo.add(const Duration(minutes: 1))),
+      isTrue,
+      reason: 'the stale lock was replaced',
+    );
     expect(Directory(temp.path).listSync().map((e) => e.path), [lock], reason: 'the clock file is gone');
   });
 
   test('the shell lock function breaks a stale lock and fails once its directory is gone', () async {
     await Directory('${temp.path}/run/in.lock').create(recursive: true);
     await Process.run('touch', ['-t', '202001010000', '${temp.path}/run/in.lock']);
-    final taken = await runPosixScript(link, '$posixLockFunctions\nlock ${shQuote('${temp.path}/run/in.lock')} 30 && echo taken');
+    final taken = await runPosixScript(
+      link,
+      '$posixLockFunctions\nlock ${shQuote('${temp.path}/run/in.lock')} 30 && echo taken',
+    );
     expect(taken.stdout, 'taken\n');
-    final gone = await runPosixScript(link, '$posixLockFunctions\nlock ${shQuote('${temp.path}/nope/in.lock')} 30 || echo failed');
+    final gone = await runPosixScript(
+      link,
+      '$posixLockFunctions\nlock ${shQuote('${temp.path}/nope/in.lock')} 30 || echo failed',
+    );
     expect(gone.stdout, 'failed\n');
     expect(gone.stderr, contains('no directory ${temp.path}/nope'));
   });
@@ -101,8 +114,10 @@ void main() {
   test('the shell lock function fails when mkdir fails for a reason other than a held lock', () async {
     // A name longer than any file system takes stands in for a full disk or a read-only directory, whatever the user.
     final lock = '${temp.path}/${'x' * 300}';
-    final result = await runPosixScript(link, '$posixLockFunctions\nlock ${shQuote(lock)} 1 || echo failed')
-        .timeout(const Duration(seconds: 10));
+    final result = await runPosixScript(
+      link,
+      '$posixLockFunctions\nlock ${shQuote(lock)} 1 || echo failed',
+    ).timeout(const Duration(seconds: 10));
     expect(result.stdout, 'failed\n');
     expect(result.stderr, contains('too long'), reason: "mkdir's own reason");
   });
@@ -112,8 +127,10 @@ void main() {
     File('${lock.path}/stray').createSync();
     await Process.run('touch', ['-t', '202001010000', lock.path]);
     final watch = Stopwatch()..start();
-    final result = await runPosixScript(link, '$posixLockFunctions\nlock ${shQuote(lock.path)} 1 || echo failed')
-        .timeout(const Duration(seconds: 20));
+    final result = await runPosixScript(
+      link,
+      '$posixLockFunctions\nlock ${shQuote(lock.path)} 1 || echo failed',
+    ).timeout(const Duration(seconds: 20));
     expect(result.stdout, 'failed\n');
     expect(result.stderr, contains('is still held'));
     expect(watch.elapsed, greaterThanOrEqualTo(const Duration(seconds: 4)));
@@ -146,11 +163,13 @@ final class _SkewedFiles implements HostFiles {
   }
 
   @override
-  Future<List<HostDirEntry>> list(String path) async =>
-      [for (final entry in await _inner.list(path)) HostDirEntry(entry.name, _shift(entry.stat))];
+  Future<List<HostDirEntry>> list(String path) async => [
+    for (final entry in await _inner.list(path)) HostDirEntry(entry.name, _shift(entry.stat)),
+  ];
 
   @override
-  Future<Uint8List> read(String path, {int offset = 0, int? length}) => _inner.read(path, offset: offset, length: length);
+  Future<Uint8List> read(String path, {int offset = 0, int? length}) =>
+      _inner.read(path, offset: offset, length: length);
 
   @override
   Future<void> write(String path, List<int> bytes, {bool append = false, int? mode}) =>

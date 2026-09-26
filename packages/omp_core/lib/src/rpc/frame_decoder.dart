@@ -158,7 +158,9 @@ final class RpcFrameDecoder {
     }
     final bytes = _decodeChunkData(chunk['data']);
     if (bytes.length > _chunkPayloadBytes) {
-      throw RpcProtocolException('rpc_chunk $chunkId/$index payload of ${bytes.length} bytes exceeds $_chunkPayloadBytes');
+      throw RpcProtocolException(
+        'rpc_chunk $chunkId/$index payload of ${bytes.length} bytes exceeds $_chunkPayloadBytes',
+      );
     }
     if (_skippingPartialSequence) {
       if (index != 0) return null;
@@ -230,7 +232,8 @@ Map<String, Object?> _decodeReassembled(_Reassembled frame) {
   } on FormatException catch (error) {
     throw RpcProtocolException('rpc_chunk sequence ${frame.chunkId} is not UTF-8 JSON: ${error.message}');
   }
-  if (value is! Map<String, Object?>) throw RpcProtocolException('rpc_chunk sequence ${frame.chunkId} is not a JSON object');
+  if (value is! Map<String, Object?>)
+    throw RpcProtocolException('rpc_chunk sequence ${frame.chunkId} is not a JSON object');
   return value;
 }
 

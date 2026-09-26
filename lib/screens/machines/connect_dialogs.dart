@@ -26,7 +26,10 @@ Future<T> runOnMachine<T>(BuildContext context, Machine machine, Future<T> Funct
 ConnectPrompts dialogConnectPrompts(BuildContext context) => ConnectPrompts(
   password: (hop) async {
     if (!context.mounted) return null;
-    return showDialog<String>(context: context, builder: (_) => PasswordDialog(hop: hop.label));
+    return showDialog<String>(
+      context: context,
+      builder: (_) => PasswordDialog(hop: hop.label),
+    );
   },
   keyboardInteractive: (request) async {
     if (!context.mounted) return null;
@@ -229,9 +232,7 @@ class KeyboardInteractiveDialog extends StatefulWidget {
 }
 
 class _KeyboardInteractiveDialogState extends State<KeyboardInteractiveDialog> {
-  late final List<TextEditingController> _answers = [
-    for (final _ in widget.request.prompts) TextEditingController(),
-  ];
+  late final List<TextEditingController> _answers = [for (final _ in widget.request.prompts) TextEditingController()];
 
   @override
   void dispose() {

@@ -83,7 +83,12 @@ KnownHostRow knownHostRow(HostKeyCheck check, DateTime addedAt) => KnownHostRow(
 
 /// Rows for host keys delivered by the tailnet's control plane (`sshHostKeys`), so the first connection to a
 /// Tailscale peer needs no prompt.
-List<KnownHostRow> knownHostRowsFromLines(String host, int port, Iterable<String> authorizedKeyLines, DateTime addedAt) {
+List<KnownHostRow> knownHostRowsFromLines(
+  String host,
+  int port,
+  Iterable<String> authorizedKeyLines,
+  DateTime addedAt,
+) {
   final rows = <KnownHostRow>[];
   for (final line in authorizedKeyLines) {
     final key = SshPublicKey.parse(line);

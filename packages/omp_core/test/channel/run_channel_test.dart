@@ -93,41 +93,53 @@ void main() {
         final large = jsonEncode({'id': 'big', 'data': 'é' * inlineAppendLimit});
         await Future.wait([channel.send('{"id":"a"}'), channel.send(large), channel.send('@not-a-file')]);
         expect(await File('$dir/in.jsonl').readAsString(), '{"id":"a"}\n$large\n@not-a-file\n');
-        expect(Directory(dir).listSync().map((e) => e.path.split('/').last).toSet(), {'meta.json', 'in.jsonl', 'out.jsonl'});
+        expect(Directory(dir).listSync().map((e) => e.path.split('/').last).toSet(), {
+          'meta.json',
+          'in.jsonl',
+          'out.jsonl',
+        });
         await channel.close();
       });
 
-      test('two channels append concurrently without interleaving and see each other in their inboxes', skip: kind == 'sftp' ? 'no share-mode lock off Windows' : null, () async {
-        final a = await attach(inboxOffset: 0);
-        final b = await attach(inboxOffset: 0);
-        final seenByB = <InboxLine>[];
-        final listening = b.inbox.listen(seenByB.add);
-        final payload = 'x' * 3000;
-        await Future.wait([
-          for (var i = 0; i < 30; i++) a.send(jsonEncode({'id': 'a$i', 'p': payload})),
-          for (var i = 0; i < 30; i++) b.send(jsonEncode({'id': 'b$i', 'p': payload})),
-        ]);
-        final lines = const LineSplitter().convert(await File('$dir/in.jsonl').readAsString());
-        expect(lines, hasLength(60));
-        expect(lines.map((l) => (jsonDecode(l) as Map<String, Object?>)['p']), everyElement(payload));
-        final deadline = DateTime.now().add(const Duration(seconds: 10));
-        while (seenByB.length < 60 && DateTime.now().isBefore(deadline)) {
-          await Future<void>.delayed(const Duration(milliseconds: 20));
-        }
-        String id(InboxLine l) => (jsonDecode(l.line) as Map<String, Object?>)['id']! as String;
-        expect(seenByB.where((l) => l.own).map(id).toSet(), {for (var i = 0; i < 30; i++) 'b$i'});
-        expect(seenByB.where((l) => !l.own).map(id).toSet(), {for (var i = 0; i < 30; i++) 'a$i'});
-        expect(b.inboxOffset, File('$dir/in.jsonl').lengthSync());
-        await listening.cancel();
-        await a.close();
-        await b.close();
-      });
+      test(
+        'two channels append concurrently without interleaving and see each other in their inboxes',
+        skip: kind == 'sftp' ? 'no share-mode lock off Windows' : null,
+        () async {
+          final a = await attach(inboxOffset: 0);
+          final b = await attach(inboxOffset: 0);
+          final seenByB = <InboxLine>[];
+          final listening = b.inbox.listen(seenByB.add);
+          final payload = 'x' * 3000;
+          await Future.wait([
+            for (var i = 0; i < 30; i++) a.send(jsonEncode({'id': 'a$i', 'p': payload})),
+            for (var i = 0; i < 30; i++) b.send(jsonEncode({'id': 'b$i', 'p': payload})),
+          ]);
+          final lines = const LineSplitter().convert(await File('$dir/in.jsonl').readAsString());
+          expect(lines, hasLength(60));
+          expect(lines.map((l) => (jsonDecode(l) as Map<String, Object?>)['p']), everyElement(payload));
+          final deadline = DateTime.now().add(const Duration(seconds: 10));
+          while (seenByB.length < 60 && DateTime.now().isBefore(deadline)) {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+          }
+          String id(InboxLine l) => (jsonDecode(l.line) as Map<String, Object?>)['id']! as String;
+          expect(seenByB.where((l) => l.own).map(id).toSet(), {for (var i = 0; i < 30; i++) 'b$i'});
+          expect(seenByB.where((l) => !l.own).map(id).toSet(), {for (var i = 0; i < 30; i++) 'a$i'});
+          expect(b.inboxOffset, File('$dir/in.jsonl').lengthSync());
+          await listening.cancel();
+          await a.close();
+          await b.close();
+        },
+      );
 
       test('ends with the exit code after the exit marker, also when attaching after the end', () async {
         final channel = await attach();
         final frames = Frames(channel.lines);
         // Windows writes the marker with cmd.exe's echo: CRLF line ends.
-        await omp(kind == 'exec' ? '{"id":"1"}\n\n{"type":"ompanion_exit","code":0}\n' : '{"id":"1"}\r\n\r\n{"type":"ompanion_exit","code":0}\r\n');
+        await omp(
+          kind == 'exec'
+              ? '{"id":"1"}\n\n{"type":"ompanion_exit","code":0}\n'
+              : '{"id":"1"}\r\n\r\n{"type":"ompanion_exit","code":0}\r\n',
+        );
         await File('$dir/exit').writeAsString('0\n');
         await frames.ended();
         expect(frames.raw, ['{"id":"1"}']);

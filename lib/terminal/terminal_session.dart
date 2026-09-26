@@ -38,7 +38,10 @@ final class SshTerminalBackend implements TerminalBackend {
     required int columns,
     required int rows,
   }) async {
-    final process = await link.exec(launch.command, pty: PtyRequest(columns: columns, rows: rows));
+    final process = await link.exec(
+      launch.command,
+      pty: PtyRequest(columns: columns, rows: rows),
+    );
     final startLine = launch.startLine;
     if (startLine == null) return SshTerminalBackend._(process, process.stdout, true);
     final filter = TerminalReadyFilter();
@@ -151,10 +154,13 @@ final class LocalTerminalBackend implements TerminalBackend {
     _closed = true;
     if (_pty.capabilities.posixSignals) {
       _pty.sendSignal(PosixSignal.hup, target: PosixSignalTarget.shellProcessGroup);
-      await _pty.processExit.timeout(const Duration(seconds: 1), onTimeout: () {
-        _pty.kill();
-        return _pty.processExit;
-      });
+      await _pty.processExit.timeout(
+        const Duration(seconds: 1),
+        onTimeout: () {
+          _pty.kill();
+          return _pty.processExit;
+        },
+      );
     } else {
       _pty.kill();
     }
@@ -310,7 +316,8 @@ final class TerminalSession extends ChangeNotifier {
     if (backend != null) {
       unawaited(
         backend.close().catchError(
-          (Object error, StackTrace stack) => appLogger.w('closing the terminal failed', error: error, stackTrace: stack),
+          (Object error, StackTrace stack) =>
+              appLogger.w('closing the terminal failed', error: error, stackTrace: stack),
         ),
       );
     }

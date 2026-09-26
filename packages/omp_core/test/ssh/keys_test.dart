@@ -61,7 +61,8 @@ void main() {
     });
 
     test('PKCS#8 is reported as unsupported', () {
-      const pkcs8 = '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIHnZ/NmW+MDFVkq8lWhNLDqUpHlRsbgqaPYKXvzQHWAh\n-----END PRIVATE KEY-----\n';
+      const pkcs8 =
+          '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIHnZ/NmW+MDFVkq8lWhNLDqUpHlRsbgqaPYKXvzQHWAh\n-----END PRIVATE KEY-----\n';
       expect(() => readPrivateKey(pkcs8), throwsProblem(SshKeyProblem.unsupported));
     });
   });
@@ -110,7 +111,10 @@ void main() {
     test('generated key with a passphrase is encrypted', () {
       final generated = generateEd25519Key(passphrase: 'secret');
       expect(privateKeyIsEncrypted(generated.privateKeyPem), isTrue);
-      expect(() => readPrivateKey(generated.privateKeyPem, passphrase: 'nope'), throwsProblem(SshKeyProblem.wrongPassphrase));
+      expect(
+        () => readPrivateKey(generated.privateKeyPem, passphrase: 'nope'),
+        throwsProblem(SshKeyProblem.wrongPassphrase),
+      );
       expect(readPrivateKey(generated.privateKeyPem, passphrase: 'secret').blob, generated.publicKey.blob);
     });
 

@@ -41,7 +41,9 @@ void main() {
         (name: 'demo-market', source: '/tmp/ompcfg-cli.V96t/src/demo-market'),
       ]);
       expect(parseMarketplaceList(fixture('marketplace-list.txt')), isEmpty);
-      expect(parseDiscover(fixture('plugin-discover-one.txt')), [(name: 'hello-plugin', version: '0.1.0', description: 'Says hello')]);
+      expect(parseDiscover(fixture('plugin-discover-one.txt')), [
+        (name: 'hello-plugin', version: '0.1.0', description: 'Says hello'),
+      ]);
       expect(parseDiscover(fixture('plugin-discover.txt')), isEmpty);
       expect(parseDiscover('Available Plugins:\n\n  @scope/tool@2.0.0\n  bare\n    Bare one\n'), [
         (name: '@scope/tool', version: '2.0.0', description: null),
@@ -83,7 +85,10 @@ void main() {
       expect(statsFolderPath('/opt-work/', home: home), '/opt-work');
       final folder = statsFolderOf('/Users/me/.omp/agent/sessions/-work-demo-project/2026-09-26_abc.jsonl');
       expect(folder, '-work-demo-project');
-      expect(statsFolderPath(folder, home: home, known: {folder: '/Users/me/work/demo-project'}), '~/work/demo-project');
+      expect(
+        statsFolderPath(folder, home: home, known: {folder: '/Users/me/work/demo-project'}),
+        '~/work/demo-project',
+      );
       expect(statsFolderOf('/home/u/.omp/agent/sessions/--srv-app--/s.jsonl'), '/srv-app/');
       expect(statsFolderPath('/srv-app/', home: home, known: {'/srv-app/': '/srv/app'}), '/srv/app');
     });
@@ -134,7 +139,13 @@ void main() {
     test('account policies from omp config get', () {
       final policy = parseAccountPolicies(json('config-get-account-policies.json')).single;
       expect((policy.provider, policy.priority, policy.reservePct), ('anthropic', 5, 15));
-      expect(policy.selector, (email: 'team@example.com', accountId: null, projectId: null, orgId: null, orgName: null));
+      expect(policy.selector, (
+        email: 'team@example.com',
+        accountId: null,
+        projectId: null,
+        orgId: null,
+        orgName: null,
+      ));
     });
 
     test('a limit without a reported fraction: used over limit, a percent reading, else one minus what remains', () {
@@ -150,8 +161,18 @@ void main() {
                 'scope': {'accountId': 'acct-7'},
                 'amount': {'unit': 'tokens', 'used': 250, 'limit': 1000},
               },
-              {'id': 'zai:percent', 'label': 'Session', 'scope': <String, Object?>{}, 'amount': {'unit': 'percent', 'used': 40}},
-              {'id': 'zai:left', 'label': 'Weekly', 'scope': <String, Object?>{}, 'amount': {'unit': 'percent', 'remainingFraction': 0.25}},
+              {
+                'id': 'zai:percent',
+                'label': 'Session',
+                'scope': <String, Object?>{},
+                'amount': {'unit': 'percent', 'used': 40},
+              },
+              {
+                'id': 'zai:left',
+                'label': 'Weekly',
+                'scope': <String, Object?>{},
+                'amount': {'unit': 'percent', 'remainingFraction': 0.25},
+              },
             ],
           },
         ],

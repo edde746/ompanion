@@ -83,7 +83,9 @@ Future<int> _run(MachineRuntime runtime, _Options options) async {
     case 'sessions':
       for (final session in await runtime.listSessions()) {
         final run = session.runId == null ? '' : '  [running ${session.runId}]';
-        stdout.writeln('${session.modified.toLocal().toIso8601String().substring(0, 19)}  ${session.title ?? '(untitled)'}$run');
+        stdout.writeln(
+          '${session.modified.toLocal().toIso8601String().substring(0, 19)}  ${session.title ?? '(untitled)'}$run',
+        );
         stdout.writeln('    ${session.path}');
       }
     case 'runs':
@@ -410,10 +412,7 @@ final class _Options {
     } else {
       if (key == null) throw const FormatException('--ssh needs --key FILE');
       final auth = SshKeyAuth(File(key).readAsStringSync());
-      final target = SshTarget(
-        jumps: [for (final jump in jumps) _hop(jump, auth)],
-        target: _hop(ssh!, auth),
-      );
+      final target = SshTarget(jumps: [for (final jump in jumps) _hop(jump, auth)], target: _hop(ssh!, auth));
       connect = () => SshLink.open(target, verifyHostKey: (check) => _verify(check, knownHosts, acceptNew));
     }
     return _Options._(connect, device, companion, command, args);
@@ -430,8 +429,7 @@ final class _Options {
     return at >= 0 && at + 1 < _rest.length ? _rest[at + 1] : null;
   }
 
-  String argument(String command, String name) =>
-      _rest.firstOrNull ?? (throw FormatException('$command needs $name'));
+  String argument(String command, String name) => _rest.firstOrNull ?? (throw FormatException('$command needs $name'));
 
   /// The environment of `omp_core`'s tests: only system directories on PATH, so the user's own omp is never found,
   /// and omp's directory variables explicitly empty (an empty value selects the default).
@@ -460,8 +458,13 @@ final class _Options {
       case KnownHostStatus.match:
         return true;
       case KnownHostStatus.unknown when acceptNew:
-        file.writeAsStringSync('${text.isEmpty || text.endsWith('\n') ? '' : '\n'}${knownHostsLine(check)}\n', mode: FileMode.append);
-        stderr.writeln('ompctl: added ${knownHostName(check.host, check.port)} ${check.sha256Fingerprint} to $knownHosts');
+        file.writeAsStringSync(
+          '${text.isEmpty || text.endsWith('\n') ? '' : '\n'}${knownHostsLine(check)}\n',
+          mode: FileMode.append,
+        );
+        stderr.writeln(
+          'ompctl: added ${knownHostName(check.host, check.port)} ${check.sha256Fingerprint} to $knownHosts',
+        );
         return true;
       case final status:
         stderr.writeln(

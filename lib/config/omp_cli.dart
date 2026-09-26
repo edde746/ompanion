@@ -21,15 +21,22 @@ Future<ScriptResult> runOmp(HostLink link, HostProbe probe, List<String> args, {
   final omp = probe.ompPath;
   if (omp == null) throw StateError('omp is not installed on ${link.label}');
   final result = switch (probe.commandShell) {
-    CommandShell.posix => await runPosixScript(link, [
-      if (cwd != null) 'cd ${shQuote(cwd)} || exit 1',
-      [shQuote(omp), ...args.map(shQuote)].join(' '),
-    ].join('\n')),
-    CommandShell.cmd || CommandShell.powershell => await runPowerShell(link, probe.commandShell, [
-      if (cwd != null) 'Set-Location -LiteralPath ${psQuote(cwd)}',
-      '& ${psQuote(omp)} ${args.map(psQuote).join(' ')}',
-      r'exit $LASTEXITCODE',
-    ].join('\n')),
+    CommandShell.posix => await runPosixScript(
+      link,
+      [
+        if (cwd != null) 'cd ${shQuote(cwd)} || exit 1',
+        [shQuote(omp), ...args.map(shQuote)].join(' '),
+      ].join('\n'),
+    ),
+    CommandShell.cmd || CommandShell.powershell => await runPowerShell(
+      link,
+      probe.commandShell,
+      [
+        if (cwd != null) 'Set-Location -LiteralPath ${psQuote(cwd)}',
+        '& ${psQuote(omp)} ${args.map(psQuote).join(' ')}',
+        r'exit $LASTEXITCODE',
+      ].join('\n'),
+    ),
   };
   if (result.exit.code != 0) {
     final said = result.stderr.trim().isNotEmpty ? result.stderr.trim() : result.stdout.trim();

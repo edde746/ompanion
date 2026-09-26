@@ -59,19 +59,25 @@ void main() {
 
   group('parseKnownHosts', () {
     test('skips comments, blank, malformed and unknown-marker lines and keeps line numbers', () {
-      final entries = parseKnownHosts([
-        '# comment',
-        '',
-        'example.com ssh-ed25519 not-base64!',
-        '@unknown example.com $ed25519',
-        'only-a-host',
-        '|1|bad|salt $ed25519',
-        'example.com $ed25519 a comment',
-        '@revoked * $otherEd25519',
-        '@cert-authority *.example.com $rsa',
-      ].join('\n'));
+      final entries = parseKnownHosts(
+        [
+          '# comment',
+          '',
+          'example.com ssh-ed25519 not-base64!',
+          '@unknown example.com $ed25519',
+          'only-a-host',
+          '|1|bad|salt $ed25519',
+          'example.com $ed25519 a comment',
+          '@revoked * $otherEd25519',
+          '@cert-authority *.example.com $rsa',
+        ].join('\n'),
+      );
       expect(entries.map((entry) => entry.lineNumber), [7, 8, 9]);
-      expect(entries.map((entry) => entry.marker), [KnownHostMarker.none, KnownHostMarker.revoked, KnownHostMarker.certAuthority]);
+      expect(entries.map((entry) => entry.marker), [
+        KnownHostMarker.none,
+        KnownHostMarker.revoked,
+        KnownHostMarker.certAuthority,
+      ]);
       expect(entries.first.key.comment, 'a comment');
     });
   });
@@ -82,7 +88,10 @@ void main() {
     });
 
     test('a different key of the same type is a mismatch', () {
-      expect(checkKnownHost(parseKnownHosts('example.com $otherEd25519'), presented('ed25519.pub')), KnownHostStatus.mismatch);
+      expect(
+        checkKnownHost(parseKnownHosts('example.com $otherEd25519'), presented('ed25519.pub')),
+        KnownHostStatus.mismatch,
+      );
     });
 
     test('an exact match elsewhere wins over a stale line', () {
@@ -91,7 +100,10 @@ void main() {
     });
 
     test('only other key types known is reported as such', () {
-      expect(checkKnownHost(parseKnownHosts('example.com $rsa'), presented('ed25519.pub')), KnownHostStatus.differentKeyType);
+      expect(
+        checkKnownHost(parseKnownHosts('example.com $rsa'), presented('ed25519.pub')),
+        KnownHostStatus.differentKeyType,
+      );
     });
 
     test('a same-type mismatch outranks other key types', () {
@@ -110,7 +122,10 @@ void main() {
     });
 
     test('port is part of the identity', () {
-      expect(checkKnownHost(parseKnownHosts('example.com $ed25519'), presented('ed25519.pub', port: 2222)), KnownHostStatus.unknown);
+      expect(
+        checkKnownHost(parseKnownHosts('example.com $ed25519'), presented('ed25519.pub', port: 2222)),
+        KnownHostStatus.unknown,
+      );
     });
   });
 
@@ -133,7 +148,9 @@ void main() {
       final dir = await Directory.systemTemp.createTemp('omp-known-hosts');
       addTearDown(() => dir.delete(recursive: true));
       final file = File('${dir.path}/known_hosts');
-      file.writeAsStringSync('${knownHostsLine(presented('ed25519.pub', host: 'localhost', port: 22221), hashed: true)}\n');
+      file.writeAsStringSync(
+        '${knownHostsLine(presented('ed25519.pub', host: 'localhost', port: 22221), hashed: true)}\n',
+      );
       final found = await Process.run('ssh-keygen', ['-F', '[localhost]:22221', '-f', file.path]);
       expect(found.exitCode, 0, reason: '${found.stdout}${found.stderr}');
       final missing = await Process.run('ssh-keygen', ['-F', 'localhost', '-f', file.path]);

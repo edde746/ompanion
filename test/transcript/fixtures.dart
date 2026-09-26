@@ -25,7 +25,8 @@ List<Map<String, Object?>> _objects(Object? list) => [
   final decoder = RpcFrameDecoder();
   final answers = <String, Map<String, Object?>>{
     for (final line in File('${fixtureDir.path}/$name.in.jsonl').readAsLinesSync())
-      if (jsonDecode(line) case {'type': 'extension_ui_response', 'id': final String id} && final Map<String, Object?> a)
+      if (jsonDecode(line)
+          case {'type': 'extension_ui_response', 'id': final String id} && final Map<String, Object?> a)
         id: a,
   };
   var view = SessionView();

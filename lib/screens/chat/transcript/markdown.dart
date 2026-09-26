@@ -124,14 +124,15 @@ final class PipeTable extends MarkdownBlockSyntax {
     }
     final aligns = [
       for (final cell in delimiter)
-        cell.endsWith(':')
-            ? (cell.startsWith(':') ? TextAlign.center : TextAlign.right)
-            : TextAlign.left,
+        cell.endsWith(':') ? (cell.startsWith(':') ? TextAlign.center : TextAlign.right) : TextAlign.left,
     ];
     final rows = [
       header,
       for (final line in lines.sublist(startLine + 2, end))
-        [for (final (index, cell) in tableCells(line).take(header.length).indexed) if (index < header.length) cell],
+        [
+          for (final (index, cell) in tableCells(line).take(header.length).indexed)
+            if (index < header.length) cell,
+        ],
     ];
     for (final row in rows) {
       while (row.length < header.length) {
@@ -326,7 +327,10 @@ class _TableViewState extends State<_TableView> {
             controller: _scroll,
             child: SideScrollView(
               controller: _scroll,
-              child: ConstrainedBox(constraints: BoxConstraints(minWidth: width), child: grid),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: width),
+                child: grid,
+              ),
             ),
           ),
         );
@@ -504,10 +508,7 @@ class _RemoteImageState extends State<_RemoteImage> {
       message: widget.url,
       child: Container(
         padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(AppSizes.radius),
-        ),
+        decoration: BoxDecoration(color: scheme.surfaceContainer, borderRadius: BorderRadius.circular(AppSizes.radius)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -589,7 +590,9 @@ String rewriteDollarMath(String source) {
     if (fence != null) {
       out.write('$line$newline');
       final trimmed = line.trimLeft();
-      if (line.length - trimmed.length <= 3 && trimmed.startsWith(fence * fenceRun) && trimmed.replaceAll(fence, '').trim().isEmpty) {
+      if (line.length - trimmed.length <= 3 &&
+          trimmed.startsWith(fence * fenceRun) &&
+          trimmed.replaceAll(fence, '').trim().isEmpty) {
         fence = null;
       }
       continue;
@@ -956,11 +959,7 @@ final _styleSheets = Expando<GptMarkdownStyleSheet>();
 
 GptMarkdownStyleSheet _styleSheet(ColorScheme scheme) => _styleSheets[scheme] ??= GptMarkdownStyleSheet(
   heading: const HeadingStyle(showDivider: false),
-  link: LinkStyle(
-    color: scheme.onSurface,
-    hoverColor: scheme.onSurfaceVariant,
-    decoration: TextDecoration.underline,
-  ),
+  link: LinkStyle(color: scheme.onSurface, hoverColor: scheme.onSurfaceVariant, decoration: TextDecoration.underline),
   inlineCode: InlineCodeStyle(backgroundColor: scheme.surfaceContainerHigh, borderWidth: 0),
   blockQuote: BlockQuoteStyle(textStyle: TextStyle(color: scheme.onSurfaceVariant)),
   // Tables without a leading pipe still use gpt_markdown's table: flat, like [PipeTable]'s.

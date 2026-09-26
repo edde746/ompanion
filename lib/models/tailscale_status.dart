@@ -87,10 +87,9 @@ List<String> _strings(Object? value) {
 
 /// Prefill for a machine on [peer], dialed by MagicDNS name with Tailscale SSH (`none` auth) as the user
 /// [user]. The peer's control-plane host keys are trusted on save, so the first connection needs no prompt.
-MachineDraft draftFromTailscalePeer(TailscalePeer peer, {required String user, required DateTime now}) =>
-    MachineDraft(
-      name: peer.hostName.isNotEmpty ? peer.hostName : peer.dialHost,
-      target: EndpointDraft(host: peer.dialHost, user: user, auth: AuthMethod.none),
-      tailscale: true,
-      hostKeys: knownHostRowsFromLines(peer.dialHost, 22, peer.sshHostKeys, now),
-    );
+MachineDraft draftFromTailscalePeer(TailscalePeer peer, {required String user, required DateTime now}) => MachineDraft(
+  name: peer.hostName.isNotEmpty ? peer.hostName : peer.dialHost,
+  target: EndpointDraft(host: peer.dialHost, user: user, auth: AuthMethod.none),
+  tailscale: true,
+  hostKeys: knownHostRowsFromLines(peer.dialHost, 22, peer.sshHostKeys, now),
+);

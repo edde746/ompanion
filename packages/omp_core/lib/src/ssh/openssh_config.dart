@@ -133,8 +133,11 @@ Future<SshResolvedHost> resolveSshAlias(String alias, {String? user, int? port, 
 }
 
 /// Replaces a leading `~` with [home].
-String expandHome(String path, String home) =>
-    path == '~' ? home : path.startsWith('~/') ? '$home${path.substring(1)}' : path;
+String expandHome(String path, String home) => path == '~'
+    ? home
+    : path.startsWith('~/')
+    ? '$home${path.substring(1)}'
+    : path;
 
 /// The keys `ssh` would offer one host: the agent's, then [files] (see `pubkey_prepare` in OpenSSH's sshconnect2.c).
 final class SshIdentities {
@@ -280,7 +283,10 @@ Future<List<String>> _glob(String pattern) async {
     }
     matches = next;
   }
-  return [for (final path in matches) if (await File(path).exists()) path];
+  return [
+    for (final path in matches)
+      if (await File(path).exists()) path,
+  ];
 }
 
 RegExp _globRegExp(String segment) {

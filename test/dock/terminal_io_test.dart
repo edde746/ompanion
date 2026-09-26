@@ -66,13 +66,10 @@ void main() {
         shell: r'C:\Program Files\PowerShell\7\pwsh.exe',
         cwd: r"C:\Users\o'brien",
       );
-      expect(
-        powershell,
-        (
-          command: r"Set-Location -LiteralPath 'C:\Users\o''brien'; & 'C:\Program Files\PowerShell\7\pwsh.exe' -NoLogo",
-          startLine: null,
-        ),
-      );
+      expect(powershell, (
+        command: r"Set-Location -LiteralPath 'C:\Users\o''brien'; & 'C:\Program Files\PowerShell\7\pwsh.exe' -NoLogo",
+        startLine: null,
+      ));
     });
 
     test('the ready line is taken out of the output, even split across chunks', () {
@@ -86,7 +83,10 @@ void main() {
 
       // A shell tracing the command prints the marker mid-line first; only the line itself counts.
       final traced = TerminalReadyFilter();
-      expect(traced.add(ascii.encode("+ echo OMPANION_TERMINAL_READY; IFS= read\r\nOMPANION_TERMINAL_READY\r")), isEmpty);
+      expect(
+        traced.add(ascii.encode("+ echo OMPANION_TERMINAL_READY; IFS= read\r\nOMPANION_TERMINAL_READY\r")),
+        isEmpty,
+      );
       expect(ascii.decode(traced.add(ascii.encode('\nok'))), '+ echo OMPANION_TERMINAL_READY; IFS= read\r\nok');
 
       final failed = TerminalReadyFilter();
@@ -94,45 +94,56 @@ void main() {
       expect(ascii.decode(failed.close()), 'sh: not found\r\n');
     });
 
-    test('the PTY takes sizes at once; the directory waits for the ready line, and keystrokes for the directory', () async {
-      final link = _PtyLink();
-      const launch = (command: posixTerminalCommand, startLine: '/srv/app\n');
-      final started = SshTerminalBackend.start(link, launch, columns: 80, rows: 24);
-      final process = await link.started.future;
-      final backend = await started;
-      expect(link.command, posixTerminalCommand);
-      final shown = StringBuffer();
-      final done = backend.output.listen((bytes) => shown.write(utf8.decode(bytes))).asFuture<void>();
+    test(
+      'the PTY takes sizes at once; the directory waits for the ready line, and keystrokes for the directory',
+      () async {
+        final link = _PtyLink();
+        const launch = (command: posixTerminalCommand, startLine: '/srv/app\n');
+        final started = SshTerminalBackend.start(link, launch, columns: 80, rows: 24);
+        final process = await link.started.future;
+        final backend = await started;
+        expect(link.command, posixTerminalCommand);
+        final shown = StringBuffer();
+        final done = backend.output.listen((bytes) => shown.write(utf8.decode(bytes))).asFuture<void>();
 
-      // Before the login shell exists, the view's size already reaches the PTY; typing waits.
-      backend.resize(100, 40, 0, 0);
-      backend.write(encodeTerminalInput('ls\r'));
-      expect(process.sizes, [(100, 40)]);
-      process.emit('Last login: today\r\n');
-      await pumpEventQueue();
-      expect(process.written, isEmpty);
+        // Before the login shell exists, the view's size already reaches the PTY; typing waits.
+        backend.resize(100, 40, 0, 0);
+        backend.write(encodeTerminalInput('ls\r'));
+        expect(process.sizes, [(100, 40)]);
+        process.emit('Last login: today\r\n');
+        await pumpEventQueue();
+        expect(process.written, isEmpty);
 
-      process.emit('OMPANION_TERMINAL_READY\n');
-      await pumpEventQueue();
-      expect(process.written, ['/srv/app\n', 'ls\r']);
-      backend.write(encodeTerminalInput('pwd\r'));
-      expect(process.written, ['/srv/app\n', 'ls\r', 'pwd\r']);
+        process.emit('OMPANION_TERMINAL_READY\n');
+        await pumpEventQueue();
+        expect(process.written, ['/srv/app\n', 'ls\r']);
+        backend.write(encodeTerminalInput('pwd\r'));
+        expect(process.written, ['/srv/app\n', 'ls\r', 'pwd\r']);
 
-      process.emit('~/srv/app \$ ');
-      await process.end();
-      await done;
-      expect(shown.toString(), 'Last login: today\r\n~/srv/app \$ ');
-    });
+        process.emit('~/srv/app \$ ');
+        await process.end();
+        await done;
+        expect(shown.toString(), 'Last login: today\r\n~/srv/app \$ ');
+      },
+    );
 
     test('a shell that ends before the ready line shows why', () async {
       final link = _PtyLink();
-      final started = SshTerminalBackend.start(link, (command: posixTerminalCommand, startLine: '\n'), columns: 80, rows: 24);
+      final started = SshTerminalBackend.start(
+        link,
+        (command: posixTerminalCommand, startLine: '\n'),
+        columns: 80,
+        rows: 24,
+      );
       final process = await link.started.future;
       final backend = await started;
       backend.write(encodeTerminalInput('ls\r'));
       process.emit('This account is currently not available.\r\n');
       await process.end();
-      expect(utf8.decode((await backend.output.toList()).expand((bytes) => bytes).toList()), 'This account is currently not available.\r\n');
+      expect(
+        utf8.decode((await backend.output.toList()).expand((bytes) => bytes).toList()),
+        'This account is currently not available.\r\n',
+      );
       expect(process.written, isEmpty);
     });
   });
@@ -149,11 +160,18 @@ void main() {
     });
 
     test("without SHELL the account's shell from the user database, else /bin/sh", () {
-      final account = localShell(windows: false, environment: const {'USER': 'me'}, accountShell: '/opt/homebrew/bin/fish');
+      final account = localShell(
+        windows: false,
+        environment: const {'USER': 'me'},
+        accountShell: '/opt/homebrew/bin/fish',
+      );
       expect(account.executable, '/opt/homebrew/bin/fish');
       expect(account.arguments, ['-l']);
       // The environment's own SHELL wins over the database.
-      expect(localShell(windows: false, environment: const {'SHELL': '/bin/zsh'}, accountShell: '/bin/bash').executable, '/bin/zsh');
+      expect(
+        localShell(windows: false, environment: const {'SHELL': '/bin/zsh'}, accountShell: '/bin/bash').executable,
+        '/bin/zsh',
+      );
       expect(localShell(windows: false, environment: const {}, accountShell: null).executable, '/bin/sh');
       // A development home keeps the account's shell but not its login profile.
       final isolated = localShell(

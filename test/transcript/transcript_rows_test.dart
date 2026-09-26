@@ -112,7 +112,9 @@ void main() {
       expect(footer(assistant(1, const [TextBlock('a')], stopReason: StopReason.error)), isTrue);
       expect(footer(assistant(1, const [], stopReason: StopReason.aborted)), isTrue);
       expect(
-        footer(assistant(1, const [TextBlock('a')], stopReason: StopReason.aborted, errorMessage: '__omp.silent_abort__')),
+        footer(
+          assistant(1, const [TextBlock('a')], stopReason: StopReason.aborted, errorMessage: '__omp.silent_abort__'),
+        ),
         isFalse,
       );
     });
@@ -159,8 +161,16 @@ void main() {
     test('rows of an unchanged item are the same instances, so their widgets are reused', () {
       final first = user(1, 'a');
       final done = assistant(2, const [TextBlock('b')]);
-      final before = rowsOf([first, done, assistant(3, const [TextBlock('c')], streaming: true)]);
-      final after = rowsOf([first, done, assistant(3, const [TextBlock('cd')], streaming: true)]);
+      final before = rowsOf([
+        first,
+        done,
+        assistant(3, const [TextBlock('c')], streaming: true),
+      ]);
+      final after = rowsOf([
+        first,
+        done,
+        assistant(3, const [TextBlock('cd')], streaming: true),
+      ]);
       expect(after[0], same(before[0]));
       expect(after[1], same(before[1]));
       expect(after.last, isNot(same(before.last)));
@@ -176,7 +186,13 @@ void main() {
       ..add([first, assistant(2, const [], streaming: true)])
       ..add([first, asking])
       ..add([first, asking, result('c1')])
-      ..add([result('c0'), first, asking, result('c1'), assistant(3, const [TextBlock('done')])])
+      ..add([
+        result('c0'),
+        first,
+        asking,
+        result('c1'),
+        assistant(3, const [TextBlock('done')]),
+      ])
       ..add([first]);
     final model = TranscriptRowModel();
     for (final step in steps) {
@@ -261,12 +277,14 @@ void main() {
     });
 
     test('a turn aborted mid-tool shows no last message: its work folds and the interruption shows', () {
-      final rows = (folding({})..update([
-        q1,
-        s1,
-        result('c1', state: ToolState.interrupted),
-        assistant(3000, const [], stopReason: StopReason.aborted),
-      ])).rows;
+      final rows =
+          (folding({})..update([
+                q1,
+                s1,
+                result('c1', state: ToolState.interrupted),
+                assistant(3000, const [], stopReason: StopReason.aborted),
+              ]))
+              .rows;
       expect(shown(rows), ['user a', 'summary', 'footer aborted']);
     });
 
@@ -292,7 +310,10 @@ void main() {
     });
 
     test('a turn with no work has no summary row', () {
-      final transcript = [q1, assistant(2000, const [TextBlock('hi')], usage: const Usage(input: 1))];
+      final transcript = [
+        q1,
+        assistant(2000, const [TextBlock('hi')], usage: const Usage(input: 1)),
+      ];
       expect(shown((folding({})..update(transcript)).rows), ['user a', 'text hi', 'footer stop']);
     });
 
@@ -301,7 +322,16 @@ void main() {
       expect(shown(model.rows), ['user a', 'summary', 'text Done.', 'user b', 'tool c2', 'text Also done.']);
       final settled = [for (final row in model.rows.take(3)) row.content];
 
-      model.update([q1, s1, r1, a1, q2, s2, r2, assistant(6000, const [TextBlock('Also done, twice.')])], live: true);
+      model.update([
+        q1,
+        s1,
+        r1,
+        a1,
+        q2,
+        s2,
+        r2,
+        assistant(6000, const [TextBlock('Also done, twice.')]),
+      ], live: true);
       expect(shown(model.rows), ['user a', 'summary', 'text Done.', 'user b', 'tool c2', 'text Also done, twice.']);
       expect([for (final row in model.rows.take(3)) row.content], settled, reason: 'streaming leaves settled turns');
 
@@ -379,7 +409,17 @@ void main() {
         ([q1, s1, r1, a1], true),
         ([q1, s1, r1, a1], false),
         ([q1, s1, r1, a1, q2], true),
-        ([q1, s1, r1, a1, q2, assistant(5000, [call('c2')], streaming: true)], true),
+        (
+          [
+            q1,
+            s1,
+            r1,
+            a1,
+            q2,
+            assistant(5000, [call('c2')], streaming: true),
+          ],
+          true,
+        ),
         ([q1, s1, r1, a1, q2, s2, result('c2', state: ToolState.running)], true),
         ([q1, s1, r1, a1, q2, s2, result('c2', state: ToolState.interrupted), aborted], true),
         ([q1, s1, r1, a1, q2, s2, result('c2', state: ToolState.interrupted), aborted], false),
@@ -406,7 +446,18 @@ void main() {
     test('omp tool names pick their cards', () {
       expect(
         {
-          for (final name in ['bash', 'read', 'edit', 'apply_patch', 'write', 'todo', 'task', 'ask', 'web_search', 'eval'])
+          for (final name in [
+            'bash',
+            'read',
+            'edit',
+            'apply_patch',
+            'write',
+            'todo',
+            'task',
+            'ask',
+            'web_search',
+            'eval',
+          ])
             name: toolKindFor(name),
         },
         {

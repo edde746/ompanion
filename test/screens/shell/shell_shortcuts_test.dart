@@ -53,7 +53,6 @@ final class _Omp implements LineChannel {
 
 /// A session whose run streams.
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   final omp = _Omp();
@@ -127,11 +126,7 @@ void main() {
     final attached = session.rpc.attach();
     await tester.pump();
     await attached;
-    final sessions = _Sessions(
-      session,
-      connector: MachineConnector(secrets, KnownHostsStore(db)),
-      machines: machines,
-    );
+    final sessions = _Sessions(session, connector: MachineConnector(secrets, KnownHostsStore(db)), machines: machines);
     final shell = ShellProvider()..select(const SessionSelection());
 
     await tester.pumpWidget(
@@ -192,11 +187,7 @@ void main() {
     final attached = session.rpc.attach();
     await tester.pump();
     await attached;
-    final sessions = _Sessions(
-      session,
-      connector: MachineConnector(secrets, KnownHostsStore(db)),
-      machines: machines,
-    );
+    final sessions = _Sessions(session, connector: MachineConnector(secrets, KnownHostsStore(db)), machines: machines);
     final shell = ShellProvider()..select(const SessionSelection());
 
     await tester.pumpWidget(

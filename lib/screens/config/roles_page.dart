@@ -132,7 +132,8 @@ class _RolesPageState extends State<RolesPage> {
                 ].join('\n'),
           actions: [
             TextButton.icon(
-              onPressed: () => runReporting(context, () => _models(refresh: true), done: t.config.roles.modelsRefreshed),
+              onPressed: () =>
+                  runReporting(context, () => _models(refresh: true), done: t.config.roles.modelsRefreshed),
               icon: const Icon(Icons.sync),
               label: Text(t.config.roles.refreshModels),
             ),
@@ -192,7 +193,9 @@ class _RoleCard extends StatelessWidget {
         Expanded(
           child: Text(
             value ?? t.config.roles.auto,
-            style: value == null ? theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant) : mono,
+            style: value == null
+                ? theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)
+                : mono,
           ),
         ),
         TextButton(
@@ -221,7 +224,12 @@ class _RoleCard extends StatelessWidget {
               children: [
                 Text(role.name, style: theme.textTheme.titleSmall),
                 const SizedBox(width: 8),
-                Text(role.role, style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: theme.colorScheme.onSurfaceVariant)),
+                Text(
+                  role.role,
+                  style: codeTextStyle(
+                    theme,
+                  ).copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: theme.colorScheme.onSurfaceVariant),
+                ),
                 const Spacer(),
                 if (busy) const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
               ],

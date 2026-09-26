@@ -9,7 +9,12 @@ import 'package:test/test.dart';
 void main() {
   test('the run overlay nests dotted keys and always turns speech off', () {
     expect(
-      renderOverlay({'tools.approvalMode': 'always-ask', 'speech.enabled': 'true', 'a.b.c': '[1, 2]', 'odd key': '"x"'}),
+      renderOverlay({
+        'tools.approvalMode': 'always-ask',
+        'speech.enabled': 'true',
+        'a.b.c': '[1, 2]',
+        'odd key': '"x"',
+      }),
       'tools:\n'
       '  approvalMode: always-ask\n'
       'speech:\n'
@@ -76,7 +81,11 @@ void main() {
     expect(statuses, [isA<MachineOnline>()], reason: 'the link stayed up, so no connecting or offline in between');
     expect(identical(runtime.link, link), isTrue);
     expect((await runtime.connectAndProbe()).ompVersion, '18.3.1');
-    expect(Directory('${home.path}/.ompanion/companion/18.3.1').listSync(), hasLength(1), reason: 'the companion was uploaded');
+    expect(
+      Directory('${home.path}/.ompanion/companion/18.3.1').listSync(),
+      hasLength(1),
+      reason: 'the companion was uploaded',
+    );
   });
 
   test('ffmpeg is looked up once per connection, and again after a reconnect', () async {
@@ -85,10 +94,13 @@ void main() {
     final bin = Directory('${home.path}/bin')..createSync();
     final calls = File('${home.path}/ffmpeg-calls');
     final ffmpeg = File('${bin.path}/ffmpeg')
-      ..writeAsStringSync('#!/bin/sh\necho "\$*" >> "\$HOME/ffmpeg-calls"\necho " V....D libwebp   libwebp WebP image"\n');
+      ..writeAsStringSync(
+        '#!/bin/sh\necho "\$*" >> "\$HOME/ffmpeg-calls"\necho " V....D libwebp   libwebp WebP image"\n',
+      );
     await Process.run('chmod', ['755', ffmpeg.path]);
     final runtime = MachineRuntime(
-      connect: () async => LocalLink(environment: {'HOME': home.path, 'PATH': '${bin.path}:/usr/bin:/bin:/usr/sbin:/sbin'}),
+      connect: () async =>
+          LocalLink(environment: {'HOME': home.path, 'PATH': '${bin.path}:/usr/bin:/bin:/usr/sbin:/sbin'}),
       deviceId: 'device',
       companionBytes: (_) async => utf8.encode('// companion'),
       searchSystemPaths: false,

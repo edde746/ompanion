@@ -78,7 +78,8 @@ identityagent /run/agent.sock
     tearDown(() => dir.delete(recursive: true));
 
     test('matches the real ssh -G, with -l and -p overrides for jump hops', () async {
-      final config = File('${dir.path}/config')..writeAsStringSync('''
+      final config = File('${dir.path}/config')
+        ..writeAsStringSync('''
 Host app
   HostName app.internal
   User deploy
@@ -116,15 +117,28 @@ Host bastion
       const env = {'SSH_AUTH_SOCK': '/run/default.sock', 'OP_AGENT': '/run/1password.sock'};
       expect(resolve('', env).agentSocket, '/run/default.sock');
       expect(resolve('identityagent SSH_AUTH_SOCK\n', env).agentSocket, '/run/default.sock');
-      expect(resolve(r'identityagent $OP_AGENT' '\n', env).agentSocket, '/run/1password.sock');
-      expect(resolve('identityagent ~/My Agent/%r@%h.sock\n', env).agentSocket, '/home/me/My Agent/deploy@app.internal.sock');
+      expect(
+        resolve(
+          r'identityagent $OP_AGENT'
+          '\n',
+          env,
+        ).agentSocket,
+        '/run/1password.sock',
+      );
+      expect(
+        resolve('identityagent ~/My Agent/%r@%h.sock\n', env).agentSocket,
+        '/home/me/My Agent/deploy@app.internal.sock',
+      );
 
       final none = resolve('identityagent none\n', env);
       expect((none.agentSocket, none.agentProblem), (null, 'IdentityAgent is none'));
       final unset = resolve('');
       expect((unset.agentSocket, unset.agentProblem), (null, 'SSH_AUTH_SOCK is not set'));
       // ssh unsets the agent for an IdentityAgent variable that is not set.
-      final unsetVariable = resolve(r'identityagent $OP_AGENT' '\n');
+      final unsetVariable = resolve(
+        r'identityagent $OP_AGENT'
+        '\n',
+      );
       expect((unsetVariable.agentSocket, unsetVariable.agentProblem), (null, 'OP_AGENT is not set'));
     });
 
@@ -133,7 +147,8 @@ Host bastion
         'identitiesonly yes\n'
         'identityfile ~/keys/app key\n'
         'identityfile %d/.ssh/%r@%n_%p\n'
-        r'identityfile ${KEYS}/%u-%L-100%%' '\n',
+        r'identityfile ${KEYS}/%u-%L-100%%'
+        '\n',
         {'KEYS': '/vault', 'USER': 'me'},
       );
       expect(identities.files, [
@@ -146,7 +161,13 @@ Host bastion
 
     test('a token or variable ssh would reject fails', () {
       expect(() => resolve('identityfile ~/%x\n'), throwsFormatException);
-      expect(() => resolve(r'identityfile ${NOPE}/key' '\n'), throwsFormatException);
+      expect(
+        () => resolve(
+          r'identityfile ${NOPE}/key'
+          '\n',
+        ),
+        throwsFormatException,
+      );
     });
   });
 
@@ -164,7 +185,9 @@ Host bastion
 
     test('Host and Match blocks and Include files apply per host, in config order', () async {
       Directory('${dir.path}/conf.d').createSync();
-      File('${dir.path}/conf.d/app.conf').writeAsStringSync('Host app\n  HostName app.internal\n  IdentityAgent \$APP_AGENT\n');
+      File(
+        '${dir.path}/conf.d/app.conf',
+      ).writeAsStringSync('Host app\n  HostName app.internal\n  IdentityAgent \$APP_AGENT\n');
       File('${dir.path}/config').writeAsStringSync('''
 Include ${dir.path}/conf.d/*.conf
 Host app
@@ -178,11 +201,10 @@ Host *
       final app = await identities('app', user: 'deploy');
       expect(app.agentSocket, '/run/app.sock');
       expect(app.identitiesOnly, isTrue);
-      expect([for (final file in app.files) file.path], [
-        '${dir.path}/keys/app key',
-        '${dir.path}/.ssh/deploy_key',
-        '${dir.path}/.ssh/id_default',
-      ]);
+      expect(
+        [for (final file in app.files) file.path],
+        ['${dir.path}/keys/app key', '${dir.path}/.ssh/deploy_key', '${dir.path}/.ssh/id_default'],
+      );
 
       final other = await identities('other', user: 'me');
       expect(other.agentSocket, '/run/default.sock');
@@ -193,7 +215,10 @@ Host *
     test("without an IdentityFile ssh's default keys are tried", () async {
       File('${dir.path}/config').writeAsStringSync('Host app\n  HostName app.internal\n');
       final paths = [for (final file in (await identities('app')).files) file.path];
-      expect(paths, containsAll(['${dir.path}/.ssh/id_ed25519', '${dir.path}/.ssh/id_ecdsa', '${dir.path}/.ssh/id_rsa']));
+      expect(
+        paths,
+        containsAll(['${dir.path}/.ssh/id_ed25519', '${dir.path}/.ssh/id_ecdsa', '${dir.path}/.ssh/id_rsa']),
+      );
     });
   }, skip: hasSsh ? false : 'ssh not installed');
 
@@ -224,10 +249,17 @@ host "quoted name"
       File('${home.path}/.ssh/conf.d/.hidden.conf').writeAsStringSync('Host hidden\n');
       File('${home.path}/.ssh/nested').writeAsStringSync('Host nested\n');
       File('${home.path}/.ssh/extra').writeAsStringSync('Host extra\n');
-      expect(
-        await listSshConfigAliases(home: home.path),
-        ['alpha', 'beta', 'delta', 'epsilon', 'from-a', 'nested', 'from-b', 'extra', 'quoted name'],
-      );
+      expect(await listSshConfigAliases(home: home.path), [
+        'alpha',
+        'beta',
+        'delta',
+        'epsilon',
+        'from-a',
+        'nested',
+        'from-b',
+        'extra',
+        'quoted name',
+      ]);
     });
 
     test('an Include cycle stops at OpenSSH depth limit', () async {

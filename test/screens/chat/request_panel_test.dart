@@ -37,7 +37,6 @@ final class _Channel implements LineChannel {
 }
 
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   _Session(this._view);
@@ -95,7 +94,6 @@ final class _Session implements LiveSession {
   Future<void> stop() async {}
 }
 
-
 late AppDatabase _db;
 late MachinesProvider _machines;
 late SessionsProvider _sessions;
@@ -110,7 +108,9 @@ Widget _host(_Session session, {VoidCallback? onOutside}) => ChangeNotifierProvi
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Center(child: TextButton(onPressed: onOutside, child: const Text('Elsewhere'))),
+              child: Center(
+                child: TextButton(onPressed: onOutside, child: const Text('Elsewhere')),
+              ),
             ),
             RequestPanel(session: session),
           ],
@@ -187,7 +187,9 @@ void main() {
     expect(_sessions.draftOf(session).takeFocusRequest(), isTrue);
   });
 
-  testWidgets('select, confirm and input answer with value, confirmed and cancelled, one after another', (tester) async {
+  testWidgets('select, confirm and input answer with value, confirmed and cancelled, one after another', (
+    tester,
+  ) async {
     final session = _Session(
       SessionView(
         requests: const [
@@ -316,12 +318,17 @@ void main() {
       ],
     };
 
-    Map<String, Object?> answerOf(Map<String, Object?> line) => jsonDecode(line['value']! as String) as Map<String, Object?>;
+    Map<String, Object?> answerOf(Map<String, Object?> line) =>
+        jsonDecode(line['value']! as String) as Map<String, Object?>;
 
     testWidgets('submits one result per question with the recommended preselected', (tester) async {
       tester.view.physicalSize = const Size(2400, 3600);
       addTearDown(tester.view.resetPhysicalSize);
-      final session = _Session(SessionView(requests: const [CompanionRequest('q1', method: 'ask', params: params)]));
+      final session = _Session(
+        SessionView(
+          requests: const [CompanionRequest('q1', method: 'ask', params: params)],
+        ),
+      );
       await _pump(tester, session);
       expect(find.text('Color'), findsOneWidget);
       expect(find.text('Recommended'), findsOneWidget);
@@ -424,7 +431,11 @@ void main() {
     tester.view.physicalSize = const Size(390 * 3, 844 * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
-    final session = _Session(SessionView(requests: const [ConfirmRequest('c1', title: 'Proceed?', message: 'Sure?')]));
+    final session = _Session(
+      SessionView(
+        requests: const [ConfirmRequest('c1', title: 'Proceed?', message: 'Sure?')],
+      ),
+    );
     await _pump(tester, session);
     expect(find.byType(BottomSheet), findsNothing);
     await tester.tap(find.widgetWithText(FilledButton, 'No'));
@@ -447,7 +458,9 @@ void main() {
       });
     });
 
-    tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+    tearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null),
+    );
 
     testWidgets('a web link opens in the browser', (tester) async {
       const url = 'https://auth.example.com/authorize?client_id=omp';

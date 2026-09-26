@@ -55,10 +55,13 @@ final class ToolData {
   };
 
   /// The harness intent (`i`).
-  String? get intent => row.call?.intent ?? result?.intent ?? switch (args['i']) {
-    final String intent => intent,
-    _ => null,
-  };
+  String? get intent =>
+      row.call?.intent ??
+      result?.intent ??
+      switch (args['i']) {
+        final String intent => intent,
+        _ => null,
+      };
 
   Object? get details => result?.details;
 
@@ -183,7 +186,9 @@ class _ToolCardState extends State<ToolCard> {
                             child: Text(
                               fact,
                               style: theme.textTheme.labelSmall?.copyWith(
-                                color: data.status == ToolStatus.failed ? AppColors.of(context).error : scheme.onSurfaceVariant,
+                                color: data.status == ToolStatus.failed
+                                    ? AppColors.of(context).error
+                                    : scheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -383,8 +388,7 @@ class JsonView extends StatelessWidget {
         child: CappedLines(
           lines: lines,
           max: max,
-          builder: (context, start, end) =>
-              Text(lines.sublist(start, end).join('\n'), style: codeTextStyle(theme)),
+          builder: (context, start, end) => Text(lines.sublist(start, end).join('\n'), style: codeTextStyle(theme)),
         ),
       ),
     );

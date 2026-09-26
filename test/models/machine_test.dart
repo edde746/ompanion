@@ -35,18 +35,21 @@ void main() {
       expect(read.updatedAt, updated);
       expect(read.sshConfigAlias, 'lab');
       expect(read.tailscale, isTrue);
-      expect([for (final hop in read.hops) (hop.id, hop.label, hop.auth, hop.keyId)], [
-        ('jump-a', 'ops@bastion.example.com', AuthMethod.key, 'key-a'),
-        ('jump-b', 'tunnel@relay:2200', AuthMethod.agent, null),
-        ('target', 'dev@localhost:2222', AuthMethod.password, null),
-      ]);
+      expect(
+        [for (final hop in read.hops) (hop.id, hop.label, hop.auth, hop.keyId)],
+        [
+          ('jump-a', 'ops@bastion.example.com', AuthMethod.key, 'key-a'),
+          ('jump-b', 'tunnel@relay:2200', AuthMethod.agent, null),
+          ('target', 'dev@localhost:2222', AuthMethod.password, null),
+        ],
+      );
     });
 
     test('jump rows carry their position in the chain', () {
-      expect([for (final row in machineJumpRows(machine)) (row.id, row.position, row.machineId)], [
-        ('jump-a', 0, 'target'),
-        ('jump-b', 1, 'target'),
-      ]);
+      expect(
+        [for (final row in machineJumpRows(machine)) (row.id, row.position, row.machineId)],
+        [('jump-a', 0, 'target'), ('jump-b', 1, 'target')],
+      );
     });
 
     test('this computer has no SSH columns and no jumps', () {
@@ -75,11 +78,10 @@ void main() {
     test('every hop gets its own credentials, jumps first', () {
       final plan = sshTargetFor(machine, secrets, keyboardInteractive: noPrompts, passphrase: noPassphrase);
 
-      expect([for (final hop in plan.hops) hop.label], [
-        'ops@bastion.example.com',
-        'tunnel@relay:2200',
-        'dev@localhost:2222',
-      ]);
+      expect(
+        [for (final hop in plan.hops) hop.label],
+        ['ops@bastion.example.com', 'tunnel@relay:2200', 'dev@localhost:2222'],
+      );
       final key = plan.jumps[0].auth as SshKeyAuth;
       expect((key.privateKeyPem, key.passphrase, key.name), ('PEM-A', 'pass-a', 'Laptop'));
       expect((plan.target.auth as SshPasswordAuth).password, 'hunter2');
@@ -116,7 +118,12 @@ void main() {
         jumps: const [SshEndpoint(id: 'otp', host: 'gate', user: 'me', auth: AuthMethod.keyboardInteractive)],
       );
 
-      final plan = sshTargetFor(tailnet, const ConnectionSecrets(), keyboardInteractive: noPrompts, passphrase: noPassphrase);
+      final plan = sshTargetFor(
+        tailnet,
+        const ConnectionSecrets(),
+        keyboardInteractive: noPrompts,
+        passphrase: noPassphrase,
+      );
 
       expect(plan.target.auth, isA<SshNoneAuth>());
       expect((plan.jumps.single.auth as SshKeyboardInteractiveAuth).respond, same(noPrompts));

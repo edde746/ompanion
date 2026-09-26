@@ -50,7 +50,13 @@ void main() {
     sessions = FakeSessions(testMachine, runtime)
       ..onControl = (() async => control)
       ..activeSession = project;
-    await tester.pumpWidget(configHost(SettingsPage(target: ConfigTarget(machine: testMachine, sessions: sessions))));
+    await tester.pumpWidget(
+      configHost(
+        SettingsPage(
+          target: ConfigTarget(machine: testMachine, sessions: sessions),
+        ),
+      ),
+    );
     await tester.pump();
   }
 

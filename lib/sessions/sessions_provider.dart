@@ -133,8 +133,7 @@ class SessionsProvider extends ChangeNotifier {
   TurnExpansion turnsOf(LiveSession session) => _turns.putIfAbsent(session, TurnExpansion.new);
 
   /// The deadlines of [session]'s timed dialogs, counted from when the session was opened here or the dialog arrived.
-  RequestDeadlines deadlinesOf(LiveSession session) =>
-      _deadlines.putIfAbsent(session, () => RequestDeadlines(session));
+  RequestDeadlines deadlinesOf(LiveSession session) => _deadlines.putIfAbsent(session, () => RequestDeadlines(session));
 
   /// Opens [request] on [machine] and makes it [active]. A session this device already has open is selected
   /// instead of opened twice; one whose link closed is opened again in its place.
@@ -262,10 +261,7 @@ class SessionsProvider extends ChangeNotifier {
       final sessions = await runtime.listSessions();
       // An edit of the machine's route replaced the runtime meanwhile; this listing is of the old place.
       if (!identical(_runtimes[machine.id], runtime)) return;
-      _setListing(
-        machine.id,
-        SessionListing(sessions: sessions, loadedAt: DateTime.now()),
-      );
+      _setListing(machine.id, SessionListing(sessions: sessions, loadedAt: DateTime.now()));
     } on Object catch (error) {
       if (!identical(_runtimes[machine.id], runtime)) return;
       _setListing(machine.id, listingOf(machine).copyWith(loading: false, error: error));
@@ -286,9 +282,12 @@ class SessionsProvider extends ChangeNotifier {
       // A failed fetch is not cached; the caller still gets the error. The handler returns nothing: a returned future
       // would be adopted and fail this unawaited chain too.
       unawaited(
-        models.then((_) {}, onError: (Object _) {
-          _models.remove(key);
-        }),
+        models.then(
+          (_) {},
+          onError: (Object _) {
+            _models.remove(key);
+          },
+        ),
       );
       return models;
     });

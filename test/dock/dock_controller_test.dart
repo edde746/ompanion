@@ -55,7 +55,12 @@ void main() {
       }
     }
 
-    final machine = LocalMachine(id: 'local', name: 'This computer', createdAt: DateTime(2026), updatedAt: DateTime(2026));
+    final machine = LocalMachine(
+      id: 'local',
+      name: 'This computer',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
     await machines.save(machine);
     await until(() => machines.byId('local') != null);
 

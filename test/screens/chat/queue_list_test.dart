@@ -46,7 +46,9 @@ final class _Omp implements LineChannel {
       if (json['message'] case final String message when message.startsWith('/ompx ')) {
         final call = jsonDecode(message.substring('/ompx '.length)) as Map<String, Object?>;
         calls.add({'verb': call['verb'], 'args': call['args']});
-        _lines.add(jsonEncode({'type': 'ompx', 'kind': 'reply', 'callId': call['callId'], 'ok': true, 'result': result}));
+        _lines.add(
+          jsonEncode({'type': 'ompx', 'kind': 'reply', 'callId': call['callId'], 'ok': true, 'result': result}),
+        );
       }
     });
   }
@@ -56,7 +58,6 @@ final class _Omp implements LineChannel {
 }
 
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   _Session(Map<String, Object?> popped, {this.steering = 'queued message'}) : omp = _Omp(popped);
@@ -71,7 +72,9 @@ final class _Session implements LiveSession {
   late final CompanionClient companion = CompanionClient(rpc);
 
   @override
-  SessionView get view => SessionView(queue: QueueState(count: 2, steering: [steering], followUp: const ['later']));
+  SessionView get view => SessionView(
+    queue: QueueState(count: 2, steering: [steering], followUp: const ['later']),
+  );
 
   @override
   Stream<SessionView> get views => const Stream.empty();
@@ -147,13 +150,18 @@ void main() {
     final draft = sessions.draftOf(session)
       ..replace(
         'half typed',
-        attachments: const [ImageAttachment(RpcImage(data: 'DRAFT', mimeType: 'image/png')), TextAttachment('pasted')],
+        attachments: const [
+          ImageAttachment(RpcImage(data: 'DRAFT', mimeType: 'image/png')),
+          TextAttachment('pasted'),
+        ],
       );
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: sessions,
         child: TranslationProvider(
-          child: MaterialApp(home: Scaffold(body: QueueList(session: session))),
+          child: MaterialApp(
+            home: Scaffold(body: QueueList(session: session)),
+          ),
         ),
       ),
     );
@@ -174,26 +182,37 @@ void main() {
     TextAttachment(:final text) => 'text $text',
   };
 
-  testWidgets('editing a queued message takes it back ahead of the draft and its images after the draft\'s attachments', (
-    tester,
-  ) async {
-    final (session, draft) = await pumpQueue(tester);
-    await tester.tap(find.descendant(of: find.byKey(const ValueKey('queued-steering-0')), matching: find.byTooltip('Edit in the composer')));
-    await tester.pump();
-    await tester.pump();
+  testWidgets(
+    'editing a queued message takes it back ahead of the draft and its images after the draft\'s attachments',
+    (tester) async {
+      final (session, draft) = await pumpQueue(tester);
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('queued-steering-0')),
+          matching: find.byTooltip('Edit in the composer'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
 
-    expect(session.omp.calls.single, {
-      'verb': 'queue.take',
-      'args': {'mode': 'steering', 'index': 0},
-    });
-    expect(draft.text.text, 'queued message\n\nhalf typed');
-    expect(draft.attachments.map(describe), ['image DRAFT', 'text pasted', 'image QUEUED']);
-    await tearDownProviders(tester);
-  });
+      expect(session.omp.calls.single, {
+        'verb': 'queue.take',
+        'args': {'mode': 'steering', 'index': 0},
+      });
+      expect(draft.text.text, 'queued message\n\nhalf typed');
+      expect(draft.attachments.map(describe), ['image DRAFT', 'text pasted', 'image QUEUED']);
+      await tearDownProviders(tester);
+    },
+  );
 
   testWidgets('removing a queued message leaves the draft alone', (tester) async {
     final (session, draft) = await pumpQueue(tester);
-    await tester.tap(find.descendant(of: find.byKey(const ValueKey('queued-followUp-0')), matching: find.byTooltip('Remove from the queue')));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('queued-followUp-0')),
+        matching: find.byTooltip('Remove from the queue'),
+      ),
+    );
     await tester.pump();
     await tester.pump();
 

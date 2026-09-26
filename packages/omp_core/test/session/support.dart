@@ -96,13 +96,15 @@ final class ProxyRecorder {
     });
   }
 
-  static Future<ProxyRecorder> start() async => ProxyRecorder._(await ServerSocket.bind(InternetAddress.loopbackIPv4, 0));
+  static Future<ProxyRecorder> start() async =>
+      ProxyRecorder._(await ServerSocket.bind(InternetAddress.loopbackIPv4, 0));
 
   final ServerSocket _server;
   final requests = <String>[];
 
   Map<String, String> get environment => {
-    for (final name in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']) name: 'http://127.0.0.1:${_server.port}',
+    for (final name in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'])
+      name: 'http://127.0.0.1:${_server.port}',
     for (final name in ['NO_PROXY', 'no_proxy']) name: '127.0.0.1,localhost',
   };
 

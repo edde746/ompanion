@@ -14,7 +14,11 @@ import '../rpc/scripted_channel.dart' show readyFrame, response;
 /// companion loaded. Tests script everything else through [onCommand] and [emit].
 final class FakeRun {
   /// [ready]: omp got as far as its `ready` line.
-  FakeRun({this.sessionFile = '/home/me/.omp/agent/sessions/-work/s1.jsonl', this.sessionId = 's1', bool ready = true}) {
+  FakeRun({
+    this.sessionFile = '/home/me/.omp/agent/sessions/-work/s1.jsonl',
+    this.sessionId = 's1',
+    bool ready = true,
+  }) {
     if (ready) emit(readyFrame);
   }
 

@@ -463,7 +463,13 @@ final class ApprovalRequest extends UiRequest {
 }
 
 final class ConfirmRequest extends UiRequest {
-  const ConfirmRequest(super.id, {required this.title, required this.message, this.timeout, this.toolCallIds = const []});
+  const ConfirmRequest(
+    super.id, {
+    required this.title,
+    required this.message,
+    this.timeout,
+    this.toolCallIds = const [],
+  });
 
   final String title;
   final String message;

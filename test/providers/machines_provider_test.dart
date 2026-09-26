@@ -83,47 +83,60 @@ void main() {
     expect(await db.select(db.machineJumps).get(), isEmpty);
   });
 
-  test('an imported key for a host trusted with another key is trusted only once the user confirms that host', () async {
-    final ed25519 = generateEd25519Key().publicKey;
-    final ecdsa = SshPublicKey.parse(
-      'ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFHCjHHkyHlZM7oIFdfJJ9SEHnTxNIdCaR87+lpDDrgJpK6FgI9mKZL4CPScjRW1Oz0t3HzAcKIENX2kagJKp0Y=',
-    );
-    await db.into(db.knownHosts).insert(
-      KnownHostRow(
+  test(
+    'an imported key for a host trusted with another key is trusted only once the user confirms that host',
+    () async {
+      final ed25519 = generateEd25519Key().publicKey;
+      final ecdsa = SshPublicKey.parse(
+        'ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFHCjHHkyHlZM7oIFdfJJ9SEHnTxNIdCaR87+lpDDrgJpK6FgI9mKZL4CPScjRW1Oz0t3HzAcKIENX2kagJKp0Y=',
+      );
+      await db
+          .into(db.knownHosts)
+          .insert(
+            KnownHostRow(
+              host: 'prod',
+              port: 22,
+              keyType: ed25519.type,
+              keyBlob: base64.encode(ed25519.blob),
+              fingerprint: ed25519.fingerprint,
+              addedAt: now,
+            ),
+          );
+      // A crafted export: a new machine on prod, and someone else's ECDSA key for prod.
+      final export = jsonEncode({
+        'format': machineExportFormat,
+        'version': machineExportVersion,
+        'machines': [
+          {
+            'name': 'prod',
+            'host': 'prod',
+            'port': 22,
+            'user': 'me',
+            'auth': 'agent',
+            'jumps': <Object?>[],
+            'tailscale': false,
+          },
+        ],
+        'hostKeys': [
+          {'host': 'prod', 'port': 22, 'keyType': ecdsa.type, 'keyBlob': base64.encode(ecdsa.blob)},
+        ],
+      });
+      final offered = HostKeyCheck(
         host: 'prod',
         port: 22,
-        keyType: ed25519.type,
-        keyBlob: base64.encode(ed25519.blob),
-        fingerprint: ed25519.fingerprint,
-        addedAt: now,
-      ),
-    );
-    // A crafted export: a new machine on prod, and someone else's ECDSA key for prod.
-    final export = jsonEncode({
-      'format': machineExportFormat,
-      'version': machineExportVersion,
-      'machines': [
-        {'name': 'prod', 'host': 'prod', 'port': 22, 'user': 'me', 'auth': 'agent', 'jumps': <Object?>[], 'tailscale': false},
-      ],
-      'hostKeys': [
-        {'host': 'prod', 'port': 22, 'keyType': ecdsa.type, 'keyBlob': base64.encode(ecdsa.blob)},
-      ],
-    });
-    final offered = HostKeyCheck(
-      host: 'prod',
-      port: 22,
-      keyType: ecdsa.type,
-      keyBlob: ecdsa.blob,
-      sha256Fingerprint: ecdsa.fingerprint,
-    );
+        keyType: ecdsa.type,
+        keyBlob: ecdsa.blob,
+        sha256Fingerprint: ecdsa.fingerprint,
+      );
 
-    final result = await provider.importJson(export);
-    expect(result.added, 1);
-    expect(judgeHostKey(offered, await db.select(db.knownHosts).get()), isA<HostKeyChanged>());
+      final result = await provider.importJson(export);
+      expect(result.added, 1);
+      expect(judgeHostKey(offered, await db.select(db.knownHosts).get()), isA<HostKeyChanged>());
 
-    await provider.trustImportedHostKeys(result.hostKeyChanges.single);
-    final rows = await db.select(db.knownHosts).get();
-    expect(judgeHostKey(offered, rows), isA<HostKeyTrusted>());
-    expect([for (final row in rows) row.fingerprint], unorderedEquals([ed25519.fingerprint, ecdsa.fingerprint]));
-  });
+      await provider.trustImportedHostKeys(result.hostKeyChanges.single);
+      final rows = await db.select(db.knownHosts).get();
+      expect(judgeHostKey(offered, rows), isA<HostKeyTrusted>());
+      expect([for (final row in rows) row.fingerprint], unorderedEquals([ed25519.fingerprint, ecdsa.fingerprint]));
+    },
+  );
 }

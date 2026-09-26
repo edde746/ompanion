@@ -193,6 +193,7 @@ final class RunSession implements LiveSession {
   bool _refreshAgain = false;
   bool _catchingUp = false;
   bool _catchUpAgain = false;
+
   /// The `meta.json` update in flight.
   Future<void>? _recording;
   bool _rotating = false;
@@ -341,11 +342,7 @@ final class RunSession implements LiveSession {
   /// companion. Any other seed (a resync, a rotation gap) keeps what RPC cannot list again: open dialogs, statuses,
   /// widgets, toasts, the goal and the commands. Frames after the response apply on top. With [fileEntries], the
   /// history starts from the session file ([_entriesAfter]).
-  Future<void> _seed(
-    _Attachment attachment, {
-    required bool fresh,
-    Future<_FilePage?>? fileEntries,
-  }) async {
+  Future<void> _seed(_Attachment attachment, {required bool fresh, Future<_FilePage?>? fileEntries}) async {
     _seeding = true;
     final rpc = attachment.rpc;
     final companion = attachment.companion;
@@ -365,9 +362,10 @@ final class RunSession implements LiveSession {
     if (commandsReply != null) {
       commands = await commandsReply;
       // An unknown slash command reaches the model as a prompt, so the companion is only called once registered.
-      withCompanion = asJsonObject(commands, 'get_available_commands result')
-          .objects('commands')
-          .any((command) => command['name'] == 'ompx');
+      withCompanion = asJsonObject(
+        commands,
+        'get_available_commands result',
+      ).objects('commands').any((command) => command['name'] == 'ompx');
     }
     final results = await Future.wait<Object?>([
       state,
@@ -670,7 +668,9 @@ final class RunSession implements LiveSession {
       // The channel ended; the view stays stale, and the next attachment refreshes it.
       return;
     } on Object catch (error) {
-      _setView(_notice(_view.copyWith(stateStale: false), NoticeLevel.error, 'Reading the session state failed: $error'));
+      _setView(
+        _notice(_view.copyWith(stateStale: false), NoticeLevel.error, 'Reading the session state failed: $error'),
+      );
     } finally {
       _refreshing = false;
     }
@@ -754,7 +754,8 @@ final class RunSession implements LiveSession {
         current = latest;
       }
     } on Object catch (error) {
-      if (!_closed && _linkState is! LinkReconnecting) _warn('Recording the session file on the machine failed: $error');
+      if (!_closed && _linkState is! LinkReconnecting)
+        _warn('Recording the session file on the machine failed: $error');
     } finally {
       _recording = null;
     }
@@ -846,9 +847,7 @@ final class RunSession implements LiveSession {
   static bool _permanent(Object error) => switch (error) {
     OmpStartFailed() || RunGone() || OmpUnavailable() || PermanentConnectFailure() => true,
     SshConnectException(:final failure) =>
-      failure == SshFailure.authFailed ||
-          failure == SshFailure.hostKeyRejected ||
-          failure == SshFailure.keyUnavailable,
+      failure == SshFailure.authFailed || failure == SshFailure.hostKeyRejected || failure == SshFailure.keyUnavailable,
     _ => false,
   };
 

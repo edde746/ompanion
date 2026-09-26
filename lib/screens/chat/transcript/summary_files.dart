@@ -77,7 +77,10 @@ class SummaryFiles extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(padding: const EdgeInsets.only(bottom: 4), child: Text(t.summaryFiles, style: dim)),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(t.summaryFiles, style: dim),
+          ),
           for (final file in files)
             InkWell(
               borderRadius: BorderRadius.circular(6),
@@ -92,7 +95,9 @@ class SummaryFiles extends StatelessWidget {
                       color: scheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(file.path, maxLines: 1, overflow: TextOverflow.ellipsis, style: code)),
+                    Expanded(
+                      child: Text(file.path, maxLines: 1, overflow: TextOverflow.ellipsis, style: code),
+                    ),
                     Text(switch (file.operation) {
                       SummaryFileOperation.read => t.fileRead,
                       SummaryFileOperation.write => t.fileWritten,
@@ -103,7 +108,11 @@ class SummaryFiles extends StatelessWidget {
                 ),
               ),
             ),
-          if (elided > 0) Padding(padding: const EdgeInsets.only(top: 3), child: Text(t.filesElided(n: elided), style: dim)),
+          if (elided > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(t.filesElided(n: elided), style: dim),
+            ),
         ],
       ),
     );

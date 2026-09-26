@@ -137,11 +137,7 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
               label: Text(t.common.edit),
               onPressed: () => showMachineEditor(context, machine: machine),
             ),
-            TextButton.icon(
-              icon: const Icon(Icons.delete_outline),
-              label: Text(t.common.delete),
-              onPressed: _delete,
-            ),
+            TextButton.icon(icon: const Icon(Icons.delete_outline), label: Text(t.common.delete), onPressed: _delete),
           ],
         ),
         _RunStatus(_test),
@@ -150,10 +146,8 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
         const SizedBox(height: AppSizes.gap),
         MachineStatusBuilder(
           runtime: runtime,
-          builder: (context, status) => _Facts(
-            status: status,
-            onConnect: () => unawaited(context.read<SessionsProvider>().refresh(machine)),
-          ),
+          builder: (context, status) =>
+              _Facts(status: status, onConnect: () => unawaited(context.read<SessionsProvider>().refresh(machine))),
         ),
         if (machine is SshMachine) ...[
           const SizedBox(height: 24),
@@ -162,7 +156,10 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
           _Group(
             children: [
               for (final (index, jump) in machine.jumps.indexed)
-                _HopTile(label: t.editor.jumpHostN(n: index + 1), hop: jump),
+                _HopTile(
+                  label: t.editor.jumpHostN(n: index + 1),
+                  hop: jump,
+                ),
               _HopTile(label: t.machines.target, hop: machine.target),
             ],
           ),
@@ -187,10 +184,7 @@ class _Tag extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(6)),
       child: Text(text, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     );
   }
@@ -233,7 +227,9 @@ class _Fact extends StatelessWidget {
             width: 120,
             child: Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           ),
-          Expanded(child: SelectableText(value, style: theme.textTheme.bodyMedium?.copyWith(color: color))),
+          Expanded(
+            child: SelectableText(value, style: theme.textTheme.bodyMedium?.copyWith(color: color)),
+          ),
         ],
       ),
     );
@@ -273,9 +269,8 @@ class _Facts extends StatelessWidget {
                 Expanded(
                   child: Text(
                     m.notProbed,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
                 if (status is! MachineConnecting)
@@ -416,7 +411,10 @@ class _HostKeysState extends State<_HostKeys> {
         final rows = snapshot.data;
         if (rows == null) return const SizedBox.shrink();
         if (rows.isEmpty) {
-          return Text(t.machines.noHostKeys, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant));
+          return Text(
+            t.machines.noHostKeys,
+            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          );
         }
         return _Group(
           children: [
@@ -432,10 +430,15 @@ class _HostKeysState extends State<_HostKeys> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            row.port == 22 ? '${row.host} · ${row.keyType}' : '${row.host}:${row.port} · ${row.keyType}',
+                            row.port == 22
+                                ? '${row.host} · ${row.keyType}'
+                                : '${row.host}:${row.port} · ${row.keyType}',
                             style: theme.textTheme.bodyMedium,
                           ),
-                          SelectableText(row.fingerprint, style: mono.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                          SelectableText(
+                            row.fingerprint,
+                            style: mono.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          ),
                         ],
                       ),
                     ),

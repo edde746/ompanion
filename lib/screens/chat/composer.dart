@@ -292,9 +292,8 @@ class _ComposerState extends State<Composer> {
   void _insertContent(KeyboardInsertedContent content) {
     final bytes = content.data;
     if (bytes == null || bytes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.t.composer.pasteFailed(error: content.uri))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.t.composer.pasteFailed(error: content.uri))));
       return;
     }
     _draft.addAttachments([ImageAttachment(RpcImage(data: base64Encode(bytes), mimeType: content.mimeType))]);
@@ -329,7 +328,10 @@ class _ComposerState extends State<Composer> {
       final at = items.indexWhere(
         (item) => item.type != ContextMenuButtonType.cut && item.type != ContextMenuButtonType.copy,
       );
-      items.insert(at < 0 ? items.length : at, ContextMenuButtonItem(type: ContextMenuButtonType.paste, onPressed: paste));
+      items.insert(
+        at < 0 ? items.length : at,
+        ContextMenuButtonItem(type: ContextMenuButtonType.paste, onPressed: paste),
+      );
     }
     return AdaptiveTextSelectionToolbar.buttonItems(anchors: field.contextMenuAnchors, buttonItems: items);
   }
@@ -490,7 +492,11 @@ class _ComposerState extends State<Composer> {
                                               ),
                                               LayoutId(
                                                 id: _Picker.thinking,
-                                                child: ThinkingPicker(session: session, level: data.thinking, above: _block),
+                                                child: ThinkingPicker(
+                                                  session: session,
+                                                  level: data.thinking,
+                                                  above: _block,
+                                                ),
                                               ),
                                               LayoutId(
                                                 id: _Picker.meter,

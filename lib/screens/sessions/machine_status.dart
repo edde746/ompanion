@@ -13,10 +13,8 @@ class MachineStatusBuilder extends StatelessWidget {
   final Widget Function(BuildContext context, MachineStatus status) builder;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<MachineStatus>(
-    stream: runtime.statuses,
-    builder: (context, _) => builder(context, runtime.status),
-  );
+  Widget build(BuildContext context) =>
+      StreamBuilder<MachineStatus>(stream: runtime.statuses, builder: (context, _) => builder(context, runtime.status));
 }
 
 /// One line for [status]: offline, connecting, the omp version, what is missing, or why connecting failed.

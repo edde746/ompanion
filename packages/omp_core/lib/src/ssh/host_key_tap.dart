@@ -53,13 +53,19 @@ final class HostKeyTap implements SSHSocket {
   }
 
   void _parse(Uint8List chunk) {
-    final bytes = _buffer.isEmpty ? chunk : (BytesBuilder(copy: false)..add(_buffer)..add(chunk)).takeBytes();
+    final bytes = _buffer.isEmpty
+        ? chunk
+        : (BytesBuilder(copy: false)
+                ..add(_buffer)
+                ..add(chunk))
+              .takeBytes();
     var offset = 0;
     // RFC 4253 §4.2: the server may send other lines before its `SSH-` identification line.
     while (!_sawVersion) {
       final newline = bytes.indexOf(0x0a, offset);
       if (newline < 0) return _keep(bytes, offset);
-      _sawVersion = bytes.length - offset >= 4 &&
+      _sawVersion =
+          bytes.length - offset >= 4 &&
           bytes[offset] == 0x53 &&
           bytes[offset + 1] == 0x53 &&
           bytes[offset + 2] == 0x48 &&

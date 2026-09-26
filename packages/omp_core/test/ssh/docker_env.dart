@@ -24,9 +24,9 @@ SshHop targetHop({SshAuth? auth, String user = 'omp'}) =>
 
 /// Target through the bastion: the bastion resolves `target` on the docker network.
 SshTarget targetViaBastion() => SshTarget(
-      jumps: [SshHop(host: 'localhost', port: bastionPort, user: 'omp', auth: testKeyAuth())],
-      target: SshHop(host: 'target', user: 'omp', auth: testKeyAuth()),
-    );
+  jumps: [SshHop(host: 'localhost', port: bastionPort, user: 'omp', auth: testKeyAuth())],
+  target: SshHop(host: 'target', user: 'omp', auth: testKeyAuth()),
+);
 
 /// The address a server on this computer listens on for the test machines, which reach it as
 /// `host.docker.internal`, Docker's host gateway (testing/sshd/up.sh). Docker on macOS runs in a VM that forwards the

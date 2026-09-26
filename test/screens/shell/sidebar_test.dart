@@ -43,7 +43,6 @@ SessionSummary _summary(String cwd, String name, String firstMessage) => Session
 
 /// An open session in [_lib] whose view the test sets.
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   _Session(this._view);

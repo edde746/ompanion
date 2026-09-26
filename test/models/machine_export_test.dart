@@ -46,9 +46,8 @@ void main() {
     trusted('unrelated', 22, otherHost),
   ];
 
-  String exportJson() => encodeMachineExport(
-    exportMachines([machine], keysById: {laptopKey.id: laptopKey}, knownHosts: knownHosts),
-  );
+  String exportJson() =>
+      encodeMachineExport(exportMachines([machine], keysById: {laptopKey.id: laptopKey}, knownHosts: knownHosts));
 
   var ids = 0;
   String newId() => 'new-${ids++}';
@@ -79,10 +78,10 @@ void main() {
     expect(imported.target.id, imported.id);
     expect(imported.jumps.single.id, 'new-1');
     expect(imported.target.keyId, 'phone-copy-of-laptop-key');
-    expect([for (final hop in imported.hops) (hop.label, hop.auth)], [
-      ('ops@bastion:2222', AuthMethod.password),
-      ('ci@build.internal', AuthMethod.key),
-    ]);
+    expect(
+      [for (final hop in imported.hops) (hop.label, hop.auth)],
+      [('ops@bastion:2222', AuthMethod.password), ('ci@build.internal', AuthMethod.key)],
+    );
     expect(imported.sshConfigAlias, 'build');
   });
 
@@ -145,7 +144,12 @@ void main() {
 
     test('a key of another type for a host this device trusts waits for confirmation as a change', () {
       final export = withKeys([('build.internal', 22, ecdsa)]);
-      final keys = importHostKeys(export, added: added(export), existing: [trusted('build.internal', 22, hostKey)], now: now);
+      final keys = importHostKeys(
+        export,
+        added: added(export),
+        existing: [trusted('build.internal', 22, hostKey)],
+        now: now,
+      );
 
       expect(triples(keys.trusted), [('bastion', 2222, jumpKey.fingerprint)]);
       final change = keys.changes.single;
@@ -157,7 +161,12 @@ void main() {
     test('a different key of the same type waits for confirmation instead of replacing the trusted one', () {
       final changed = generateEd25519Key().publicKey;
       final export = decodeMachineExport(exportJson());
-      final keys = importHostKeys(export, added: added(export), existing: [trusted('build.internal', 22, changed)], now: now);
+      final keys = importHostKeys(
+        export,
+        added: added(export),
+        existing: [trusted('build.internal', 22, changed)],
+        now: now,
+      );
 
       expect(triples(keys.trusted), [('bastion', 2222, jumpKey.fingerprint)]);
       expect(triples(keys.changes.single.trusted), [('build.internal', 22, changed.fingerprint)]);
@@ -167,7 +176,12 @@ void main() {
     test('keys of hosts no added machine uses wait for confirmation, one change per host', () {
       // The machine is here already, so the import adds nothing; a crafted file can also name unrelated hosts.
       final export = withKeys([('unrelated', 22, otherHost), ('unrelated', 22, ecdsa)]);
-      final keys = importHostKeys(export, added: added(export, existing: [machine]), existing: const [], now: now);
+      final keys = importHostKeys(
+        export,
+        added: added(export, existing: [machine]),
+        existing: const [],
+        now: now,
+      );
 
       expect(keys.trusted, isEmpty);
       expect(

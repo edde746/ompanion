@@ -146,16 +146,17 @@ class _TextFieldState extends State<_TextField> {
             controller: _controller,
             enabled: widget.enabled,
             keyboardType: widget.number ? const TextInputType.numberWithOptions(decimal: true, signed: true) : null,
-            decoration: InputDecoration(
-              hintText: widget.hint,
-              errorText: _error,
-            ),
+            decoration: InputDecoration(hintText: widget.hint, errorText: _error),
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => _submit(),
           ),
         ),
         if (dirty)
-          IconButton(tooltip: context.t.common.save, icon: const Icon(Icons.check), onPressed: widget.enabled ? _submit : null),
+          IconButton(
+            tooltip: context.t.common.save,
+            icon: const Icon(Icons.check),
+            onPressed: widget.enabled ? _submit : null,
+          ),
         if (widget.presets.isNotEmpty)
           PopupMenuButton<SettingOption>(
             tooltip: context.t.config.settings.presets,
@@ -182,7 +183,13 @@ class _TextFieldState extends State<_TextField> {
 /// A credential: only whether it is set shows; a new value is typed into a dialog and written through a
 /// 0600 file.
 class _SecretField extends StatelessWidget {
-  const _SecretField({required this.setting, required this.display, required this.type, required this.enabled, required this.onChanged});
+  const _SecretField({
+    required this.setting,
+    required this.display,
+    required this.type,
+    required this.enabled,
+    required this.onChanged,
+  });
 
   final SettingSchema setting;
   final SettingDisplay display;
@@ -261,11 +268,7 @@ class _SecretDialogState extends State<_SecretDialog> {
           obscureText: !_json,
           maxLines: _json ? 6 : 1,
           style: _json ? codeTextStyle(Theme.of(context)).copyWith(fontSize: 13) : null,
-          decoration: InputDecoration(
-            helperText: t.config.settings.secretHelp,
-            helperMaxLines: 3,
-            errorText: _error,
-          ),
+          decoration: InputDecoration(helperText: t.config.settings.secretHelp, helperMaxLines: 3, errorText: _error),
           onSubmitted: _json ? null : (_) => _save(),
         ),
       ),
@@ -280,7 +283,13 @@ class _SecretDialogState extends State<_SecretDialog> {
 /// A subset of a closed vocabulary. Unordered: one chip per option. Ordered: the chosen values in order,
 /// removable, with the rest offered for appending.
 class _MultiChoice extends StatelessWidget {
-  const _MultiChoice({required this.options, required this.ordered, required this.values, required this.enabled, required this.onChanged});
+  const _MultiChoice({
+    required this.options,
+    required this.ordered,
+    required this.values,
+    required this.enabled,
+    required this.onChanged,
+  });
 
   final List<SettingOption> options;
   final bool ordered;
@@ -305,7 +314,8 @@ class _MultiChoice extends StatelessWidget {
               onSelected: enabled
                   ? (selected) => onChanged([
                       for (final candidate in options)
-                        if (candidate.value == option.value ? selected : values.contains(candidate.value)) candidate.value,
+                        if (candidate.value == option.value ? selected : values.contains(candidate.value))
+                          candidate.value,
                     ])
                   : null,
             ),

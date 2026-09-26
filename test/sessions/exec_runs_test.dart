@@ -27,7 +27,9 @@ final class _Omp implements LineChannel {
     if (id == null) return;
     final data = json['type'] == 'negotiate_protocol' ? {'protocolVersion': 2} : null;
     scheduleMicrotask(
-      () => _lines.add(jsonEncode({'type': 'response', 'id': id, 'command': json['type'], 'success': true, 'data': ?data})),
+      () => _lines.add(
+        jsonEncode({'type': 'response', 'id': id, 'command': json['type'], 'success': true, 'data': ?data}),
+      ),
     );
   }
 
@@ -46,7 +48,6 @@ final class _Omp implements LineChannel {
 }
 
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   _Session(this._view);
@@ -143,9 +144,22 @@ void main() {
     final run = runs.runs.single;
     expect(run.running, isFalse);
     expect(run.output, 'hi\n');
-    session.emit(SessionView(transcript: [UserItem(timestamp: 1, content: const [TextBlock('go on')])]));
+    session.emit(
+      SessionView(
+        transcript: [
+          UserItem(timestamp: 1, content: const [TextBlock('go on')]),
+        ],
+      ),
+    );
     expect(runs.runs, [run]);
-    session.emit(SessionView(transcript: [_row(1000), UserItem(timestamp: 2, content: const [TextBlock('go on')])]));
+    session.emit(
+      SessionView(
+        transcript: [
+          _row(1000),
+          UserItem(timestamp: 2, content: const [TextBlock('go on')]),
+        ],
+      ),
+    );
     expect(runs.runs, isEmpty);
   });
 
@@ -156,9 +170,24 @@ void main() {
     session.omp.reply('hi\n');
     await _settle();
     expect(runs.runs, hasLength(1));
-    session.emit(SessionView(transcript: [_row(500), _row(900, kind: ExecutionKind.python)]));
+    session.emit(
+      SessionView(
+        transcript: [
+          _row(500),
+          _row(900, kind: ExecutionKind.python),
+        ],
+      ),
+    );
     expect(runs.runs, hasLength(1));
-    session.emit(SessionView(transcript: [_row(500), _row(900, kind: ExecutionKind.python), _row(1000)]));
+    session.emit(
+      SessionView(
+        transcript: [
+          _row(500),
+          _row(900, kind: ExecutionKind.python),
+          _row(1000),
+        ],
+      ),
+    );
     expect(runs.runs, isEmpty);
   });
 }

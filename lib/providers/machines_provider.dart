@@ -138,11 +138,10 @@ class MachinesProvider extends ChangeNotifier {
       final jump = row.readTableOrNull(_db.machineJumps);
       if (jump != null) (jumps[machine.id] ??= []).add(jump);
     }
-    return [for (final row in machineRows.values) machineFromRows(row, jumps[row.id] ?? const [])]
-      ..sort((a, b) {
-        if ((a is LocalMachine) != (b is LocalMachine)) return a is LocalMachine ? -1 : 1;
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
+    return [for (final row in machineRows.values) machineFromRows(row, jumps[row.id] ?? const [])]..sort((a, b) {
+      if ((a is LocalMachine) != (b is LocalMachine)) return a is LocalMachine ? -1 : 1;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
   }
 
   static List<SshEndpoint> _hops(Machine? machine) => machine is SshMachine ? machine.hops : const [];

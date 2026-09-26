@@ -63,7 +63,9 @@ final class _Omp implements LineChannel {
       _ => null,
     };
     scheduleMicrotask(
-      () => _lines.add(jsonEncode({'type': 'response', 'id': id, 'command': json['type'], 'success': true, 'data': ?data})),
+      () => _lines.add(
+        jsonEncode({'type': 'response', 'id': id, 'command': json['type'], 'success': true, 'data': ?data}),
+      ),
     );
   }
 
@@ -83,7 +85,6 @@ final class _Omp implements LineChannel {
 }
 
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   _Session(this._view, {required this.withCompanion, List<Map<String, Object?>> tree = const []}) : omp = _Omp(tree);

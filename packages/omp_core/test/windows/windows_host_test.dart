@@ -6,7 +6,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:omp_core/host.dart';
-import 'package:omp_core/src/host/scripts.dart' show encodedPowerShellCommand, powershellPreamble, windowsCommandLineLimit;
+import 'package:omp_core/src/host/scripts.dart'
+    show encodedPowerShellCommand, powershellPreamble, windowsCommandLineLimit;
 import 'package:omp_core/ssh.dart';
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
@@ -57,7 +58,11 @@ void main() {
     expect(encodedPowerShellCommand(probe.commandShell, '$powershellPreamble$script'), isNull);
     final long = await runPowerShell(link, probe.commandShell, script);
     expect((long.exit.code, long.stdout), (0, 'ran é'), reason: long.stderr);
-    expect(await files.list('${toSftpPath(probe.home)}/.ompanion/tmp'), isEmpty, reason: 'the uploaded script is removed');
+    expect(
+      await files.list('${toSftpPath(probe.home)}/.ompanion/tmp'),
+      isEmpty,
+      reason: 'the uploaded script is removed',
+    );
   });
 
   test('the download install checks the release asset, installs it, and refuses a tampered one', () async {
@@ -131,7 +136,12 @@ void main() {
       bytes: Stream.fromIterable([for (var i = 0; i < bytes.length; i += 65536) bytes.sublist(i, i + 65536)]),
       onProgress: progress.add,
     );
-    final second = await uploadAttachment(files, dir: target, name: 'build log.txt', bytes: Stream.value(utf8.encode('b')));
+    final second = await uploadAttachment(
+      files,
+      dir: target,
+      name: 'build log.txt',
+      bytes: Stream.value(utf8.encode('b')),
+    );
     expect((first, second), ('$target/build log.txt', '$target/build log-2.txt'));
     expect(progress, [4 << 20, 8 << 20, 9 << 20]);
     expect(File(hostPath(first)).readAsBytesSync(), bytes);
@@ -153,10 +163,16 @@ void main() {
 
     File('${scratch.path}\\big.png').writeAsBytesSync(pngBytes(2000, 1600, noise: true));
     final preview = await fetch('big.png') as HostImageBytes;
-    expect((preview.preview, preview.mimeType, preview.width, preview.height), (true, tools.webp ? 'image/webp' : 'image/jpeg', 2000, 1600));
+    expect(
+      (preview.preview, preview.mimeType, preview.width, preview.height),
+      (true, tools.webp ? 'image/webp' : 'image/jpeg', 2000, 1600),
+    );
     expect(preview.bytes.length, lessThan(imageKeepBytes * 8), reason: 'a preview, not the 9.6 MB original');
     expect(await files.list('${toSftpPath(probe.home)}/.ompanion/tmp'), isEmpty, reason: 'the preview file is removed');
-    expect((await fetch('big.png', original: true) as HostImageBytes).bytes.length, File('${scratch.path}\\big.png').lengthSync());
+    expect(
+      (await fetch('big.png', original: true) as HostImageBytes).bytes.length,
+      File('${scratch.path}\\big.png').lengthSync(),
+    );
 
     File('${scratch.path}\\notes.txt').writeAsStringSync('hello\n');
     Directory('${scratch.path}\\folder.png').createSync();

@@ -18,7 +18,9 @@ void main() {
   });
 
   test('the older read-files and modified-files blocks', () {
-    final summary = splitSummaryFiles('Text\n<read-files>\na.md\n</read-files>\n<modified-files>\nb.md\n</modified-files>');
+    final summary = splitSummaryFiles(
+      'Text\n<read-files>\na.md\n</read-files>\n<modified-files>\nb.md\n</modified-files>',
+    );
     expect(summary.text, 'Text');
     expect(summary.files, [
       (path: 'a.md', operation: SummaryFileOperation.read),

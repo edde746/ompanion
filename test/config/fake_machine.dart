@@ -51,7 +51,6 @@ final class FakeOmp implements LineChannel {
 
 /// A live session over a [FakeOmp]. Call [attach] before using it.
 final class FakeSession implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   FakeSession({this.cwd = '/home/u', this.runId = 'control', CompanionReply? reply})

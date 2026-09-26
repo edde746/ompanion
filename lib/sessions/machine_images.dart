@@ -248,7 +248,8 @@ final class MachineImages {
 
   Future<_DiskCache> _openDisk() async => _DiskCache(await _cacheDir(), diskBytes, _clock);
 
-  static String _key(ImageHost host, String path, bool original) => '${host.id}\n$path\n${original ? 'original' : 'auto'}';
+  static String _key(ImageHost host, String path, bool original) =>
+      '${host.id}\n$path\n${original ? 'original' : 'auto'}';
 
   static String _diskKey(ImageHost host, String path, int size, int modified, {required bool original}) =>
       '${_key(host, path, original)}\n$size\n$modified';

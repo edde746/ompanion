@@ -52,11 +52,7 @@ class _PhaseSection extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  phase.name,
-                  style: theme.textTheme.titleSmall,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(phase.name, style: theme.textTheme.titleSmall, overflow: TextOverflow.ellipsis),
               ),
               Text(
                 context.t.dock.todo.progress(done: done, total: phase.tasks.length),
@@ -102,7 +98,10 @@ class _TaskTile extends StatelessWidget {
         children: [
           Tooltip(
             message: label,
-            child: Padding(padding: const EdgeInsets.only(top: 1), child: Icon(icon, size: 18, color: color)),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Icon(icon, size: 18, color: color),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(

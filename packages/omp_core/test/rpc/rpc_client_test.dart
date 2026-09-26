@@ -44,7 +44,10 @@ void main() {
     });
 
     test('fails when omp does not offer protocol v2', () async {
-      channel.emit({...readyFrame, 'supportedProtocolVersions': [1]});
+      channel.emit({
+        ...readyFrame,
+        'supportedProtocolVersions': [1],
+      });
       await expectLater(client.start(), throwsA(isA<RpcProtocolException>()));
       await expectLater(client.done, throwsA(isA<RpcProtocolException>()));
       expect(channel.sent, isEmpty);
@@ -92,7 +95,10 @@ void main() {
       final text = client.getLastAssistantText();
       final command = channel.sent.last;
       final foreignId = 'tablet:${(command['id']! as String).split(':').last}';
-      channel.emit({...response(command, {'text': 'not mine'}), 'id': foreignId});
+      channel.emit({
+        ...response(command, {'text': 'not mine'}),
+        'id': foreignId,
+      });
       channel.emit({'type': 'response', 'command': 'parse', 'success': false, 'error': 'Failed to parse command'});
       channel.respond(command, {'text': 'mine'});
       expect(await text, 'mine');
@@ -116,7 +122,10 @@ void main() {
     test('fail when the result does not match the 18.3.1 shape', () async {
       final fast = client.setFastMode(true);
       channel.respond(channel.sent.last, {'enabled': 'yes'});
-      await expectLater(fast, throwsA(isA<RpcProtocolException>().having((e) => e.message, 'message', contains('enabled'))));
+      await expectLater(
+        fast,
+        throwsA(isA<RpcProtocolException>().having((e) => e.message, 'message', contains('enabled'))),
+      );
     });
 
     test('resolve from a chunked response', () async {
@@ -163,7 +172,10 @@ void main() {
     test('fail with RpcClosedException when the transport fails', () async {
       final state = client.getState();
       channel.fail(const SocketException('connection reset'));
-      await expectLater(state, throwsA(isA<RpcClosedException>().having((e) => e.cause, 'cause', isA<SocketException>())));
+      await expectLater(
+        state,
+        throwsA(isA<RpcClosedException>().having((e) => e.cause, 'cause', isA<SocketException>())),
+      );
       await expectLater(client.done, throwsA(isA<RpcClosedException>()));
     });
 
@@ -208,12 +220,18 @@ void main() {
     // omp answers each command on the stdout every device tails, echoing who asked.
     for (final device in [channel, deskChannel]) {
       device.sentCommands.listen(
-        (command) => broadcast(response(command, command['type'] == 'negotiate_protocol' ? {'protocolVersion': 2} : {'text': command['id']})),
+        (command) => broadcast(
+          response(command, command['type'] == 'negotiate_protocol' ? {'protocolVersion': 2} : {'text': command['id']}),
+        ),
       );
     }
     broadcast(readyFrame);
     await Future.wait([phone.start(), desk.start()]);
-    final answers = await Future.wait([phone.getLastAssistantText(), desk.getLastAssistantText(), phone.getLastAssistantText()]);
+    final answers = await Future.wait([
+      phone.getLastAssistantText(),
+      desk.getLastAssistantText(),
+      phone.getLastAssistantText(),
+    ]);
     expect(answers, [channel.sent[1]['id'], deskChannel.sent[1]['id'], channel.sent[2]['id']]);
     expect(answers[0], startsWith('phone:'));
     expect(answers[1], startsWith('desk:'));
@@ -225,14 +243,36 @@ void main() {
     test('are typed, and unknown or malformed ones still arrive, in order', () async {
       final frames = <RpcFrame>[];
       client.frames.listen(frames.add);
-      channel.emit({'type': 'extension_ui_request', 'id': 'u1', 'method': 'select', 'title': 'Allow tool: bash', 'options': ['Approve', 'Deny'], 'timeout': 1500.5});
+      channel.emit({
+        'type': 'extension_ui_request',
+        'id': 'u1',
+        'method': 'select',
+        'title': 'Allow tool: bash',
+        'options': ['Approve', 'Deny'],
+        'timeout': 1500.5,
+      });
       channel.emit({'type': 'todo_reminder', 'todos': [], 'attempt': 1, 'maxAttempts': 3});
       channel.emit({'type': 'prompt_result', 'id': 'phone:1', 'agentInvoked': true});
-      channel.emit({'type': 'message_update', 'messageId': 'msg-2', 'message': {'role': 'assistant'}, 'assistantMessageEvent': {'type': 'text_delta', 'delta': 'Hi'}});
+      channel.emit({
+        'type': 'message_update',
+        'messageId': 'msg-2',
+        'message': {'role': 'assistant'},
+        'assistantMessageEvent': {'type': 'text_delta', 'delta': 'Hi'},
+      });
       await pumpEventQueue();
       final [select, reminder, malformed, update] = frames;
-      expect(select, isA<UiSelectRequest>().having((f) => f.options, 'options', ['Approve', 'Deny']).having((f) => f.timeout, 'timeout', const Duration(microseconds: 1500500)));
-      expect(reminder, isA<UnknownFrame>().having((f) => f.parseError, 'parseError', isNull).having((f) => f.type, 'type', 'todo_reminder'));
+      expect(
+        select,
+        isA<UiSelectRequest>()
+            .having((f) => f.options, 'options', ['Approve', 'Deny'])
+            .having((f) => f.timeout, 'timeout', const Duration(microseconds: 1500500)),
+      );
+      expect(
+        reminder,
+        isA<UnknownFrame>()
+            .having((f) => f.parseError, 'parseError', isNull)
+            .having((f) => f.type, 'type', 'todo_reminder'),
+      );
       expect(malformed, isA<UnknownFrame>().having((f) => f.parseError, 'parseError', contains('status')));
       expect(update, isA<MessageUpdateFrame>().having((f) => f.assistantMessageEvent['delta'], 'delta', 'Hi'));
       expect(malformed.raw, {'type': 'prompt_result', 'id': 'phone:1', 'agentInvoked': true});
@@ -244,15 +284,28 @@ void main() {
 
     test('prompt sends images and queue behaviour and returns the id prompt_result carries', () async {
       final results = client.frames.firstWhere((frame) => frame is PromptResultFrame);
-      final ack = client.prompt('look', images: const [RpcImage(data: 'iVBO', mimeType: 'image/png')], streamingBehavior: StreamingBehavior.followUp);
+      final ack = client.prompt(
+        'look',
+        images: const [RpcImage(data: 'iVBO', mimeType: 'image/png')],
+        streamingBehavior: StreamingBehavior.followUp,
+      );
       final command = channel.sent.last;
       expect(command['streamingBehavior'], 'followUp');
-      expect(command['images'], [{'type': 'image', 'data': 'iVBO', 'mimeType': 'image/png'}]);
+      expect(command['images'], [
+        {'type': 'image', 'data': 'iVBO', 'mimeType': 'image/png'},
+      ]);
       channel.respond(command);
       final (:id, :agentInvoked) = await ack;
       expect(id, command['id']);
       expect(agentInvoked, isNull);
-      channel.emit({'type': 'prompt_result', 'id': id, 'agentInvoked': true, 'status': 'error', 'error': {'message': 'boom', 'retryable': true}, 'sessionSettled': false});
+      channel.emit({
+        'type': 'prompt_result',
+        'id': id,
+        'agentInvoked': true,
+        'status': 'error',
+        'error': {'message': 'boom', 'retryable': true},
+        'sessionSettled': false,
+      });
       final result = await results as PromptResultFrame;
       expect(result.id, id);
       expect(result.status, PromptStatus.error);
@@ -285,11 +338,21 @@ void main() {
     Map<String, Object?> message(int n) => {'role': 'user', 'content': 'm$n'};
 
     test('collects every page of one snapshot', () async {
-      channel.answer('get_messages_page', (command) => switch (command['cursor']) {
-        null => {'messages': [message(1), message(2)], 'nextCursor': 'c1', 'totalMessages': 3},
-        'c1' => {'messages': [message(3)], 'totalMessages': 3},
-        _ => throw StateError('unexpected cursor'),
-      });
+      channel.answer(
+        'get_messages_page',
+        (command) => switch (command['cursor']) {
+          null => {
+            'messages': [message(1), message(2)],
+            'nextCursor': 'c1',
+            'totalMessages': 3,
+          },
+          'c1' => {
+            'messages': [message(3)],
+            'totalMessages': 3,
+          },
+          _ => throw StateError('unexpected cursor'),
+        },
+      );
       expect(await client.drainMessages(), [message(1), message(2), message(3)]);
       final pages = channel.sent.where((command) => command['type'] == 'get_messages_page');
       expect(pages.map((command) => command['limit']), [256, 256]);
@@ -299,27 +362,46 @@ void main() {
       test('drops partial pages and takes one snapshot on $code', () async {
         channel.sentCommands.where((command) => command['type'] == 'get_messages_page').listen((command) {
           if (command['cursor'] == null) {
-            channel.respond(command, {'messages': [message(1)], 'nextCursor': 'c1', 'totalMessages': 2});
+            channel.respond(command, {
+              'messages': [message(1)],
+              'nextCursor': 'c1',
+              'totalMessages': 2,
+            });
           } else {
             channel.reject(command, 'changed', code: code);
           }
         });
-        channel.answer('get_messages', (_) => {'messages': [message(7), message(8), message(9)]});
+        channel.answer(
+          'get_messages',
+          (_) => {
+            'messages': [message(7), message(8), message(9)],
+          },
+        );
         expect(await client.drainMessages(), [message(7), message(8), message(9)]);
       });
     }
 
     test('rethrows other failures', () async {
-      channel.sentCommands.where((command) => command['type'] == 'get_messages_page').listen(
-        (command) => channel.reject(command, 'RPC message page limit must be between 1 and 256'),
-      );
+      channel.sentCommands
+          .where((command) => command['type'] == 'get_messages_page')
+          .listen((command) => channel.reject(command, 'RPC message page limit must be between 1 and 256'));
       await expectLater(client.drainMessages(), _commandError('get_messages_page'));
     });
 
     test('rejects pages whose total changes', () async {
-      channel.answer('get_messages_page', (command) => command['cursor'] == null
-          ? {'messages': [message(1)], 'nextCursor': 'c1', 'totalMessages': 2}
-          : {'messages': [message(2)], 'totalMessages': 3});
+      channel.answer(
+        'get_messages_page',
+        (command) => command['cursor'] == null
+            ? {
+                'messages': [message(1)],
+                'nextCursor': 'c1',
+                'totalMessages': 2,
+              }
+            : {
+                'messages': [message(2)],
+                'totalMessages': 3,
+              },
+      );
       await expectLater(client.drainMessages(), throwsA(isA<RpcProtocolException>()));
     });
   });
@@ -330,8 +412,18 @@ void main() {
     final negotiate = channel.next('negotiate_protocol');
     final attached = client.attach();
     final command = await negotiate;
-    final big = {'type': 'agent_end', 'messages': [{'role': 'assistant', 'content': 'x' * (3 << 20)}]};
-    chunkLines({'type': 'agent_end', 'messages': [{'content': 'y' * (2 << 20)}]}).skip(2).forEach(channel.emitLine);
+    final big = {
+      'type': 'agent_end',
+      'messages': [
+        {'role': 'assistant', 'content': 'x' * (3 << 20)},
+      ],
+    };
+    chunkLines({
+      'type': 'agent_end',
+      'messages': [
+        {'content': 'y' * (2 << 20)},
+      ],
+    }).skip(2).forEach(channel.emitLine);
     chunkLines(big, chunkId: 'rpc-9').forEach(channel.emitLine);
     channel.respond(command, {'protocolVersion': 2});
     await attached;

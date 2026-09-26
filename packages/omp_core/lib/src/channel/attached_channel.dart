@@ -98,7 +98,8 @@ final class AttachedChannel implements LineChannel {
 }
 
 /// `exec` is not used, so the overlay can be removed after omp exits.
-String posixAttachedScript(String cwd, String omp, List<String> args, String overlay) => '''
+String posixAttachedScript(String cwd, String omp, List<String> args, String overlay) =>
+    '''
 cd ${shQuote(cwd)} || exit 1
 ${[omp, ...args].map(shQuote).join(' ')}
 code=\$?

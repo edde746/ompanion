@@ -64,7 +64,11 @@ final class LocalLink implements HostLink {
 @visibleForTesting
 ({String executable, List<String> arguments, Map<String, String> environment}) windowsMkdirStart(String path) {
   final start = windowsShellStart('mkdir "%OMPANION_DIR%"', flags: '/d /e:off /v:off');
-  return (executable: start.executable, arguments: start.arguments, environment: {'OMPANION_DIR': path.replaceAll('/', r'\')});
+  return (
+    executable: start.executable,
+    arguments: start.arguments,
+    environment: {'OMPANION_DIR': path.replaceAll('/', r'\')},
+  );
 }
 
 final class _LocalProcess implements HostProcess {
@@ -111,8 +115,7 @@ final class _LocalFiles implements HostFiles {
   final String? _homeOverride;
 
   /// SFTP path space uses `/C:/x` for Windows drives; dart:io wants `C:/x`.
-  String _native(String path) =>
-      Platform.isWindows && RegExp(r'^/[A-Za-z]:').hasMatch(path) ? path.substring(1) : path;
+  String _native(String path) => Platform.isWindows && RegExp(r'^/[A-Za-z]:').hasMatch(path) ? path.substring(1) : path;
 
   String _sftp(String path) {
     final normalized = path.replaceAll(r'\', '/');
@@ -132,11 +135,11 @@ final class _LocalFiles implements HostFiles {
   static const _linkStat = HostFileStat(size: 0, isDirectory: false, isLink: true);
 
   HostFileStat _toStat(FileStat stat) => HostFileStat(
-        size: stat.size,
-        isDirectory: stat.type == FileSystemEntityType.directory,
-        modified: stat.modified,
-        mode: stat.mode,
-      );
+    size: stat.size,
+    isDirectory: stat.type == FileSystemEntityType.directory,
+    modified: stat.modified,
+    mode: stat.mode,
+  );
 
   @override
   Future<List<HostDirEntry>> list(String path) async {
@@ -177,7 +180,7 @@ final class _LocalFiles implements HostFiles {
     // The mkdir command fails on an existing path. A holder can release the lock between our failed
     // mkdir and any later check, so POSIX classifies by mkdir's own message (C locale), and Windows,
     // whose cmd messages are localized, retries when the path is gone.
-    for (var attempt = 1;; attempt++) {
+    for (var attempt = 1; ; attempt++) {
       if (Platform.isWindows) {
         final start = windowsMkdirStart(native);
         final result = await Process.run(start.executable, start.arguments, environment: start.environment);
@@ -188,7 +191,10 @@ final class _LocalFiles implements HostFiles {
       }
       final result = await Process.run(
         'mkdir',
-        [if (mode != null) ...['-m', mode.toRadixString(8)], native],
+        [
+          if (mode != null) ...['-m', mode.toRadixString(8)],
+          native,
+        ],
         environment: const {'LC_ALL': 'C'},
       );
       if (result.exitCode == 0) return;

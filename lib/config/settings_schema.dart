@@ -213,5 +213,7 @@ final class SettingsSnapshot {
 
 Map<String, bool> _conditions(Map<String, Object?> json) => {
   for (final MapEntry(:key, :value) in json.entries)
-    key: value is bool ? value : throw FormatException('condition "$key": expected a boolean, got ${describeJson(value)}'),
+    key: value is bool
+        ? value
+        : throw FormatException('condition "$key": expected a boolean, got ${describeJson(value)}'),
 };

@@ -205,7 +205,11 @@ class _MachineEditorState extends State<MachineEditor> {
     final invalid = _form.currentState!.validateGranularly();
     if (invalid.isNotEmpty) {
       // It may be a hop below the visible part of the form.
-      await Scrollable.ensureVisible(invalid.first.context, alignment: 0.5, duration: const Duration(milliseconds: 200));
+      await Scrollable.ensureVisible(
+        invalid.first.context,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 200),
+      );
       return;
     }
     setState(() => _saving = true);
@@ -345,8 +349,12 @@ class _MachineEditorState extends State<MachineEditor> {
                       onChanged: (value) => setState(() => _tailscale = value),
                     ),
                     if (_ignoredProxyCommand case final command?)
-                      _Note(icon: Icons.warning_amber, text: t.editor.proxyCommandIgnored(command: command)),
-                    if (_hostKeys.isNotEmpty) _Note(icon: Icons.verified_user_outlined, text: t.editor.hostKeysPretrusted),
+                      _Note(
+                        icon: Icons.warning_amber,
+                        text: t.editor.proxyCommandIgnored(command: command),
+                      ),
+                    if (_hostKeys.isNotEmpty)
+                      _Note(icon: Icons.verified_user_outlined, text: t.editor.hostKeysPretrusted),
                     const SizedBox(height: 16),
                     Text(t.editor.jumpHosts, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 4),
@@ -364,7 +372,9 @@ class _MachineEditorState extends State<MachineEditor> {
                             children: [
                               Row(
                                 children: [
-                                  Expanded(child: Text(t.editor.jumpHostN(n: index + 1), style: theme.textTheme.titleSmall)),
+                                  Expanded(
+                                    child: Text(t.editor.jumpHostN(n: index + 1), style: theme.textTheme.titleSmall),
+                                  ),
                                   IconButton(
                                     tooltip: t.editor.moveUp,
                                     icon: const Icon(Icons.arrow_upward),
@@ -482,11 +492,7 @@ class _HopEditor extends StatelessWidget {
         const SizedBox(height: 12),
         LabeledField(
           label: t.editor.user,
-          child: TextFormField(
-            controller: hop.user,
-            autocorrect: false,
-            validator: (value) => _required(t, value),
-          ),
+          child: TextFormField(controller: hop.user, autocorrect: false, validator: (value) => _required(t, value)),
         ),
         const SizedBox(height: 12),
         LabeledField(
@@ -496,7 +502,8 @@ class _HopEditor extends StatelessWidget {
             value: hop.auth,
             options: [
               for (final method in AuthMethod.values)
-                if (method != AuthMethod.agent || isDesktop || hop.auth == AuthMethod.agent) (method, authLabel(t, method)),
+                if (method != AuthMethod.agent || isDesktop || hop.auth == AuthMethod.agent)
+                  (method, authLabel(t, method)),
             ],
             onChanged: (method) {
               hop.auth = method;

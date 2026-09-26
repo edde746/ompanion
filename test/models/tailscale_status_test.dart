@@ -12,7 +12,12 @@ void main() {
   final status = jsonEncode({
     'Version': '1.88.1',
     'BackendState': 'Running',
-    'Self': {'HostName': 'mac', 'DNSName': 'mac.tail1234.ts.net.', 'TailscaleIPs': ['100.64.0.1'], 'Online': true},
+    'Self': {
+      'HostName': 'mac',
+      'DNSName': 'mac.tail1234.ts.net.',
+      'TailscaleIPs': ['100.64.0.1'],
+      'Online': true,
+    },
     'MagicDNSSuffix': 'tail1234.ts.net',
     'Peer': {
       'nodekey:1': {
@@ -30,7 +35,13 @@ void main() {
         'Online': true,
         'sshHostKeys': [hostKey.authorizedKeysLine],
       },
-      'nodekey:3': {'HostName': 'Beta', 'DNSName': '', 'OS': 'macOS', 'TailscaleIPs': ['100.64.0.4'], 'Online': true},
+      'nodekey:3': {
+        'HostName': 'Beta',
+        'DNSName': '',
+        'OS': 'macOS',
+        'TailscaleIPs': ['100.64.0.4'],
+        'Online': true,
+      },
       'nodekey:4': {'HostName': 'subnet-route', 'DNSName': '', 'OS': 'linux', 'TailscaleIPs': null, 'Online': true},
     },
   });
@@ -39,11 +50,10 @@ void main() {
     final parsed = parseTailscaleStatus(status);
 
     expect(parsed.running, isTrue);
-    expect([for (final peer in parsed.peers) (peer.hostName, peer.dialHost, peer.online)], [
-      ('Beta', '100.64.0.4', true),
-      ('zeta', 'zeta.tail1234.ts.net', true),
-      ('alpha', 'alpha.tail1234.ts.net', false),
-    ]);
+    expect(
+      [for (final peer in parsed.peers) (peer.hostName, peer.dialHost, peer.online)],
+      [('Beta', '100.64.0.4', true), ('zeta', 'zeta.tail1234.ts.net', true), ('alpha', 'alpha.tail1234.ts.net', false)],
+    );
   });
 
   test('a stopped client with no peers', () {
@@ -65,14 +75,13 @@ void main() {
 
     expect(draft.name, 'zeta');
     expect(draft.tailscale, isTrue);
-    expect((draft.target.host, draft.target.port, draft.target.user, draft.target.auth), (
-      'zeta.tail1234.ts.net',
-      22,
-      'edde',
-      AuthMethod.none,
-    ));
-    expect([for (final row in draft.hostKeys) (row.host, row.port, row.keyType, row.fingerprint)], [
-      ('zeta.tail1234.ts.net', 22, 'ssh-ed25519', hostKey.fingerprint),
-    ]);
+    expect(
+      (draft.target.host, draft.target.port, draft.target.user, draft.target.auth),
+      ('zeta.tail1234.ts.net', 22, 'edde', AuthMethod.none),
+    );
+    expect(
+      [for (final row in draft.hostKeys) (row.host, row.port, row.keyType, row.fingerprint)],
+      [('zeta.tail1234.ts.net', 22, 'ssh-ed25519', hostKey.fingerprint)],
+    );
   });
 }

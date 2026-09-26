@@ -49,7 +49,10 @@ void main() {
         for (final frame in frames.whereType<UnknownFrame>())
           if (frame.raw case {'type': 'ompx', 'kind': 'request', 'id': final String id}) id,
       };
-      final answers = [for (final line in sent) if (line['type'] == 'extension_ui_response') line['id']];
+      final answers = [
+        for (final line in sent)
+          if (line['type'] == 'extension_ui_response') line['id'],
+      ];
       expect(answers.where((id) => !dialogs.contains(id)), isEmpty, reason: 'every UI answer names a request');
 
       if (scenario == 'big-frame') {

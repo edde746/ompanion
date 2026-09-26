@@ -59,8 +59,7 @@ class _SshConfigPickerState extends State<_SshConfigPicker> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_error case final error?)
-                  Text(error, style: TextStyle(color: AppColors.of(context).error)),
+                if (_error case final error?) Text(error, style: TextStyle(color: AppColors.of(context).error)),
                 Flexible(
                   child: ListView(
                     shrinkWrap: true,

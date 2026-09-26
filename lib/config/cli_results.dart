@@ -162,7 +162,9 @@ final class SkillPackage {
       keywords = json.optStrings('keywords') ?? const [],
       latest = json.optObject('distTags')?.optString('latest'),
       versions = (json.optObject('versions') ?? const {}).keys.toList(),
-      owners = [for (final owner in json.optObjects('owners') ?? const <Map<String, Object?>>[]) owner.string('username')],
+      owners = [
+        for (final owner in json.optObjects('owners') ?? const <Map<String, Object?>>[]) owner.string('username'),
+      ],
       weeklyDownloads = json.optObject('downloads')?.optNumber('weekly')?.toInt(),
       totalDownloads = json.optObject('downloads')?.optNumber('total')?.toInt(),
       latestHasScripts = switch (json.optObject('distTags')?.optString('latest')) {
@@ -195,8 +197,12 @@ typedef InstalledSkill = ({String id, String? range, String? version, String sco
 /// Installed registry skills of one scope, from the text of its `skills.json` and `skills.lock.json` (either
 /// null when the file does not exist), sorted by id as omp lists them.
 List<InstalledSkill> parseInstalledSkills({required String? manifest, required String? lock, required String scope}) {
-  final ranges = manifest == null ? const <String, Object?>{} : asJsonObject(jsonDecode(manifest), 'skills.json').optObject('skills') ?? const {};
-  final locked = lock == null ? const <String, Object?>{} : asJsonObject(jsonDecode(lock), 'skills.lock.json').optObject('skills') ?? const {};
+  final ranges = manifest == null
+      ? const <String, Object?>{}
+      : asJsonObject(jsonDecode(manifest), 'skills.json').optObject('skills') ?? const {};
+  final locked = lock == null
+      ? const <String, Object?>{}
+      : asJsonObject(jsonDecode(lock), 'skills.lock.json').optObject('skills') ?? const {};
   final ids = {...ranges.keys, ...locked.keys}.toList()..sort();
   return [
     for (final id in ids)
@@ -218,7 +224,9 @@ final class UsageSnapshot {
   UsageSnapshot.fromJson(Map<String, Object?> json)
     : generatedAt = _time(json.number('generatedAt'))!,
       reports = [for (final report in json.objects('reports')) UsageReport.fromJson(report)],
-      accountsWithoutUsage = [for (final account in json.objects('accountsWithoutUsage')) UsageAccount.fromJson(account)],
+      accountsWithoutUsage = [
+        for (final account in json.objects('accountsWithoutUsage')) UsageAccount.fromJson(account),
+      ],
       disabledCredentials = [
         for (final account in json.objects('disabledCredentials')) DisabledCredential.fromJson(account),
       ];
@@ -297,8 +305,10 @@ final class UsageReport {
   final UsageIdentity identity;
 }
 
-String? _metadataString(Map<String, Object?> metadata, String key) =>
-    switch (metadata[key]) { final String value when value.isNotEmpty => value, _ => null };
+String? _metadataString(Map<String, Object?> metadata, String key) => switch (metadata[key]) {
+  final String value when value.isNotEmpty => value,
+  _ => null,
+};
 
 /// `UsageStatus`; a status omp does not name reads as unknown.
 enum UsageStatus { ok, warning, exhausted, unknown }
@@ -307,8 +317,12 @@ final class UsageLimit {
   UsageLimit.fromJson(Map<String, Object?> json)
     : this._(json, json.object('scope'), json.optObject('window'), json.object('amount'));
 
-  UsageLimit._(Map<String, Object?> json, Map<String, Object?> scope, Map<String, Object?>? window, Map<String, Object?> amount)
-    : id = json.string('id'),
+  UsageLimit._(
+    Map<String, Object?> json,
+    Map<String, Object?> scope,
+    Map<String, Object?>? window,
+    Map<String, Object?> amount,
+  ) : id = json.string('id'),
       label = json.string('label'),
       tier = scope.optString('tier'),
       windowId = scope.optString('windowId'),
@@ -385,7 +399,10 @@ final class UsageResetCredits {
       eligible = json.optBool('eligible'),
       reason = json.optString('reason'),
       cooldownUntil = json.optString('cooldownUntil'),
-      credits = [for (final credit in json.optObjects('credits') ?? const <Map<String, Object?>>[]) UsageResetCredit.fromJson(credit)];
+      credits = [
+        for (final credit in json.optObjects('credits') ?? const <Map<String, Object?>>[])
+          UsageResetCredit.fromJson(credit),
+      ];
 
   final int availableCount;
   final int? redeemableCount;
@@ -469,8 +486,7 @@ final class DisabledCredential {
 
 /// One `auth.accountPolicies` entry: routing priority and protected reserve of the account its selector matches.
 final class AccountPolicy {
-  AccountPolicy.fromJson(Map<String, Object?> json)
-    : this._(json, json.object('account'));
+  AccountPolicy.fromJson(Map<String, Object?> json) : this._(json, json.object('account'));
 
   AccountPolicy._(Map<String, Object?> json, Map<String, Object?> account)
     : provider = json.string('provider'),
@@ -508,7 +524,9 @@ final class StatsSnapshot {
         for (final row in json.objects('byModel'))
           (provider: row.string('provider'), model: row.string('model'), totals: StatsTotals.fromJson(row)),
       ],
-      byFolder = [for (final row in json.objects('byFolder')) (folder: row.string('folder'), totals: StatsTotals.fromJson(row))],
+      byFolder = [
+        for (final row in json.objects('byFolder')) (folder: row.string('folder'), totals: StatsTotals.fromJson(row)),
+      ],
       byAgentType = [
         for (final row in json.objects('byAgentType'))
           (
@@ -553,9 +571,16 @@ List<({DateTime hour, int requests})> hourlyRequests(
   const hourMs = 60 * 60 * 1000;
   final counts = <int, int>{};
   for (final point in series) {
-    counts.update(point.time.millisecondsSinceEpoch ~/ hourMs, (count) => count + point.requests, ifAbsent: () => point.requests);
+    counts.update(
+      point.time.millisecondsSinceEpoch ~/ hourMs,
+      (count) => count + point.requests,
+      ifAbsent: () => point.requests,
+    );
   }
-  final last = counts.keys.fold(now.millisecondsSinceEpoch ~/ hourMs, (latest, bucket) => bucket > latest ? bucket : latest);
+  final last = counts.keys.fold(
+    now.millisecondsSinceEpoch ~/ hourMs,
+    (latest, bucket) => bucket > latest ? bucket : latest,
+  );
   return [
     for (var bucket = last - hours; bucket <= last; bucket++)
       (hour: DateTime.fromMillisecondsSinceEpoch(bucket * hourMs), requests: counts[bucket] ?? 0),
@@ -587,7 +612,8 @@ String statsFolderPath(String folder, {required String home, Map<String, String>
   if (folder == '-tmp') return r'$TMPDIR';
   if (folder.startsWith('-tmp-')) return '\$TMPDIR/${folder.substring(5)}';
   if (folder.startsWith('-')) return '~/${folder.substring(1)}';
-  if (folder.length > 1 && folder.startsWith('/') && folder.endsWith('/')) return folder.substring(0, folder.length - 1);
+  if (folder.length > 1 && folder.startsWith('/') && folder.endsWith('/'))
+    return folder.substring(0, folder.length - 1);
   return folder;
 }
 

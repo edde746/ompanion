@@ -46,7 +46,14 @@ final class UsageOverview {
 typedef LimitTemplate = ({String id, String title});
 
 /// Per window of a provider: how many accounts report a limit in it and how much of their quota is burned.
-typedef CapacityStat = ({String window, Duration? duration, String? meter, int accounts, double usedAccounts, double remainingAccounts});
+typedef CapacityStat = ({
+  String window,
+  Duration? duration,
+  String? meter,
+  int accounts,
+  double usedAccounts,
+  double remainingAccounts,
+});
 
 /// A policy line (`formatPolicyLine`). [remainingPercent] is left of the most-consumed limit; null when no limit
 /// reports a fraction.
@@ -204,7 +211,8 @@ String? _mergeKey(UsageReport report) {
   final identity = report.identity;
   return [
     report.provider,
-    for (final part in [identity.email, identity.accountId, identity.projectId, identity.orgId]) part?.toLowerCase() ?? '',
+    for (final part in [identity.email, identity.accountId, identity.projectId, identity.orgId])
+      part?.toLowerCase() ?? '',
   ].join('\u0000');
 }
 
@@ -280,7 +288,9 @@ List<CapacityStat> providerCapacity(List<UsageReport> reports) {
       final fraction = limit.usedFraction;
       if (fraction == null) continue;
       final duration = limit.duration;
-      final windowKey = duration != null ? 'd:${duration.inMilliseconds}' : limit.windowId ?? limit.windowLabel ?? limit.label;
+      final windowKey = duration != null
+          ? 'd:${duration.inMilliseconds}'
+          : limit.windowId ?? limit.windowLabel ?? limit.label;
       final meter = _meter(report, limit);
       final key = meter == null ? windowKey : 'm:$meter\u0000$windowKey';
       final previous = accountMax[key];
@@ -528,4 +538,5 @@ String formatUsageNumber(num n) {
 }
 
 /// `formatUnitValue`: dollars with cents, anything else compact.
-String formatUnitValue(num value, String unit) => unit == 'usd' ? '\$${value.toStringAsFixed(2)}' : formatUsageNumber(value);
+String formatUnitValue(num value, String unit) =>
+    unit == 'usd' ? '\$${value.toStringAsFixed(2)}' : formatUsageNumber(value);

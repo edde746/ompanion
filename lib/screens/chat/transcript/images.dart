@@ -313,7 +313,10 @@ class _MachineImageState extends State<MachineImage> {
         action: canLoadOriginal
             ? (_loadingOriginal
                   ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : TextButton(onPressed: _loadOriginal, child: Text(t.loadOriginal(size: formatBytes(size!)))))
+                  : TextButton(
+                      onPressed: _loadOriginal,
+                      child: Text(t.loadOriginal(size: formatBytes(size!))),
+                    ))
             : null,
       ),
       null when _error != null => _ImageNotice(
@@ -359,7 +362,8 @@ class _MachineImageState extends State<MachineImage> {
     );
   }
 
-  static String _name(String path) => path.split(RegExp(r'[/\\]')).lastWhere((part) => part.isNotEmpty, orElse: () => path);
+  static String _name(String path) =>
+      path.split(RegExp(r'[/\\]')).lastWhere((part) => part.isNotEmpty, orElse: () => path);
 }
 
 /// A compact line in place of a machine image: what is wrong, or that it loads, and an optional [action].

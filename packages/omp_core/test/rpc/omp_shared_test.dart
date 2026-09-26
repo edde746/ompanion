@@ -136,6 +136,9 @@ void main() {
     expect(((phases.single['tasks']! as List<Object?>).single! as Map<String, Object?>)['content'], content);
     final echoed = await seenByPhone.timeout(const Duration(seconds: 10)) as ResponseFrame;
     expect(echoed.id, startsWith('desk:'));
-    expect(phoneFrames.whereType<ResponseFrame>().map((frame) => frame.id), containsAll([echoed.id, startsWith('phone:')]));
+    expect(
+      phoneFrames.whereType<ResponseFrame>().map((frame) => frame.id),
+      containsAll([echoed.id, startsWith('phone:')]),
+    );
   });
 }

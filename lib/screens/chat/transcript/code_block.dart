@@ -105,7 +105,9 @@ class _CodeBlockState extends State<CodeBlock> {
     final text = Text.rich(
       TextSpan(
         style: style,
-        children: runs == null ? [TextSpan(text: code)] : highlightedSpans(code, runs, highlightTheme(theme.brightness)),
+        children: runs == null
+            ? [TextSpan(text: code)]
+            : highlightedSpans(code, runs, highlightTheme(theme.brightness)),
       ),
       softWrap: false,
     );
@@ -157,10 +159,7 @@ class _CodeBlockState extends State<CodeBlock> {
                 ),
               ),
             ),
-          SideScrollView(
-            padding: EdgeInsets.fromLTRB(12, widget.header ? 0 : 10, 12, 10),
-            child: body,
-          ),
+          SideScrollView(padding: EdgeInsets.fromLTRB(12, widget.header ? 0 : 10, 12, 10), child: body),
         ],
       ),
     );

@@ -224,9 +224,10 @@ final class MachineRuntime {
           // The open's future: completes once a session still attaching is ready.
           if (session.sessionPath == sessionPath) return _opens[session.runId] ?? session;
         }
-        final live = (await runs.listRuns(ready.link, ready.probe))
-            .where((run) => run.state == RunState.running && run.meta?.sessionPath == sessionPath)
-            .firstOrNull;
+        final live = (await runs.listRuns(
+          ready.link,
+          ready.probe,
+        )).where((run) => run.state == RunState.running && run.meta?.sessionPath == sessionPath).firstOrNull;
         if (live != null) return _openRun(live, ready.probe);
         final cwd = await _sessionCwd(ready.link, ready.probe, sessionPath);
         // The launch looks for a live run of the session again, under the machine's launch lock.
@@ -254,7 +255,10 @@ final class MachineRuntime {
     if (current != null && current.linkState is! LinkClosed) {
       if (!(_controlAccess?.credentialsChanged ?? false)) return Future.value(current);
       _control = null;
-      return _controlStarting ??= current.stop().then((_) => _startControl()).whenComplete(() => _controlStarting = null);
+      return _controlStarting ??= current
+          .stop()
+          .then((_) => _startControl())
+          .whenComplete(() => _controlStarting = null);
     }
     return _controlStarting ??= _startControl().whenComplete(() => _controlStarting = null);
   }

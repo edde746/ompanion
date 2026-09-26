@@ -59,7 +59,14 @@ void main() {
 
     // Reconnected, the next install takes that lock over at once and removes the partial upload.
     await expectLater(
-      uploadOmp(link, macArm, '18.3.1', asset: Stream.value('not omp'.codeUnits), installDir: dir, lockTimeout: Duration.zero),
+      uploadOmp(
+        link,
+        macArm,
+        '18.3.1',
+        asset: Stream.value('not omp'.codeUnits),
+        installDir: dir,
+        lockTimeout: Duration.zero,
+      ),
       throwsA(isA<HostLinkException>().having((e) => e.message, 'message', contains('SHA-256 mismatch'))),
     );
     expect(Directory(dir).listSync(), isEmpty);
@@ -141,7 +148,8 @@ final class _DroppingFiles implements HostFiles {
   }
 
   @override
-  Future<HostFileStat?> stat(String path, {bool followLinks = true}) => _run(() => _inner.stat(path, followLinks: followLinks));
+  Future<HostFileStat?> stat(String path, {bool followLinks = true}) =>
+      _run(() => _inner.stat(path, followLinks: followLinks));
 
   @override
   Future<List<HostDirEntry>> list(String path) => _run(() => _inner.list(path));

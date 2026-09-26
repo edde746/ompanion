@@ -162,12 +162,16 @@ void main() {
 
     test('an ffmpeg that hangs is killed after the time limit, and the original is sent instead', () async {
       final pid = File('${temp.path}/ffmpeg.pid');
-      final fake = File('${temp.path}/bin/fake-ffmpeg')..writeAsStringSync('#!/bin/sh\necho \$\$ > ${shQuote(pid.path)}\nexec sleep 60\n');
+      final fake = File('${temp.path}/bin/fake-ffmpeg')
+        ..writeAsStringSync('#!/bin/sh\necho \$\$ > ${shQuote(pid.path)}\nexec sleep 60\n');
       await Process.run('chmod', ['+x', fake.path]);
       final file = File('${temp.path}/wide.png')..writeAsBytesSync(pngLookalike(1 << 20));
       final marker = newMarker();
       final clock = Stopwatch()..start();
-      final result = await runPosixScript(link, posixImageScript(marker, file.path, ffmpeg: fake.path, webp: false, seconds: 1));
+      final result = await runPosixScript(
+        link,
+        posixImageScript(marker, file.path, ffmpeg: fake.path, webp: false, seconds: 1),
+      );
       clock.stop();
       final report = parseImageReport(result.payload(marker));
       expect(report.ffmpeg, FfmpegOutcome.timeout);
@@ -227,7 +231,11 @@ void main() {
 
     test('an image with transparent pixels keeps them, and a smaller one is not scaled up', () async {
       final path = '${temp.path}/alpha.png';
-      await _ffmpegMake(path, 'testsrc2=size=1200x900,format=rgba,colorchannelmixer=aa=0.5', extra: ['-compression_level', '0']);
+      await _ffmpegMake(
+        path,
+        'testsrc2=size=1200x900,format=rgba,colorchannelmixer=aa=0.5',
+        extra: ['-compression_level', '0'],
+      );
       final image = await fetch(path) as HostImageBytes;
       expect(image.preview, isTrue);
       expect(image.mimeType, tools.webp ? 'image/webp' : 'image/png');
@@ -279,7 +287,8 @@ void main() {
       final stdout = result.stdout as String;
       final begin = stdout.indexOf('$marker:begin\n');
       if (begin < 0) fail('no payload: $stdout ${result.stderr}');
-      return jsonDecode(stdout.substring(begin + marker.length + 7, stdout.indexOf('\n$marker:end'))) as Map<String, Object?>;
+      return jsonDecode(stdout.substring(begin + marker.length + 7, stdout.indexOf('\n$marker:end')))
+          as Map<String, Object?>;
     }
 
     test('the image script reports problems, size, time and first bytes', () async {
@@ -288,7 +297,10 @@ void main() {
       expect(ok['size'], file.lengthSync());
       expect(ok['mtime'], file.lastModifiedSync().millisecondsSinceEpoch ~/ 1000);
       expect(decodableImageType(ok['magic']! as String), 'image/png');
-      expect((await pwsh((m) => windowsImageScript(m, '${temp.path}/gone.png', ffmpeg: null, webp: false)))['problem'], 'missing');
+      expect(
+        (await pwsh((m) => windowsImageScript(m, '${temp.path}/gone.png', ffmpeg: null, webp: false)))['problem'],
+        'missing',
+      );
       expect((await pwsh((m) => windowsImageScript(m, temp.path, ffmpeg: null, webp: false)))['problem'], 'notFile');
       await Process.run('chmod', ['000', file.path]);
       if ((await Process.run('id', ['-u'])).stdout.toString().trim() != '0') {
@@ -296,29 +308,42 @@ void main() {
       }
     });
 
-    test('with ffmpeg the image script makes a preview in ~/.ompanion/tmp', tags: ['ffmpeg'], skip: _skipWithoutFfmpeg, () async {
-      final path = '${temp.path}/large.png';
-      await _ffmpegMake(path, 'testsrc2=size=3000x2000');
-      final tools = parseImageTools(jsonEncode(await pwsh(windowsImageToolsScript, environment: {'PATH': '${File(_ffmpeg!).parent.path}:/usr/bin:/bin'})));
-      expect(tools.ffmpeg, isNotNull);
-      final json = await pwsh((m) => windowsImageScript(m, path, ffmpeg: tools.ffmpeg, webp: tools.webp));
-      final report = parseImageReport(jsonEncode(json));
-      expect((report.ffmpeg, report.format), (FfmpegOutcome.ok, tools.webp ? 'webp' : 'jpeg'));
-      expect(parseVideoSize(report.stream), (width: 3000, height: 2000));
-      final preview = File(report.out!);
-      expect(preview.parent.path, '$home/.ompanion/tmp');
-      expect(await _decodedSize(temp, preview.readAsBytesSync()), (width: 1600, height: 1067));
-      File('${temp.path}/notes.txt').writeAsStringSync('hello\n' * 100);
-      final text = await pwsh((m) => windowsImageScript(m, '${temp.path}/notes.txt', ffmpeg: tools.ffmpeg, webp: tools.webp));
-      expect(text['ffmpeg'], 'notImage');
-      for (final (name, source, format) in [
-        ('opaque.png', 'testsrc2=size=2000x1000,format=rgba', 'jpeg'),
-        ('clear.png', 'testsrc2=size=2000x1000,format=rgba,colorchannelmixer=aa=0.5', 'png'),
-      ]) {
-        await _ffmpegMake('${temp.path}/$name', source, extra: ['-compression_level', '0']);
-        final json = await pwsh((m) => windowsImageScript(m, '${temp.path}/$name', ffmpeg: tools.ffmpeg, webp: tools.webp));
-        expect(json['format'], tools.webp ? 'webp' : format, reason: name);
-      }
-    });
+    test(
+      'with ffmpeg the image script makes a preview in ~/.ompanion/tmp',
+      tags: ['ffmpeg'],
+      skip: _skipWithoutFfmpeg,
+      () async {
+        final path = '${temp.path}/large.png';
+        await _ffmpegMake(path, 'testsrc2=size=3000x2000');
+        final tools = parseImageTools(
+          jsonEncode(
+            await pwsh(windowsImageToolsScript, environment: {'PATH': '${File(_ffmpeg!).parent.path}:/usr/bin:/bin'}),
+          ),
+        );
+        expect(tools.ffmpeg, isNotNull);
+        final json = await pwsh((m) => windowsImageScript(m, path, ffmpeg: tools.ffmpeg, webp: tools.webp));
+        final report = parseImageReport(jsonEncode(json));
+        expect((report.ffmpeg, report.format), (FfmpegOutcome.ok, tools.webp ? 'webp' : 'jpeg'));
+        expect(parseVideoSize(report.stream), (width: 3000, height: 2000));
+        final preview = File(report.out!);
+        expect(preview.parent.path, '$home/.ompanion/tmp');
+        expect(await _decodedSize(temp, preview.readAsBytesSync()), (width: 1600, height: 1067));
+        File('${temp.path}/notes.txt').writeAsStringSync('hello\n' * 100);
+        final text = await pwsh(
+          (m) => windowsImageScript(m, '${temp.path}/notes.txt', ffmpeg: tools.ffmpeg, webp: tools.webp),
+        );
+        expect(text['ffmpeg'], 'notImage');
+        for (final (name, source, format) in [
+          ('opaque.png', 'testsrc2=size=2000x1000,format=rgba', 'jpeg'),
+          ('clear.png', 'testsrc2=size=2000x1000,format=rgba,colorchannelmixer=aa=0.5', 'png'),
+        ]) {
+          await _ffmpegMake('${temp.path}/$name', source, extra: ['-compression_level', '0']);
+          final json = await pwsh(
+            (m) => windowsImageScript(m, '${temp.path}/$name', ffmpeg: tools.ffmpeg, webp: tools.webp),
+          );
+          expect(json['format'], tools.webp ? 'webp' : format, reason: name);
+        }
+      },
+    );
   });
 }

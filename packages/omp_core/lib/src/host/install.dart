@@ -139,7 +139,11 @@ Future<String> uploadOmp(
       await files.write(owner, const []);
       final upload = probe.isWindows ? '$dir\\.omp-upload-$marker.exe' : '$dir/.omp-upload-$marker';
       final prepare = probe.isWindows
-          ? await runPowerShell(link, probe.commandShell, 'New-Item -ItemType Directory -Force -Path ${psQuote(dir)} | Out-Null')
+          ? await runPowerShell(
+              link,
+              probe.commandShell,
+              'New-Item -ItemType Directory -Force -Path ${psQuote(dir)} | Out-Null',
+            )
           : await runPosixScript(link, 'mkdir -p ${shQuote(dir)}');
       if (prepare.exit.code != 0) throw prepare.failure('cannot create $dir');
       final remoteDir = toSftpPath(dir);

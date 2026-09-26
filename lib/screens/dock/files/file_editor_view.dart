@@ -93,10 +93,7 @@ class _FileEditorViewState extends State<FileEditorView> {
                 onPressed: () => Navigator.pop(context, _ConflictChoice.reload),
                 child: Text(t.discardAndReload),
               ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, _ConflictChoice.overwrite),
-              child: Text(t.overwrite),
-            ),
+            FilledButton(onPressed: () => Navigator.pop(context, _ConflictChoice.overwrite), child: Text(t.overwrite)),
           ],
         ),
       );
@@ -182,7 +179,11 @@ class _FileEditorViewState extends State<FileEditorView> {
             padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
             child: Row(
               children: [
-                IconButton(tooltip: t.backToFiles, onPressed: workspace.showBrowser, icon: const Icon(Icons.arrow_back)),
+                IconButton(
+                  tooltip: t.backToFiles,
+                  onPressed: workspace.showBrowser,
+                  icon: const Icon(Icons.arrow_back),
+                ),
                 Expanded(
                   child: Tooltip(
                     message: hostPath(document.path),
@@ -191,7 +192,10 @@ class _FileEditorViewState extends State<FileEditorView> {
                         children: [
                           TextSpan(text: baseName(document.path)),
                           if (document.dirty)
-                            TextSpan(text: ' ●', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
+                            TextSpan(
+                              text: ' ●',
+                              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                            ),
                         ],
                       ),
                       maxLines: 1,
@@ -251,14 +255,11 @@ class _FileEditorViewState extends State<FileEditorView> {
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Text(
-                  switch (reason) {
-                    ReadOnlyReason.tooLarge => t.tooLarge(mb: maxEditableBytes ~/ (1024 * 1024)),
-                    ReadOnlyReason.binary => t.binary,
-                    ReadOnlyReason.notUtf8 => t.notUtf8,
-                  },
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
+                child: Text(switch (reason) {
+                  ReadOnlyReason.tooLarge => t.tooLarge(mb: maxEditableBytes ~/ (1024 * 1024)),
+                  ReadOnlyReason.binary => t.binary,
+                  ReadOnlyReason.notUtf8 => t.notUtf8,
+                }, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ),
             ),
           Expanded(
@@ -293,10 +294,7 @@ class _Editor extends StatelessWidget {
     final code = codeTextStyle(theme);
     final language = languageFor(baseName(document.path));
     final mode = language == null ? null : modeFor(language);
-    final colors = {
-      ...highlightTheme(theme.brightness),
-      'root': TextStyle(color: scheme.onSurface),
-    };
+    final colors = {...highlightTheme(theme.brightness), 'root': TextStyle(color: scheme.onSurface)};
     return CodeEditor(
       controller: document.controller,
       findController: find,
@@ -372,7 +370,9 @@ class _FindPanel extends StatelessWidget implements PreferredSizeWidget {
     final t = context.t.dock.fileBrowser;
     final theme = Theme.of(context);
     final result = value.result;
-    final count = result == null || result.matches.isEmpty ? t.noMatches : '${result.index + 1}/${result.matches.length}';
+    final count = result == null || result.matches.isEmpty
+        ? t.noMatches
+        : '${result.index + 1}/${result.matches.length}';
     Widget row(List<Widget> children) => SizedBox(
       height: _rowHeight,
       child: Padding(

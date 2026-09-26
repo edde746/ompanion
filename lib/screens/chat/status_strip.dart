@@ -318,6 +318,7 @@ class NoticeHost extends StatefulWidget {
 
 class _NoticeHostState extends State<NoticeHost> {
   StreamSubscription<SessionView>? _subscription;
+
   /// Notices up to this sequence number were shown.
   int _shownThrough = -1;
 

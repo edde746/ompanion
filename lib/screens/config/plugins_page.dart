@@ -61,12 +61,19 @@ class _PluginsPageState extends State<PluginsPage> {
     });
     try {
       final list = PluginList.fromJson(
-        asJsonObject(cliJson((await widget.target.omp(const ['plugin', 'list', '--json'], cwd: _cwd)).stdout), 'plugin list'),
+        asJsonObject(
+          cliJson((await widget.target.omp(const ['plugin', 'list', '--json'], cwd: _cwd)).stdout),
+          'plugin list',
+        ),
       );
-      final marketplaces = parseMarketplaceList((await widget.target.omp(const ['plugin', 'marketplace', 'list'], cwd: _cwd)).stdout);
+      final marketplaces = parseMarketplaceList(
+        (await widget.target.omp(const ['plugin', 'marketplace', 'list'], cwd: _cwd)).stdout,
+      );
       final available = <String, List<AvailablePlugin>>{};
       for (final marketplace in marketplaces) {
-        available[marketplace.name] = parseDiscover((await widget.target.omp(['plugin', 'discover', marketplace.name], cwd: _cwd)).stdout);
+        available[marketplace.name] = parseDiscover(
+          (await widget.target.omp(['plugin', 'discover', marketplace.name], cwd: _cwd)).stdout,
+        );
       }
       if (!mounted) return;
       setState(() {
@@ -116,7 +123,8 @@ class _PluginsPageState extends State<PluginsPage> {
     final t = context.t;
     final theme = Theme.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-    final mono = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: theme.colorScheme.onSurfaceVariant);
+    final mono = codeTextStyle(theme)
+        .copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: theme.colorScheme.onSurfaceVariant);
     final plugins = _plugins;
     final installed = {...?plugins?.marketplace.map((plugin) => plugin.id)};
     final installField = TextField(
@@ -133,7 +141,11 @@ class _PluginsPageState extends State<PluginsPage> {
     final installButton = FilledButton(
       onPressed: _running || _install.text.trim().isEmpty
           ? null
-          : () => _run(['install', _install.text.trim(), if (_scope == 'project') ...['--scope', 'project']]),
+          : () => _run([
+              'install',
+              _install.text.trim(),
+              if (_scope == 'project') ...['--scope', 'project'],
+            ]),
       child: Text(t.config.plugins.installAction),
     );
     return Column(
@@ -171,7 +183,9 @@ class _PluginsPageState extends State<PluginsPage> {
                                   label: Text(feature),
                                   tooltip: description,
                                   selected: plugin.enabledFeatures?.contains(feature) ?? false,
-                                  onSelected: _running ? null : (on) => _run(['features', plugin.name, on ? '--enable' : '--disable', feature]),
+                                  onSelected: _running
+                                      ? null
+                                      : (on) => _run(['features', plugin.name, on ? '--enable' : '--disable', feature]),
                                 ),
                             ],
                           ),
@@ -193,14 +207,19 @@ class _PluginsPageState extends State<PluginsPage> {
                     title: '${plugin.id}${plugin.version == null ? '' : ' (${plugin.version})'}',
                     lines: [
                       Text(
-                        [t.config.plugins.marketplaceScope(scope: plugin.scope), if (plugin.shadowedBy != null) t.config.plugins.shadowed].join(' · '),
+                        [
+                          t.config.plugins.marketplaceScope(scope: plugin.scope),
+                          if (plugin.shadowedBy != null) t.config.plugins.shadowed,
+                        ].join(' · '),
                         style: muted,
                       ),
                     ],
                     actions: [
                       Switch(
                         value: plugin.enabled,
-                        onChanged: _running ? null : (on) => _run([on ? 'enable' : 'disable', plugin.id, '--scope', plugin.scope, '--json']),
+                        onChanged: _running
+                            ? null
+                            : (on) => _run([on ? 'enable' : 'disable', plugin.id, '--scope', plugin.scope, '--json']),
                       ),
                       TextButton(
                         onPressed: _running ? null : () => _run(['upgrade', plugin.id, '--scope', plugin.scope]),
@@ -257,7 +276,10 @@ class _PluginsPageState extends State<PluginsPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('${plugin.name}${plugin.version == null ? '' : '@${plugin.version}'}', style: theme.textTheme.bodyMedium),
+                                    Text(
+                                      '${plugin.name}${plugin.version == null ? '' : '@${plugin.version}'}',
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
                                     if (plugin.description != null) Text(plugin.description!, style: muted),
                                   ],
                                 ),

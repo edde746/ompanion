@@ -166,7 +166,8 @@ class _TreeTabState extends State<TreeTab> {
       final result = await session.companion.call('tree.navigate', {
         'entryId': entry.id,
         if (summarize) 'summarize': true,
-        if (summarize && instructions != null && instructions.trim().isNotEmpty) 'customInstructions': instructions.trim(),
+        if (summarize && instructions != null && instructions.trim().isNotEmpty)
+          'customInstructions': instructions.trim(),
       });
       if (result case {'cancelled': true, 'aborted': final bool aborted}) {
         if (mounted) _snack(aborted ? t.summaryAborted : t.navigationCancelled);
@@ -275,8 +276,9 @@ class _TreeTabState extends State<TreeTab> {
   bool _canRun(_TreeAction action) => switch (action) {
     _TreeAction.copy => true,
     _TreeAction.branch => !_busy,
-    _TreeAction.navigate || _TreeAction.summarize || _TreeAction.label =>
-      !_busy && widget.session.companionHello != null,
+    _TreeAction.navigate ||
+    _TreeAction.summarize ||
+    _TreeAction.label => !_busy && widget.session.companionHello != null,
   };
 
   String _actionLabel(Translations$dock$sessionTree$en t, _TreeAction action) => switch (action) {
@@ -347,14 +349,14 @@ class _TreeTabState extends State<TreeTab> {
                 }),
                 itemBuilder: (_) => [
                   for (final filter in TreeFilter.values)
-                    CheckedPopupMenuItem(value: filter, checked: filter == _filter, child: Text(_filterLabel(t, filter))),
+                    CheckedPopupMenuItem(
+                      value: filter,
+                      checked: filter == _filter,
+                      child: Text(_filterLabel(t, filter)),
+                    ),
                 ],
               ),
-              IconButton(
-                tooltip: t.refresh,
-                onPressed: _loading ? null : _reload,
-                icon: const Icon(Icons.refresh),
-              ),
+              IconButton(tooltip: t.refresh, onPressed: _loading ? null : _reload, icon: const Icon(Icons.refresh)),
             ],
           ),
         ),
@@ -635,12 +637,7 @@ class _SummaryDialogState extends State<_SummaryDialog> {
             const SizedBox(height: 12),
             LabeledField(
               label: t.summaryInstructions,
-              child: TextField(
-                controller: _instructions,
-                autofocus: true,
-                minLines: 2,
-                maxLines: 6,
-              ),
+              child: TextField(controller: _instructions, autofocus: true, minLines: 2, maxLines: 6),
             ),
           ],
         ),
@@ -692,11 +689,7 @@ class _LabelDialogState extends State<_LabelDialog> {
         width: 360,
         child: LabeledField(
           label: t.labelField,
-          child: TextField(
-            controller: _label,
-            autofocus: true,
-            onSubmitted: (_) => _submit(),
-          ),
+          child: TextField(controller: _label, autofocus: true, onSubmitted: (_) => _submit()),
         ),
       ),
       actions: [

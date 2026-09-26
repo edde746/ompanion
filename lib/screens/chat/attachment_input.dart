@@ -75,7 +75,13 @@ Future<Paste?> readPaste(AttachmentSource source) async {
 bool isLargePaste(String text) => '\n'.allMatches(text).length + 1 > 10 || text.length > 1000;
 
 /// Image types omp takes as image content, by file extension.
-const _imageTypes = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'};
+const _imageTypes = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+};
 
 /// The image type [bytes] start with, of those omp takes as image content, or null.
 String? imageMimeType(Uint8List bytes) {
@@ -111,7 +117,10 @@ Future<List<ComposerAttachment>> attachmentsFromPaths(Iterable<String> paths) as
         attachments.add(
           mimeType == null
               ? FileAttachment.path(name: name, size: await file.length(), path: path)
-              : ImageAttachment(RpcImage(data: base64Encode(await file.readAsBytes()), mimeType: mimeType), name: name),
+              : ImageAttachment(
+                  RpcImage(data: base64Encode(await file.readAsBytes()), mimeType: mimeType),
+                  name: name,
+                ),
         );
       case FileSystemEntityType.notFound:
       case FileSystemEntityType.link:
@@ -129,7 +138,10 @@ ComposerAttachment attachmentFromBytes(String name, Uint8List bytes) {
   final mimeType = _imageTypes[p.extension(name).toLowerCase()];
   return mimeType == null
       ? FileAttachment.bytes(name: name, bytes: bytes)
-      : ImageAttachment(RpcImage(data: base64Encode(bytes), mimeType: mimeType), name: name);
+      : ImageAttachment(
+          RpcImage(data: base64Encode(bytes), mimeType: mimeType),
+          name: name,
+        );
 }
 
 /// The system clipboard through `pasteboard`, drops through `desktop_drop`. Copied files and drops exist on macOS,

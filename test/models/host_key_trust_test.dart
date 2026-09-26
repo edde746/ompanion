@@ -85,6 +85,9 @@ void main() {
   });
 
   test('a revoked key is refused even when the app trusts it', () {
-    expect(judgeHostKey(check, [row(presented)], openSsh: openSsh([presented], marker: '@revoked')), isA<HostKeyRevoked>());
+    expect(
+      judgeHostKey(check, [row(presented)], openSsh: openSsh([presented], marker: '@revoked')),
+      isA<HostKeyRevoked>(),
+    );
   });
 }

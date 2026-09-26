@@ -47,7 +47,12 @@ class TranscriptRowView extends StatelessWidget {
       ),
       final ThinkingRow row => (_ThinkingView(row, thought: thought), 6.0),
       AssistantImageRow(:final block) => (Align(alignment: Alignment.centerLeft, child: TranscriptImage(block)), 6.0),
-      final ToolRow row => (ToolCard(data: ToolData(row: row, result: result, subagents: subagents)), 6.0),
+      final ToolRow row => (
+        ToolCard(
+          data: ToolData(row: row, result: result, subagents: subagents),
+        ),
+        6.0,
+      ),
       final AssistantFooterRow row => (_AssistantFooter(row.item, retryFailed: row.retryFailed), 4.0),
       PendingRow() => (const _Pending(), 10.0),
       final TurnSummaryRow row => (_TurnSummary(row, onToggle: onToggle), 6.0),
@@ -313,10 +318,7 @@ class _UserMessageState extends State<_UserMessage> {
                 alignment: Alignment.centerRight,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.9),
-                  child: GestureDetector(
-                    onSecondaryTapUp: (details) => _open(),
-                    child: bubble,
-                  ),
+                  child: GestureDetector(onSecondaryTapUp: (details) => _open(), child: bubble),
                 ),
               ),
             ),
@@ -408,7 +410,10 @@ class _ThinkingViewState extends State<_ThinkingView> {
         if (_expanded)
           Padding(
             padding: const EdgeInsets.only(left: 22, top: 2),
-            child: TranscriptMarkdown(block.thinking, style: dim?.copyWith(fontSize: theme.textTheme.bodyMedium?.fontSize)),
+            child: TranscriptMarkdown(
+              block.thinking,
+              style: dim?.copyWith(fontSize: theme.textTheme.bodyMedium?.fontSize),
+            ),
           ),
       ],
     );
@@ -511,7 +516,10 @@ class _AssistantFooter extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 4),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(color: colors.errorSurface, borderRadius: BorderRadius.circular(8)),
-              child: Text(item.errorMessage ?? t.failed, style: theme.textTheme.bodySmall?.copyWith(color: colors.error)),
+              child: Text(
+                item.errorMessage ?? t.failed,
+                style: theme.textTheme.bodySmall?.copyWith(color: colors.error),
+              ),
             ),
           if (item.stopReason == StopReason.aborted)
             Row(
@@ -532,7 +540,10 @@ class _AssistantFooter extends StatelessWidget {
               style: dim,
             ),
           if ((item.stopReason != StopReason.error || recovery != null) && (usage != null || item.duration != null))
-            Padding(padding: const EdgeInsets.only(top: 2), child: Text(facts.join('  ·  '), style: dim)),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(facts.join('  ·  '), style: dim),
+            ),
         ],
       ),
     );
@@ -610,7 +621,10 @@ class _Execution extends StatelessWidget {
             if (item.images.isNotEmpty) ...[const SizedBox(height: 8), ImageStrip(item.images)],
             if (notes.isNotEmpty)
               SelectionContainer.disabled(
-                child: Padding(padding: const EdgeInsets.only(top: 6), child: Text(notes.join('  ·  '), style: dim)),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(notes.join('  ·  '), style: dim),
+                ),
               ),
           ],
         ),
@@ -801,7 +815,9 @@ class _SummaryMarkerState extends State<_SummaryMarker> {
             children: [
               Icon(widget.icon, size: 16, color: scheme.onSurfaceVariant),
               const SizedBox(width: 6),
-              Flexible(child: Text(widget.title(t), style: style, maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Flexible(
+                child: Text(widget.title(t), style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
               const SizedBox(width: 4),
               TextButton(
                 style: TextButton.styleFrom(visualDensity: VisualDensity.compact),

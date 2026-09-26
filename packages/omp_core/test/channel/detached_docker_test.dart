@@ -163,7 +163,13 @@ void main() {
     expect(await uploadCompanion(link, ompVersion: '18.3.1', bytes: companion), path);
 
     final asset = ompAsset('omp-linux-$arch');
-    final installed = await uploadOmp(link, probe, '18.3.1', asset: File(asset).openRead(), installDir: '${probe.home}/upload');
+    final installed = await uploadOmp(
+      link,
+      probe,
+      '18.3.1',
+      asset: File(asset).openRead(),
+      installDir: '${probe.home}/upload',
+    );
     final version = await runPosixScript(link, '${shQuote(installed)} --version');
     expect(version.stdout.trim(), 'omp/18.3.1');
   }, timeout: const Timeout(Duration(minutes: 10)));

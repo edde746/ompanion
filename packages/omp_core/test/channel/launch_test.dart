@@ -37,7 +37,12 @@ void main() {
     final work = Directory('${root.path}/work')..createSync();
     final id = newRunId();
     final marker = newMarker();
-    final launch = posixLaunchScript(marker, runRoot(probe), id, RunSpec(omp: omp.path, ompVersion: '18.3.1', cwd: work.path));
+    final launch = posixLaunchScript(
+      marker,
+      runRoot(probe),
+      id,
+      RunSpec(omp: omp.path, ompVersion: '18.3.1', cwd: work.path),
+    );
     final result = await runPosixScript(link, 'umask 027\n$launch');
     expect(result.exit.code, 0, reason: result.stderr);
     final dir = '${runRoot(probe)}/$id';

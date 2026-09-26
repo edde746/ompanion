@@ -120,14 +120,21 @@ class _SlashPaletteState extends State<SlashPalette> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Row(
                     children: [
-                      Text('/${command.name}', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                      Text(
+                        '/${command.name}',
+                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(width: AppSizes.gap),
                       // The argument hint first, then the description, both secondary.
                       Expanded(
                         child: Text.rich(
                           TextSpan(
                             children: [
-                              if (hint != null) TextSpan(text: hint, style: codeTextStyle(theme).copyWith(fontSize: 12, color: muted)),
+                              if (hint != null)
+                                TextSpan(
+                                  text: hint,
+                                  style: codeTextStyle(theme).copyWith(fontSize: 12, color: muted),
+                                ),
                               if (hint != null && description != null) const TextSpan(text: '   '),
                               ?(description == null ? null : TextSpan(text: description)),
                             ],

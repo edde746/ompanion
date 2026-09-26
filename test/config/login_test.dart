@@ -19,14 +19,19 @@ void main() {
     });
 
     test('remote redirects and portless loopback URLs need no forward', () {
-      expect(loopbackPorts('https://claude.ai/oauth?redirect_uri=https%3A%2F%2Fconsole.anthropic.com%2Fcallback', null), isEmpty);
+      expect(
+        loopbackPorts('https://claude.ai/oauth?redirect_uri=https%3A%2F%2Fconsole.anthropic.com%2Fcallback', null),
+        isEmpty,
+      );
       expect(loopbackPorts('https://x.dev/?redirect_uri=http%3A%2F%2Flocalhost%2Fcb', null), isEmpty);
     });
   });
 
   group('roles', () {
     test('roles.get of a control process with --model', () {
-      final roles = RolesState.fromJson(jsonDecode(File('test/config/fixtures/roles-get.json').readAsStringSync()) as Map<String, Object?>);
+      final roles = RolesState.fromJson(
+        jsonDecode(File('test/config/fixtures/roles-get.json').readAsStringSync()) as Map<String, Object?>,
+      );
       expect(roles.storage, 'global');
       final main = roles.roles.first;
       expect((main.role, main.model, main.provenance), ('default', 'fake/fake-1', Provenance.runtime));
@@ -41,7 +46,9 @@ void main() {
   });
 
   test('accounts.list with a models.yml provider', () {
-    final accounts = AccountsState.fromJson(jsonDecode(File('test/config/fixtures/accounts-list.json').readAsStringSync()) as Map<String, Object?>);
+    final accounts = AccountsState.fromJson(
+      jsonDecode(File('test/config/fixtures/accounts-list.json').readAsStringSync()) as Map<String, Object?>,
+    );
     expect(accounts.currentProvider, 'fake');
     final fake = accounts.providers.single;
     expect(fake.sourceKind, AuthSourceKind.config);
@@ -87,13 +94,21 @@ void main() {
       (id: 'deepseek', name: 'DeepSeek', available: true, authenticated: false),
       (id: 'stencil', name: 'Stencil (invite only)', available: false, authenticated: false),
     ];
-    final rows = providerRows(accounts: accounts, login: login, modelProviders: const ['fake', 'groq'], hidden: 'minimax');
+    final rows = providerRows(
+      accounts: accounts,
+      login: login,
+      modelProviders: const ['fake', 'groq'],
+      hidden: 'minimax',
+    );
 
     test('merge login, model and stored providers by id; in use first, then signed in, then by name', () {
       expect(rows.map((row) => row.id), ['fake', 'openrouter', 'anthropic', 'deepseek', 'groq', 'ollama']);
       final byId = {for (final row in rows) row.id: row};
       expect(byId['openrouter']!.name, 'OpenRouter');
-      expect([byId['openrouter']!.inUse, byId['openrouter']!.pinned, byId['openrouter']!.canSignIn], [true, true, true]);
+      expect(
+        [byId['openrouter']!.inUse, byId['openrouter']!.pinned, byId['openrouter']!.canSignIn],
+        [true, true, true],
+      );
       expect(byId['fake']!.current, isTrue);
       expect(byId['fake']!.accounts!.storedOverridden, isTrue);
       expect([byId['groq']!.signedIn, byId['groq']!.canSignIn], [false, false]);
@@ -102,7 +117,9 @@ void main() {
     test("omp's login kind decides: a pasted-key login is an API key row without a sign-in", () {
       final byId = {for (final row in rows) row.id: row};
       expect(
-        [for (final id in ['anthropic', 'deepseek', 'ollama', 'groq', 'fake']) (byId[id]!.kind, byId[id]!.canSignIn)],
+        [
+          for (final id in ['anthropic', 'deepseek', 'ollama', 'groq', 'fake']) (byId[id]!.kind, byId[id]!.canSignIn),
+        ],
         [
           (ProviderKind.account, true),
           (ProviderKind.apiKey, false),
@@ -119,7 +136,12 @@ void main() {
         'providers': [provider('minimax', source: 'runtime'), provider('fake')],
         'logins': const <Object?>[],
       });
-      final rows = providerRows(accounts: bootstrap, login: const [], modelProviders: const ['minimax'], hidden: 'minimax');
+      final rows = providerRows(
+        accounts: bootstrap,
+        login: const [],
+        modelProviders: const ['minimax'],
+        hidden: 'minimax',
+      );
       expect(rows.map((row) => (row.id, row.kind, row.signedIn)), [('fake', ProviderKind.apiKey, false)]);
     });
 

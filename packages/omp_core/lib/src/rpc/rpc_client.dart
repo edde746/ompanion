@@ -158,11 +158,8 @@ final class RpcClient {
     return (id: id, agentInvoked: null);
   }
 
-  Future<RpcSessionChange> newSession({String? parentSession}) => _call(
-    'new_session',
-    {'parentSession': ?parentSession},
-    (json) => (cancelled: json.boolean('cancelled')),
-  );
+  Future<RpcSessionChange> newSession({String? parentSession}) =>
+      _call('new_session', {'parentSession': ?parentSession}, (json) => (cancelled: json.boolean('cancelled')));
 
   /// Continues the newest session in [sessionDir] or starts one there. Fails under `--no-session`.
   Future<RpcOpenSessionResult> openSession(String sessionDir) => _call(
@@ -180,11 +177,9 @@ final class RpcClient {
 
   Future<RpcSessionState> getState() => _call('get_state', const {}, RpcSessionState.fromJson);
 
-  Future<RpcFastMode> setFastMode(bool enabled) => _call(
-    'set_fast_mode',
-    {'enabled': enabled},
-    (json) => (enabled: json.boolean('enabled'), active: json.boolean('active')),
-  );
+  Future<RpcFastMode> setFastMode(bool enabled) => _call('set_fast_mode', {
+    'enabled': enabled,
+  }, (json) => (enabled: json.boolean('enabled'), active: json.boolean('active')));
 
   Future<List<RpcSlashCommand>> getAvailableCommands() => _call(
     'get_available_commands',
@@ -194,11 +189,9 @@ final class RpcClient {
 
   /// The session's append history, all of it or strictly after entry [since]. An unknown [since]
   /// fails with code `unknown_since`.
-  Future<RpcEntries> getEntries({String? since}) => _call(
-    'get_entries',
-    {'since': ?since},
-    (json) => (entries: json.objects('entries'), leafId: json.optString('leafId')),
-  );
+  Future<RpcEntries> getEntries({String? since}) => _call('get_entries', {
+    'since': ?since,
+  }, (json) => (entries: json.objects('entries'), leafId: json.optString('leafId')));
 
   Future<RpcTree> getTree() =>
       _call('get_tree', const {}, (json) => (tree: json.objects('tree'), leafId: json.optString('leafId')));
@@ -305,18 +298,13 @@ final class RpcClient {
   Future<String> exportHtml({String? outputPath}) =>
       _call('export_html', {'outputPath': ?outputPath}, (json) => json.string('path'));
 
-  Future<RpcSessionChange> switchSession(String sessionPath) => _call(
-    'switch_session',
-    {'sessionPath': sessionPath},
-    (json) => (cancelled: json.boolean('cancelled')),
-  );
+  Future<RpcSessionChange> switchSession(String sessionPath) =>
+      _call('switch_session', {'sessionPath': sessionPath}, (json) => (cancelled: json.boolean('cancelled')));
 
   /// Starts a new session file branched before user message [entryId]; `text` is that message.
-  Future<RpcBranchResult> branch(String entryId) => _call(
-    'branch',
-    {'entryId': entryId},
-    (json) => (text: json.string('text'), cancelled: json.boolean('cancelled')),
-  );
+  Future<RpcBranchResult> branch(String entryId) => _call('branch', {
+    'entryId': entryId,
+  }, (json) => (text: json.string('text'), cancelled: json.boolean('cancelled')));
 
   /// User messages [branch] can start from.
   Future<List<RpcBranchMessage>> getBranchMessages() => _call(
@@ -413,7 +401,8 @@ final class RpcClient {
     _decoder = decoder;
     _subscription = _channel.lines.listen(
       _onLine,
-      onError: (Object error, StackTrace stack) => _stop(RpcClosedException('channel failed', cause: error), clean: false),
+      onError: (Object error, StackTrace stack) =>
+          _stop(RpcClosedException('channel failed', cause: error), clean: false),
       onDone: () => _stop(_endedError(), clean: true),
     );
   }
@@ -485,7 +474,9 @@ final class RpcClient {
     final completer = pending.completer;
     switch (frame) {
       case ResponseFrame(:final command) when command != pending.command:
-        completer.completeError(RpcProtocolException('response $id answers "$command", request was "${pending.command}"'));
+        completer.completeError(
+          RpcProtocolException('response $id answers "$command", request was "${pending.command}"'),
+        );
       case ResponseFrame(success: true, :final data):
         completer.complete(data);
       case ResponseFrame(:final command, :final error, :final code):
@@ -502,7 +493,9 @@ final class RpcClient {
     if (ready == null || ready.isCompleted) return RpcClosedException('channel ended');
     final noise = _decoder?.noise ?? const [];
     return RpcClosedException(
-      noise.isEmpty ? 'channel ended before omp was ready' : 'channel ended before omp was ready; output:\n${noise.join('\n')}',
+      noise.isEmpty
+          ? 'channel ended before omp was ready'
+          : 'channel ended before omp was ready; output:\n${noise.join('\n')}',
     );
   }
 
@@ -548,8 +541,11 @@ final class RpcClient {
     }
   }
 
-  static Map<String, Object?> _images(List<RpcImage> images) =>
-      images.isEmpty ? const {} : {'images': [for (final image in images) image.toJson()]};
+  static Map<String, Object?> _images(List<RpcImage> images) => images.isEmpty
+      ? const {}
+      : {
+          'images': [for (final image in images) image.toJson()],
+        };
 }
 
 final class _Pending {

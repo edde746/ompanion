@@ -90,8 +90,7 @@ String mcpAddStdio(String name, McpScope scope, String commandLine) =>
     '/mcp add $name --scope ${scope.name} -- ${commandLine.trim()}';
 
 /// `/mcp add` for a remote server. [token] becomes a bearer header in `mcp.json`.
-String mcpAddRemote(String name, McpScope scope, {required String url, required String transport, String? token}) =>
-    [
-      '/mcp add $name --scope ${scope.name} --url $url --transport $transport',
-      if (token != null && token.isNotEmpty) '--token $token',
-    ].join(' ');
+String mcpAddRemote(String name, McpScope scope, {required String url, required String transport, String? token}) => [
+  '/mcp add $name --scope ${scope.name} --url $url --transport $transport',
+  if (token != null && token.isNotEmpty) '--token $token',
+].join(' ');

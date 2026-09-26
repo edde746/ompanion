@@ -42,20 +42,14 @@ class ChatHeader extends StatelessWidget {
       session: session,
       builder: (context, link) => SessionViewSelector<_HeaderData>(
         session: session,
-        select: (view) =>
-            (name: liveSessionName(t, view, summary), paused: view.run.paused, running: view.run.running),
+        select: (view) => (name: liveSessionName(t, view, summary), paused: view.run.paused, running: view.run.running),
         builder: (context, data) {
           final closed = link is LinkClosed;
           final title = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                data.name,
-                style: theme.textTheme.titleSmall,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(data.name, style: theme.textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
               Text(
                 machine == null ? session.cwd : '${session.cwd} · ${machine.name}',
                 style: muted,

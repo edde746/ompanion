@@ -12,12 +12,8 @@ void main() {
   late DateTime now;
   late FakeImageHost machine;
 
-  MachineImages images({int memoryBytes = 48 << 20, int diskBytes = 256 << 20}) => MachineImages(
-    cacheDir: () async => temp,
-    memoryBytes: memoryBytes,
-    diskBytes: diskBytes,
-    clock: () => now,
-  );
+  MachineImages images({int memoryBytes = 48 << 20, int diskBytes = 256 << 20}) =>
+      MachineImages(cacheDir: () async => temp, memoryBytes: memoryBytes, diskBytes: diskBytes, clock: () => now);
 
   setUp(() async {
     temp = await Directory.systemTemp.createTemp('machine images ');
@@ -84,7 +80,10 @@ void main() {
     machine.files['/home/u/huge.png'] = (size: (64 << 20) + 1, modified: DateTime.utc(2026));
     final missing = await cache.load(machine, '/home/u/gone.png') as HostImageProblem;
     final huge = await cache.load(machine, '/home/u/huge.png') as HostImageProblem;
-    expect((missing.issue, huge.issue, huge.size, huge.canLoadOriginal), (HostImageIssue.missing, HostImageIssue.tooLarge, (64 << 20) + 1, false));
+    expect(
+      (missing.issue, huge.issue, huge.size, huge.canLoadOriginal),
+      (HostImageIssue.missing, HostImageIssue.tooLarge, (64 << 20) + 1, false),
+    );
     expect(machine.fetches, isEmpty);
   });
 

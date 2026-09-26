@@ -36,7 +36,9 @@ void main() {
       await response.close();
     });
     link = await SshLink.open(
-      SshTarget(target: targetHop(user: passwordUser, auth: const SshPasswordAuth(password))),
+      SshTarget(
+        target: targetHop(user: passwordUser, auth: const SshPasswordAuth(password)),
+      ),
       verifyHostKey: trustTestHosts,
     );
     probe = await probeHost(link);
@@ -82,21 +84,34 @@ printf '%s' "\$d"
     test('$tool downloads the release asset, which is checked and installed', () async {
       requests.clear();
       final script = posixInstallCommand(probe, '18.3.1', assetBase: base('release'));
-      final result = await runPosixScript(link, tool == 'curl' ? script : withPath(await pathWithout(['curl']), script));
+      final result = await runPosixScript(
+        link,
+        tool == 'curl' ? script : withPath(await pathWithout(['curl']), script),
+      );
       expect(result.exit.code, 0, reason: result.stderr);
       expect(requests.single.$1, '/release/${probe.releaseAsset}');
       expect(requests.single.$2.toLowerCase(), startsWith(tool));
       final installed = await runPosixScript(link, 'ls -A "\$HOME/.local/bin"; "\$HOME/.local/bin/omp" --version');
-      expect(installed.stdout, 'omp\nomp/18.3.1\n', reason: 'the download was moved into place, nothing left beside it');
+      expect(
+        installed.stdout,
+        'omp\nomp/18.3.1\n',
+        reason: 'the download was moved into place, nothing left beside it',
+      );
     }, timeout: const Timeout(Duration(minutes: 5)));
   }
 
   test('a tampered download is refused before it runs, and removed', () async {
     final dir = '${probe.home}/tampered';
-    final result = await runPosixScript(link, posixInstallCommand(probe, '18.3.1', installDir: dir, assetBase: base('tampered')));
+    final result = await runPosixScript(
+      link,
+      posixInstallCommand(probe, '18.3.1', installDir: dir, assetBase: base('tampered')),
+    );
     expect(result.exit.code, 1);
     expect(result.stderr, contains('SHA-256 mismatch'));
-    final left = await runPosixScript(link, 'ls -A ${shQuote(dir)}; ls "\$HOME/tampered-ran" 2>/dev/null; rm -rf ${shQuote(dir)}');
+    final left = await runPosixScript(
+      link,
+      'ls -A ${shQuote(dir)}; ls "\$HOME/tampered-ran" 2>/dev/null; rm -rf ${shQuote(dir)}',
+    );
     expect(left.stdout, isEmpty);
   });
 }

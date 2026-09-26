@@ -79,7 +79,10 @@ void main() {
 
       await settle(tester);
       expect(host.fetches, [('/home/u/proj/out/chart.png', false)]);
-      expect(tester.widget<Image>(find.descendant(of: find.byType(FittedImage), matching: find.byType(Image))).image, isA<MemoryImage>());
+      expect(
+        tester.widget<Image>(find.descendant(of: find.byType(FittedImage), matching: find.byType(Image))).image,
+        isA<MemoryImage>(),
+      );
       expect(find.text('chart.png · 3000×2000 · preview, 68 B of 4.0 MB'), findsOneWidget);
 
       await tester.tap(find.text('Open in Files'));
@@ -127,7 +130,12 @@ void main() {
   });
 
   group('tool cards', () {
-    ToolCard card(String tool, {Map<String, Object?> args = const {}, List<ContentBlock> content = const [], Object? details}) {
+    ToolCard card(
+      String tool, {
+      Map<String, Object?> args = const {},
+      List<ContentBlock> content = const [],
+      Object? details,
+    }) {
       final result = ToolResultItem(
         toolCallId: 'call-1',
         toolName: tool,
@@ -136,7 +144,9 @@ void main() {
         details: details,
         state: ToolState.done,
       );
-      return ToolCard(data: ToolData(row: ToolRow.orphan(result), result: result, subagents: const []));
+      return ToolCard(
+        data: ToolData(row: ToolRow.orphan(result), result: result, subagents: const []),
+      );
     }
 
     testWidgets('an image read shows the image, open, with its size and type', (tester) async {
@@ -145,8 +155,16 @@ void main() {
         card(
           'read',
           args: {'path': 'pic.png'},
-          content: const [TextBlock('Read image file [image/png]'), ImageBlock(data: _png, mimeType: 'image/png')],
-          details: {'fileSize': 26672, 'meta': {'source': {'type': 'path', 'value': '/home/u/proj/pic.png'}}},
+          content: const [
+            TextBlock('Read image file [image/png]'),
+            ImageBlock(data: _png, mimeType: 'image/png'),
+          ],
+          details: {
+            'fileSize': 26672,
+            'meta': {
+              'source': {'type': 'path', 'value': '/home/u/proj/pic.png'},
+            },
+          },
         ),
       );
       expect(find.byType(FittedImage), findsOneWidget);
@@ -165,7 +183,10 @@ void main() {
           'read',
           args: {'path': 'notes.md'},
           content: const [TextBlock('alpha\nbeta')],
-          details: {'displayContent': {'text': 'alpha\nbeta', 'startLine': 1}, 'totalLines': 2},
+          details: {
+            'displayContent': {'text': 'alpha\nbeta', 'startLine': 1},
+            'totalLines': 2,
+          },
         ),
       );
       expect(find.textContaining('alpha', findRichText: true), findsNothing);
@@ -183,7 +204,12 @@ void main() {
           'read',
           args: {'path': 'pic.png'},
           content: const [TextBlock('Image metadata:\n- MIME: image/png\n- Dimensions: 640x360')],
-          details: {'fileSize': 26672, 'meta': {'source': {'type': 'path', 'value': '/home/u/proj/pic.png'}}},
+          details: {
+            'fileSize': 26672,
+            'meta': {
+              'source': {'type': 'path', 'value': '/home/u/proj/pic.png'},
+            },
+          },
         ),
       );
       await settle(tester);
@@ -194,7 +220,14 @@ void main() {
 
     testWidgets('todo and web search results keep images that come without their usual details', (tester) async {
       for (final tool in ['todo', 'web_search']) {
-        await pump(tester, card(tool, content: const [ImageBlock(data: _png, mimeType: 'image/png')]), key: ValueKey(tool));
+        await pump(
+          tester,
+          card(
+            tool,
+            content: const [ImageBlock(data: _png, mimeType: 'image/png')],
+          ),
+          key: ValueKey(tool),
+        );
         expect(find.byType(TranscriptImage), findsOneWidget, reason: tool);
       }
     });

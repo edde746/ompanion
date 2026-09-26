@@ -209,20 +209,20 @@ final class SshLink implements HostLink {
   }
 
   Future<_Connection> _addConnection() => _adding ??= () async {
-        try {
-          final hops = target.hops;
-          final connection = await _dialer.dial(hops, hops.length - 1, via: _jumps.lastOrNull?.client);
-          if (_closing) {
-            unawaited(connection.close());
-            throw HostLinkException('$label: link is closed', cause: _closeReason);
-          }
-          _connections.add(connection);
-          _watch(connection.client, target.target, connection);
-          return connection;
-        } finally {
-          _adding = null;
-        }
-      }();
+    try {
+      final hops = target.hops;
+      final connection = await _dialer.dial(hops, hops.length - 1, via: _jumps.lastOrNull?.client);
+      if (_closing) {
+        unawaited(connection.close());
+        throw HostLinkException('$label: link is closed', cause: _closeReason);
+      }
+      _connections.add(connection);
+      _watch(connection.client, target.target, connection);
+      return connection;
+    } finally {
+      _adding = null;
+    }
+  }();
 
   void _release(_Connection connection) {
     connection.open--;
@@ -255,10 +255,12 @@ final class SshLink implements HostLink {
       return;
     }
     _unanswered++;
-    unawaited(_primary.client.ping().then(
-          (_) => _unanswered = 0,
-          onError: (Object error) => _shutDown(HostLinkException('$label: connection lost', cause: error)),
-        ));
+    unawaited(
+      _primary.client.ping().then(
+        (_) => _unanswered = 0,
+        onError: (Object error) => _shutDown(HostLinkException('$label: connection lost', cause: error)),
+      ),
+    );
   }
 
   void _checkOpen() {
@@ -288,6 +290,7 @@ final class _Connection {
 
   final SSHClient client;
   final SSHSocket socket;
+
   /// Session channels in use.
   var open = 0;
 
@@ -367,10 +370,12 @@ final class _Dialer {
         } on SshKeyException catch (error) {
           throw SshConnectException(hop, SshFailure.keyUnavailable, error.message, cause: error);
         }
-        final offer = SshKeyOffer(keys: [
-          for (final key in keys)
-            SshOfferedKey(SshPublicKey(key.toPublicKey().encode(), comment: key.comment ?? ''), name: name),
-        ]);
+        final offer = SshKeyOffer(
+          keys: [
+            for (final key in keys)
+              SshOfferedKey(SshPublicKey(key.toPublicKey().encode(), comment: key.comment ?? ''), name: name),
+          ],
+        );
         return _Auth.offering(hop, waits, offer, fallback, identities: keys);
       case SshPasswordAuth(:final password):
         var typed = false;
@@ -464,9 +469,7 @@ final class _Dialer {
 
     final identities = <SSHIdentity>[];
     final offered = <SshOfferedKey>[];
-    final agentSigned = agent == null
-        ? const <SSHIdentity>[]
-        : agentIdentities(agent, agentKeys, wait: waits.run);
+    final agentSigned = agent == null ? const <SSHIdentity>[] : agentIdentities(agent, agentKeys, wait: waits.run);
     final remaining = List.of(files);
     for (final (index, key) in agentKeys.indexed) {
       final file = remaining.where((file) => _sameKey(file.publicKey, key)).firstOrNull;
@@ -489,14 +492,16 @@ final class _Dialer {
         final pair = await _unlock(hop, file, auth.passphrase);
         publicKey = SshPublicKey(pair.toPublicKey().encode());
       }
-      identities.add(SSHIdentity.custom(
-        type: signatureType(publicKey.type),
-        publicKey: SSHRawHostKey(publicKey.blob),
-        signer: (data) async => (await waits.run(() => _unlock(hop, file, auth.passphrase))).sign(data),
-        comment: file.configured,
-        // The passphrase is asked only for a key the server accepts.
-        shouldProbe: true,
-      ));
+      identities.add(
+        SSHIdentity.custom(
+          type: signatureType(publicKey.type),
+          publicKey: SSHRawHostKey(publicKey.blob),
+          signer: (data) async => (await waits.run(() => _unlock(hop, file, auth.passphrase))).sign(data),
+          comment: file.configured,
+          // The passphrase is asked only for a key the server accepts.
+          shouldProbe: true,
+        ),
+      );
       offered.add(SshOfferedKey(publicKey, path: file.configured));
     }
 
@@ -588,7 +593,12 @@ final class _Dialer {
     try {
       return await via.forwardLocal(hop.host, hop.port).timeout(timeout);
     } on TimeoutException catch (error) {
-      throw SshConnectException(hop, SshFailure.timeout, '${viaHop.label} did not reach ${hop.host}:${hop.port}', cause: error);
+      throw SshConnectException(
+        hop,
+        SshFailure.timeout,
+        '${viaHop.label} did not reach ${hop.host}:${hop.port}',
+        cause: error,
+      );
     } on SSHChannelOpenError catch (error) {
       throw SshConnectException(
         hop,
@@ -618,7 +628,11 @@ final class _Dialer {
       final accepted = _acceptedHostKeys[index];
       if (accepted != null) {
         if (accepted == fingerprint) return true;
-        verdict = SshConnectException(hop, SshFailure.hostKeyRejected, 'host key changed from $accepted to $fingerprint');
+        verdict = SshConnectException(
+          hop,
+          SshFailure.hostKeyRejected,
+          'host key changed from $accepted to $fingerprint',
+        );
         return false;
       }
       final check = HostKeyCheck(
@@ -657,7 +671,9 @@ final class _Dialer {
           : (request) async {
               // OpenSSH ends a PAM conversation with an empty round; only one with text reaches the user.
               if (request.prompts.isEmpty && request.name.isEmpty && request.instruction.isEmpty) return const [];
-              return auth.waits.run(() => respond(KeyboardInteractiveRequest(
+              return auth.waits.run(
+                () => respond(
+                  KeyboardInteractiveRequest(
                     hop: hop.label,
                     name: request.name,
                     instruction: request.instruction,
@@ -666,7 +682,9 @@ final class _Dialer {
                         KeyboardInteractivePrompt(prompt.promptText, echo: prompt.echo),
                     ],
                     refused: auth.offer,
-                  )));
+                  ),
+                ),
+              );
             },
       onUserauthBanner: _onBanner == null ? null : (banner) => _onBanner(hop, banner),
       keepAliveInterval: null,
@@ -681,8 +699,12 @@ final class _Dialer {
       unawaited(client.close());
       socket.destroy();
       throw switch (auth.waits.abort) {
-        SshAgentException(:final message) && final abort =>
-          SshConnectException(hop, SshFailure.keyUnavailable, message, cause: abort),
+        SshAgentException(:final message) && final abort => SshConnectException(
+          hop,
+          SshFailure.keyUnavailable,
+          message,
+          cause: abort,
+        ),
         final abort? => abort,
         null => verdict ?? _classify(hop, error, auth.offer, timedOut: deadline.expired, phase: phase),
       };
@@ -713,7 +735,12 @@ final class _Dialer {
         cause: error,
       ),
       SSHHostkeyError(:final message) => SshConnectException(hop, SshFailure.hostKeyRejected, message, cause: error),
-      SSHSocketError() => SshConnectException(hop, SshFailure.unreachable, 'connection lost during handshake', cause: error),
+      SSHSocketError() => SshConnectException(
+        hop,
+        SshFailure.unreachable,
+        'connection lost during handshake',
+        cause: error,
+      ),
       _ => SshConnectException(hop, SshFailure.protocol, 'SSH handshake failed', cause: error),
     };
   }
@@ -781,14 +808,16 @@ final class _Auth {
       agent: agent,
       offer: offer,
       onPassword: () async {
-        final answers = await ask(KeyboardInteractiveRequest(
-          hop: hop.label,
-          name: '',
-          instruction: '',
-          prompts: const [KeyboardInteractivePrompt('Password:', echo: false)],
-          password: true,
-          refused: offer,
-        ));
+        final answers = await ask(
+          KeyboardInteractiveRequest(
+            hop: hop.label,
+            name: '',
+            instruction: '',
+            prompts: const [KeyboardInteractivePrompt('Password:', echo: false)],
+            password: true,
+            refused: offer,
+          ),
+        );
         return answers?.firstOrNull;
       },
       respond: ask,
@@ -906,43 +935,45 @@ final class _SftpFiles implements HostFiles {
   /// OpenSSH's sftp-server describes READDIR entries with lstat, so links arrive as links.
   @override
   Future<List<HostDirEntry>> list(String path) => _run('list', path, () async {
-        return [
-          for (final name in await _sftp.listdir(path))
-            if (name.filename != '.' && name.filename != '..') HostDirEntry(name.filename, _toStat(name.attr)),
-        ];
-      });
+    return [
+      for (final name in await _sftp.listdir(path))
+        if (name.filename != '.' && name.filename != '..') HostDirEntry(name.filename, _toStat(name.attr)),
+    ];
+  });
 
   @override
   Future<Uint8List> read(String path, {int offset = 0, int? length}) => _run('read', path, () async {
-        final file = await _sftp.open(path);
-        try {
-          return await file.readBytes(offset: offset, length: length);
-        } finally {
-          await file.close();
-        }
-      });
+    final file = await _sftp.open(path);
+    try {
+      return await file.readBytes(offset: offset, length: length);
+    } finally {
+      await file.close();
+    }
+  });
 
   @override
   Future<void> write(String path, List<int> bytes, {bool append = false, int? mode}) => _run('write', path, () async {
-        final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
-        final created = mode == null ? null : await _createExclusive(path);
-        final file = created ??
-            await _sftp.open(
-              path,
-              mode: SftpFileOpenMode.write |
-                  SftpFileOpenMode.create |
-                  (append ? SftpFileOpenMode.append : SftpFileOpenMode.truncate),
-            );
-        try {
-          // Permissions go on before any byte is written, so a secret is never readable by others.
-          if (created != null) await file.setStat(SftpFileAttrs(mode: SftpFileMode.value(mode!)));
-          // OpenSSH's sftp-server appends regardless of offset; other servers honour the offset.
-          final offset = append && created == null ? (await file.stat()).size ?? 0 : 0;
-          await file.writeBytes(data, offset: offset);
-        } finally {
-          await file.close();
-        }
-      });
+    final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+    final created = mode == null ? null : await _createExclusive(path);
+    final file =
+        created ??
+        await _sftp.open(
+          path,
+          mode:
+              SftpFileOpenMode.write |
+              SftpFileOpenMode.create |
+              (append ? SftpFileOpenMode.append : SftpFileOpenMode.truncate),
+        );
+    try {
+      // Permissions go on before any byte is written, so a secret is never readable by others.
+      if (created != null) await file.setStat(SftpFileAttrs(mode: SftpFileMode.value(mode!)));
+      // OpenSSH's sftp-server appends regardless of offset; other servers honour the offset.
+      final offset = append && created == null ? (await file.stat()).size ?? 0 : 0;
+      await file.writeBytes(data, offset: offset);
+    } finally {
+      await file.close();
+    }
+  });
 
   /// Null when [path] already exists.
   Future<SftpFile?> _createExclusive(String path) async {
@@ -962,7 +993,7 @@ final class _SftpFiles implements HostFiles {
   Future<void> mkdir(String path, {int? mode}) async {
     final attrs = mode == null ? null : SftpFileAttrs(mode: SftpFileMode.value(mode));
     // A lock holder may remove the directory between our failed mkdir and the stat: try once more.
-    for (var attempt = 1;; attempt++) {
+    for (var attempt = 1; ; attempt++) {
       try {
         await _sftp.mkdir(path, attrs);
         return;
@@ -1012,14 +1043,14 @@ final class _SftpFiles implements HostFiles {
   }
 
   static HostFileStat _toStat(SftpFileAttrs attrs) => HostFileStat(
-        size: attrs.size ?? 0,
-        isDirectory: attrs.isDirectory,
-        isLink: attrs.isSymbolicLink,
-        modified: attrs.modifyTime == null
-            ? null
-            : DateTime.fromMillisecondsSinceEpoch(attrs.modifyTime! * 1000, isUtc: true),
-        mode: attrs.mode?.value,
-      );
+    size: attrs.size ?? 0,
+    isDirectory: attrs.isDirectory,
+    isLink: attrs.isSymbolicLink,
+    modified: attrs.modifyTime == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(attrs.modifyTime! * 1000, isUtc: true),
+    mode: attrs.mode?.value,
+  );
 }
 
 final class _SshSocket implements HostSocket {

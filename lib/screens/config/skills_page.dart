@@ -103,7 +103,10 @@ class _SkillsPageState extends State<SkillsPage> {
         !mounted) {
       return;
     }
-    await showDialog<void>(context: context, builder: (_) => _InfoDialog(package: package!));
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _InfoDialog(package: package!),
+    );
   }
 
   /// `omp skill <args>`; `--global` for user scope, the project directory otherwise.
@@ -151,7 +154,10 @@ class _SkillsPageState extends State<SkillsPage> {
           title: Text(t.config.skills.installWhere(id: id)),
           children: [
             SimpleDialogOption(onPressed: () => Navigator.pop(context, true), child: Text(t.config.skills.forUser)),
-            SimpleDialogOption(onPressed: () => Navigator.pop(context, false), child: Text(t.config.skills.forProject(path: _cwd!))),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(t.config.skills.forProject(path: _cwd!)),
+            ),
           ],
         ),
       );
@@ -216,11 +222,17 @@ class _SkillsPageState extends State<SkillsPage> {
               if (_searching) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
               if (_searchError != null) ConfigError(_searchError!, onRetry: () => _search(_query)),
               if (results != null && results.hits.isEmpty)
-                Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text(t.config.skills.noHits(query: _query), style: muted)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(t.config.skills.noHits(query: _query), style: muted),
+                ),
               if (results != null && results.hits.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(t.config.skills.results(shown: '${results.hits.length}', total: '${results.total}'), style: muted),
+                  child: Text(
+                    t.config.skills.results(shown: '${results.hits.length}', total: '${results.total}'),
+                    style: muted,
+                  ),
                 ),
                 for (final hit in results.hits)
                   _SkillRow(
@@ -236,7 +248,10 @@ class _SkillsPageState extends State<SkillsPage> {
                     ].join('\n'),
                     actions: [
                       TextButton(onPressed: () => _info(hit.id), child: Text(t.config.skills.info)),
-                      FilledButton.tonal(onPressed: _running ? null : () => _install(hit.id), child: Text(t.config.plugins.installAction)),
+                      FilledButton.tonal(
+                        onPressed: _running ? null : () => _install(hit.id),
+                        child: Text(t.config.plugins.installAction),
+                      ),
                     ],
                   ),
               ],

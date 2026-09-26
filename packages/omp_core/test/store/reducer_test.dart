@@ -677,7 +677,11 @@ void main() {
     });
 
     test('a timed dialog a tool opened closes when the tool ends, since omp times it out without a frame', () {
-      final ask = uiRequest('q1', 'select', {'title': 'Which color?', 'options': ['Red', 'Blue'], 'timeout': 30000});
+      final ask = uiRequest('q1', 'select', {
+        'title': 'Which color?',
+        'options': ['Red', 'Blue'],
+        'timeout': 30000,
+      });
       var view = apply(SessionView(), [
         running,
         toolStart('call_1', 'ask', {'questions': <Object?>[]}),
@@ -694,7 +698,9 @@ void main() {
         running,
         toolStart('call_2', 'bash', {'command': 'true'}),
         toolEnd('call_2', 'bash', ''),
-        agentEnd([assistant(300, [text('done')])]),
+        agentEnd([
+          assistant(300, [text('done')]),
+        ]),
         {'type': 'session_settled'},
       ]);
       expect([for (final request in idle.requests) request.id], ['q3']);
@@ -873,7 +879,10 @@ void main() {
         messageEnd(page2.last, 'msg-4'),
       ]);
       bool marker(TranscriptItem item) => item is ModelChangeItem || item is ThinkingChangeItem;
-      final markerKeys = [for (final item in view.transcript) if (marker(item)) item.key];
+      final markerKeys = [
+        for (final item in view.transcript)
+          if (marker(item)) item.key,
+      ];
       final entries = [
         message('u1', null, page1.first),
         message('a1', 'u1', page1.last),
@@ -885,7 +894,14 @@ void main() {
 
       view = withEntries(view, entries, leafId: 'a2');
       expect([for (final item in view.transcript) item.entryId], ['u1', 'a1', 't1', 'u2', 'a2', 'm1']);
-      expect([for (final item in view.transcript) if (marker(item)) item.key], markerKeys, reason: 'live rows keep their keys');
+      expect(
+        [
+          for (final item in view.transcript)
+            if (marker(item)) item.key,
+        ],
+        markerKeys,
+        reason: 'live rows keep their keys',
+      );
       expect(withEntries(view, entries, leafId: 'a2').transcript, hasLength(6), reason: 'merging again adds nothing');
     });
   });

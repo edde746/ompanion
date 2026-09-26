@@ -34,11 +34,7 @@ void main() {
     final view = ValueNotifier(
       SessionView(transcript: history, historyLength: history.length, run: const RunState(running: true)),
     );
-    final actions = TranscriptActions(
-      onCopy: (_) {},
-      onOpenFile: (path, {line}) {},
-      onOpenSubagent: (_) {},
-    );
+    final actions = TranscriptActions(onCopy: (_) {}, onOpenFile: (path, {line}) {}, onOpenSubagent: (_) {});
     await tester.pumpWidget(
       TranslationProvider(
         child: MaterialApp(
@@ -122,15 +118,17 @@ List<TranscriptItem> syntheticTranscript(int count) {
   for (var turn = 1; messages.length < count; turn++) {
     messages
       ..add({'role': 'user', 'content': 'Question $turn: what does step $turn change?', 'timestamp': time += 1000})
-      ..add(assistant([
-        {'type': 'text', 'text': 'Checking step $turn.'},
-        {
-          'type': 'toolCall',
-          'id': 's$turn',
-          'name': 'bash',
-          'arguments': {'command': 'git log -1 --stat step-$turn'},
-        },
-      ], 'toolUse'))
+      ..add(
+        assistant([
+          {'type': 'text', 'text': 'Checking step $turn.'},
+          {
+            'type': 'toolCall',
+            'id': 's$turn',
+            'name': 'bash',
+            'arguments': {'command': 'git log -1 --stat step-$turn'},
+          },
+        ], 'toolUse'),
+      )
       ..add({
         'role': 'toolResult',
         'toolCallId': 's$turn',
@@ -138,14 +136,16 @@ List<TranscriptItem> syntheticTranscript(int count) {
         'content': 'commit ${turn.toRadixString(16).padLeft(7, '0')}\n lib/a.dart | 4 ++--\n',
         'timestamp': time += 1000,
       })
-      ..add(assistant([
-        {
-          'type': 'text',
-          'text':
-              'Step $turn changes **two lines** in `lib/a.dart`:\n\n```dart\nfinal step = $turn;\nprint(step);\n```\n\n'
-              '- keeps the API\n- adds a test\n\n| file | lines |\n|---|---|\n| lib/a.dart | 4 |',
-        },
-      ], 'stop'));
+      ..add(
+        assistant([
+          {
+            'type': 'text',
+            'text':
+                'Step $turn changes **two lines** in `lib/a.dart`:\n\n```dart\nfinal step = $turn;\nprint(step);\n```\n\n'
+                '- keeps the API\n- adds a test\n\n| file | lines |\n|---|---|\n| lib/a.dart | 4 |',
+          },
+        ], 'stop'),
+      );
   }
   return withMessages(SessionView(), messages.take(count).toList()).transcript;
 }

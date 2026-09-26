@@ -11,7 +11,6 @@ import 'package:ompanion/sessions/prompt_attachments.dart';
 
 /// A session whose process has no companion: anything that needs the machine's `local://` directory fails.
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   @override

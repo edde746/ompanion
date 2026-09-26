@@ -37,7 +37,9 @@ void main() {
     // Git for Windows' sh, on PATH in the CI step's bash.
     final home = await Process.run('sh', ['$repoRoot/testing/omp-home.sh', profile, '${fake.port}']);
     if (home.exitCode != 0) throw StateError('omp-home.sh failed: ${home.stderr}');
-    File('$profile\\.omp\\agent\\config.yml').writeAsStringSync('modelRoles:\n  default: fake/fake-1\n', mode: FileMode.append);
+    File(
+      '$profile\\.omp\\agent\\config.yml',
+    ).writeAsStringSync('modelRoles:\n  default: fake/fake-1\n', mode: FileMode.append);
     final install = Directory('${Platform.environment['LOCALAPPDATA']}\\omp')..createSync(recursive: true);
     File(ompAsset('omp-windows-x64.exe')).copySync('${install.path}\\omp.exe');
     Directory(project).createSync();
@@ -62,52 +64,64 @@ void main() {
     Directory(project).deleteSync(recursive: true);
   });
 
-  test('a session gets its reply, a second device attaches and prompts, a reattach replays both, stop ends omp', () async {
-    await fake.enqueue([
-      {
-        'steps': [
-          {'text': 'Hello'},
-          {'delayMs': 300},
-          {'text': ' from Windows.'},
-        ],
-      },
-      {
-        'steps': [
-          {'text': 'Second answer, é ✓.'},
-        ],
-      },
-    ]);
-    final first = runtime('device-a');
-    final probed = await first.connectAndProbe();
-    expect((probed.os, probed.ompVersion), (HostOs.windows, '18.3.1'));
+  test(
+    'a session gets its reply, a second device attaches and prompts, a reattach replays both, stop ends omp',
+    () async {
+      await fake.enqueue([
+        {
+          'steps': [
+            {'text': 'Hello'},
+            {'delayMs': 300},
+            {'text': ' from Windows.'},
+          ],
+        },
+        {
+          'steps': [
+            {'text': 'Second answer, é ✓.'},
+          ],
+        },
+      ]);
+      final first = runtime('device-a');
+      final probed = await first.connectAndProbe();
+      expect((probed.os, probed.ompVersion), (HostOs.windows, '18.3.1'));
 
-    final session = await first.open(NewSession(project, model: 'fake/fake-1'));
-    final path = session.sessionPath!;
-    expect(path, startsWith('$profile\\.omp\\agent\\sessions\\'));
-    await session.rpc.prompt('Say hello');
-    final done = await viewWhere(session, (view) => idle(view) && answers(view).isNotEmpty, timeout: const Duration(seconds: 60));
-    expect(answers(done), ['Hello from Windows.']);
+      final session = await first.open(NewSession(project, model: 'fake/fake-1'));
+      final path = session.sessionPath!;
+      expect(path, startsWith('$profile\\.omp\\agent\\sessions\\'));
+      await session.rpc.prompt('Say hello');
+      final done = await viewWhere(
+        session,
+        (view) => idle(view) && answers(view).isNotEmpty,
+        timeout: const Duration(seconds: 60),
+      );
+      expect(answers(done), ['Hello from Windows.']);
 
-    final other = await runtime('device-b').open(ResumeSession(path));
-    expect(other.runId, session.runId);
-    expect(prompts(other.view), ['Say hello']);
-    expect(answers(other.view), ['Hello from Windows.']);
-    await other.rpc.prompt('Again, é ✓');
-    for (final device in [session, other]) {
-      final view = await viewWhere(device, (view) => idle(view) && answers(view).length == 2, timeout: const Duration(seconds: 60));
-      expect(prompts(view), ['Say hello', 'Again, é ✓']);
-      expect(answers(view).last, 'Second answer, é ✓.');
-    }
-    expect((await first.listSessions()).map((summary) => summary.path), contains(path));
+      final other = await runtime('device-b').open(ResumeSession(path));
+      expect(other.runId, session.runId);
+      expect(prompts(other.view), ['Say hello']);
+      expect(answers(other.view), ['Hello from Windows.']);
+      await other.rpc.prompt('Again, é ✓');
+      for (final device in [session, other]) {
+        final view = await viewWhere(
+          device,
+          (view) => idle(view) && answers(view).length == 2,
+          timeout: const Duration(seconds: 60),
+        );
+        expect(prompts(view), ['Say hello', 'Again, é ✓']);
+        expect(answers(view).last, 'Second answer, é ✓.');
+      }
+      expect((await first.listSessions()).map((summary) => summary.path), contains(path));
 
-    await session.detach();
-    await other.detach();
-    final again = await runtime('device-c').open(AttachRun(session.runId));
-    expect(answers(again.view), ['Hello from Windows.', 'Second answer, é ✓.']);
-    await again.stop();
-    final run = (await listRuns(link, probe)).singleWhere((run) => run.id == session.runId);
-    expect((run.state, run.exitCode), (RunState.exited, 0));
-  }, timeout: const Timeout(Duration(minutes: 3)));
+      await session.detach();
+      await other.detach();
+      final again = await runtime('device-c').open(AttachRun(session.runId));
+      expect(answers(again.view), ['Hello from Windows.', 'Second answer, é ✓.']);
+      await again.stop();
+      final run = (await listRuns(link, probe)).singleWhere((run) => run.id == session.runId);
+      expect((run.state, run.exitCode), (RunState.exited, 0));
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 
   test('two connections append to in.jsonl at once while feed.ps1 holds it open, and each line reaches omp', () async {
     final run = (await openRun(
@@ -159,7 +173,9 @@ void main() {
       if (result.exitCode != 0) throw StateError('registry: ${result.stderr}');
     }
 
-    await reg("New-ItemProperty -Path '$key' -Name DefaultShell -Value '$powershell' -PropertyType String -Force | Out-Null");
+    await reg(
+      "New-ItemProperty -Path '$key' -Name DefaultShell -Value '$powershell' -PropertyType String -Force | Out-Null",
+    );
     addTearDown(() => reg("Remove-ItemProperty -Path '$key' -Name DefaultShell"));
     final shelled = await connectWindows();
     addTearDown(shelled.close);
@@ -168,7 +184,12 @@ void main() {
     final run = (await openRun(
       shelled,
       probed,
-      RunSpec(omp: probed.ompPath!, ompVersion: probed.ompVersion!, cwd: project, args: const ['--model', 'fake/fake-1']),
+      RunSpec(
+        omp: probed.ompPath!,
+        ompVersion: probed.ompVersion!,
+        cwd: project,
+        args: const ['--model', 'fake/fake-1'],
+      ),
     )).run;
     final channel = await attachRun(shelled, probed, run);
     final frames = Frames(channel.lines);

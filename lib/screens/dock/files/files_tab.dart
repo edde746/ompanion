@@ -150,10 +150,7 @@ class _Browser extends StatelessWidget {
         content: Text(row.isLink ? t.deleteLinkBody : (row.isDirectory ? t.deleteFolderBody : t.deleteFileBody)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.t.common.cancel)),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.t.common.delete),
-          ),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(context.t.common.delete)),
         ],
       ),
     );
@@ -224,11 +221,7 @@ class _Browser extends StatelessWidget {
                 onPressed: isRootPath(root) ? null : () => workspace.openDir(parentPath(root)),
                 icon: const Icon(Icons.arrow_upward, size: 20),
               ),
-              IconButton(
-                tooltip: t.refresh,
-                onPressed: workspace.refresh,
-                icon: const Icon(Icons.refresh, size: 20),
-              ),
+              IconButton(tooltip: t.refresh, onPressed: workspace.refresh, icon: const Icon(Icons.refresh, size: 20)),
               IconButton(
                 tooltip: t.newFile,
                 onPressed: () => _create(context, root, folder: false),
@@ -269,7 +262,10 @@ class _Browser extends StatelessWidget {
               ),
               EmptyRow(:final depth) => _StatusTile(
                 depth: depth,
-                child: Text(t.emptyFolder, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                child: Text(
+                  t.emptyFolder,
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
               ),
               FailedRow(:final depth, :final dir, :final error) => _StatusTile(
                 depth: depth,
@@ -286,10 +282,7 @@ class _Browser extends StatelessWidget {
                         ),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () => workspace.reloadDir(dir),
-                      child: Text(context.t.common.retry),
-                    ),
+                    TextButton(onPressed: () => workspace.reloadDir(dir), child: Text(context.t.common.retry)),
                   ],
                 ),
               ),
@@ -386,7 +379,11 @@ class _EntryTile extends StatelessWidget {
             SizedBox(
               width: 18,
               child: row.isDirectory
-                  ? Icon(row.expanded ? Icons.expand_more : Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant)
+                  ? Icon(
+                      row.expanded ? Icons.expand_more : Icons.chevron_right,
+                      size: 18,
+                      color: scheme.onSurfaceVariant,
+                    )
                   : null,
             ),
             if (row.isLink)
@@ -419,7 +416,10 @@ class _EntryTile extends StatelessWidget {
             else if (dirty)
               Icon(Icons.circle, size: 6, color: AppColors.of(context).warning)
             else if (!row.isDirectory && !row.isLink)
-              Text(formatBytes(row.entry.stat.size), style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+              Text(
+                formatBytes(row.entry.stat.size),
+                style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
           ],
         ),
       ),

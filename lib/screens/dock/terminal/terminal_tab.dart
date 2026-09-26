@@ -305,13 +305,11 @@ class _TerminalPaneState extends State<_TerminalPane> {
             if (phase is TerminalExited || phase is TerminalFailed)
               MaterialBanner(
                 backgroundColor: phase is TerminalFailed ? AppColors.of(context).errorSurface : null,
-                content: Text(
-                  switch (phase) {
-                    TerminalFailed(:final error) => t.failed(error: error.toString()),
-                    TerminalExited(code: final code?) => t.exited(code: code.toString()),
-                    _ => t.exitedBySignal,
-                  },
-                ),
+                content: Text(switch (phase) {
+                  TerminalFailed(:final error) => t.failed(error: error.toString()),
+                  TerminalExited(code: final code?) => t.exited(code: code.toString()),
+                  _ => t.exitedBySignal,
+                }),
                 actions: [
                   TextButton(onPressed: widget.onClose, child: Text(t.close)),
                   TextButton(onPressed: widget.onRestart, child: Text(t.restart)),

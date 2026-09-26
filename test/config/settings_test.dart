@@ -30,7 +30,10 @@ void main() {
 
     test('enums offer the panel options with their labels, else the bare enum values', () {
       final labelled = editor('modelRoleStorage') as ChoiceEditor;
-      expect(labelled.options.map((option) => (option.value, option.label)), [('global', 'Global'), ('project', 'Per-project')]);
+      expect(labelled.options.map((option) => (option.value, option.label)), [
+        ('global', 'Global'),
+        ('project', 'Per-project'),
+      ]);
       final bare = editor('hindsight.recallBudget') as ChoiceEditor;
       expect(bare.options.map((option) => option.label), ['low', 'mid', 'high']);
     });
@@ -70,15 +73,26 @@ void main() {
       expect(editor('modelRoles'), isA<JsonEditor>());
       expect(editor('ttsr.disabledRules'), isA<StringListEditor>());
       // A hand-edited file may put an object into a string list.
-      expect(editorFor(setting('ttsr.disabledRules'), [<String, Object?>{'name': 'x'}]), isA<JsonEditor>());
+      expect(
+        editorFor(setting('ttsr.disabledRules'), [
+          <String, Object?>{'name': 'x'},
+        ]),
+        isA<JsonEditor>(),
+      );
     });
   });
 
   group('SettingValue', () {
     test('decodes provenance and redacted credentials', () {
       expect(Provenance.fromWire('default'), Provenance.defaults);
-      expect(snapshot.values['advisor.enabled'], isA<KnownValue>().having((v) => v.provenance, 'provenance', Provenance.runtime));
-      expect(snapshot.values['startup.checkUpdate'], isA<KnownValue>().having((v) => v.provenance, 'provenance', Provenance.global));
+      expect(
+        snapshot.values['advisor.enabled'],
+        isA<KnownValue>().having((v) => v.provenance, 'provenance', Provenance.runtime),
+      );
+      expect(
+        snapshot.values['startup.checkUpdate'],
+        isA<KnownValue>().having((v) => v.provenance, 'provenance', Provenance.global),
+      );
       expect(snapshot.values['images.urls.credentials'], isA<RedactedValue>());
       expect(() => Provenance.fromWire('file'), throwsFormatException);
     });
@@ -105,12 +119,24 @@ void main() {
       final global = ConfigLayer({
         'advisor': {'enabled': true},
       });
-      final display = displayFor(setting('advisor.enabled'), snapshot.values['advisor.enabled'], SettingsScope.global, global: global, project: null);
+      final display = displayFor(
+        setting('advisor.enabled'),
+        snapshot.values['advisor.enabled'],
+        SettingsScope.global,
+        global: global,
+        project: null,
+      );
       expect(display.value, isTrue);
       expect(display.setHere, isTrue);
       expect(display.overriddenBy, Provenance.runtime);
 
-      final unset = displayFor(setting('advisor.enabled'), snapshot.values['advisor.enabled'], SettingsScope.global, global: empty, project: null);
+      final unset = displayFor(
+        setting('advisor.enabled'),
+        snapshot.values['advisor.enabled'],
+        SettingsScope.global,
+        global: empty,
+        project: null,
+      );
       expect(unset.value, setting('advisor.enabled').defaultValue);
       expect(unset.setHere, isFalse);
     });
@@ -119,7 +145,13 @@ void main() {
       final global = ConfigLayer({
         'startup': {'checkUpdate': false},
       });
-      final display = displayFor(setting('startup.checkUpdate'), snapshot.values['startup.checkUpdate'], SettingsScope.global, global: global, project: null);
+      final display = displayFor(
+        setting('startup.checkUpdate'),
+        snapshot.values['startup.checkUpdate'],
+        SettingsScope.global,
+        global: global,
+        project: null,
+      );
       expect(display.value, isFalse);
       expect(display.setHere, isTrue);
       expect(display.overriddenBy, isNull);
@@ -136,7 +168,13 @@ void main() {
       final own = displayFor(setting('theme.dark'), effective, SettingsScope.project, global: global, project: project);
       expect(own.value, 'birch');
       expect(own.setHere, isTrue);
-      final inherited = displayFor(setting('theme.dark'), effective, SettingsScope.project, global: global, project: empty);
+      final inherited = displayFor(
+        setting('theme.dark'),
+        effective,
+        SettingsScope.project,
+        global: global,
+        project: empty,
+      );
       expect(inherited.value, 'basalt');
       expect(inherited.setHere, isFalse);
     });
@@ -150,12 +188,24 @@ void main() {
 
     test('an environment variable overrides every layer', () {
       const effective = KnownValue('mnemopi.embeddingModel', Provenance.env, null);
-      final display = displayFor(setting('mnemopi.embeddingModel'), effective, SettingsScope.project, global: empty, project: empty);
+      final display = displayFor(
+        setting('mnemopi.embeddingModel'),
+        effective,
+        SettingsScope.project,
+        global: empty,
+        project: empty,
+      );
       expect(display.overriddenBy, Provenance.env);
     });
 
     test('without a readable global file, the effective provenance decides', () {
-      final display = displayFor(setting('startup.checkUpdate'), snapshot.values['startup.checkUpdate'], SettingsScope.global, global: null, project: null);
+      final display = displayFor(
+        setting('startup.checkUpdate'),
+        snapshot.values['startup.checkUpdate'],
+        SettingsScope.global,
+        global: null,
+        project: null,
+      );
       expect(display.value, isFalse);
       expect(display.setHere, isTrue);
     });
@@ -176,7 +226,13 @@ void main() {
       expect(configured.configured, isTrue);
       expect(configured.setHere, isTrue);
       // omp's own default is not a configured credential.
-      final defaulted = displayFor(setting('images.urls.credentials'), snapshot.values['images.urls.credentials'], SettingsScope.global, global: empty, project: null);
+      final defaulted = displayFor(
+        setting('images.urls.credentials'),
+        snapshot.values['images.urls.credentials'],
+        SettingsScope.global,
+        global: empty,
+        project: null,
+      );
       expect(defaulted.configured, isFalse);
     });
   });
@@ -187,12 +243,18 @@ void main() {
       expect(sections.every((section) => section.tab == 'model'), isTrue);
       final groups = sections.map((section) => section.group).toList();
       expect(groups.toSet().length, groups.length);
-      expect(sections.expand((section) => section.settings).map((s) => s.path), containsAll(['modelRoleStorage', 'externalThinking']));
+      expect(
+        sections.expand((section) => section.settings).map((s) => s.path),
+        containsAll(['modelRoleStorage', 'externalThinking']),
+      );
     });
 
     test('rows whose condition is false are hidden', () {
       final hidden = settingsSections(schema, tab: 'memory', conditions: const {'mnemopiActive': false});
-      expect(hidden.expand((section) => section.settings).map((s) => s.path), isNot(contains('mnemopi.embeddingModel')));
+      expect(
+        hidden.expand((section) => section.settings).map((s) => s.path),
+        isNot(contains('mnemopi.embeddingModel')),
+      );
       final shown = settingsSections(schema, tab: 'memory', conditions: const {'mnemopiActive': true});
       expect(shown.expand((section) => section.settings).map((s) => s.path), contains('mnemopi.embeddingModel'));
     });

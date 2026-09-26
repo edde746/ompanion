@@ -56,7 +56,9 @@ class _AccountsPageState extends State<AccountsPage> {
     try {
       final control = await widget.target.control();
       final source = _project ?? control;
-      final accounts = AccountsState.fromJson(asJsonObject(await source.companion.call('accounts.list'), 'accounts.list'));
+      final accounts = AccountsState.fromJson(
+        asJsonObject(await source.companion.call('accounts.list'), 'accounts.list'),
+      );
       final providers = await control.rpc.getLoginProviders();
       if (!mounted) return;
       setState(() {
@@ -89,7 +91,8 @@ class _AccountsPageState extends State<AccountsPage> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => RpcLoginDialog(target: widget.target, control: control!, providerId: row.id, providerName: row.name),
+      builder: (_) =>
+          RpcLoginDialog(target: widget.target, control: control!, providerId: row.id, providerName: row.name),
     );
     if (mounted) await runReporting(context, _changed);
   }
@@ -98,16 +101,21 @@ class _AccountsPageState extends State<AccountsPage> {
   /// the file.
   Future<bool> _setKey(String provider, String name, String key) {
     final t = context.t;
-    return runReporting(context, () async {
-      final control = await widget.target.control();
-      final file = await widget.target.uploadSecret(key.trim());
-      try {
-        await control.companion.call('accounts.setKey', {'provider': provider, 'keyFile': file});
-      } finally {
-        await widget.target.discardSecret(file);
-      }
-      await _changed();
-    }, done: t.config.accounts.keyStored(provider: name), secret: true);
+    return runReporting(
+      context,
+      () async {
+        final control = await widget.target.control();
+        final file = await widget.target.uploadSecret(key.trim());
+        try {
+          await control.companion.call('accounts.setKey', {'provider': provider, 'keyFile': file});
+        } finally {
+          await widget.target.discardSecret(file);
+        }
+        await _changed();
+      },
+      done: t.config.accounts.keyStored(provider: name),
+      secret: true,
+    );
   }
 
   Future<void> _logout(ProviderRow row, StoredCredential credential) async {
@@ -156,12 +164,16 @@ class _AccountsPageState extends State<AccountsPage> {
       children: [
         ConfigHeader(
           title: t.config.sections.accounts,
-          subtitle: _project == null ? t.config.accounts.machineWide : t.config.accounts.sessionView(path: _project!.cwd),
-          actions: [
-            RefreshAction(loading: _loading, onPressed: _load),
-          ],
+          subtitle: _project == null
+              ? t.config.accounts.machineWide
+              : t.config.accounts.sessionView(path: _project!.cwd),
+          actions: [RefreshAction(loading: _loading, onPressed: _load)],
         ),
-        if (bootstrap) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: ConfigBanner(t.config.accounts.bootstrap, error: true)),
+        if (bootstrap)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: ConfigBanner(t.config.accounts.bootstrap, error: true),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: AppSearchField(
@@ -274,7 +286,11 @@ class _ProviderTile extends StatelessWidget {
                   children: [
                     Text(row.name, style: theme.textTheme.bodyMedium),
                     if (row.name != row.id)
-                      Text(row.id, style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: scheme.onSurfaceVariant)),
+                      Text(
+                        row.id,
+                        style: codeTextStyle(theme)
+                            .copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: scheme.onSurfaceVariant),
+                      ),
                   ],
                 ),
               ),
@@ -319,16 +335,14 @@ class _ProviderTile extends StatelessWidget {
                   if (accounts != null && accounts.storedOverridden)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        switch (accounts.sourceKind) {
-                          AuthSourceKind.env => t.config.accounts.overridden.env(name: accounts.envVar ?? '?'),
-                          AuthSourceKind.runtime => t.config.accounts.overridden.runtime,
-                          _ => t.config.accounts.overridden.config,
-                        },
-                        style: theme.textTheme.bodySmall?.copyWith(color: colors.warning),
-                      ),
+                      child: Text(switch (accounts.sourceKind) {
+                        AuthSourceKind.env => t.config.accounts.overridden.env(name: accounts.envVar ?? '?'),
+                        AuthSourceKind.runtime => t.config.accounts.overridden.runtime,
+                        _ => t.config.accounts.overridden.config,
+                      }, style: theme.textTheme.bodySmall?.copyWith(color: colors.warning)),
                     ),
-                  for (final credential in row.credentials) _CredentialRow(credential: credential, canPin: canPin, onLogout: onLogout, onPin: onPin),
+                  for (final credential in row.credentials)
+                    _CredentialRow(credential: credential, canPin: canPin, onLogout: onLogout, onPin: onPin),
                   if (row.canSignIn) ...[
                     const SizedBox(height: 12),
                     Row(
@@ -340,7 +354,12 @@ class _ProviderTile extends StatelessWidget {
                           label: Text(t.config.accounts.signIn),
                         ),
                         const SizedBox(width: 12),
-                        Expanded(child: Text(remote ? t.config.accounts.oauthRemote : t.config.accounts.oauthLocal, style: muted)),
+                        Expanded(
+                          child: Text(
+                            remote ? t.config.accounts.oauthRemote : t.config.accounts.oauthLocal,
+                            style: muted,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -358,7 +377,13 @@ class _ProviderTile extends StatelessWidget {
 
 /// A key for a provider id the list does not show; open, the id and the key.
 class _OtherProviderTile extends StatefulWidget {
-  const _OtherProviderTile({super.key, required this.open, required this.initialId, required this.onToggle, required this.onSaveKey});
+  const _OtherProviderTile({
+    super.key,
+    required this.open,
+    required this.initialId,
+    required this.onToggle,
+    required this.onSaveKey,
+  });
 
   final bool open;
 
@@ -422,7 +447,10 @@ class _OtherProviderTileState extends State<_OtherProviderTile> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(t.config.accounts.otherNote, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                  Text(
+                    t.config.accounts.otherNote,
+                    style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
                   const SizedBox(height: 12),
                   TextField(
                     key: const ValueKey('other-provider-id'),
@@ -472,7 +500,11 @@ class _CredentialRow extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8),
       child: Row(
         children: [
-          Icon(credential.oauth ? Icons.account_circle_outlined : Icons.vpn_key_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          Icon(
+            credential.oauth ? Icons.account_circle_outlined : Icons.vpn_key_outlined,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(

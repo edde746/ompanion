@@ -84,28 +84,54 @@ class _StatsPageState extends State<StatsPage> {
                   runSpacing: AppSizes.gap,
                   children: [
                     _Metric(label: t.config.stats.requests, value: '${stats.overall.requests}'),
-                    _Metric(label: t.config.stats.errors, value: '${stats.overall.failed} (${_percent(stats.overall.errorRate)})'),
+                    _Metric(
+                      label: t.config.stats.errors,
+                      value: '${stats.overall.failed} (${_percent(stats.overall.errorRate)})',
+                    ),
                     _Metric(label: t.config.stats.inputTokens, value: formatTokens(stats.overall.inputTokens)),
                     _Metric(label: t.config.stats.outputTokens, value: formatTokens(stats.overall.outputTokens)),
-                    _Metric(label: t.config.stats.cacheRead, value: '${formatTokens(stats.overall.cacheReadTokens)} (${_percent(stats.overall.cacheRate)})'),
+                    _Metric(
+                      label: t.config.stats.cacheRead,
+                      value: '${formatTokens(stats.overall.cacheReadTokens)} (${_percent(stats.overall.cacheRate)})',
+                    ),
                     _Metric(label: t.config.stats.cost, value: _cost(stats.overall.cost)),
-                    if (stats.overall.avgTtftMs case final ttft?) _Metric(label: t.config.stats.ttft, value: '${ttft.round()} ms'),
-                    if (stats.overall.avgTokensPerSecond case final rate?) _Metric(label: t.config.stats.speed, value: '${rate.toStringAsFixed(1)} tok/s'),
+                    if (stats.overall.avgTtftMs case final ttft?)
+                      _Metric(label: t.config.stats.ttft, value: '${ttft.round()} ms'),
+                    if (stats.overall.avgTokensPerSecond case final rate?)
+                      _Metric(label: t.config.stats.speed, value: '${rate.toStringAsFixed(1)} tok/s'),
                   ],
                 ),
                 ConfigSectionTitle(t.config.stats.perHour),
                 _Bars(bars: hourlyRequests(stats.timeSeries, now: DateTime.now())),
                 ConfigSectionTitle(t.config.stats.byModel),
                 _Table(
-                  headers: [t.config.stats.model, t.config.stats.requests, t.config.stats.inputTokens, t.config.stats.outputTokens, t.config.stats.cost],
+                  headers: [
+                    t.config.stats.model,
+                    t.config.stats.requests,
+                    t.config.stats.inputTokens,
+                    t.config.stats.outputTokens,
+                    t.config.stats.cost,
+                  ],
                   rows: [
                     for (final row in stats.byModel)
-                      ['${row.provider}/${row.model}', '${row.totals.requests}', formatTokens(row.totals.inputTokens), formatTokens(row.totals.outputTokens), _cost(row.totals.cost)],
+                      [
+                        '${row.provider}/${row.model}',
+                        '${row.totals.requests}',
+                        formatTokens(row.totals.inputTokens),
+                        formatTokens(row.totals.outputTokens),
+                        _cost(row.totals.cost),
+                      ],
                   ],
                 ),
                 ConfigSectionTitle(t.config.stats.byFolder),
                 _Table(
-                  headers: [t.config.stats.folder, t.config.stats.requests, t.config.stats.inputTokens, t.config.stats.outputTokens, t.config.stats.cost],
+                  headers: [
+                    t.config.stats.folder,
+                    t.config.stats.requests,
+                    t.config.stats.inputTokens,
+                    t.config.stats.outputTokens,
+                    t.config.stats.cost,
+                  ],
                   rows: [
                     for (final row in stats.byFolder)
                       [
@@ -119,10 +145,22 @@ class _StatsPageState extends State<StatsPage> {
                 ),
                 ConfigSectionTitle(t.config.stats.byAgent),
                 _Table(
-                  headers: [t.config.stats.agent, t.config.stats.requests, t.config.stats.inputTokens, t.config.stats.outputTokens, t.config.stats.cost],
+                  headers: [
+                    t.config.stats.agent,
+                    t.config.stats.requests,
+                    t.config.stats.inputTokens,
+                    t.config.stats.outputTokens,
+                    t.config.stats.cost,
+                  ],
                   rows: [
                     for (final row in stats.byAgentType)
-                      [row.agentType, '${row.requests}', formatTokens(row.inputTokens), formatTokens(row.outputTokens), _cost(row.cost)],
+                      [
+                        row.agentType,
+                        '${row.requests}',
+                        formatTokens(row.inputTokens),
+                        formatTokens(row.outputTokens),
+                        _cost(row.cost),
+                      ],
                   ],
                 ),
               ],
@@ -191,13 +229,21 @@ class _Table extends StatelessWidget {
                     decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
                     children: [
                       for (final (index, header) in headers.indexed)
-                        cell(header, index, style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
+                        cell(
+                          header,
+                          index,
+                          style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
                     ],
                   ),
                   for (final (index, row) in rows.indexed)
                     TableRow(
-                      decoration: BoxDecoration(color: index.isEven ? scheme.surfaceContainer : scheme.surfaceContainerLow),
-                      children: [for (final (column, text) in row.indexed) cell(text, column, style: theme.textTheme.bodyMedium)],
+                      decoration: BoxDecoration(
+                        color: index.isEven ? scheme.surfaceContainer : scheme.surfaceContainerLow,
+                      ),
+                      children: [
+                        for (final (column, text) in row.indexed) cell(text, column, style: theme.textTheme.bodyMedium),
+                      ],
                     ),
                 ],
               ),

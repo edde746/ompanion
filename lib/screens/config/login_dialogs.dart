@@ -57,7 +57,13 @@ Future<void> _openInBrowser(String url) async {
 /// pasted code or redirect URL when the provider needs one; the call completes once the credential is
 /// stored.
 class RpcLoginDialog extends StatefulWidget {
-  const RpcLoginDialog({super.key, required this.target, required this.control, required this.providerId, required this.providerName});
+  const RpcLoginDialog({
+    super.key,
+    required this.target,
+    required this.control,
+    required this.providerId,
+    required this.providerName,
+  });
 
   final ConfigTarget target;
   final LiveSession control;
@@ -86,14 +92,16 @@ class _RpcLoginDialogState extends State<RpcLoginDialog> {
     // A link omp sent before the dialog opened; handled after the first frame, since handling it rebuilds.
     WidgetsBinding.instance.addPostFrameCallback((_) => _onView());
     unawaited(
-      widget.control.rpc.login(widget.providerId).then(
-        (_) {
-          if (mounted) setState(() => _done = true);
-        },
-        onError: (Object error) {
-          if (mounted) setState(() => _error = error);
-        },
-      ),
+      widget.control.rpc
+          .login(widget.providerId)
+          .then(
+            (_) {
+              if (mounted) setState(() => _done = true);
+            },
+            onError: (Object error) {
+              if (mounted) setState(() => _error = error);
+            },
+          ),
     );
   }
 
@@ -188,7 +196,10 @@ class _RpcLoginDialogState extends State<RpcLoginDialog> {
                   ),
                 if (_link case final link?) _LinkBlock(link: link, forwards: _forwards),
                 for (final notice in notices)
-                  Padding(padding: const EdgeInsets.only(top: 8), child: Text(notice, style: theme.textTheme.bodySmall)),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(notice, style: theme.textTheme.bodySmall),
+                  ),
                 if (question != null && !_done && _error == null) ...[
                   const SizedBox(height: 16),
                   _Question(request: question, controller: _input, onAnswer: _answer),
@@ -248,7 +259,8 @@ class _LinkBlock extends StatelessWidget {
           key: const ValueKey('login-link'),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize, color: theme.colorScheme.onSurfaceVariant),
+          style: codeTextStyle(theme)
+              .copyWith(fontSize: theme.textTheme.bodySmall?.fontSize, color: theme.colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -325,7 +337,10 @@ class _Question extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSizes.gap),
-                FilledButton(onPressed: () => onAnswer(request, value: controller.text), child: Text(t.config.accounts.submit)),
+                FilledButton(
+                  onPressed: () => onAnswer(request, value: controller.text),
+                  child: Text(t.config.accounts.submit),
+                ),
               ],
             ),
           ],
@@ -339,7 +354,13 @@ class _Question extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [for (final option in options) FilledButton.tonal(onPressed: () => onAnswer(request, value: option), child: Text(option))],
+              children: [
+                for (final option in options)
+                  FilledButton.tonal(
+                    onPressed: () => onAnswer(request, value: option),
+                    child: Text(option),
+                  ),
+              ],
             ),
           ],
         );
@@ -354,7 +375,10 @@ class _Question extends StatelessWidget {
               spacing: 8,
               children: [
                 FilledButton(onPressed: () => onAnswer(request, confirmed: true), child: Text(t.config.accounts.yes)),
-                FilledButton.tonal(onPressed: () => onAnswer(request, confirmed: false), child: Text(t.config.accounts.no)),
+                FilledButton.tonal(
+                  onPressed: () => onAnswer(request, confirmed: false),
+                  child: Text(t.config.accounts.no),
+                ),
               ],
             ),
           ],

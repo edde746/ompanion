@@ -84,8 +84,7 @@ void main() {
     });
 
     test('on a Windows machine drives, backslashes and ~ resolve in SFTP form', () {
-      String windows(String path) =>
-          resolveMachinePath(path, home: r'C:\Users\u', cwd: r'D:\work\proj', windows: true);
+      String windows(String path) => resolveMachinePath(path, home: r'C:\Users\u', cwd: r'D:\work\proj', windows: true);
       expect(windows(r'C:\Temp\shot.png'), '/C:/Temp/shot.png');
       expect(windows('C:/Temp/shot.png'), '/C:/Temp/shot.png');
       expect(windows(r'~\Pictures\a.png'), '/C:/Users/u/Pictures/a.png');

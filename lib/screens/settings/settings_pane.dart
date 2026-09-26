@@ -38,7 +38,10 @@ class SettingsPane extends StatelessWidget {
         const SizedBox(height: 24),
         Text(t.settings.buildChannel, style: theme.textTheme.titleMedium),
         const SizedBox(height: 4),
-        Text(BuildChannel.current.name, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(
+          BuildChannel.current.name,
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
         const SizedBox(height: 24),
         Text(t.settings.shortcuts, style: theme.textTheme.titleMedium),
         const SizedBox(height: AppSizes.gap),
@@ -114,8 +117,19 @@ String _keys(SingleActivator activator, {required bool apple}) {
     final trigger => trigger.keyLabel.toUpperCase(),
   };
   if (apple) {
-    return [if (activator.control) '⌃', if (activator.alt) '⌥', if (activator.shift) '⇧', if (activator.meta) '⌘', key].join();
+    return [
+      if (activator.control) '⌃',
+      if (activator.alt) '⌥',
+      if (activator.shift) '⇧',
+      if (activator.meta) '⌘',
+      key,
+    ].join();
   }
-  return [if (activator.control) 'Ctrl', if (activator.alt) 'Alt', if (activator.shift) 'Shift', if (activator.meta) 'Meta', key]
-      .join('+');
+  return [
+    if (activator.control) 'Ctrl',
+    if (activator.alt) 'Alt',
+    if (activator.shift) 'Shift',
+    if (activator.meta) 'Meta',
+    key,
+  ].join('+');
 }

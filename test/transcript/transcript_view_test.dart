@@ -320,7 +320,9 @@ void main() {
     expect(tester.getTopLeft(anchor), before, reason: 'growth below the reader moves nothing above it');
   });
 
-  testWidgets('the top of a reply that overflowed while streaming shows its first rows at the top edge', (tester) async {
+  testWidgets('the top of a reply that overflowed while streaming shows its first rows at the top edge', (
+    tester,
+  ) async {
     final history = _turns(0, 1);
     final prompt = _user(100);
     await tester.pumpWidget(_harness(SessionView(transcript: [...history, prompt], historyLength: history.length)));
@@ -364,7 +366,10 @@ void main() {
       TranslationProvider(
         child: MaterialApp(
           home: Scaffold(
-            body: TranscriptView(view: SessionView(transcript: items, historyLength: items.length), actions: actions),
+            body: TranscriptView(
+              view: SessionView(transcript: items, historyLength: items.length),
+              actions: actions,
+            ),
           ),
         ),
       ),
@@ -394,11 +399,16 @@ void main() {
     expect(answer.dy, greaterThan(800 - 60), reason: 'the newest row ends near the bottom edge');
   });
 
-  testWidgets('the scroll extent stays steady while the wheel scrolls up through rows of very different heights',
-      (tester) async {
+  testWidgets('the scroll extent stays steady while the wheel scrolls up through rows of very different heights', (
+    tester,
+  ) async {
     // Runs of one-line answers alternate with runs of answers holding a 30-line code block, so the rows around the
     // viewport are all short, then all tall.
-    final code = ['```dart', for (var line = 0; line < 30; line++) 'final value$line = compute($line);', '```'].join('\n');
+    final code = [
+      '```dart',
+      for (var line = 0; line < 30; line++) 'final value$line = compute($line);',
+      '```',
+    ].join('\n');
     final items = [
       for (var n = 0; n < 160; n++) ...[_user(n * 2), _answer(n * 2 + 1, (n ~/ 20).isEven ? 'Short answer $n.' : code)],
     ];
@@ -498,7 +508,9 @@ void main() {
   });
 
   group('folded turns', () {
-    testWidgets('a summary row opens and closes its turn by tap and by keyboard, and stays where it is', (tester) async {
+    testWidgets('a summary row opens and closes its turn by tap and by keyboard, and stays where it is', (
+      tester,
+    ) async {
       final items = [for (var n = 1; n <= 12; n++) ..._workedTurn(n)];
       await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
       expect(_markdown('Answer 12.'), findsOneWidget);
@@ -546,7 +558,10 @@ void main() {
       for (final (index, open) in [true, false].indexed) {
         await _wheelUpTo(tester, summary);
         final at = tester.getTopLeft(summary);
-        await tester.tap(find.descendant(of: summary, matching: find.byType(InkWell)), kind: PointerDeviceKind.mouse);
+        await tester.tap(
+          find.descendant(of: summary, matching: find.byType(InkWell)),
+          kind: PointerDeviceKind.mouse,
+        );
         await tester.pump();
         expect(_markdown('Checking 6.'), open ? findsOneWidget : findsNothing);
         expect(tester.getTopLeft(summary), at, reason: 'the toggled row stays where it is');
@@ -605,7 +620,10 @@ void main() {
       await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
       final summary = find.byKey(const ValueKey('u10#turn'));
       await _wheelUpTo(tester, summary);
-      await tester.tap(find.descendant(of: summary, matching: find.byType(InkWell)), kind: PointerDeviceKind.mouse);
+      await tester.tap(
+        find.descendant(of: summary, matching: find.byType(InkWell)),
+        kind: PointerDeviceKind.mouse,
+      );
       await tester.pumpAndSettle();
 
       // The bash card's command, then the answer's table, both in views that scroll sideways.
@@ -640,7 +658,12 @@ void main() {
       expect(find.textContaining('Worked for'), findsOneWidget, reason: 'only the first turn folds');
 
       await tester.pumpWidget(
-        _harness(view(running: false, requests: const [ConfirmRequest('q1', title: 'Go on?', message: '')])),
+        _harness(
+          view(
+            running: false,
+            requests: const [ConfirmRequest('q1', title: 'Go on?', message: '')],
+          ),
+        ),
       );
       expect(_markdown('Checking 2.'), findsOneWidget, reason: 'an open request keeps the turn open');
 
@@ -673,7 +696,12 @@ void main() {
     ) async {
       final turns = TurnExpansion();
       final items = [..._workedTurn(1), ..._workedTurn(2)];
-      await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length), turns: turns));
+      await tester.pumpWidget(
+        _harness(
+          SessionView(transcript: items, historyLength: items.length),
+          turns: turns,
+        ),
+      );
       turns.reveal('r1');
       await tester.pump();
       expect(_markdown('Checking 1.'), findsOneWidget);
@@ -683,7 +711,12 @@ void main() {
       turns.reveal('s3');
       await tester.pump();
       final more = [...items, ..._workedTurn(3)];
-      await tester.pumpWidget(_harness(SessionView(transcript: more, historyLength: more.length), turns: turns));
+      await tester.pumpWidget(
+        _harness(
+          SessionView(transcript: more, historyLength: more.length),
+          turns: turns,
+        ),
+      );
       expect(_markdown('Checking 3.'), findsOneWidget);
       expect(_markdown('Checking 2.'), findsNothing);
     });
@@ -692,7 +725,8 @@ void main() {
       final turns = TurnExpansion();
       // Each page ends in a long answer, so the reader is far from the top and no page loads on its own.
       final pages = [
-        for (var n = 1; n <= 4; n++) [..._workedTurn(n), _user(n * 100000 + 50000), _answer(n * 100000 + 60000, _paragraphs(80))],
+        for (var n = 1; n <= 4; n++)
+          [..._workedTurn(n), _user(n * 100000 + 50000), _answer(n * 100000 + 60000, _paragraphs(80))],
       ];
       var loaded = 1;
       List<TranscriptItem> shown() => [for (final page in pages.skip(pages.length - loaded)) ...page];

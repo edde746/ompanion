@@ -59,6 +59,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
 
+      # Drift's generated output is not `dart format` clean and regenerating it would fight this step, so
+      # *.g.dart and the drift migration schemas are excluded.
+      - name: Check Dart formatting
+        run: |
+          git ls-files '*.dart' |
+            grep -v -e '\.g\.dart$' -e '^test/drift/.*/generated/' -e '^packages/' -e '^companion/' -e '^testing/' |
+            xargs -r dart format --output=none --set-exit-if-changed
+
       - name: Verify generated files are committed
         run: |
           dart run slang
@@ -119,6 +127,9 @@ jobs:
 
       - name: Install dependencies
         run: dart pub get --enforce-lockfile
+
+      - name: Check Dart formatting
+        run: git ls-files '*.dart' | xargs -r dart format --output=none --set-exit-if-changed
 
       - name: Analyze
         run: dart analyze

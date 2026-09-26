@@ -141,12 +141,7 @@ class _UsagePaneState extends State<UsagePane> {
       final snapshot = UsageSnapshot.fromJson(asJsonObject(cliJson((await usage).stdout), 'omp usage'));
       final (:policies, :reservePct) = await settings;
       result = _Loaded(
-        MachineUsage(
-          machine: machine.name,
-          snapshot: snapshot,
-          policies: policies,
-          reservePct: reservePct,
-        ),
+        MachineUsage(machine: machine.name, snapshot: snapshot, policies: policies, reservePct: reservePct),
       );
     } on Object catch (error) {
       result = _Failed(error);
@@ -194,7 +189,9 @@ class _UsagePaneState extends State<UsagePane> {
             children: [
               Expanded(
                 child: Text(
-                  fetchedAt == null ? t.usage.notFetched : t.usage.fetched(ago: formatUsageDuration(now.difference(fetchedAt))),
+                  fetchedAt == null
+                      ? t.usage.notFetched
+                      : t.usage.fetched(ago: formatUsageDuration(now.difference(fetchedAt))),
                   style: secondary,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -219,7 +216,10 @@ class _UsagePaneState extends State<UsagePane> {
           ),
         ),
         if (_machines.isEmpty)
-          Padding(padding: const EdgeInsets.only(top: 16), child: Text(t.usage.noMachines, style: secondary))
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Text(t.usage.noMachines, style: secondary),
+          )
         else ...[
           _Heading(t.usage.machines),
           ConfigBlock(
@@ -237,7 +237,10 @@ class _UsagePaneState extends State<UsagePane> {
             ),
           ),
           if (overview.isEmpty && loaded.isNotEmpty && !loading)
-            Padding(padding: const EdgeInsets.only(top: 16), child: Text(t.usage.none, style: secondary)),
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(t.usage.none, style: secondary),
+            ),
           for (final provider in overview.providers) _ProviderSection(provider: provider, now: now),
         ],
       ],
@@ -372,7 +375,10 @@ class _ProviderSection extends StatelessWidget {
       children: [
         _Heading(formatProviderName(provider.provider), trailing: t.usage.providerAccounts(n: provider.accountCount)),
         for (final note in provider.notes)
-          Padding(padding: const EdgeInsets.only(bottom: AppSizes.gap), child: Text(note, style: secondary)),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSizes.gap),
+            child: Text(note, style: secondary),
+          ),
         for (final (index, account) in provider.accounts.indexed)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSizes.gap),
@@ -424,7 +430,9 @@ class _ProviderSection extends StatelessWidget {
 
 String _capacityWindow(CapacityStat stat) {
   final meter = stat.meter;
-  return meter == null || meter.isEmpty ? stat.window : '${stat.window} (${meter[0].toUpperCase()}${meter.substring(1)})';
+  return meter == null || meter.isEmpty
+      ? stat.window
+      : '${stat.window} (${meter[0].toUpperCase()}${meter.substring(1)})';
 }
 
 /// An account: its header (status, label, organization, plan, saved resets, age, machines), its policy, and one line
@@ -485,15 +493,20 @@ class _AccountBlock extends StatelessWidget {
             ),
           const SizedBox(height: 6),
           if (report.limits.isEmpty)
-            Padding(padding: const EdgeInsets.only(left: 18), child: Text(t.usage.noLimits, style: secondary))
+            Padding(
+              padding: const EdgeInsets.only(left: 18),
+              child: Text(t.usage.noLimits, style: secondary),
+            )
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final rows = [
-                  for (final template in templates) (template: template, limit: limits[template.id]),
-                ];
+                final rows = [for (final template in templates) (template: template, limit: limits[template.id])];
                 return constraints.maxWidth < 560
-                    ? Column(children: [for (final row in rows) _StackedLimit(template: row.template, limit: row.limit, now: now)])
+                    ? Column(
+                        children: [
+                          for (final row in rows) _StackedLimit(template: row.template, limit: row.limit, now: now),
+                        ],
+                      )
                     : _LimitTable(rows: rows, now: now);
               },
             ),
@@ -541,7 +554,9 @@ String _resetReason(Translations t, ResetUnavailable reason) => switch (reason) 
 
 String _policyLine(Translations t, PolicyState policy) {
   final percent = _plain(policy.reservePercent);
-  final reserve = policy.inherited ? t.usage.reserveGlobal(percent: percent) : t.usage.reserveOverride(percent: percent);
+  final reserve = policy.inherited
+      ? t.usage.reserveGlobal(percent: percent)
+      : t.usage.reserveOverride(percent: percent);
   final head = t.usage.policy(priority: _plain(policy.priority), reserve: reserve);
   final remaining = policy.remainingPercent;
   if (remaining == null) return '$head · ${t.usage.reserveUnknown}';
@@ -578,12 +593,20 @@ class _LimitTable extends StatelessWidget {
           TableRow(
             children: [
               cell(Padding(padding: const EdgeInsets.only(top: 6), child: _LimitDot(limit))),
-              cell(Padding(padding: const EdgeInsets.only(right: 16), child: _LimitTitle(template: template, limit: limit))),
+              cell(
+                Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: _LimitTitle(template: template, limit: limit),
+                ),
+              ),
               cell(Padding(padding: const EdgeInsets.only(top: 6), child: _Bar(limit))),
               cell(
                 Padding(
                   padding: const EdgeInsets.only(left: 16),
-                  child: DefaultTextStyle.merge(style: theme.textTheme.bodySmall, child: _LimitDetails(limit: limit, now: now)),
+                  child: DefaultTextStyle.merge(
+                    style: theme.textTheme.bodySmall,
+                    child: _LimitDetails(limit: limit, now: now),
+                  ),
                 ),
               ),
             ],
@@ -612,13 +635,18 @@ class _StackedLimit extends StatelessWidget {
             children: [
               _LimitDot(limit),
               const SizedBox(width: 10),
-              Expanded(child: _LimitTitle(template: template, limit: limit)),
+              Expanded(
+                child: _LimitTitle(template: template, limit: limit),
+              ),
             ],
           ),
           Padding(padding: const EdgeInsets.fromLTRB(18, 4, 0, 4), child: _Bar(limit)),
           Padding(
             padding: const EdgeInsets.only(left: 18),
-            child: DefaultTextStyle.merge(style: Theme.of(context).textTheme.bodySmall, child: _LimitDetails(limit: limit, now: now)),
+            child: DefaultTextStyle.merge(
+              style: Theme.of(context).textTheme.bodySmall,
+              child: _LimitDetails(limit: limit, now: now),
+            ),
           ),
         ],
       ),
@@ -671,14 +699,20 @@ class _LimitDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
-    final secondary = TextStyle(color: theme.colorScheme.onSurfaceVariant, fontFeatures: const [FontFeature.tabularFigures()]);
+    final secondary = TextStyle(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
     final limit = this.limit;
     if (limit == null) return Text(t.usage.notReported, style: secondary);
     final resetsAt = limit.resetsAt;
     final line = [
       _amount(t, limit),
       if (resetsAt != null && resetsAt.isAfter(now))
-        t.usage.resetsIn(verb: limit.resetLabel ?? t.usage.resets, duration: formatUsageDuration(resetsAt.difference(now))),
+        t.usage.resetsIn(
+          verb: limit.resetLabel ?? t.usage.resets,
+          duration: formatUsageDuration(resetsAt.difference(now)),
+        ),
     ].join(' · ');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -704,7 +738,9 @@ String _amount(Translations t, UsageLimit limit) {
   };
   final parts = [
     switch (limit) {
-      UsageLimit(:final used?, limit: final cap?) when absolute => withUnit(t.usage.amountOf(used: value(used), limit: value(cap))),
+      UsageLimit(:final used?, limit: final cap?) when absolute => withUnit(
+        t.usage.amountOf(used: value(used), limit: value(cap)),
+      ),
       UsageLimit(:final remaining?) when absolute => t.usage.amountLeft(amount: withUnit(value(remaining))),
       UsageLimit(:final used?, limit: null, remaining: null) when absolute && used.isFinite && fraction == null =>
         t.usage.amountUsed(amount: withUnit(value(used))),
@@ -770,7 +806,9 @@ class _WithoutUsageRow extends StatelessWidget {
     final colors = AppColors.of(context);
     final secondary = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final account = entry.account;
-    final base = account.apiKey ? t.usage.apiKey : identityLabel(account.identity, enterpriseUrl: account.enterpriseUrl);
+    final base = account.apiKey
+        ? t.usage.apiKey
+        : identityLabel(account.identity, enterpriseUrl: account.enterpriseUrl);
     final org = account.apiKey ? null : identityOrg(account.identity, base);
     final relogin = reloginRemaining(account, now);
     return _OtherRow(
@@ -782,7 +820,9 @@ class _WithoutUsageRow extends StatelessWidget {
         if (entry.policy case final policy?) Text(_policyLine(t, policy), style: secondary),
         if (relogin != null)
           Text(
-            relogin <= Duration.zero ? t.usage.reloginNow : t.usage.reloginWithin(duration: formatUsageDuration(relogin)),
+            relogin <= Duration.zero
+                ? t.usage.reloginNow
+                : t.usage.reloginWithin(duration: formatUsageDuration(relogin)),
             style: theme.textTheme.bodySmall?.copyWith(color: relogin <= Duration.zero ? colors.error : colors.warning),
           ),
       ],
@@ -842,7 +882,11 @@ class _OtherRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 18, height: 20, child: Align(alignment: AlignmentDirectional.centerStart, child: icon)),
+          SizedBox(
+            width: 18,
+            height: 20,
+            child: Align(alignment: AlignmentDirectional.centerStart, child: icon),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -854,7 +898,9 @@ class _OtherRow extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: '  $text',
-                        style: theme.textTheme.bodySmall?.copyWith(color: textColor ?? theme.colorScheme.onSurfaceVariant),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: textColor ?? theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -882,10 +928,7 @@ class _MachineTags extends StatelessWidget {
     spacing: 4,
     runSpacing: 4,
     alignment: WrapAlignment.end,
-    children: [
-      for (final machine in machines)
-        ConfigTag(machine),
-    ],
+    children: [for (final machine in machines) ConfigTag(machine)],
   );
 }
 
@@ -897,7 +940,9 @@ class _Dot extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox.square(
     dimension: 8,
-    child: DecoratedBox(decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+    child: DecoratedBox(
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    ),
   );
 }
 

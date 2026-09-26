@@ -17,7 +17,10 @@ class ComposerDraft extends ChangeNotifier {
 
   /// Replaces text and attachments, puts the cursor at the end and asks the composer for focus.
   void replace(String value, {List<ComposerAttachment> attachments = const []}) {
-    text.value = TextEditingValue(text: value, selection: TextSelection.collapsed(offset: value.length));
+    text.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
     _attachments = List.unmodifiable(attachments);
     _focusRequested = true;
     notifyListeners();

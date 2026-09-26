@@ -62,30 +62,26 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets(
-    'Cmd+S with the cursor in the editor saves the file',
-    (tester) async {
-      final path = '$root/notes.txt';
-      File(path).writeAsStringSync('one\n');
-      await pumpEditor(tester, path);
-      await tester.tap(find.byType(CodeEditor));
-      // The editor requests focus from a zero-length timer.
-      await tester.pump(Duration.zero);
-      workspace.current!.controller.text = 'one\ntwo\n';
-      await tester.pump();
+  testWidgets('Cmd+S with the cursor in the editor saves the file', (tester) async {
+    final path = '$root/notes.txt';
+    File(path).writeAsStringSync('one\n');
+    await pumpEditor(tester, path);
+    await tester.tap(find.byType(CodeEditor));
+    // The editor requests focus from a zero-length timer.
+    await tester.pump(Duration.zero);
+    workspace.current!.controller.text = 'one\ntwo\n';
+    await tester.pump();
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
-      await settle(tester, () => File(path).readAsStringSync() == 'one\ntwo\n');
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await settle(tester, () => File(path).readAsStringSync() == 'one\ntwo\n');
 
-      expect(File(path).readAsStringSync(), 'one\ntwo\n');
-      await settle(tester, () => !workspace.current!.saving);
-      expect(workspace.current!.dirty, isFalse);
-      await tester.pumpWidget(const SizedBox());
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
-  );
+    expect(File(path).readAsStringSync(), 'one\ntwo\n');
+    await settle(tester, () => !workspace.current!.saving);
+    expect(workspace.current!.dirty, isFalse);
+    await tester.pumpWidget(const SizedBox());
+  }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
   testWidgets('the find bar covers only its own rows: the text below it stays on screen and reachable', (tester) async {
     final path = '$root/main.dart';

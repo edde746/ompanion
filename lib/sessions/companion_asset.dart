@@ -10,7 +10,8 @@ final class CompanionMissing implements Exception {
   const CompanionMissing();
 
   @override
-  String toString() => 'This build has no companion ($companionAsset). Run scripts/build_companion.sh, then rebuild the app.';
+  String toString() =>
+      'This build has no companion ($companionAsset). Run scripts/build_companion.sh, then rebuild the app.';
 }
 
 /// The bundled companion for a machine running omp [ompVersion]. One build serves every supported omp

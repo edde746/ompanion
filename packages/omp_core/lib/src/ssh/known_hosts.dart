@@ -149,8 +149,8 @@ KnownHostStatus checkKnownHost(Iterable<KnownHostEntry> entries, HostKeyCheck ch
     final found = sameKey
         ? KnownHostStatus.match
         : entry.key.type == check.keyType
-            ? KnownHostStatus.mismatch
-            : KnownHostStatus.differentKeyType;
+        ? KnownHostStatus.mismatch
+        : KnownHostStatus.differentKeyType;
     if (found.index < status.index) status = found;
   }
   return status;

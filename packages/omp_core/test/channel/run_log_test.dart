@@ -55,19 +55,22 @@ void main() {
       expect(error, isA<RunLogGap>().having((e) => e.generation, 'generation', 2));
     });
 
-    test('a channel attached at the start of a rotated generation reads its marker as the first line, not a gap', () async {
-      final fresh = RunOutput(generation: 2, offset: 0, onEnd: () {});
-      final received = <String>[];
-      Object? failure;
-      fresh.lines.listen(received.add, onError: (Object e) => failure = e);
-      const marker = '{"type":"ompanion_rotate","generation":2,"previousSize":4096}\n';
-      fresh.add(bytes('$marker{"n":3}\n'));
-      await pumpEventQueue();
-      expect(failure, isNull);
-      expect(received, ['{"n":3}']);
-      expect(fresh.generation, 2);
-      expect(fresh.offset, marker.length + 8);
-    });
+    test(
+      'a channel attached at the start of a rotated generation reads its marker as the first line, not a gap',
+      () async {
+        final fresh = RunOutput(generation: 2, offset: 0, onEnd: () {});
+        final received = <String>[];
+        Object? failure;
+        fresh.lines.listen(received.add, onError: (Object e) => failure = e);
+        const marker = '{"type":"ompanion_rotate","generation":2,"previousSize":4096}\n';
+        fresh.add(bytes('$marker{"n":3}\n'));
+        await pumpEventQueue();
+        expect(failure, isNull);
+        expect(received, ['{"n":3}']);
+        expect(fresh.generation, 2);
+        expect(fresh.offset, marker.length + 8);
+      },
+    );
 
     test('ends at the exit marker with the exit code, ignoring anything after it', () async {
       output.add(bytes('{"n":1}\n{"broken\n{"type":"ompanion_exit","code":143}\n{"n":2}\n'));

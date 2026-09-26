@@ -137,7 +137,10 @@ final class SessionTree {
 
     final toolCalls = <String, _ToolCall>{};
     for (final node in nodes) {
-      if (node['entry'] case {'type': 'message', 'message': {'role': 'assistant', 'content': final List<Object?> content}}) {
+      if (node['entry'] case {
+        'type': 'message',
+        'message': {'role': 'assistant', 'content': final List<Object?> content},
+      }) {
         for (final block in content) {
           if (block case {'type': 'toolCall', 'id': final String id, 'name': final String name}) {
             final arguments = block['arguments'];
@@ -326,19 +329,24 @@ TreeEntry _decodeNode(Map<String, Object?> node, Map<String, _ToolCall> toolCall
   final timestamp = entry['timestamp'] is String ? DateTime.tryParse(entry['timestamp']! as String) : null;
   final bookkeeping = _bookkeepingTypes.contains(type);
 
-  TreeEntry make(TreeEntryKind kind, String text, {bool userRequest = false, int? tokensBefore, String advisorTags = ''}) =>
-      TreeEntry(
-        id: id,
-        type: type,
-        kind: kind,
-        text: _oneLine(text),
-        label: label,
-        timestamp: timestamp,
-        tokensBefore: tokensBefore,
-        advisorTags: advisorTags,
-        userRequest: userRequest,
-        bookkeeping: bookkeeping,
-      );
+  TreeEntry make(
+    TreeEntryKind kind,
+    String text, {
+    bool userRequest = false,
+    int? tokensBefore,
+    String advisorTags = '',
+  }) => TreeEntry(
+    id: id,
+    type: type,
+    kind: kind,
+    text: _oneLine(text),
+    label: label,
+    timestamp: timestamp,
+    tokensBefore: tokensBefore,
+    advisorTags: advisorTags,
+    userRequest: userRequest,
+    bookkeeping: bookkeeping,
+  );
 
   switch (type) {
     case 'message':
@@ -352,17 +360,28 @@ TreeEntry _decodeNode(Map<String, Object?> node, Map<String, _ToolCall> toolCall
         final (:tags, :notes) = _advisorNotes(entry['details']);
         return make(TreeEntryKind.advisor, notes, advisorTags: tags);
       }
-      return make(TreeEntryKind.custom, '[$customType]: ${_stripSystemTags(text)}', userRequest: entry['attribution'] == 'user');
+      return make(
+        TreeEntryKind.custom,
+        '[$customType]: ${_stripSystemTags(text)}',
+        userRequest: entry['attribution'] == 'user',
+      );
     case 'compaction':
       final summary = entry['shortSummary'] ?? entry['summary'];
       final tokens = entry['tokensBefore'];
-      return make(TreeEntryKind.compaction, summary is String ? summary : '', tokensBefore: tokens is num ? tokens.round() : null);
+      return make(
+        TreeEntryKind.compaction,
+        summary is String ? summary : '',
+        tokensBefore: tokens is num ? tokens.round() : null,
+      );
     case 'branch_summary':
       return make(TreeEntryKind.branchSummary, entry['summary'] is String ? entry['summary']! as String : '');
     case 'model_change':
       return make(TreeEntryKind.modelChange, entry['model'] is String ? entry['model']! as String : '');
     case 'thinking_level_change':
-      return make(TreeEntryKind.thinkingChange, entry['thinkingLevel'] is String ? entry['thinkingLevel']! as String : 'off');
+      return make(
+        TreeEntryKind.thinkingChange,
+        entry['thinkingLevel'] is String ? entry['thinkingLevel']! as String : 'off',
+      );
     case 'label':
       return make(TreeEntryKind.label, entry['label'] is String ? entry['label']! as String : '');
     case 'title_change':
@@ -455,7 +474,8 @@ TreeEntry _decodeMessage(
   if (details case {'notes': final List<Object?> list}) {
     for (final note in list) {
       if (note case {'note': final String text}) notes.add(text);
-      if (note case {'advisor': final String name} when name.isNotEmpty && name != 'default' && !advisors.contains(name)) {
+      if (note case {'advisor': final String name}
+          when name.isNotEmpty && name != 'default' && !advisors.contains(name)) {
         advisors.add(name);
       }
       if (note case {'severity': final String severity} when severity.isNotEmpty && !severities.contains(severity)) {

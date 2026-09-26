@@ -24,7 +24,12 @@ void main() {
     final channel = await AttachedChannel.start(
       host.link,
       probe,
-      RunSpec(omp: probe.ompPath!, ompVersion: probe.ompVersion!, cwd: host.work, args: const ['--model', 'fake/fake-1']),
+      RunSpec(
+        omp: probe.ompPath!,
+        ompVersion: probe.ompVersion!,
+        cwd: host.work,
+        args: const ['--model', 'fake/fake-1'],
+      ),
     );
     final frames = Frames(channel.lines);
     await frames.next((f) => f['type'] == 'ready');

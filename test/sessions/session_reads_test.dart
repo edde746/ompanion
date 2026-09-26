@@ -9,7 +9,6 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   _Session(this.sessionPath);
@@ -95,15 +94,33 @@ void main() {
   test('a file is read when first listed and unread once it changes, across restarts', () async {
     await insertMachine();
     final first = await reads();
-    first.update(open: const {}, viewed: null, listings: {'m1': [_file('/a', 10)]});
+    first.update(
+      open: const {},
+      viewed: null,
+      listings: {
+        'm1': [_file('/a', 10)],
+      },
+    );
     expect(first.isListedUnread('m1', _file('/a', 10)), isFalse);
 
-    first.update(open: const {}, viewed: null, listings: {'m1': [_file('/a', 20)]});
+    first.update(
+      open: const {},
+      viewed: null,
+      listings: {
+        'm1': [_file('/a', 20)],
+      },
+    );
     expect(first.isListedUnread('m1', _file('/a', 20)), isTrue);
     first.dispose();
 
     final restarted = await reads();
-    restarted.update(open: const {}, viewed: null, listings: {'m1': [_file('/a', 20)]});
+    restarted.update(
+      open: const {},
+      viewed: null,
+      listings: {
+        'm1': [_file('/a', 20)],
+      },
+    );
     expect(restarted.isListedUnread('m1', _file('/a', 20)), isTrue);
     restarted.dispose();
   });
@@ -159,11 +176,23 @@ void main() {
     session.emit(_answered('done'));
     tracker.update(open: const {}, viewed: null, listings: {'m1': listing});
     expect(relisted, ['m1']);
-    tracker.update(open: const {}, viewed: null, listings: {'m1': [_file('/s', 15)]});
+    tracker.update(
+      open: const {},
+      viewed: null,
+      listings: {
+        'm1': [_file('/s', 15)],
+      },
+    );
     expect(tracker.isListedUnread('m1', _file('/s', 15)), isFalse);
 
     // Later writes by another device are news again.
-    tracker.update(open: const {}, viewed: null, listings: {'m1': [_file('/s', 30)]});
+    tracker.update(
+      open: const {},
+      viewed: null,
+      listings: {
+        'm1': [_file('/s', 30)],
+      },
+    );
     expect(tracker.isListedUnread('m1', _file('/s', 30)), isTrue);
     tracker.dispose();
   });
@@ -172,10 +201,22 @@ void main() {
     await insertMachine();
     final tracker = await reads();
     final session = _Session('/s');
-    tracker.update(open: {session: 'm1'}, viewed: null, listings: {'m1': [_file('/s', 10)]});
+    tracker.update(
+      open: {session: 'm1'},
+      viewed: null,
+      listings: {
+        'm1': [_file('/s', 10)],
+      },
+    );
 
     session.emit(_answered('done'));
-    tracker.update(open: const {}, viewed: null, listings: {'m1': [_file('/s', 15)]});
+    tracker.update(
+      open: const {},
+      viewed: null,
+      listings: {
+        'm1': [_file('/s', 15)],
+      },
+    );
     expect(tracker.isListedUnread('m1', _file('/s', 15)), isTrue);
     tracker.dispose();
   });

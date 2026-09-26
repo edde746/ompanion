@@ -69,9 +69,17 @@ void main() {
   });
 
   test('a first attach replays the log, keeps open dialogs, drops answered ones and old toasts', () async {
-    run.entries.addAll([entry('e1', null, user('hi', 1)), entry('e2', 'e1', assistant(2, [text('hello')]))]);
+    run.entries.addAll([
+      entry('e1', null, user('hi', 1)),
+      entry('e2', 'e1', assistant(2, [text('hello')])),
+    ]);
     run.emit(messageEnd(user('hi', 1), 'm1'));
-    run.emit(uiRequest('ask-1', 'select', {'title': 'Pick', 'options': ['a', 'b']}));
+    run.emit(
+      uiRequest('ask-1', 'select', {
+        'title': 'Pick',
+        'options': ['a', 'b'],
+      }),
+    );
     run.emit(uiRequest('ask-2', 'confirm', {'title': 'Sure?'}));
     run.emit({'type': 'notice', 'level': 'info', 'message': 'from long ago'});
     // Another device answered the first dialog before this one attached.
@@ -114,7 +122,10 @@ void main() {
     expect(texts(live.view), ['user: hi', 'assistant: hello', 'user: more']);
     expect([for (final item in live.view.transcript) item.entryId], ['e1', 'e2', 'e3']);
     expect(
-      [for (final command in run.received) if (command['type'] == 'get_entries') command['since']],
+      [
+        for (final command in run.received)
+          if (command['type'] == 'get_entries') command['since'],
+      ],
       ['e2'],
       reason: 'omp lists only what the file lacks',
     );
@@ -125,7 +136,11 @@ void main() {
     // 30 question/answer turns, one entry per line, about 190 bytes each.
     List<Map<String, Object?>> chain() => [
       for (var n = 0; n < 60; n++)
-        entry('e$n', n == 0 ? null : 'e${n - 1}', n.isEven ? user('question $n', n) : assistant(n, [text('answer $n')])),
+        entry(
+          'e$n',
+          n == 0 ? null : 'e${n - 1}',
+          n.isEven ? user('question $n', n) : assistant(n, [text('answer $n')]),
+        ),
     ];
     RunSession paged() {
       final live = RunSession(
@@ -181,8 +196,14 @@ void main() {
       for (var load = live.loadEarlier; load != null; load = live.loadEarlier) {
         await load();
       }
-      expect(texts(live.view), ['user: question 0', 'assistant: answer 1', 'user: question 2', 'assistant: answer 3',
-        'user: other question', 'assistant: other answer']);
+      expect(texts(live.view), [
+        'user: question 0',
+        'assistant: answer 1',
+        'user: question 2',
+        'assistant: answer 3',
+        'user: other question',
+        'assistant: other answer',
+      ]);
       await live.detach();
     });
   });
@@ -194,7 +215,10 @@ void main() {
     ]) {
       run = FakeRun();
       access = FakeAccess(run);
-      run.entries.addAll([entry('e1', null, user('hi', 1)), entry('e2', 'e1', assistant(2, [text('hello')]))]);
+      run.entries.addAll([
+        entry('e1', null, user('hi', 1)),
+        entry('e2', 'e1', assistant(2, [text('hello')])),
+      ]);
       access.files[run.sessionFile!] = utf8.encode(file);
       final live = session(recordedPath: run.sessionFile);
       await live.start();
@@ -253,7 +277,10 @@ void main() {
   });
 
   test('reconnect attempts back off, and reconnectNow skips the wait', () async {
-    final live = session(recordedPath: run.sessionFile, backoff: (attempt) => attempt == 1 ? Duration.zero : const Duration(hours: 1));
+    final live = session(
+      recordedPath: run.sessionFile,
+      backoff: (attempt) => attempt == 1 ? Duration.zero : const Duration(hours: 1),
+    );
     await live.start();
     access.attachError = StateError('network unreachable');
     run.dropChannels();
@@ -269,42 +296,45 @@ void main() {
     await live.detach();
   });
 
-  test('refused credentials, a failure the app marks permanent, a removed run and an exited omp end the session', () async {
-    final refused = session(recordedPath: run.sessionFile);
-    await refused.start();
-    final hop = SshHop(host: 'h', user: 'u', auth: const SshPasswordAuth('x'));
-    access.attachError = SshConnectException(hop, SshFailure.authFailed, 'denied');
-    run.dropChannels();
-    await until(() => refused.linkState is LinkClosed);
-    expect((refused.linkState as LinkClosed).cause, isA<SshConnectException>());
+  test(
+    'refused credentials, a failure the app marks permanent, a removed run and an exited omp end the session',
+    () async {
+      final refused = session(recordedPath: run.sessionFile);
+      await refused.start();
+      final hop = SshHop(host: 'h', user: 'u', auth: const SshPasswordAuth('x'));
+      access.attachError = SshConnectException(hop, SshFailure.authFailed, 'denied');
+      run.dropChannels();
+      await until(() => refused.linkState is LinkClosed);
+      expect((refused.linkState as LinkClosed).cause, isA<SshConnectException>());
 
-    access = FakeAccess(run = FakeRun());
-    final cancelled = session(
-      recordedPath: run.sessionFile,
-      backoff: (attempt) => attempt == 1 ? Duration.zero : const Duration(hours: 1),
-    );
-    await cancelled.start();
-    access.attachError = _PromptCancelled();
-    run.dropChannels();
-    await until(() => cancelled.linkState is LinkClosed);
-    expect((cancelled.linkState as LinkClosed).cause, isA<_PromptCancelled>());
+      access = FakeAccess(run = FakeRun());
+      final cancelled = session(
+        recordedPath: run.sessionFile,
+        backoff: (attempt) => attempt == 1 ? Duration.zero : const Duration(hours: 1),
+      );
+      await cancelled.start();
+      access.attachError = _PromptCancelled();
+      run.dropChannels();
+      await until(() => cancelled.linkState is LinkClosed);
+      expect((cancelled.linkState as LinkClosed).cause, isA<_PromptCancelled>());
 
-    access = FakeAccess(run = FakeRun());
-    final removed = session(recordedPath: run.sessionFile);
-    await removed.start();
-    access.attachError = RunGone('run r1 is gone');
-    run.dropChannels();
-    await until(() => removed.linkState is LinkClosed);
-    expect((removed.linkState as LinkClosed).cause, isA<RunGone>());
+      access = FakeAccess(run = FakeRun());
+      final removed = session(recordedPath: run.sessionFile);
+      await removed.start();
+      access.attachError = RunGone('run r1 is gone');
+      run.dropChannels();
+      await until(() => removed.linkState is LinkClosed);
+      expect((removed.linkState as LinkClosed).cause, isA<RunGone>());
 
-    access = FakeAccess(run = FakeRun());
-    final exited = session(recordedPath: run.sessionFile);
-    await exited.start();
-    run.exit(3);
-    await until(() => exited.linkState is LinkClosed);
-    expect((exited.linkState as LinkClosed).exitCode, 3);
-    expect(access.attaches, hasLength(1), reason: 'an exited run is not reattached');
-  });
+      access = FakeAccess(run = FakeRun());
+      final exited = session(recordedPath: run.sessionFile);
+      await exited.start();
+      run.exit(3);
+      await until(() => exited.linkState is LinkClosed);
+      expect((exited.linkState as LinkClosed).exitCode, 3);
+      expect(access.attaches, hasLength(1), reason: 'an exited run is not reattached');
+    },
+  );
 
   test('omp that exits before ready fails the open with its stderr', () async {
     access = FakeAccess(run = FakeRun(ready: false));
@@ -312,7 +342,9 @@ void main() {
     final live = session();
     await expectLater(
       live.start(),
-      throwsA(isA<OmpStartFailed>().having((e) => e.exitCode, 'exitCode', 1).having((e) => e.stderr, 'stderr', 'fake stderr')),
+      throwsA(
+        isA<OmpStartFailed>().having((e) => e.exitCode, 'exitCode', 1).having((e) => e.stderr, 'stderr', 'fake stderr'),
+      ),
     );
     expect(live.linkState, isA<LinkClosed>());
   });
@@ -329,7 +361,13 @@ void main() {
       ..sessionId = 's2'
       ..entries.clear()
       ..entries.add(entry('n1', null, user('new', 5)));
-    run.emit({'id': 'dev-b:1', 'type': 'response', 'command': 'new_session', 'success': true, 'data': {'cancelled': false}});
+    run.emit({
+      'id': 'dev-b:1',
+      'type': 'response',
+      'command': 'new_session',
+      'success': true,
+      'data': {'cancelled': false},
+    });
 
     await until(() => live.sessionPath == run.sessionFile && texts(live.view).join() == 'user: new');
     expect(live.view.resyncReason, isNull);
@@ -343,7 +381,13 @@ void main() {
   test('a first attach shows only the conversation after the last session change in the log', () async {
     run.emit(messageEnd(user('old question', 1), 'm1'));
     run.emit(messageEnd(assistant(2, [text('old answer')]), 'm2'));
-    run.emit({'id': 'dev-b:1', 'type': 'response', 'command': 'branch', 'success': true, 'data': {'cancelled': false}});
+    run.emit({
+      'id': 'dev-b:1',
+      'type': 'response',
+      'command': 'branch',
+      'success': true,
+      'data': {'cancelled': false},
+    });
     run.emit(messageEnd(user('new question', 3), 'm3'));
     run.entries.add(entry('n1', null, user('new question', 3)));
 
@@ -420,7 +464,11 @@ void main() {
     run.emit({'type': 'agent_start'});
     run.emit(messageStart(assistant(4, [text('')]), 'a1'));
     run.streaming = false;
-    run.emit(agentEnd([assistant(4, [text('done')])]));
+    run.emit(
+      agentEnd([
+        assistant(4, [text('done')]),
+      ]),
+    );
     await until(() => run.received.where((command) => command['type'] == 'get_state').length == before + 1);
     await until(() => !live.view.stateStale);
     expect(live.view.run.running, isFalse);
@@ -441,10 +489,13 @@ void main() {
 
   test('the control process is started again after it exits', () async {
     var started = 0;
-    access = FakeAccess(run, process: () {
-      started++;
-      return FakeRun(sessionFile: null, sessionId: 'c$started');
-    });
+    access = FakeAccess(
+      run,
+      process: () {
+        started++;
+        return FakeRun(sessionFile: null, sessionId: 'c$started');
+      },
+    );
     final control = session();
     await control.start();
     access.run.exit(0);

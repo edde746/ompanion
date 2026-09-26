@@ -161,8 +161,7 @@ final class DetachedRun {
 }
 
 /// Host-native directory holding the run directories.
-String runRoot(HostProbe probe) =>
-    probe.isWindows ? '${probe.home}\\.ompanion\\run' : '${probe.home}/.ompanion/run';
+String runRoot(HostProbe probe) => probe.isWindows ? '${probe.home}\\.ompanion\\run' : '${probe.home}/.ompanion/run';
 
 /// Finds the live run of [spec]'s session, or launches one. A launch lock on the machine makes this atomic
 /// across devices: two devices opening the same session get the same run. Runs without a session path
@@ -360,7 +359,8 @@ $posixLockFunctions$_processFunctions$_launchBody''';
 /// `run.sh`: the pipeline's right side runs omp in the foreground, then records its exit code in `exit` and,
 /// as the last line, in `out.jsonl`. The feeding `tail` would only notice omp's death at its next write, so
 /// that side kills it too. (`wait $!` cannot be used: bash and dash wait for the whole background pipeline.)
-String posixRunScript(String dir, String omp, List<String> args) => '''
+String posixRunScript(String dir, String omp, List<String> args) =>
+    '''
 d=${shQuote(dir)}
 $_processFunctions
 $posixTailPoll

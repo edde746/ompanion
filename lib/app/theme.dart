@@ -74,14 +74,8 @@ ThemeData appTheme(Brightness brightness) {
         padding: const WidgetStatePropertyAll(controlPadding),
         shape: WidgetStatePropertyAll(controlShape),
         side: const WidgetStatePropertyAll(BorderSide.none),
-        backgroundColor: _stateColor(
-          scheme.secondaryContainer,
-          disabled: scheme.onSurface.withValues(alpha: 0.12),
-        ),
-        foregroundColor: _stateColor(
-          scheme.onSecondaryContainer,
-          disabled: scheme.onSurface.withValues(alpha: 0.38),
-        ),
+        backgroundColor: _stateColor(scheme.secondaryContainer, disabled: scheme.onSurface.withValues(alpha: 0.12)),
+        foregroundColor: _stateColor(scheme.onSecondaryContainer, disabled: scheme.onSurface.withValues(alpha: 0.38)),
         elevation: const WidgetStatePropertyAll(0),
         visualDensity: controlDensity,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -92,14 +86,8 @@ ThemeData appTheme(Brightness brightness) {
         minimumSize: const WidgetStatePropertyAll(controlSize),
         padding: const WidgetStatePropertyAll(controlPadding),
         shape: WidgetStatePropertyAll(controlShape),
-        backgroundColor: _stateColor(
-          scheme.secondaryContainer,
-          disabled: scheme.onSurface.withValues(alpha: 0.12),
-        ),
-        foregroundColor: _stateColor(
-          scheme.onSecondaryContainer,
-          disabled: scheme.onSurface.withValues(alpha: 0.38),
-        ),
+        backgroundColor: _stateColor(scheme.secondaryContainer, disabled: scheme.onSurface.withValues(alpha: 0.12)),
+        foregroundColor: _stateColor(scheme.onSecondaryContainer, disabled: scheme.onSurface.withValues(alpha: 0.38)),
         elevation: const WidgetStatePropertyAll(0),
         shadowColor: const WidgetStatePropertyAll(Colors.transparent),
         surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -341,10 +329,7 @@ ThemeData appTheme(Brightness brightness) {
       radius: const Radius.circular(4),
     ),
     tooltipTheme: TooltipThemeData(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(6)),
       textStyle: TextStyle(color: scheme.onSurface, fontSize: 12),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     ),

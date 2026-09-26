@@ -26,10 +26,11 @@ HostImageReport _report({
 );
 
 /// The file [planImage] reads for [report], with its type and whether it is the preview; or the problem.
-Object _plan(HostImageReport report, {bool original = false}) => switch (planImage(report, '/p/a.png', original: original)) {
-  ImageRead(:final path, :final mimeType, :final preview) => (path, mimeType, preview),
-  ImageRefused(:final problem) => (problem.issue, problem.size, problem.canLoadOriginal),
-};
+Object _plan(HostImageReport report, {bool original = false}) =>
+    switch (planImage(report, '/p/a.png', original: original)) {
+      ImageRead(:final path, :final mimeType, :final preview) => (path, mimeType, preview),
+      ImageRefused(:final problem) => (problem.issue, problem.size, problem.canLoadOriginal),
+    };
 
 void main() {
   test('the image report keeps the problem the script found, or the file and what ffmpeg made of it', () {
@@ -76,22 +77,47 @@ void main() {
 
   group('planImage', () {
     test('a preview is read when it is smaller than the file', () {
-      final report = _report(size: 600000, ffmpeg: FfmpegOutcome.ok, out: '/t/img.webp', format: 'webp', outSize: 40000);
+      final report = _report(
+        size: 600000,
+        ffmpeg: FfmpegOutcome.ok,
+        out: '/t/img.webp',
+        format: 'webp',
+        outSize: 40000,
+      );
       expect(_plan(report), ('/t/img.webp', 'image/webp', true));
     });
 
     test('a preview no smaller than a decodable file loses to the file', () {
-      final report = _report(size: 300000, ffmpeg: FfmpegOutcome.ok, out: '/t/img.jpeg', format: 'jpeg', outSize: 310000);
+      final report = _report(
+        size: 300000,
+        ffmpeg: FfmpegOutcome.ok,
+        out: '/t/img.jpeg',
+        format: 'jpeg',
+        outSize: 310000,
+      );
       expect(_plan(report), ('/p/a.png', 'image/png', false));
     });
 
     test('a preview of a file too large to send as it is wins even when it is larger', () {
-      final report = _report(size: 9 << 20, ffmpeg: FfmpegOutcome.ok, out: '/t/img.png', format: 'png', outSize: 10 << 20);
+      final report = _report(
+        size: 9 << 20,
+        ffmpeg: FfmpegOutcome.ok,
+        out: '/t/img.png',
+        format: 'png',
+        outSize: 10 << 20,
+      );
       expect(_plan(report), ('/t/img.png', 'image/png', true));
     });
 
     test('a preview of a format this app cannot decode wins', () {
-      final report = _report(magic: _tiff, size: 90000, ffmpeg: FfmpegOutcome.ok, out: '/t/img.jpeg', format: 'jpeg', outSize: 95000);
+      final report = _report(
+        magic: _tiff,
+        size: 90000,
+        ffmpeg: FfmpegOutcome.ok,
+        out: '/t/img.jpeg',
+        format: 'jpeg',
+        outSize: 95000,
+      );
       expect(_plan(report), ('/t/img.jpeg', 'image/jpeg', true));
     });
 
@@ -116,8 +142,16 @@ void main() {
       expect(_plan(_report(magic: _text)), (HostImageIssue.notImage, 1000, false));
       expect(_plan(_report(magic: _text, ffmpeg: FfmpegOutcome.notImage)), (HostImageIssue.notImage, 1000, false));
       expect(_plan(_report(magic: _tiff)), (HostImageIssue.unsupported, 1000, false));
-      expect(_plan(_report(magic: '3c737667', ffmpeg: FfmpegOutcome.notImage)), (HostImageIssue.unsupported, 1000, false));
-      final failed = planImage(_report(magic: _tiff, ffmpeg: FfmpegOutcome.failed, error: 'Invalid data'), '/p/a.tif', original: false);
+      expect(_plan(_report(magic: '3c737667', ffmpeg: FfmpegOutcome.notImage)), (
+        HostImageIssue.unsupported,
+        1000,
+        false,
+      ));
+      final failed = planImage(
+        _report(magic: _tiff, ffmpeg: FfmpegOutcome.failed, error: 'Invalid data'),
+        '/p/a.tif',
+        original: false,
+      );
       expect((failed as ImageRefused).problem.detail, 'Invalid data');
     });
 

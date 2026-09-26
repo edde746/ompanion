@@ -69,11 +69,15 @@ final class SshAgentClient {
 
   /// Signs [data] with the agent's key [keyBlob]. [flags] 2 and 4 select rsa-sha2-256 and -512.
   Future<Uint8List> sign(Uint8List keyBlob, Uint8List data, {int flags = 0}) async {
-    final reader = WireReader(await _request(WireWriter()
-      ..writeUint8(_signRequest)
-      ..writeString(keyBlob)
-      ..writeString(data)
-      ..writeUint32(flags)));
+    final reader = WireReader(
+      await _request(
+        WireWriter()
+          ..writeUint8(_signRequest)
+          ..writeString(keyBlob)
+          ..writeString(data)
+          ..writeUint32(flags),
+      ),
+    );
     final type = reader.readUint8();
     if (type == _failure) throw const SshAgentException('ssh-agent refused to sign');
     if (type != _signResponse) throw SshAgentException('unexpected ssh-agent reply $type');
@@ -96,7 +100,12 @@ final class SshAgentClient {
   }
 
   void _onData(Uint8List chunk) {
-    _buffer = _buffer.isEmpty ? chunk : (BytesBuilder(copy: false)..add(_buffer)..add(chunk)).takeBytes();
+    _buffer = _buffer.isEmpty
+        ? chunk
+        : (BytesBuilder(copy: false)
+                ..add(_buffer)
+                ..add(chunk))
+              .takeBytes();
     while (_buffer.length >= 4) {
       final length = ByteData.sublistView(_buffer, 0, 4).getUint32(0);
       if (_buffer.length < 4 + length) return;

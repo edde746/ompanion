@@ -204,7 +204,10 @@ class _RosterTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(padding: const EdgeInsets.only(top: 2), child: StatusIcon(status: agent.status)),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: StatusIcon(status: agent.status),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -220,10 +223,7 @@ class _RosterTile extends StatelessWidget {
                           style: theme.textTheme.titleSmall,
                         ),
                       ),
-                      if (agent.agentType case final type?) ...[
-                        const SizedBox(width: 6),
-                        _Tag(text: type),
-                      ],
+                      if (agent.agentType case final type?) ...[const SizedBox(width: 6), _Tag(text: type)],
                       if (agent.kind == AgentKind.advisor) ...[const SizedBox(width: 6), _Tag(text: t.advisor)],
                     ],
                   ),
@@ -306,7 +306,10 @@ class StatusIcon extends StatelessWidget {
       RosterStatus.failed => (Icon(Icons.error, size: 16, color: colors.error), t.failed),
       RosterStatus.aborted => (Icon(Icons.cancel, size: 16, color: muted), t.aborted),
     };
-    return Tooltip(message: label, child: SizedBox.square(dimension: 16, child: Center(child: icon)));
+    return Tooltip(
+      message: label,
+      child: SizedBox.square(dimension: 16, child: Center(child: icon)),
+    );
   }
 }
 
@@ -381,7 +384,8 @@ class _AgentDetailState extends State<_AgentDetail> {
     final text = _steer.text.trim();
     if (text.isEmpty) return;
     final t = context.t.dock.hub;
-    if (await _call('subagent.steer', {'id': widget.agent.id, 'text': text}, done: t.steered) && mounted) _steer.clear();
+    if (await _call('subagent.steer', {'id': widget.agent.id, 'text': text}, done: t.steered) && mounted)
+      _steer.clear();
   }
 
   Future<void> _kill() async {
@@ -393,10 +397,7 @@ class _AgentDetailState extends State<_AgentDetail> {
         content: Text(t.killBody),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.t.common.cancel)),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(t.kill),
-          ),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t.kill)),
         ],
       ),
     );
@@ -463,7 +464,8 @@ class _AgentDetailState extends State<_AgentDetail> {
             children: [
               if (details.isNotEmpty)
                 Text(details, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-              if (usage.isNotEmpty) Text(usage, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+              if (usage.isNotEmpty)
+                Text(usage, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
               if (agent.task case final task?)
                 GestureDetector(
                   onTap: () => setState(() => _taskExpanded = !_taskExpanded),
@@ -522,7 +524,10 @@ class _AgentDetailState extends State<_AgentDetail> {
                         },
                         onOpenFile: (path, {line}) => dock.openFile(path, line: line),
                         onOpenSubagent: widget.onOpenAgent,
-                        images: context.read<MachineImages?>()?.forSession(context.read<SessionsProvider>(), widget.session),
+                        images: context.read<MachineImages?>()?.forSession(
+                          context.read<SessionsProvider>(),
+                          widget.session,
+                        ),
                       ),
                     ),
                   ),
@@ -534,10 +539,7 @@ class _AgentDetailState extends State<_AgentDetail> {
         if (agent.readOnly)
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Text(
-              t.advisorReadOnly,
-              style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
+            child: Text(t.advisorReadOnly, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
           )
         else if (agent.canSteer && !withCompanion)
           Padding(

@@ -68,7 +68,13 @@ String windowsArg(String arg) {
 /// The launch: `Win32_Process.Create` with job breakaway, the SSH session's environment plus the
 /// `OMPANION_*` variables (a WMI child otherwise gets the WMI provider's environment), then a wait of up to
 /// ten seconds for omp to appear, identified by the overlay path in its command line.
-String windowsLaunchScript(String marker, {required String dir, required String cwd, required String omp, required List<String> args}) =>
+String windowsLaunchScript(
+  String marker, {
+  required String dir,
+  required String cwd,
+  required String omp,
+  required List<String> args,
+}) =>
     '''
 \$m = ${psQuote(marker)}; \$run = ${psQuote(dir)}; \$cwd = ${psQuote(cwd)}; \$omp = ${psQuote(omp)}
 \$argline = ${psQuote(args.map(windowsArg).join(' '))}
@@ -97,7 +103,8 @@ if (-not $found) { throw "omp did not start; see $run\err.log" }
 ''';
 
 /// Lists the run directories with their processes, found by the run path in their command lines.
-String windowsListScript(String marker, String root) => '\$m = ${psQuote(marker)}; \$root = ${psQuote(root)}\n$_windowsListBody';
+String windowsListScript(String marker, String root) =>
+    '\$m = ${psQuote(marker)}; \$root = ${psQuote(root)}\n$_windowsListBody';
 
 const _windowsListBody = r'''
 $procs = @(Get-CimInstance -ClassName Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('\.ompanion\run\') })
@@ -220,10 +227,7 @@ Future<({DetachedRun run, bool launched})> openWindowsRun(HostLink link, HostPro
       );
       if (result.exit.code != 0) throw result.failure('launching omp in ${spec.cwd} failed');
       final ompPid = int.parse(result.payload(marker).trim());
-      return (
-        run: DetachedRun(id: id, dir: dir, state: RunState.running, meta: meta, ompPid: ompPid),
-        launched: true,
-      );
+      return (run: DetachedRun(id: id, dir: dir, state: RunState.running, meta: meta, ompPid: ompPid), launched: true);
     } finally {
       await files.removeDir(lock);
     }

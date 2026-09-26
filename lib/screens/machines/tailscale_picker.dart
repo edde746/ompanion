@@ -64,8 +64,7 @@ class _TailscalePickerState extends State<_TailscalePicker> {
                     onChanged: (query) => setState(() => _query = query.trim().toLowerCase()),
                   ),
                   const SizedBox(height: AppSizes.gap),
-                  if (_error case final error?)
-                    Text(error, style: TextStyle(color: AppColors.of(context).error)),
+                  if (_error case final error?) Text(error, style: TextStyle(color: AppColors.of(context).error)),
                   Flexible(
                     child: ListView(
                       shrinkWrap: true,
@@ -100,7 +99,11 @@ class _PeerTile extends StatelessWidget {
     final details = [peer.dialHost, if (peer.os.isNotEmpty) peer.os, if (!peer.online) context.t.tailscale.offline];
     return ListTile(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radius)),
-      leading: Icon(Icons.circle, size: 10, color: peer.online ? AppColors.of(context).success : scheme.onSurfaceVariant),
+      leading: Icon(
+        Icons.circle,
+        size: 10,
+        color: peer.online ? AppColors.of(context).success : scheme.onSurfaceVariant,
+      ),
       title: Text(peer.hostName.isNotEmpty ? peer.hostName : peer.dialHost),
       subtitle: Text(details.join(' · ')),
       onTap: onTap,

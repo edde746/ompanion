@@ -35,11 +35,7 @@ class ExecPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final run in shown)
-              _ExecCard(
-                run: run,
-                onAbort: () => unawaited(runs.abort(session)),
-                onDismiss: () => runs.dismiss(run),
-              ),
+              _ExecCard(run: run, onAbort: () => unawaited(runs.abort(session)), onDismiss: () => runs.dismiss(run)),
           ],
         );
       },

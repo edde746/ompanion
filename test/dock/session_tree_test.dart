@@ -5,8 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/screens/dock/tree/session_tree.dart';
 
 /// A `get_tree` node; [children] nest.
-Map<String, Object?> node(Map<String, Object?> entry, [List<Map<String, Object?>> children = const [], String? label]) =>
-    {'entry': entry, 'children': children, 'label': ?label};
+Map<String, Object?> node(
+  Map<String, Object?> entry, [
+  List<Map<String, Object?>> children = const [],
+  String? label,
+]) => {'entry': entry, 'children': children, 'label': ?label};
 
 Map<String, Object?> user(String id, String text, {String? parent}) => {
   'type': 'message',
@@ -42,18 +45,20 @@ void main() {
     test('a recorded get_tree hides bookkeeping and marks the visible ancestor of a session_exit leaf', () {
       final line = File('testing/fixtures/session-resume.out.jsonl').readAsLinesSync()[10];
       final data = (jsonDecode(line) as Map<String, Object?>)['data']! as Map<String, Object?>;
-      final tree = SessionTree.decode(
-        [for (final node in data['tree']! as List<Object?>) node! as Map<String, Object?>],
-        data['leafId'] as String?,
-      );
+      final tree = SessionTree.decode([
+        for (final node in data['tree']! as List<Object?>) node! as Map<String, Object?>,
+      ], data['leafId'] as String?);
 
       final rows = tree.rows();
-      expect([for (final row in rows) (row.entry.kind, row.entry.text)], [
-        (TreeEntryKind.user, 'Remember the word fixture.'),
-        (TreeEntryKind.assistant, 'Noted: the word is fixture.'),
-        (TreeEntryKind.user, 'What was the word?'),
-        (TreeEntryKind.assistant, 'The word was fixture.'),
-      ]);
+      expect(
+        [for (final row in rows) (row.entry.kind, row.entry.text)],
+        [
+          (TreeEntryKind.user, 'Remember the word fixture.'),
+          (TreeEntryKind.assistant, 'Noted: the word is fixture.'),
+          (TreeEntryKind.user, 'What was the word?'),
+          (TreeEntryKind.assistant, 'The word was fixture.'),
+        ],
+      );
       expect([for (final row in rows) row.depth], everyElement(0));
       expect(rows.where((row) => row.isLeaf).single.entry.text, 'The word was fixture.');
       expect(rows.every((row) => row.onActivePath), isTrue);
@@ -78,7 +83,12 @@ void main() {
     });
 
     test('a malformed node is a FormatException', () {
-      expect(() => SessionTree.decode([{'children': []}], null), throwsFormatException);
+      expect(
+        () => SessionTree.decode([
+          {'children': []},
+        ], null),
+        throwsFormatException,
+      );
       expect(
         () => SessionTree.decode([
           {'entry': user('a', 'x'), 'children': 'nope'},
@@ -106,11 +116,25 @@ void main() {
               },
             ], stopReason: 'toolUse'),
             [
-              node(entry('r1', 'message', {'message': {'role': 'toolResult', 'toolCallId': 'call-1', 'toolName': 'read'}}), [
-                node(entry('r2', 'message', {'message': {'role': 'toolResult', 'toolCallId': 'call-2', 'toolName': 'bash'}}), [
-                  node(entry('r3', 'message', {'message': {'role': 'toolResult', 'toolCallId': 'gone', 'toolName': 'grep'}})),
-                ]),
-              ]),
+              node(
+                entry('r1', 'message', {
+                  'message': {'role': 'toolResult', 'toolCallId': 'call-1', 'toolName': 'read'},
+                }),
+                [
+                  node(
+                    entry('r2', 'message', {
+                      'message': {'role': 'toolResult', 'toolCallId': 'call-2', 'toolName': 'bash'},
+                    }),
+                    [
+                      node(
+                        entry('r3', 'message', {
+                          'message': {'role': 'toolResult', 'toolCallId': 'gone', 'toolName': 'grep'},
+                        }),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
         ]),
@@ -127,14 +151,19 @@ void main() {
       final tree = SessionTree.decode([
         node(user('u', 'go'), [
           node(assistant('aborted', [], stopReason: 'aborted'), [
-            node({
-              ...assistant('failed', [], stopReason: 'error'),
-              'message': {'role': 'assistant', 'content': [], 'stopReason': 'error', 'errorMessage': 'rate limited'},
-            }, [
-              node(assistant('tools', [
-                {'type': 'toolCall', 'id': 'c', 'name': 'ls', 'arguments': {}},
-              ], stopReason: 'toolUse')),
-            ]),
+            node(
+              {
+                ...assistant('failed', [], stopReason: 'error'),
+                'message': {'role': 'assistant', 'content': [], 'stopReason': 'error', 'errorMessage': 'rate limited'},
+              },
+              [
+                node(
+                  assistant('tools', [
+                    {'type': 'toolCall', 'id': 'c', 'name': 'ls', 'arguments': {}},
+                  ], stopReason: 'toolUse'),
+                ),
+              ],
+            ),
           ]),
         ]),
       ], 'tools');
@@ -152,7 +181,9 @@ void main() {
     SessionTree branched({String? leaf = 'c2'}) => SessionTree.decode([
       node(user('root', 'start'), [
         node(assistant('a1', [text('answer')]), [
-          node(user('b', 'first try'), [node(assistant('b1', [text('first answer')]))], 'old'),
+          node(user('b', 'first try'), [
+            node(assistant('b1', [text('first answer')])),
+          ], 'old'),
           node(user('c', 'second try'), [
             node(assistant('c1', [text('second answer')]), [node(user('c2', 'follow up'))]),
           ]),
@@ -204,8 +235,12 @@ void main() {
     test('a first message replaced under a hidden root: both are branches, the current one first and open', () {
       final tree = SessionTree.decode([
         node(entry('model', 'model_change', {'provider': 'fake', 'modelId': 'one'}), [
-          node(user('old', 'Show the renderer demo'), [node(assistant('old1', [text('long demo')]))]),
-          node(user('new', 'Show a shorter renderer demo'), [node(assistant('new1', [text('short demo')]))]),
+          node(user('old', 'Show the renderer demo'), [
+            node(assistant('old1', [text('long demo')])),
+          ]),
+          node(user('new', 'Show a shorter renderer demo'), [
+            node(assistant('new1', [text('short demo')])),
+          ]),
         ]),
       ], 'new1');
       final rows = tree.rows();
@@ -220,28 +255,38 @@ void main() {
     final tree = SessionTree.decode([
       node(entry('comp', 'compaction', {'summary': 'long summary', 'tokensBefore': 48123}), [
         node(entry('bs', 'branch_summary', {'summary': 'what was tried', 'fromId': 'x'}), [
-          node(entry('adv', 'custom_message', {
-            'customType': 'advisor',
-            'content': 'ignored',
-            'details': {
-              'notes': [
-                {'note': 'watch the tests', 'advisor': 'critic', 'severity': 'concern'},
-                {'note': 'and the docs', 'advisor': 'default', 'severity': 'nit'},
-              ],
-            },
-          }), [
-            node(entry('bash', 'message', {'message': {'role': 'bashExecution', 'command': 'git status'}})),
-          ]),
+          node(
+            entry('adv', 'custom_message', {
+              'customType': 'advisor',
+              'content': 'ignored',
+              'details': {
+                'notes': [
+                  {'note': 'watch the tests', 'advisor': 'critic', 'severity': 'concern'},
+                  {'note': 'and the docs', 'advisor': 'default', 'severity': 'nit'},
+                ],
+              },
+            }),
+            [
+              node(
+                entry('bash', 'message', {
+                  'message': {'role': 'bashExecution', 'command': 'git status'},
+                }),
+              ),
+            ],
+          ),
         ]),
       ]),
     ], 'bash');
     final rows = tree.rows();
-    expect([for (final row in rows) (row.entry.kind, row.entry.text)], [
-      (TreeEntryKind.compaction, 'long summary'),
-      (TreeEntryKind.branchSummary, 'what was tried'),
-      (TreeEntryKind.advisor, 'watch the tests and the docs'),
-      (TreeEntryKind.bash, 'git status'),
-    ]);
+    expect(
+      [for (final row in rows) (row.entry.kind, row.entry.text)],
+      [
+        (TreeEntryKind.compaction, 'long summary'),
+        (TreeEntryKind.branchSummary, 'what was tried'),
+        (TreeEntryKind.advisor, 'watch the tests and the docs'),
+        (TreeEntryKind.bash, 'git status'),
+      ],
+    );
     expect(rows.first.entry.tokensBefore, 48123);
     // Advisor names other than `default`, then severities, as omp's advisorTreeDisplay lists them.
     expect(rows[2].entry.advisorTags, 'critic, concern, nit');

@@ -61,11 +61,8 @@ class ChatScreen extends StatelessWidget {
             Expanded(
               child: SessionViewBuilder(
                 session: session,
-                builder: (context, view) => TranscriptView(
-                  view: view,
-                  actions: actions(session.loadEarlier),
-                  turns: turns,
-                ),
+                builder: (context, view) =>
+                    TranscriptView(view: view, actions: actions(session.loadEarlier), turns: turns),
               ),
             ),
             CommandOutputs(key: ObjectKey(session), session: session),
@@ -106,7 +103,9 @@ Future<void> branchFrom(BuildContext context, LiveSession session, String entryI
       context: context,
       builder: (context) => AlertDialog(
         title: Text(t.chat.branchTitle),
-        content: Text(t.chat.branchBody(text: message.text.length > 200 ? '${message.text.substring(0, 200)}…' : message.text)),
+        content: Text(
+          t.chat.branchBody(text: message.text.length > 200 ? '${message.text.substring(0, 200)}…' : message.text),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.common.cancel)),
           FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t.chat.branch)),

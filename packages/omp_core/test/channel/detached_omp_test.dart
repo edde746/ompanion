@@ -158,7 +158,10 @@ void main() {
 
   test('omp and its user bash get the umask of the launching shell, not the 077 of the run directory', () async {
     final id = newRunId();
-    final launched = await runPosixScript(host.link, 'umask 027\n${posixLaunchScript(newMarker(), runRoot(probe), id, spec())}');
+    final launched = await runPosixScript(
+      host.link,
+      'umask 027\n${posixLaunchScript(newMarker(), runRoot(probe), id, spec())}',
+    );
     expect(launched.exit.code, 0, reason: launched.stderr);
     final run = (await listRuns(host.link, probe)).singleWhere((r) => r.id == id);
     final channel = await attachRun(host.link, probe, run);

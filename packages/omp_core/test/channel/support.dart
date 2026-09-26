@@ -125,8 +125,7 @@ final class Frames {
     }
   }
 
-  Future<Map<String, Object?>> response(String id) =>
-      next((frame) => frame['type'] == 'response' && frame['id'] == id);
+  Future<Map<String, Object?>> response(String id) => next((frame) => frame['type'] == 'response' && frame['id'] == id);
 
   /// Waits until the lines stream ends.
   Future<void> ended({Duration timeout = const Duration(seconds: 30)}) async {

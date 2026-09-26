@@ -89,9 +89,7 @@ final class AskDraft {
   /// A draft with the recommended option chosen for a single-choice question, as the TUI preselects it.
   factory AskDraft.initial(AskQuestion question) {
     final recommended = question.recommended;
-    return AskDraft(
-      selected: !question.multi && recommended != null ? {question.options[recommended].label} : null,
-    );
+    return AskDraft(selected: !question.multi && recommended != null ? {question.options[recommended].label} : null);
   }
 
   /// Chosen option labels.

@@ -14,11 +14,12 @@ import '../host/fixtures.dart';
 import 'support.dart';
 
 Future<ScriptResult> runPwsh(String script, Map<String, String> environment) async {
-  final result = await Process.run(
-    pwsh!,
-    ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodePowerShell('$powershellPreamble$script')],
-    environment: environment,
-  );
+  final result = await Process.run(pwsh!, [
+    '-NoProfile',
+    '-NonInteractive',
+    '-EncodedCommand',
+    encodePowerShell('$powershellPreamble$script'),
+  ], environment: environment);
   return ScriptResult(result.stdout as String, result.stderr as String, HostExit(code: result.exitCode));
 }
 
@@ -61,7 +62,10 @@ void main() {
   });
 
   test('the Windows probe fits on one cmd.exe line, so first contact needs no SFTP', () {
-    expect(encodedPowerShellCommand(CommandShell.cmd, '$powershellPreamble${windowsProbeScript(newMarker())}'), isNotNull);
+    expect(
+      encodedPowerShellCommand(CommandShell.cmd, '$powershellPreamble${windowsProbeScript(newMarker())}'),
+      isNotNull,
+    );
   });
 
   test('the in.jsonl appender fits on one cmd.exe line, so it can keep stdin for the lines', () {
@@ -145,9 +149,11 @@ void main() {
     test('the install script refuses a tampered download and removes it, also pasted without the preamble', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(() => server.close(force: true));
-      server.listen((request) => request.response
-        ..write('not omp')
-        ..close());
+      server.listen(
+        (request) => request.response
+          ..write('not omp')
+          ..close(),
+      );
       const windows = HostProbe(
         commandShell: CommandShell.powershell,
         os: HostOs.windows,
@@ -157,25 +163,36 @@ void main() {
         agentDir: '/unused',
       );
       final dir = '${temp.path}/omp';
-      final script = windowsInstallCommand(windows, '18.3.1', installDir: dir, assetBase: Uri.parse('http://127.0.0.1:${server.port}/'));
+      final script = windowsInstallCommand(
+        windows,
+        '18.3.1',
+        installDir: dir,
+        assetBase: Uri.parse('http://127.0.0.1:${server.port}/'),
+      );
       final result = await Process.run(pwsh!, ['-NoProfile', '-NonInteractive', '-Command', script]);
       expect(result.exitCode, isNot(0));
       expect('${result.stderr}', contains('SHA-256 mismatch'));
       expect(Directory(dir).listSync(), isEmpty);
     });
 
-    test('a script too long for one command line runs from a file whose path never reaches a POSIX login shell', () async {
-      // csh stands in for login shells that misread sh quoting (fish, csh): a newline inside '…' is an error there.
-      final home = Directory('${temp.path}/home\nwith a newline')..createSync();
-      final bin = Directory('${temp.path}/bin')..createSync();
-      Link('${bin.path}/powershell.exe').createSync(pwsh!);
-      final link = _LoginShellLink(LocalLink(environment: {'HOME': home.path, 'PATH': '${bin.path}:/usr/bin:/bin'}), '/bin/csh');
-      final script = "# ${'x' * windowsCommandLineLimit}\n[Console]::Out.Write('ran')";
-      expect(encodedPowerShellCommand(CommandShell.posix, '$powershellPreamble$script'), isNull);
-      final result = await runPowerShell(link, CommandShell.posix, script);
-      expect(result.exit.code, 0, reason: result.stderr);
-      expect(result.stdout, 'ran');
-      expect(Directory('${home.path}/.ompanion/tmp').listSync(), isEmpty, reason: 'the uploaded script is removed');
-    });
+    test(
+      'a script too long for one command line runs from a file whose path never reaches a POSIX login shell',
+      () async {
+        // csh stands in for login shells that misread sh quoting (fish, csh): a newline inside '…' is an error there.
+        final home = Directory('${temp.path}/home\nwith a newline')..createSync();
+        final bin = Directory('${temp.path}/bin')..createSync();
+        Link('${bin.path}/powershell.exe').createSync(pwsh!);
+        final link = _LoginShellLink(
+          LocalLink(environment: {'HOME': home.path, 'PATH': '${bin.path}:/usr/bin:/bin'}),
+          '/bin/csh',
+        );
+        final script = "# ${'x' * windowsCommandLineLimit}\n[Console]::Out.Write('ran')";
+        expect(encodedPowerShellCommand(CommandShell.posix, '$powershellPreamble$script'), isNull);
+        final result = await runPowerShell(link, CommandShell.posix, script);
+        expect(result.exit.code, 0, reason: result.stderr);
+        expect(result.stdout, 'ran');
+        expect(Directory('${home.path}/.ompanion/tmp').listSync(), isEmpty, reason: 'the uploaded script is removed');
+      },
+    );
   });
 }

@@ -120,7 +120,9 @@ List<DiffLine> parseUnifiedDiff(String diff) {
     final first = line.isEmpty ? '' : line[0];
     if (inHunk && (first == ' ' || first == '')) {
       // Some tools strip the space of an empty context line.
-      rows.add(DiffLine(DiffLineKind.context, line.isEmpty ? '' : line.substring(1), oldLine: oldLine, newLine: newLine));
+      rows.add(
+        DiffLine(DiffLineKind.context, line.isEmpty ? '' : line.substring(1), oldLine: oldLine, newLine: newLine),
+      );
       oldLine++;
       newLine++;
       oldLeft--;
@@ -279,7 +281,12 @@ class DiffView extends StatelessWidget {
   }) {
     final (marker, markerColor, background, changedBackground) = switch (line.kind) {
       DiffLineKind.added => ('+', colors.diffAdd, colors.diffAddSurface, colors.diffAdd.withValues(alpha: 0.3)),
-      DiffLineKind.removed => ('−', colors.diffRemove, colors.diffRemoveSurface, colors.diffRemove.withValues(alpha: 0.3)),
+      DiffLineKind.removed => (
+        '−',
+        colors.diffRemove,
+        colors.diffRemoveSurface,
+        colors.diffRemove.withValues(alpha: 0.3),
+      ),
       DiffLineKind.hunk => ('', scheme.onSurfaceVariant, null, null),
       _ => (' ', scheme.onSurfaceVariant, null, null),
     };
@@ -306,7 +313,11 @@ class DiffView extends StatelessWidget {
           SelectionContainer.disabled(
             child: SizedBox(
               width: 18,
-              child: Text(marker, textAlign: TextAlign.center, style: code.copyWith(color: markerColor)),
+              child: Text(
+                marker,
+                textAlign: TextAlign.center,
+                style: code.copyWith(color: markerColor),
+              ),
             ),
           ),
           Expanded(child: Text.rich(text)),
@@ -320,7 +331,12 @@ class DiffView extends StatelessWidget {
     var cursor = 0;
     for (final (start, end) in line.changed) {
       if (start > cursor) spans.add(TextSpan(text: line.text.substring(cursor, start)));
-      spans.add(TextSpan(text: line.text.substring(start, end), style: TextStyle(backgroundColor: changedBackground)));
+      spans.add(
+        TextSpan(
+          text: line.text.substring(start, end),
+          style: TextStyle(backgroundColor: changedBackground),
+        ),
+      );
       cursor = end;
     }
     if (cursor < line.text.length) spans.add(TextSpan(text: line.text.substring(cursor)));

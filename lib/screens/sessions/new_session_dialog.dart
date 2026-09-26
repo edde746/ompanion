@@ -149,8 +149,10 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
   }
 
   /// Puts [path] in the directory field with the caret at its end, ready to type a subdirectory.
-  void _setCwd(String path) =>
-      _cwd.value = TextEditingValue(text: path, selection: TextSelection.collapsed(offset: path.length));
+  void _setCwd(String path) => _cwd.value = TextEditingValue(
+    text: path,
+    selection: TextSelection.collapsed(offset: path.length),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -203,11 +205,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
                 runSpacing: 6,
                 children: [
                   for (final cwd in recent)
-                    ActionChip(
-                      label: Text(shortPath(cwd, _probe?.home)),
-                      tooltip: cwd,
-                      onPressed: () => _setCwd(cwd),
-                    ),
+                    ActionChip(label: Text(shortPath(cwd, _probe?.home)), tooltip: cwd, onPressed: () => _setCwd(cwd)),
                 ],
               ),
             ],
@@ -364,9 +362,7 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
                   icon: const Icon(Icons.arrow_upward),
                   onPressed: parent == null ? null : () => unawaited(_list(parent)),
                 ),
-                Expanded(
-                  child: Text(path == null ? '' : hostPath(path), maxLines: 2, overflow: TextOverflow.ellipsis),
-                ),
+                Expanded(child: Text(path == null ? '' : hostPath(path), maxLines: 2, overflow: TextOverflow.ellipsis)),
                 IconButton(
                   tooltip: t.sessions.showHidden,
                   isSelected: _showHidden,

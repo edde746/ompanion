@@ -100,7 +100,10 @@ ToolParts _bash(BuildContext context, ToolData data) {
     expanded: true,
     open: null,
     body: (context) => _column([
-      if (command.contains('\n')) ...[CodeBlock(code: command, language: 'bash', header: false), const SizedBox(height: 6)],
+      if (command.contains('\n')) ...[
+        CodeBlock(code: command, language: 'bash', header: false),
+        const SizedBox(height: 6),
+      ],
       if (output.trim().isNotEmpty)
         TerminalOutput(output, error: thrown)
       else if (data.status == ToolStatus.done)
@@ -151,7 +154,8 @@ ToolParts _read(BuildContext context, ToolData data) {
   // omp sends a read image only to a model that takes images; for another it sends the image's metadata as text, and
   // the card shows the file from the machine instead.
   final images = data.images;
-  final fromMachine = images.isEmpty &&
+  final fromMachine =
+      images.isEmpty &&
       text == null &&
       data.status == ToolStatus.done &&
       _imageExtensions.contains(extensionOf(_withoutSelector(target)));
@@ -272,13 +276,11 @@ ToolParts _edit(BuildContext context, ToolData data) {
   return (
     subject: path,
     monoSubject: true,
-    meta: [
-      if (op == 'create') t.created,
-      if (op == 'delete') t.deleted,
-      if (added + removed > 0) '+$added −$removed',
-    ],
+    meta: [if (op == 'create') t.created, if (op == 'delete') t.deleted, if (added + removed > 0) '+$added −$removed'],
     expanded: true,
-    open: path.isEmpty ? null : () => TranscriptScope.of(context).onOpenFile(target ?? path, line: shown.firstOrNull?.line),
+    open: path.isEmpty
+        ? null
+        : () => TranscriptScope.of(context).onOpenFile(target ?? path, line: shown.firstOrNull?.line),
     body: (context) => _column([
       for (final (file, rows) in parsed) ...[
         if (parsed.length > 1 && file.path != null) ToolSection(file.path!),
@@ -319,9 +321,7 @@ ToolParts _write(BuildContext context, ToolData data) {
     monoSubject: true,
     meta: [if (content.isNotEmpty) t.lines(n: lines.length)],
     expanded: false,
-    open: path.isEmpty
-        ? null
-        : () => TranscriptScope.of(context).onOpenFile(_string(details?['resolvedPath']) ?? path),
+    open: path.isEmpty ? null : () => TranscriptScope.of(context).onOpenFile(_string(details?['resolvedPath']) ?? path),
     body: (context) => _column([
       if (content.isNotEmpty)
         CappedLines(
@@ -439,7 +439,10 @@ class _TodoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(padding: const EdgeInsets.only(top: 2), child: Icon(icon, size: 16, color: color)),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 16, color: color),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -519,10 +522,12 @@ List<_Agent> _agents(ToolData data) {
           '',
       activity: progressOf?.lastIntent ?? progressOf?.currentTool ?? _string(entry['lastIntent']),
       tokens: progressOf?.tokens ?? _int(entry['tokens']),
-      duration: progressOf?.duration ?? switch (_int(entry['durationMs'])) {
-        final int ms when ms > 0 => Duration(milliseconds: ms),
-        _ => null,
-      },
+      duration:
+          progressOf?.duration ??
+          switch (_int(entry['durationMs'])) {
+            final int ms when ms > 0 => Duration(milliseconds: ms),
+            _ => null,
+          },
     ));
   }
   if (agents.isNotEmpty) return agents;
@@ -586,8 +591,10 @@ class _AgentRow extends StatelessWidget {
       SubagentStatus.aborted => (t.agentAborted, scheme.onSurfaceVariant),
     };
     final facts = [
-      if (agent.tokens case final tokens? when tokens > 0) context.t.transcript.tool.tokens(count: formatTokens(tokens)),
-      if (agent.duration != null) context.t.transcript.seconds(value: (agent.duration!.inMilliseconds / 1000).toStringAsFixed(1)),
+      if (agent.tokens case final tokens? when tokens > 0)
+        context.t.transcript.tool.tokens(count: formatTokens(tokens)),
+      if (agent.duration != null)
+        context.t.transcript.seconds(value: (agent.duration!.inMilliseconds / 1000).toStringAsFixed(1)),
     ];
     return InkWell(
       borderRadius: BorderRadius.circular(6),
@@ -611,25 +618,29 @@ class _AgentRow extends StatelessWidget {
                   Text.rich(
                     TextSpan(
                       children: [
-                        TextSpan(text: agent.id, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        TextSpan(
+                          text: agent.id,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                         TextSpan(
                           text: '  ${agent.agent}  ',
                           style: TextStyle(color: scheme.onSurfaceVariant),
                         ),
-                        TextSpan(text: label, style: TextStyle(color: color)),
+                        TextSpan(
+                          text: label,
+                          style: TextStyle(color: color),
+                        ),
                         if (facts.isNotEmpty)
-                          TextSpan(text: '  ${facts.join(' · ')}', style: TextStyle(color: scheme.onSurfaceVariant)),
+                          TextSpan(
+                            text: '  ${facts.join(' · ')}',
+                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          ),
                       ],
                     ),
                     style: theme.textTheme.bodySmall,
                   ),
                   if (agent.task.isNotEmpty)
-                    Text(
-                      agent.task,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall,
-                    ),
+                    Text(agent.task, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
                   if (agent.activity != null && agent.status == SubagentStatus.running)
                     Text(
                       agent.activity!,
@@ -681,12 +692,15 @@ List<_Question> _questions(ToolData data) {
       () {
         final question = i < asked.length ? asked[i] : const <String, Object?>{};
         final id = _string(question['id']);
-        final result = results.where((result) => id != null && result['id'] == id).firstOrNull ??
+        final result =
+            results.where((result) => id != null && result['id'] == id).firstOrNull ??
             (i < results.length ? results[i] : null);
         final options = <(String, String?)>[
           for (final option in _list(question['options']))
-            if (_object(option) case final option?) (_string(option['label']) ?? '', _string(option['description']))
-            else if (option is String) (option, null),
+            if (_object(option) case final option?)
+              (_string(option['label']) ?? '', _string(option['description']))
+            else if (option is String)
+              (option, null),
         ];
         if (options.isEmpty) {
           for (final option in _list(result?['options'])) {
@@ -728,10 +742,8 @@ ToolParts _ask(BuildContext context, ToolData data) {
     meta: const [],
     expanded: true,
     open: null,
-    body: (context) => _column([
-      for (final question in questions) _QuestionView(question),
-      ..._errorAndImages(context, data),
-    ]),
+    body: (context) =>
+        _column([for (final question in questions) _QuestionView(question), ..._errorAndImages(context, data)]),
   );
 }
 
@@ -776,17 +788,21 @@ class _QuestionView extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: label,
-                            style: TextStyle(
-                              fontWeight: question.selected.contains(label) ? FontWeight.w600 : null,
-                            ),
+                            style: TextStyle(fontWeight: question.selected.contains(label) ? FontWeight.w600 : null),
                           ),
                           if (index == question.recommended)
                             TextSpan(
                               text: '  ${t.recommended}',
-                              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: theme.textTheme.labelSmall?.fontSize),
+                              style: TextStyle(
+                                color: scheme.onSurfaceVariant,
+                                fontSize: theme.textTheme.labelSmall?.fontSize,
+                              ),
                             ),
                           if (description != null)
-                            TextSpan(text: '\n$description', style: TextStyle(color: scheme.onSurfaceVariant)),
+                            TextSpan(
+                              text: '\n$description',
+                              style: TextStyle(color: scheme.onSurfaceVariant),
+                            ),
                         ],
                       ),
                       style: theme.textTheme.bodySmall,
@@ -861,7 +877,15 @@ class _SourceRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(decoration: TextDecoration.underline, decorationColor: scheme.onSurfaceVariant)),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                decoration: TextDecoration.underline,
+                decorationColor: scheme.onSurfaceVariant,
+              ),
+            ),
             if (host.isNotEmpty)
               Text(host, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
             if (snippet != null)
@@ -883,13 +907,15 @@ ToolParts _eval(BuildContext context, ToolData data) {
   final details = _object(data.details);
   final cells = [for (final cell in _list(details?['cells'])) ?_object(cell)];
   final code = _string(data.args['code']) ?? '';
-  final language = _evalLanguage(_string(data.args['language']) ?? _string(details?['language']) ??
-      (data.name == 'python' ? 'python' : null));
+  final language = _evalLanguage(
+    _string(data.args['language']) ?? _string(details?['language']) ?? (data.name == 'python' ? 'python' : null),
+  );
   final title = _string(data.args['title']);
   final jsonOutputs = _list(details?['jsonOutputs']);
   final liveImages = [
     for (final image in _list(details?['images']))
-      if (_object(image) case {'data': final String bytes, 'mimeType': final String mime}) ImageBlock(data: bytes, mimeType: mime),
+      if (_object(image) case {'data': final String bytes, 'mimeType': final String mime})
+        ImageBlock(data: bytes, mimeType: mime),
   ];
   final output = _withoutNotices(data.text);
   return (
@@ -915,10 +941,7 @@ ToolParts _eval(BuildContext context, ToolData data) {
         ]
       else ...[
         if (code.isNotEmpty) CodeBlock(code: code, language: language, label: _string(data.args['language'])),
-        if (output.trim().isNotEmpty) ...[
-          const SizedBox(height: 6),
-          TerminalOutput(output, error: data.isError),
-        ],
+        if (output.trim().isNotEmpty) ...[const SizedBox(height: 6), TerminalOutput(output, error: data.isError)],
       ],
       if (jsonOutputs.isNotEmpty) ...[const SizedBox(height: 6), for (final value in jsonOutputs) JsonView(value)],
       if (liveImages.isNotEmpty && data.images.isEmpty) ...[const SizedBox(height: 8), ImageStrip(liveImages)],

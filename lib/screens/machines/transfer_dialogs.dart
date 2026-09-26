@@ -262,10 +262,7 @@ class _HostKeyChangeTile extends StatelessWidget {
             alignment: AlignmentDirectional.centerEnd,
             child: confirmed
                 ? Text(t.keysTrusted, style: theme.textTheme.labelLarge)
-                : FilledButton(
-                    onPressed: onTrust,
-                    child: Text(t.trustKeys),
-                  ),
+                : FilledButton(onPressed: onTrust, child: Text(t.trustKeys)),
           ),
         ],
       ),

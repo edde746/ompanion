@@ -148,7 +148,8 @@ final class _Sessions extends SessionsProvider {
 /// Answers the policy query with no policies, `omp usage invalidate` with success and `omp usage --json` with [usage].
 _Answer _omp(Future<(String, String, int)> Function() usage) => (script) {
   if (script.contains("'config' 'get'")) return Future.value(('{"key":"auth.accountPolicies","value":[]}', '', 0));
-  if (script.contains("'usage' 'invalidate'")) return Future.value(('Invalidated cached usage reports for all providers.\n', '', 0));
+  if (script.contains("'usage' 'invalidate'"))
+    return Future.value(('Invalidated cached usage reports for all providers.\n', '', 0));
   if (script.contains("'usage' '--json'")) return usage();
   throw StateError('unexpected script $script');
 };
@@ -205,7 +206,10 @@ void main() {
           ChangeNotifierProvider<SessionsProvider>.value(value: sessions),
         ],
         child: TranslationProvider(
-          child: MaterialApp(theme: appTheme(Brightness.dark), home: const Scaffold(body: UsagePane())),
+          child: MaterialApp(
+            theme: appTheme(Brightness.dark),
+            home: const Scaffold(body: UsagePane()),
+          ),
         ),
       ),
     );

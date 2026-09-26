@@ -46,7 +46,8 @@ void main() {
     await home.delete(recursive: true);
   });
 
-  RunMeta current() => RunMeta.fromJson(jsonDecode(File('${run.dir}/meta.json').readAsStringSync()) as Map<String, Object?>);
+  RunMeta current() =>
+      RunMeta.fromJson(jsonDecode(File('${run.dir}/meta.json').readAsStringSync()) as Map<String, Object?>);
 
   test('recording a session file rewrites meta.json so a launch looking for that file finds the run', () async {
     const path = "/home/me/.omp/agent/sessions/-work/2026-09-25T10-00-00-000Z_s2 it's.jsonl";
@@ -77,4 +78,3 @@ void main() {
     expect(out.readAsStringSync(), '{"type":"ompanion_rotate","generation":2,"previousSize":$size}\n');
   });
 }
-

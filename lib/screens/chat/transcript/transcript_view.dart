@@ -430,12 +430,13 @@ class _TranscriptViewState extends State<TranscriptView> {
     if (!_scroll.hasClients) return;
     final position = _scroll.position;
     unawaited(
-      position.animateTo(position.maxScrollExtent, duration: const Duration(milliseconds: 250), curve: Curves.easeOut).then(
-        (_) {
-          // The reply may have grown while the animation ran.
-          if (_scroll.hasClients && position.pixels < position.maxScrollExtent) position.jumpTo(position.maxScrollExtent);
-        },
-      ),
+      position
+          .animateTo(position.maxScrollExtent, duration: const Duration(milliseconds: 250), curve: Curves.easeOut)
+          .then((_) {
+            // The reply may have grown while the animation ran.
+            if (_scroll.hasClients && position.pixels < position.maxScrollExtent)
+              position.jumpTo(position.maxScrollExtent);
+          }),
     );
   }
 
@@ -571,7 +572,12 @@ final class _EstimatedDelegate extends SliverChildBuilderDelegate {
   final double Function(int index) extentOf;
 
   @override
-  double? estimateMaxScrollOffset(int firstIndex, int lastIndex, double leadingScrollOffset, double trailingScrollOffset) {
+  double? estimateMaxScrollOffset(
+    int firstIndex,
+    int lastIndex,
+    double leadingScrollOffset,
+    double trailingScrollOffset,
+  ) {
     var extent = trailingScrollOffset;
     for (var index = lastIndex + 1; index < childCount!; index++) {
       extent += extentOf(index);

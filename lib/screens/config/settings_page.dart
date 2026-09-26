@@ -78,13 +78,16 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final control = await widget.target.control();
       final schema =
-          _schema ?? SettingsSchema.fromJson(asJsonObject(await control.companion.call('settings.schema'), 'settings.schema'));
+          _schema ??
+          SettingsSchema.fromJson(asJsonObject(await control.companion.call('settings.schema'), 'settings.schema'));
       final project = widget.target.projectSession;
       if (_scope == SettingsScope.project && project == null) _scope = SettingsScope.global;
       final source = _scope == SettingsScope.project ? project! : control;
       if (!mounted) return;
       _watch(source);
-      final effective = SettingsSnapshot.fromJson(asJsonObject(await source.companion.call('settings.get'), 'settings.get'));
+      final effective = SettingsSnapshot.fromJson(
+        asJsonObject(await source.companion.call('settings.get'), 'settings.get'),
+      );
       await _loadFiles();
       if (!mounted) return;
       setState(() {
@@ -168,42 +171,47 @@ class _SettingsPageState extends State<SettingsPage> {
     unawaited(_load());
   }
 
-  Future<void> _write(SettingSchema setting, Object? value) =>
-      _mutate(setting, () async {
-        switch (_scope) {
-          case SettingsScope.global:
-            final control = await widget.target.control();
-            if (setting.secret) {
-              final file = await widget.target.uploadSecret(jsonEncode(value));
-              try {
-                _applyResult(
-                  control,
-                  await control.companion.call('settings.set', {'path': setting.path, 'scope': 'global', 'valueFile': file}),
-                );
-              } finally {
-                await widget.target.discardSecret(file);
-              }
-            } else {
-              _applyResult(
-                control,
-                await control.companion.call('settings.set', {'path': setting.path, 'scope': 'global', 'value': value}),
-              );
-            }
-          case SettingsScope.project:
-            await _editProject((text) => setConfigValue(text ?? '', setting.segments, value));
+  Future<void> _write(SettingSchema setting, Object? value) => _mutate(setting, () async {
+    switch (_scope) {
+      case SettingsScope.global:
+        final control = await widget.target.control();
+        if (setting.secret) {
+          final file = await widget.target.uploadSecret(jsonEncode(value));
+          try {
+            _applyResult(
+              control,
+              await control.companion.call('settings.set', {
+                'path': setting.path,
+                'scope': 'global',
+                'valueFile': file,
+              }),
+            );
+          } finally {
+            await widget.target.discardSecret(file);
+          }
+        } else {
+          _applyResult(
+            control,
+            await control.companion.call('settings.set', {'path': setting.path, 'scope': 'global', 'value': value}),
+          );
         }
-      });
+      case SettingsScope.project:
+        await _editProject((text) => setConfigValue(text ?? '', setting.segments, value));
+    }
+  });
 
-  Future<void> _reset(SettingSchema setting) =>
-      _mutate(setting, () async {
-        switch (_scope) {
-          case SettingsScope.global:
-            final control = await widget.target.control();
-            _applyResult(control, await control.companion.call('settings.unset', {'path': setting.path, 'scope': 'global'}));
-          case SettingsScope.project:
-            await _editProject((text) => text == null ? null : removeConfigValue(text, setting.segments));
-        }
-      });
+  Future<void> _reset(SettingSchema setting) => _mutate(setting, () async {
+    switch (_scope) {
+      case SettingsScope.global:
+        final control = await widget.target.control();
+        _applyResult(
+          control,
+          await control.companion.call('settings.unset', {'path': setting.path, 'scope': 'global'}),
+        );
+      case SettingsScope.project:
+        await _editProject((text) => text == null ? null : removeConfigValue(text, setting.segments));
+    }
+  });
 
   /// Applies [edit] to the project file's text (null when the file is absent); a null result writes nothing.
   /// Each edit reads, changes and writes the whole file, so edits run one at a time: a second one reads the
@@ -258,9 +266,16 @@ class _SettingsPageState extends State<SettingsPage> {
       conditions: effective?.conditions ?? schema.conditions,
     );
     final notes = [
-      if (_globalError != null) ConfigBanner(t.config.settings.fileError(path: _globalPath ?? 'config.yml', error: '$_globalError'), error: true),
+      if (_globalError != null)
+        ConfigBanner(
+          t.config.settings.fileError(path: _globalPath ?? 'config.yml', error: '$_globalError'),
+          error: true,
+        ),
       if (_projectError != null)
-        ConfigBanner(t.config.settings.fileError(path: _projectPath ?? '.omp/config.yml', error: '$_projectError'), error: true),
+        ConfigBanner(
+          t.config.settings.fileError(path: _projectPath ?? '.omp/config.yml', error: '$_projectError'),
+          error: true,
+        ),
       if (_error != null) ConfigBanner('$_error', error: true),
       if (query.isEmpty && tab == 'appearance') ConfigBanner(t.config.settings.themeNote),
       if (query.isEmpty && tab == advancedTab) ConfigBanner(t.config.settings.advancedNote),
@@ -271,7 +286,11 @@ class _SettingsPageState extends State<SettingsPage> {
         _SectionHeader(section: section, showTab: query.isNotEmpty),
         for (final setting in section.settings) _row(context, setting),
       ],
-      if (sections.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Center(child: Text(t.config.settings.noMatches))),
+      if (sections.isEmpty)
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(child: Text(t.config.settings.noMatches)),
+        ),
     ];
     final scope = Tooltip(
       message: switch ((project, _scope)) {
@@ -340,7 +359,9 @@ class _SettingsPageState extends State<SettingsPage> {
             child: ConfigPills<String>(
               value: tab,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              items: [for (final id in [...schema.tabs, advancedTab]) (id, _tabLabel(context, id), null)],
+              items: [
+                for (final id in [...schema.tabs, advancedTab]) (id, _tabLabel(context, id), null),
+              ],
               onChanged: (id) => setState(() => _tab = id),
             ),
           ),
@@ -456,11 +477,13 @@ class _SettingTile extends StatelessWidget {
                           children: [
                             Text(setting.label, style: theme.textTheme.titleSmall),
                             if (effective != null) ProvenanceBadge(effective.provenance, envName: setting.env?.name),
-                            if (busy) const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                            if (busy)
+                              const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2)),
                           ],
                         ),
                         if (ui != null && ui.description.isNotEmpty) Text(ui.description, style: muted),
-                        if (ui?.warning case final text?) Text(text, style: theme.textTheme.bodySmall?.copyWith(color: warning)),
+                        if (ui?.warning case final text?)
+                          Text(text, style: theme.textTheme.bodySmall?.copyWith(color: warning)),
                         if (overriddenBy != null && effective is KnownValue)
                           Text(
                             t.config.settings.overriddenLine(value: describeValue(effective.value)),
@@ -480,7 +503,11 @@ class _SettingTile extends StatelessWidget {
                   if (control != null) ...[const SizedBox(width: 12), control],
                   if (onReset != null) ...[
                     const SizedBox(width: 4),
-                    IconButton(tooltip: t.config.settings.reset, onPressed: onReset, icon: const Icon(Icons.restart_alt, size: 18)),
+                    IconButton(
+                      tooltip: t.config.settings.reset,
+                      onPressed: onReset,
+                      icon: const Icon(Icons.restart_alt, size: 18),
+                    ),
                   ],
                 ],
               ),

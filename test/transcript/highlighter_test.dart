@@ -11,10 +11,10 @@ void main() {
     expect(runs, isNotNull);
     final spans = highlightedSpans(code, runs!, highlightTheme(Brightness.light));
     expect(spans.map((span) => span.text).join(), code);
-    expect(
-      [for (final span in spans) if (span.style != null) span.text],
-      containsAll(['void', 'print', '1']),
-    );
+    expect([
+      for (final span in spans)
+        if (span.style != null) span.text,
+    ], containsAll(['void', 'print', '1']));
     expect(CodeHighlighter.instance.isCached('dart', code), isTrue);
   });
 
@@ -45,7 +45,12 @@ void main() {
       ['ts', 'bash', null, null],
     );
     expect(
-      [languageForPath('lib/main.dart'), languageForPath('/x/Dockerfile'), languageForPath('README'), languageForPath('a.')],
+      [
+        languageForPath('lib/main.dart'),
+        languageForPath('/x/Dockerfile'),
+        languageForPath('README'),
+        languageForPath('a.'),
+      ],
       ['dart', 'dockerfile', null, null],
     );
   });

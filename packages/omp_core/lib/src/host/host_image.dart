@@ -154,7 +154,11 @@ Future<HostImage> fetchHostImage(
   final marker = newMarker();
   final ffmpeg = original ? null : tools.ffmpeg;
   final result = probe.isWindows
-      ? await runPowerShell(link, probe.commandShell, windowsImageScript(marker, path, ffmpeg: ffmpeg, webp: tools.webp))
+      ? await runPowerShell(
+          link,
+          probe.commandShell,
+          windowsImageScript(marker, path, ffmpeg: ffmpeg, webp: tools.webp),
+        )
       : await runPosixScript(link, posixImageScript(marker, path, ffmpeg: ffmpeg, webp: tools.webp));
   final report = parseImageReport(result.payload(marker));
   final out = report.out;
@@ -310,7 +314,9 @@ ImagePlan planImage(HostImageReport report, String path, {required bool original
     return ImageRead(report.out!, _previewTypes[report.format] ?? 'image/jpeg', preview: true);
   }
   if (type != null) {
-    return size <= imageOriginalCap ? ImageRead(path, type, preview: false) : ImageRefused(problem(HostImageIssue.tooLarge));
+    return size <= imageOriginalCap
+        ? ImageRead(path, type, preview: false)
+        : ImageRefused(problem(HostImageIssue.tooLarge));
   }
   return ImageRefused(switch (report.ffmpeg) {
     FfmpegOutcome.failed || FfmpegOutcome.timeout => problem(HostImageIssue.unsupported, detail: report.error),

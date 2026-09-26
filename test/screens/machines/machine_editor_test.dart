@@ -68,7 +68,8 @@ void main() {
     });
   }
 
-  Finder field(String label) => find.descendant(of: find.widgetWithText(LabeledField, label), matching: find.byType(TextFormField));
+  Finder field(String label) =>
+      find.descendant(of: find.widgetWithText(LabeledField, label), matching: find.byType(TextFormField));
 
   testWidgets('a new machine uses key auth when keys are stored', (tester) async {
     await tester.runAsync(

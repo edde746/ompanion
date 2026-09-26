@@ -871,8 +871,9 @@ List<String> _owningTools(SessionView view, int? timeout) => timeout == null
 /// opened is over once none of them runs, also in a log replayed long after.
 SessionView _closeTimedDialogs(SessionView view) {
   List<String> owners(UiRequest request) => switch (request) {
-    SelectRequest(:final toolCallIds) || ConfirmRequest(:final toolCallIds) || InputRequest(:final toolCallIds) =>
-      toolCallIds,
+    SelectRequest(:final toolCallIds) ||
+    ConfirmRequest(:final toolCallIds) ||
+    InputRequest(:final toolCallIds) => toolCallIds,
     _ => const [],
   };
   if (!view.requests.any((request) => owners(request).isNotEmpty)) return view;

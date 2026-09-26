@@ -147,7 +147,10 @@ void main() {
     final machine = runtime('device-a');
     final session = await machine.open(const NewSession(project, model: 'fake/fake-1'));
     await session.rpc.prompt('Write a long answer.');
-    await viewWhere(session, (view) => view.transcript.any((item) => item is AssistantItem && item.text.contains('Line 2')));
+    await viewWhere(
+      session,
+      (view) => view.transcript.any((item) => item is AssistantItem && item.text.contains('Line 2')),
+    );
 
     // The bastion drops this client's connections, which carry the one to the target: a lost link.
     final kill = await Process.run('docker', ['exec', 'omp-sshd-bastion', 'pkill', '-KILL', '-u', 'omp', 'sshd']);
@@ -156,7 +159,11 @@ void main() {
     expect(lost.attempt, 1);
     await linkWhere(session, (state) => state is LinkLive);
 
-    final done = await viewWhere(session, (view) => idle(view) && answers(view).isNotEmpty, timeout: const Duration(seconds: 60));
+    final done = await viewWhere(
+      session,
+      (view) => idle(view) && answers(view).isNotEmpty,
+      timeout: const Duration(seconds: 60),
+    );
     expect([for (final answer in answers(done)) answer.trim()], [lines.join().trim()]);
     expect(prompts(done), ['Write a long answer.']);
     expect(machine.status, isA<MachineOnline>());

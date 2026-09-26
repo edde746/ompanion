@@ -246,7 +246,8 @@ HostKeyImport importHostKeys(
   );
 }
 
-String _route(Iterable<(String, int, String)> hops) => [for (final (host, port, user) in hops) '$user@$host:$port'].join(' > ');
+String _route(Iterable<(String, int, String)> hops) =>
+    [for (final (host, port, user) in hops) '$user@$host:$port'].join(' > ');
 
 ExportedMachine _machine(Map<String, Object?> json) => ExportedMachine(
   name: _string(json, 'name'),
@@ -260,7 +261,12 @@ ExportedHostKey _hostKey(Map<String, Object?> json) {
   final blob = _string(json, 'keyBlob');
   // Rejects a blob that is not base64 before it reaches the trust store.
   base64.decode(blob);
-  return ExportedHostKey(host: _string(json, 'host'), port: _port(json), keyType: _string(json, 'keyType'), keyBlob: blob);
+  return ExportedHostKey(
+    host: _string(json, 'host'),
+    port: _port(json),
+    keyType: _string(json, 'keyType'),
+    keyBlob: blob,
+  );
 }
 
 ExportedEndpoint _endpoint(Map<String, Object?> json) {

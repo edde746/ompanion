@@ -310,7 +310,11 @@ final class TranscriptRowModel {
   /// Whether the update changed only items from [from] on inside the live latest turn [turn], which still shows every
   /// row: then its rows are cut and appended from [from], as without folding.
   bool _extendsLiveTurn(int turn, int from) {
-    if (!_live || turn < 0 || turn != _turns.length - 1 || _turns[turn].fold != _Fold.live || from <= _turns[turn].head) {
+    if (!_live ||
+        turn < 0 ||
+        turn != _turns.length - 1 ||
+        _turns[turn].fold != _Fold.live ||
+        from <= _turns[turn].head) {
       return false;
     }
     for (var item = from; item < _items.length; item++) {
@@ -560,7 +564,9 @@ List<TranscriptRow> _assistantRows(AssistantItem item) {
       case final TextBlock block when block.text.trim().isNotEmpty:
         final parts = textParts(block.text);
         for (var part = 0; part < parts.length; part++) {
-          rows.add(AssistantTextRow(item, index, parts[part], part: part, previous: part == 0 ? null : parts[part - 1]));
+          rows.add(
+            AssistantTextRow(item, index, parts[part], part: part, previous: part == 0 ? null : parts[part - 1]),
+          );
         }
       case final ThinkingBlock block when block.thinking.trim().isNotEmpty || (item.streaming && last):
         rows.add(ThinkingRow(item, index, block, live: item.streaming && last));

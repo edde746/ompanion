@@ -56,14 +56,22 @@ void main() {
         [row('main', kind: AgentKind.main), row('A', createdAt: 5)],
         [subagent('B', SubagentStatus.pending, index: 1)],
       );
-      expect([for (final agent in roster) (agent.id, agent.status)], [
-        ('A', RosterStatus.running),
-        ('B', RosterStatus.pending),
-      ]);
+      expect(
+        [for (final agent in roster) (agent.id, agent.status)],
+        [('A', RosterStatus.running), ('B', RosterStatus.pending)],
+      );
       expect(roster.last.name, 'B');
       // A registry row named after its agent type shows its id instead.
       final typed = buildRoster([
-        AgentRow(id: 'Echo', displayName: 'task', kind: AgentKind.sub, status: AgentStatus.idle, createdAt: 0, lastActivity: 0, agent: 'task'),
+        AgentRow(
+          id: 'Echo',
+          displayName: 'task',
+          kind: AgentKind.sub,
+          status: AgentStatus.idle,
+          createdAt: 0,
+          lastActivity: 0,
+          agent: 'task',
+        ),
       ], const []);
       expect(typed.single.name, 'Echo');
       expect(roster.last.agentType, 'scout');
@@ -85,13 +93,10 @@ void main() {
         [row('A', metrics: metrics, activity: 'Reading files')],
         [subagent('A', SubagentStatus.running, progress: progress, task: '  Find the bug  ')],
       ).single;
-      expect((running.tokens, running.tools, running.cost, running.activity, running.task), (
-        12000,
-        7,
-        0.02,
-        'read',
-        'Find the bug',
-      ));
+      expect(
+        (running.tokens, running.tools, running.cost, running.activity, running.task),
+        (12000, 7, 0.02, 'read', 'Find the bug'),
+      );
 
       final done = buildRoster(
         [row('A', status: AgentStatus.idle, metrics: metrics)],
@@ -135,24 +140,18 @@ void main() {
 
     test('flat keeps the roster order at depth 0', () {
       final rows = rosterRows(roster, tree: false);
-      expect([for (final row in rows) (row.agent.id, row.depth)], [
-        ('root1', 0),
-        ('child', 0),
-        ('root2', 0),
-        ('grandchild', 0),
-        ('orphan', 0),
-      ]);
+      expect(
+        [for (final row in rows) (row.agent.id, row.depth)],
+        [('root1', 0), ('child', 0), ('root2', 0), ('grandchild', 0), ('orphan', 0)],
+      );
     });
 
     test('tree nests children under their parent; unknown parents make roots', () {
       final rows = rosterRows(roster, tree: true);
-      expect([for (final row in rows) (row.agent.id, row.depth)], [
-        ('root1', 0),
-        ('child', 1),
-        ('grandchild', 2),
-        ('root2', 0),
-        ('orphan', 0),
-      ]);
+      expect(
+        [for (final row in rows) (row.agent.id, row.depth)],
+        [('root1', 0), ('child', 1), ('grandchild', 2), ('root2', 0), ('orphan', 0)],
+      );
     });
 
     test('a parent cycle still lists every agent once', () {

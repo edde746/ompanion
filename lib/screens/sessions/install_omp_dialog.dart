@@ -206,7 +206,11 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
                       _Ready() => const SizedBox.shrink(),
                       _Running(:final message, :final fraction) => Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [LinearProgressIndicator(value: fraction), const SizedBox(height: 6), Text(message)],
+                        children: [
+                          LinearProgressIndicator(value: fraction),
+                          const SizedBox(height: 6),
+                          Text(message),
+                        ],
                       ),
                       _Done(:final version) => Text(
                         t.install.done(version: version),

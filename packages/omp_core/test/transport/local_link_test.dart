@@ -81,13 +81,14 @@ void main() {
 
   test('cmd.exe on Windows runs an exec command exactly as written', () {
     final commands = [
-      windowsAttachedCommand(
-        CommandShell.cmd,
-        r'C:\Users\Jo Doe\demo',
-        r'C:\Users\Jo Doe\AppData\Local\omp\omp.exe',
-        ['--mode', 'rpc-ui', '-e', r'C:\Users\Jo Doe\.ompanion\companion\18.3.1\x.js', '--thinking', 'high'],
-        r'C:\Users\Jo Doe\.ompanion\attached\OMPANION_1.yml',
-      ),
+      windowsAttachedCommand(CommandShell.cmd, r'C:\Users\Jo Doe\demo', r'C:\Users\Jo Doe\AppData\Local\omp\omp.exe', [
+        '--mode',
+        'rpc-ui',
+        '-e',
+        r'C:\Users\Jo Doe\.ompanion\companion\18.3.1\x.js',
+        '--thinking',
+        'high',
+      ], r'C:\Users\Jo Doe\.ompanion\attached\OMPANION_1.yml'),
       powershellCommand(CommandShell.cmd, r'-File "C:\Users\Jo Doe\.ompanion\tmp\OMPANION_2.ps1"'),
       'echo "OMPANION_SHELL.%OS%.\$env:OS.\$OS."',
       r'dir C:\',
@@ -109,14 +110,16 @@ void main() {
   test('concurrent mkdir admits exactly one locker', () async {
     final files = await link.files();
     final lock = '${await files.home()}/race.lock';
-    final outcomes = await Future.wait(List.generate(8, (_) async {
-      try {
-        await files.mkdir(lock, mode: 0x1c0);
-        return true;
-      } on HostFileExists {
-        return false;
-      }
-    }));
+    final outcomes = await Future.wait(
+      List.generate(8, (_) async {
+        try {
+          await files.mkdir(lock, mode: 0x1c0);
+          return true;
+        } on HostFileExists {
+          return false;
+        }
+      }),
+    );
     expect(outcomes.where((won) => won), hasLength(1));
     expect((await files.stat(lock))!.mode! & 0x1ff, 0x1c0);
   });

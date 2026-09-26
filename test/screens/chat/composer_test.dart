@@ -84,7 +84,6 @@ final class _Omp implements LineChannel {
 }
 
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   _Session(this._view);
@@ -326,7 +325,11 @@ void main() {
     for (final width in [500.0, 450.0]) {
       tester.view.physicalSize = Size(width, 800);
       await pumpComposer(tester, session);
-      expect(tester.renderObject<RenderParagraph>(find.text('Fake Think')).didExceedMaxLines, isFalse, reason: '$width');
+      expect(
+        tester.renderObject<RenderParagraph>(find.text('Fake Think')).didExceedMaxLines,
+        isFalse,
+        reason: '$width',
+      );
       expect(find.byKey(const ValueKey('thinking-picker')), findsOneWidget);
     }
 
@@ -336,7 +339,9 @@ void main() {
   testWidgets('a slash command after a prompt opens the palette; ! after it starts an exec run', (tester) async {
     final session = await pumpComposer(tester);
     session.emit(
-      session.view.copyWith(commands: const [SlashCommand(name: 'compact', description: 'Compact now', source: 'builtin')]),
+      session.view.copyWith(
+        commands: const [SlashCommand(name: 'compact', description: 'Compact now', source: 'builtin')],
+      ),
     );
     await tester.enterText(composer, 'first');
     await tester.tap(find.byKey(const ValueKey('send')));
@@ -358,7 +363,9 @@ void main() {
     await tearDownProviders(tester);
   });
 
-  testWidgets('a send that fails after the composer moved to another session goes back to its own draft', (tester) async {
+  testWidgets('a send that fails after the composer moved to another session goes back to its own draft', (
+    tester,
+  ) async {
     final first = await pumpComposer(tester);
     final second = await attachedSession(tester);
     first.omp.promptAnswer = Completer();
@@ -374,7 +381,9 @@ void main() {
     await tearDownProviders(tester);
   });
 
-  testWidgets('a prompt omp acknowledged but could not start comes back into the draft, attachments too', (tester) async {
+  testWidgets('a prompt omp acknowledged but could not start comes back into the draft, attachments too', (
+    tester,
+  ) async {
     final session = await pumpComposer(tester);
     String text() => tester.widget<TextField>(composer).controller!.text;
     Future<void> send(String message) async {
@@ -463,8 +472,14 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('model-picker')));
       await tester.pumpAndSettle();
       // The menu surface is the closest Material around the search field.
-      final menu = tester.getRect(find.ancestor(of: find.byType(AppSearchField), matching: find.byType(Material)).first);
-      expect(tester.getRect(find.byKey(block)).top - menu.bottom, AppSizes.gap, reason: 'the list opens above the block');
+      final menu = tester.getRect(
+        find.ancestor(of: find.byType(AppSearchField), matching: find.byType(Material)).first,
+      );
+      expect(
+        tester.getRect(find.byKey(block)).top - menu.bottom,
+        AppSizes.gap,
+        reason: 'the list opens above the block',
+      );
       return menu;
     }
 

@@ -11,12 +11,26 @@ const _mib = 1024 * 1024;
 RpcFrameDecoder _negotiated({Map<String, Object?> ready = readyFrame}) {
   final decoder = RpcFrameDecoder();
   expect(decoder.push(jsonEncode(ready)), isNotNull);
-  decoder.push(jsonEncode({'id': 'a:1', 'type': 'response', 'command': 'negotiate_protocol', 'success': true, 'data': {'protocolVersion': 2}}));
+  decoder.push(
+    jsonEncode({
+      'id': 'a:1',
+      'type': 'response',
+      'command': 'negotiate_protocol',
+      'success': true,
+      'data': {'protocolVersion': 2},
+    }),
+  );
   return decoder;
 }
 
 /// A frame whose JSON is a little over [bytes] bytes.
-Map<String, Object?> _bigFrame(int bytes) => {'type': 'response', 'id': 'a:2', 'command': 'get_messages', 'success': true, 'text': 'x' * bytes};
+Map<String, Object?> _bigFrame(int bytes) => {
+  'type': 'response',
+  'id': 'a:2',
+  'command': 'get_messages',
+  'success': true,
+  'text': 'x' * bytes,
+};
 
 Map<String, Object?> _chunk({
   String chunkId = 'rpc-1',
@@ -80,19 +94,21 @@ void main() {
       expect(decoder.push('{"type":"agent_start"}'), {'type': 'agent_start'});
     });
 
-    test('off the isolate, a completed sequence comes as a future of the same frame; other lines stay synchronous',
-        () async {
-      final decoder = _negotiated();
-      final frame = _bigFrame(2 * _mib);
-      final lines = chunkLines(frame);
-      for (final line in lines.take(lines.length - 1)) {
-        expect(decoder.pushOffIsolate(line), isNull);
-      }
-      final last = decoder.pushOffIsolate(lines.last);
-      expect(last, isA<Future<Map<String, Object?>?>>());
-      expect(await last, frame);
-      expect(decoder.pushOffIsolate('{"type":"agent_start"}'), {'type': 'agent_start'});
-    });
+    test(
+      'off the isolate, a completed sequence comes as a future of the same frame; other lines stay synchronous',
+      () async {
+        final decoder = _negotiated();
+        final frame = _bigFrame(2 * _mib);
+        final lines = chunkLines(frame);
+        for (final line in lines.take(lines.length - 1)) {
+          expect(decoder.pushOffIsolate(line), isNull);
+        }
+        final last = decoder.pushOffIsolate(lines.last);
+        expect(last, isA<Future<Map<String, Object?>?>>());
+        expect(await last, frame);
+        expect(decoder.pushOffIsolate('{"type":"agent_start"}'), {'type': 'agent_start'});
+      },
+    );
 
     test('off the isolate, a sequence that is not JSON fails its future with a protocol error', () async {
       final decoder = _negotiated();
@@ -126,7 +142,9 @@ void main() {
 
     test('is accepted once any client negotiated v2', () {
       final decoder = RpcFrameDecoder()..push(jsonEncode(readyFrame));
-      decoder.push(jsonEncode({'id': 'other-device:7', 'type': 'response', 'command': 'negotiate_protocol', 'success': true}));
+      decoder.push(
+        jsonEncode({'id': 'other-device:7', 'type': 'response', 'command': 'negotiate_protocol', 'success': true}),
+      );
       final frame = _bigFrame(_mib);
       expect(_pushAll(decoder, chunkLines(frame)), frame);
     });
@@ -145,15 +163,25 @@ void main() {
         'byteLength above 64 MiB': _chunk(byteLength: 64 * _mib + 1),
       };
       for (final MapEntry(key: name, value: chunk) in cases.entries) {
-        test(name, () => expect(() => _negotiated().push(jsonEncode(chunk)), _protocolError('invalid rpc_chunk metadata')));
+        test(
+          name,
+          () => expect(() => _negotiated().push(jsonEncode(chunk)), _protocolError('invalid rpc_chunk metadata')),
+        );
       }
     });
 
     test('enforces the reassembly limit ready advertised', () {
       final decoder = _negotiated(ready: {...readyFrame, 'maxReassembledFrameBytes': 2 * _mib});
-      expect(() => decoder.push(jsonEncode(_chunk(byteLength: 2 * _mib + 1))), _protocolError('invalid rpc_chunk metadata'));
-      expect(() => _negotiated(ready: {...readyFrame, 'maxReassembledFrameBytes': 2 * _mib}).push(jsonEncode(_chunk(count: 9))),
-          _protocolError('invalid rpc_chunk metadata'));
+      expect(
+        () => decoder.push(jsonEncode(_chunk(byteLength: 2 * _mib + 1))),
+        _protocolError('invalid rpc_chunk metadata'),
+      );
+      expect(
+        () => _negotiated(
+          ready: {...readyFrame, 'maxReassembledFrameBytes': 2 * _mib},
+        ).push(jsonEncode(_chunk(count: 9))),
+        _protocolError('invalid rpc_chunk metadata'),
+      );
     });
 
     group('rejects data:', () {
@@ -166,7 +194,10 @@ void main() {
         'non-zero trailing bits': 'QR==',
       };
       for (final MapEntry(key: name, value: data) in cases.entries) {
-        test(name, () => expect(() => _negotiated().push(jsonEncode(_chunk(data: data))), _protocolError('rpc_chunk data')));
+        test(
+          name,
+          () => expect(() => _negotiated().push(jsonEncode(_chunk(data: data))), _protocolError('rpc_chunk data')),
+        );
       }
     });
 
@@ -190,14 +221,20 @@ void main() {
     test('rejects an interleaved sequence', () {
       final decoder = _negotiated();
       decoder.push(chunkLines(_bigFrame(2 * _mib), chunkId: 'rpc-1')[0]);
-      expect(() => decoder.push(chunkLines(_bigFrame(2 * _mib), chunkId: 'rpc-2')[1]), _protocolError('sequence mismatch'));
+      expect(
+        () => decoder.push(chunkLines(_bigFrame(2 * _mib), chunkId: 'rpc-2')[1]),
+        _protocolError('sequence mismatch'),
+      );
     });
 
     test('rejects a sequence whose count or byteLength changes', () {
       final first = chunkLines(_bigFrame(2 * _mib))[0];
       final decoder = _negotiated()..push(first);
       final second = jsonDecode(chunkLines(_bigFrame(2 * _mib))[1]) as Map<String, Object?>;
-      expect(() => decoder.push(jsonEncode({...second, 'byteLength': (second['byteLength']! as int) + 1})), _protocolError('sequence mismatch'));
+      expect(
+        () => decoder.push(jsonEncode({...second, 'byteLength': (second['byteLength']! as int) + 1})),
+        _protocolError('sequence mismatch'),
+      );
     });
 
     test('rejects a sequence interrupted by another frame', () {
@@ -211,7 +248,10 @@ void main() {
       for (var index = 0; index < 4; index++) {
         decoder.push(jsonEncode(_chunk(index: index, byteLength: _mib, data: data)));
       }
-      expect(() => decoder.push(jsonEncode(_chunk(index: 4, byteLength: _mib, data: data))), _protocolError('exceeds its declared'));
+      expect(
+        () => decoder.push(jsonEncode(_chunk(index: 4, byteLength: _mib, data: data))),
+        _protocolError('exceeds its declared'),
+      );
     });
 
     test('rejects a sequence carrying fewer bytes than declared', () {
@@ -220,11 +260,20 @@ void main() {
       for (var index = 0; index < 4; index++) {
         decoder.push(jsonEncode(_chunk(index: index, byteLength: _mib + 10, data: data)));
       }
-      expect(() => decoder.push(jsonEncode(_chunk(index: 4, byteLength: _mib + 10, data: 'ICA='))), _protocolError('carried'));
+      expect(
+        () => decoder.push(jsonEncode(_chunk(index: 4, byteLength: _mib + 10, data: 'ICA='))),
+        _protocolError('carried'),
+      );
     });
 
     test('rejects invalid UTF-8', () {
-      final bytes = [...utf8.encode('{"type":"notice","text":"'), 0xC3, 0x28, ...List.filled(_mib, 97), ...utf8.encode('"}')];
+      final bytes = [
+        ...utf8.encode('{"type":"notice","text":"'),
+        0xC3,
+        0x28,
+        ...List.filled(_mib, 97),
+        ...utf8.encode('"}'),
+      ];
       final decoder = _negotiated();
       final lines = chunkBytes(bytes);
       for (final line in lines.take(lines.length - 1)) {

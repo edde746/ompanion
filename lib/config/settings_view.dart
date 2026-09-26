@@ -194,7 +194,10 @@ SettingDisplay displayFor(
       effective: effective,
       overriddenBy: overriddenBy,
       // omp's default is not a configured credential, even when it is a non-empty value (`{}`).
-      configured: (effective is RedactedValue && effective.provenance != Provenance.defaults) || globalHit != null || projectHit != null,
+      configured:
+          (effective is RedactedValue && effective.provenance != Provenance.defaults) ||
+          globalHit != null ||
+          projectHit != null,
     );
   }
   final own = scope == SettingsScope.global ? globalHit : projectHit;
@@ -274,13 +277,7 @@ int _tabIndex(List<String> tabs, String tab) {
 
 bool _matches(SettingSchema setting, List<String> words) {
   final ui = setting.ui;
-  final haystack = [
-    setting.path,
-    ?ui?.label,
-    ?ui?.description,
-    ?ui?.group,
-    ?ui?.tab,
-  ].join('\n').toLowerCase();
+  final haystack = [setting.path, ?ui?.label, ?ui?.description, ?ui?.group, ?ui?.tab].join('\n').toLowerCase();
   return words.every(haystack.contains);
 }
 

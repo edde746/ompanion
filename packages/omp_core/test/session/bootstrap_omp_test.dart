@@ -57,7 +57,10 @@ void main() {
     } finally {
       await files.close();
     }
-    final stored = await bootstrap.companion.call('accounts.setKey', {'provider': 'fake', 'keyFile': hostPath(keyFile)});
+    final stored = await bootstrap.companion.call('accounts.setKey', {
+      'provider': 'fake',
+      'keyFile': hostPath(keyFile),
+    });
     expect((stored! as Map<String, Object?>)['provider'], 'fake');
     expect(File(hostPath(keyFile)).existsSync(), isFalse, reason: 'the companion deletes the key file');
 
@@ -85,6 +88,10 @@ void main() {
     // omp's startup fetches public model catalogs (kilo, venice, zenmux, …); they came here and were refused.
     expect(proxy.requests, isNotEmpty, reason: 'omp honours the proxy variables');
     expect(proxy.requests.where((request) => request.contains('minimax')), isEmpty);
-    expect(proxy.requests.where((request) => !request.startsWith('CONNECT ')), isEmpty, reason: 'only HTTPS, all refused');
+    expect(
+      proxy.requests.where((request) => !request.startsWith('CONNECT ')),
+      isEmpty,
+      reason: 'only HTTPS, all refused',
+    );
   });
 }

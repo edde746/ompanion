@@ -68,7 +68,10 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
     context.watch<SessionsProvider>();
     final runtime = _target.runtime;
     final title = Text(t.config.title(machine: widget.machine.name));
-    Widget plain(Widget body) => Scaffold(appBar: windowAppBar(context, title: title), body: body);
+    Widget plain(Widget body) => Scaffold(
+      appBar: windowAppBar(context, title: title),
+      body: body,
+    );
     return StreamBuilder<MachineStatus>(
       stream: runtime.statuses,
       initialData: runtime.status,
@@ -77,7 +80,9 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
         MachineNeedsOmp(:final reason) => plain(Center(child: ConfigError(t.config.needsOmp(reason: reason)))),
         MachineFailed(:final cause) => plain(Center(child: ConfigError(cause, onRetry: _connect))),
         MachineConnecting() => plain(_progress(t.config.connecting)),
-        MachineOffline() when _connectError != null => plain(Center(child: ConfigError(_connectError!, onRetry: _connect))),
+        MachineOffline() when _connectError != null => plain(
+          Center(child: ConfigError(_connectError!, onRetry: _connect)),
+        ),
         MachineOffline() when _connecting => plain(_progress(t.config.connecting)),
         MachineOffline() => plain(
           Center(
@@ -139,8 +144,14 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
                       children: [
                         // On macOS the traffic lights sit over the rail's top; the back button goes below them.
                         if (WindowChrome.trafficLights(context))
-                          const WindowDragArea(child: SizedBox(width: _railWidth, height: trafficLightsBottom - 8)),
-                        const SizedBox(width: _railWidth, height: kToolbarHeight, child: Center(child: BackButton())),
+                          const WindowDragArea(
+                            child: SizedBox(width: _railWidth, height: trafficLightsBottom - 8),
+                          ),
+                        const SizedBox(
+                          width: _railWidth,
+                          height: kToolbarHeight,
+                          child: Center(child: BackButton()),
+                        ),
                         Expanded(
                           child: NavigationRail(
                             minWidth: _railWidth,
@@ -150,7 +161,10 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
                             onDestinationSelected: (index) => setState(() => _section = ConfigSection.values[index]),
                             destinations: [
                               for (final section in ConfigSection.values)
-                                NavigationRailDestination(icon: Icon(labels[section]!.$2), label: Text(labels[section]!.$1)),
+                                NavigationRailDestination(
+                                  icon: Icon(labels[section]!.$2),
+                                  label: Text(labels[section]!.$1),
+                                ),
                             ],
                           ),
                         ),
@@ -172,7 +186,9 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
                         ),
                       ),
                       // The title bar took the top inset; without this, list pages would pad by it again.
-                      Expanded(child: MediaQuery.removePadding(context: context, removeTop: true, child: page)),
+                      Expanded(
+                        child: MediaQuery.removePadding(context: context, removeTop: true, child: page),
+                      ),
                     ],
                   ),
                 ),
@@ -191,7 +207,9 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
                   child: ConfigPills<ConfigSection>(
                     value: _section,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    items: [for (final section in ConfigSection.values) (section, labels[section]!.$1, labels[section]!.$2)],
+                    items: [
+                      for (final section in ConfigSection.values) (section, labels[section]!.$1, labels[section]!.$2),
+                    ],
                     onChanged: (section) => setState(() => _section = section),
                   ),
                 ),

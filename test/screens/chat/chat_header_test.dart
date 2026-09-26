@@ -34,7 +34,6 @@ final class _Silent implements LineChannel {
 
 /// A session whose omp cannot be stopped because the machine is unreachable.
 final class _Session implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   @override
@@ -109,7 +108,13 @@ final class _Omp implements LineChannel {
       _lines.add(jsonEncode({'type': 'response', 'id': id, 'command': json['type'], 'success': true, 'data': ?data}));
       if (call != null) {
         _lines.add(
-          jsonEncode({'type': 'ompx', 'kind': 'reply', 'callId': call['callId'], 'ok': true, 'result': results[call['verb']]}),
+          jsonEncode({
+            'type': 'ompx',
+            'kind': 'reply',
+            'callId': call['callId'],
+            'ok': true,
+            'result': results[call['verb']],
+          }),
         );
       }
     });
@@ -121,7 +126,6 @@ final class _Omp implements LineChannel {
 
 /// A session whose run streams while paused, with messages queued.
 final class _PausedSession implements LiveSession {
-
   @override
   Future<void> Function()? get loadEarlier => null;
   _PausedSession(this.omp);
@@ -200,7 +204,9 @@ void main() {
       ChangeNotifierProvider.value(
         value: sessions,
         child: TranslationProvider(
-          child: MaterialApp(home: Scaffold(body: ChatHeader(session: _Session()))),
+          child: MaterialApp(
+            home: Scaffold(body: ChatHeader(session: _Session())),
+          ),
         ),
       ),
     );
@@ -258,7 +264,9 @@ void main() {
       ChangeNotifierProvider.value(
         value: sessions,
         child: TranslationProvider(
-          child: MaterialApp(home: Scaffold(body: ChatHeader(session: session))),
+          child: MaterialApp(
+            home: Scaffold(body: ChatHeader(session: session)),
+          ),
         ),
       ),
     );

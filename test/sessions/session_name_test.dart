@@ -4,12 +4,8 @@ import 'package:ompanion/sessions/session_name.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/store.dart';
 
-UserItem _user(String text, {bool synthetic = false, String? attribution}) => UserItem(
-  timestamp: text.length,
-  content: [TextBlock(text)],
-  synthetic: synthetic,
-  attribution: attribution,
-);
+UserItem _user(String text, {bool synthetic = false, String? attribution}) =>
+    UserItem(timestamp: text.length, content: [TextBlock(text)], synthetic: synthetic, attribution: attribution);
 
 SessionSummary _file({String? title, String? firstMessage}) => SessionSummary(
   path: '/s.jsonl',
@@ -28,7 +24,10 @@ void main() {
   });
 
   test('without a title the first message names the session, on one line', () {
-    expect(sessionName(t, title: '  ', firstMessage: '  refactor the\n\n  parser\tplease '), 'refactor the parser please');
+    expect(
+      sessionName(t, title: '  ', firstMessage: '  refactor the\n\n  parser\tplease '),
+      'refactor the parser please',
+    );
   });
 
   test('a title from the first message leaves out its file mentions and local:// references', () {
