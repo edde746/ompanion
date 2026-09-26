@@ -377,7 +377,7 @@ jobs:
           APP=build/macos/Build/Products/Release/ompanion.app
           # notarytool takes a .zip, a .dmg or a .pkg; ditto keeps the symlinks and permissions of the bundle.
           ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/ompanion.zip"
-          scripts/notarize.sh "$RUNNER_TEMP/ompanion.zip" "$RUNNER_TEMP"
+          scripts/notarize.sh "$RUNNER_TEMP/ompanion.zip" "$APP" "$RUNNER_TEMP"
 
           # Only the stapled ticket makes Gatekeeper accept a Developer ID app.
           spctl -a -vv "$APP"
@@ -404,7 +404,7 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          scripts/notarize.sh ompanion-macos.dmg "$RUNNER_TEMP"
+          scripts/notarize.sh ompanion-macos.dmg ompanion-macos.dmg "$RUNNER_TEMP"
 
           # The app bundle inside was checked before packaging; this is the artifact the user downloads.
           spctl -a -t open --context context:primary-signature -v ompanion-macos.dmg
