@@ -18,7 +18,9 @@ A GUI client for omp, the oh-my-pi coding agent, on this computer and on remote 
 
 ## Download
 
-There is no release yet. Build the app from source: see [Building from Source](#building-from-source).
+There is no release yet. Build the app from source: see [Building from Source](#building-from-source). The
+[build workflow](.github/workflows/build.yml), run from Actions → Build → Run workflow, produces unsigned
+artifacts named `ompanion-<platform>-<sha>`.
 
 ## Features
 
@@ -79,7 +81,7 @@ There is no release yet. Build the app from source: see [Building from Source](#
 - MCP servers: add, remove, enable, test, reload, resources, prompts and Smithery search
 - Plugins and marketplaces: install, enable, upgrade and remove
 - Skills: search, install, update and remove
-- Stats from `omp stats`: requests, tokens, cost and speed by model, project and agent
+- Stats from `omp stats`: requests, tokens and cost by model, project and agent, plus overall speed
 
 ### <img src="assets/readme_icons/usage.svg" height="20" alt="" align="center" /> Usage
 - Subscription limits from every online machine in one place, one entry per account even when several machines share it
@@ -96,7 +98,7 @@ There is no release yet. Build the app from source: see [Building from Source](#
 
 [^desktop]: Desktop only.
 [^agent]: Desktop only; reads `~/.ssh/config` through the `ssh` command (`ssh -G`). On Windows only identity files work: the OpenSSH agent's named pipe is not supported. Apple's Keychain passphrases (`UseKeychain`) are not read.
-[^windows]: Tested in CI against Windows Server 2025's OpenSSH server with cmd.exe or PowerShell as the default shell. This computer on Windows is implemented but not yet tested on Windows.
+[^windows]: Covered end to end in CI against the Windows runner's own Win32-OpenSSH server, with cmd.exe or PowerShell as the default shell. The app itself running on Windows is implemented but not covered by CI.
 
 ## Building from Source
 
@@ -205,6 +207,32 @@ The chat transcript has a streaming benchmark, a profile-mode target: a 2,000-it
 flutter drive --profile -d macos --driver=test_driver/integration_test.dart \
   --target=integration_test/transcript_benchmark_test.dart
 ```
+
+</details>
+
+<details>
+<summary>Releasing</summary>
+
+[build.yml](.github/workflows/build.yml), run from Actions → Build → Run workflow, signs the macOS app, notarizes the app and the DMG, and staples the tickets so Gatekeeper accepts the DMG in the artifact named `ompanion-macos-<sha>`. It reads six repository secrets, the same names [Plezy](https://github.com/edde746/plezy) uses:
+
+| Secret | Value |
+|---|---|
+| `MACOS_CERTIFICATE_BASE64` | the Developer ID Application certificate and its private key as a base64 `.p12` |
+| `MACOS_CERTIFICATE_PASSWORD` | the password set when exporting that `.p12` |
+| `KEYCHAIN_PASSWORD` | any password; locks the throwaway keychain the build creates and deletes |
+| `APPLE_ID` | the Apple ID that owns the certificate |
+| `APPLE_APP_SPECIFIC_PASSWORD` | an app-specific password for that Apple ID |
+| `APPLE_TEAM_ID` | the ten-character Team ID of the developer account |
+
+Export the certificate from Keychain Access: *My Certificates* → "Developer ID Application: …" → File → Export Items → `.p12`, with a password. Then:
+
+```bash
+base64 -i cert.p12 | pbcopy      # MACOS_CERTIFICATE_BASE64
+```
+
+The app-specific password comes from [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security → App-Specific Passwords → `+`. Apple shows it once; a lost one is replaced, not recovered. The Team ID is on the same page (Membership Details).
+
+Without all six secrets the macOS job still builds and uploads an unsigned DMG, and the annotation says so; with only some of them it fails and names the missing ones. Only this repository's secrets work on a fork.
 
 </details>
 
