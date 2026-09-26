@@ -344,7 +344,10 @@ jobs:
             echo "Code-signing identities, valid or not, with the reason:"
             security find-identity -p codesigning "$KEYCHAIN_PATH"
             if [ "$keys" -eq 0 ]; then
-              echo "The .p12 holds no private key. In Keychain Access, open My Certificates, expand \"Developer ID Application: ...\" to see its key, and export from there."
+              echo "::error title=No private key::The .p12 holds no private key. In Keychain Access, open My Certificates, expand \"Developer ID Application: ...\" to see its key, and export the certificate row from there."
+            fi
+            if ! security find-certificate -c "Developer ID Application" "$KEYCHAIN_PATH" >/dev/null 2>&1; then
+              echo "::error title=No certificate::The .p12 holds no Developer ID Application certificate. In Keychain Access, under My Certificates, select the certificate row \"Developer ID Application: ...\" (not the key under it) and export that."
             fi
             exit 1
           fi
