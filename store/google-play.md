@@ -33,9 +33,9 @@ Our texts use sentence-case headings, no emoji anywhere, and no superlatives.
 | App category | **Tools** (Application) | — |
 | Tags | pick up to 5 from the console's own list; suggested: "Tools", "Productivity", "Utilities", "Developer" if offered. Do not force a tag the list does not offer | — |
 | Contact details — email | **field for the user** | — |
-| Contact details — website | `https://github.com/edde746/ompanion` | — |
+| Contact details — website | `https://ompanion.app` | — |
 | Contact details — phone | optional; **field for the user** | — |
-| Privacy policy | `https://github.com/edde746/ompanion/blob/main/store/privacy-policy.md` | — |
+| Privacy policy | `https://ompanion.app/privacy` | — |
 | Store listing language | English (United States), default | — |
 | Store settings → App type | Application; free; no in-app purchases | — |
 

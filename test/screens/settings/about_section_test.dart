@@ -72,7 +72,7 @@ void main() {
 
     const expected = {
       'A client for omp, the oh-my-pi coding agent': 'https://github.com/can1357/oh-my-pi',
-      'Privacy policy': 'https://github.com/edde746/ompanion/blob/main/store/privacy-policy.md',
+      'Privacy policy': 'https://ompanion.app/privacy',
       'Source code': 'https://github.com/edde746/ompanion',
       'Report an issue': 'https://github.com/edde746/ompanion/issues',
       'License': 'https://github.com/edde746/ompanion/blob/main/LICENSE-EXCEPTION.md',

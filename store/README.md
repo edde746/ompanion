@@ -5,14 +5,14 @@ needs a sandboxed build without "this computer", the `ssh` command's `~/.ssh/con
 agent, none of which this build has.
 
 Field-by-field console answers: `store/app-store.md` and `store/google-play.md`. Privacy policy:
-`store/privacy-policy.md`. Review demo host: `store/review-demo/`.
+<https://ompanion.app/privacy>, from `website/src/routes/privacy/`. Review demo host: `store/review-demo/`.
 
 ## Before anything else
 
-- [ ] **Make the repository public.** The three store URLs are GitHub URLs and 404 until then:
-      `https://github.com/edde746/ompanion`, `.../issues`, `.../blob/main/store/privacy-policy.md`. Open all
-      three in a private window before submitting; a dead privacy-policy URL is an automatic rejection on
-      both stores.
+- [ ] **Check the store URLs.** `https://ompanion.app`, `https://ompanion.app/privacy` and
+      `https://github.com/edde746/ompanion/issues` must load in a private window before submitting; a dead
+      privacy-policy URL is an automatic rejection on both stores. The site deploys from `website/` through
+      `.github/workflows/pages.yml`.
 - [ ] Confirm `pubspec.yaml` `version:` is `0.1.0+1` and the CI run for that commit is green.
 - [ ] Fill in the fields in "Fields the user must fill in" below.
 
@@ -91,7 +91,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 | Screenshot capture and compose tooling | `store/screenshots/` |
 | Review demo host | `store/review-demo/` |
 | Console answers | `store/app-store.md`, `store/google-play.md` |
-| Privacy policy | `store/privacy-policy.md` |
+| Privacy policy | `website/src/routes/privacy/+page.svelte`, served at <https://ompanion.app/privacy> |
 | fastlane lanes | `ios/fastlane/Fastfile`, `android/fastlane/Fastfile` |
 
 ## Length check

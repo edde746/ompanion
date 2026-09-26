@@ -6,6 +6,7 @@
 A GUI client for omp, the oh-my-pi coding agent, on this computer and on remote machines over SSH, jump hosts and Tailscale, with no daemon on the host.
 
 <p>
+  <a href="https://ompanion.app">Website</a> ·
   <a href="#download">Download</a> ·
   <a href="#features">Features</a> ·
   <a href="#building-from-source">Building from Source</a> ·

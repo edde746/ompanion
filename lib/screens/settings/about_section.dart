@@ -15,7 +15,7 @@ const _glyphAsset = 'assets/ompanion.png';
 /// GPL-3.0 build may ship through the App Store.
 final Uri _sourceUrl = Uri.parse('https://github.com/edde746/ompanion');
 final Uri _issuesUrl = Uri.parse('https://github.com/edde746/ompanion/issues');
-final Uri _privacyPolicyUrl = Uri.parse('https://github.com/edde746/ompanion/blob/main/store/privacy-policy.md');
+final Uri _privacyPolicyUrl = Uri.parse('https://ompanion.app/privacy');
 final Uri _licenseUrl = Uri.parse('https://github.com/edde746/ompanion/blob/main/LICENSE-EXCEPTION.md');
 
 /// The agent this app is a client for.

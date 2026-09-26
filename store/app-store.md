@@ -56,14 +56,14 @@ so the copyright line uses the same legal name for consistency. Change it if you
 | Description | `en-US/description.txt` |
 | Keywords | `en-US/keywords.txt` |
 | Support URL | `en-US/support_url.txt` → `https://github.com/edde746/ompanion/issues` |
-| Marketing URL | `en-US/marketing_url.txt` → `https://github.com/edde746/ompanion` |
-| Privacy Policy URL | `en-US/privacy_url.txt` → `https://github.com/edde746/ompanion/blob/main/store/privacy-policy.md` |
+| Marketing URL | `en-US/marketing_url.txt` → `https://ompanion.app` |
+| Privacy Policy URL | `en-US/privacy_url.txt` → `https://ompanion.app/privacy` |
 | What's New | `en-US/release_notes.txt` |
 | Build | the 0.1.0 build uploaded from `flutter build ipa` |
 | Version release | automatic after approval, or manual — your choice |
 
-All three URLs are GitHub URLs and only resolve once the repository is public. Check them in an incognito
-window before submitting; a dead privacy-policy URL is an automatic 5.1.1(i) rejection.
+Check all three URLs in an incognito window before submitting; a dead privacy-policy URL is an automatic
+5.1.1(i) rejection.
 
 ## 4. App Review information
 
@@ -149,7 +149,7 @@ responsibility, and a mis-rated app "could trigger an inquiry from government re
 ## 7. App Privacy (General → App Privacy)
 
 **Answer: "No, we do not collect data from this app."** One question, and the data-type questionnaire closes.
-Then: Privacy Policy URL = `https://github.com/edde746/ompanion/blob/main/store/privacy-policy.md`.
+Then: Privacy Policy URL = `https://ompanion.app/privacy`.
 
 Reasoning, checked against the code at HEAD c27b114:
 
