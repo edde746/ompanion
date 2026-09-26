@@ -4,6 +4,11 @@ Every user-facing omp feature (18.3.1) and how the app reaches it. A row is done
 against a real machine. Evidence: `research/omp-surface.md` (RPC, text builtins, CLI),
 `research/companion-reach.md` (companion API paths), `research/voice.md`.
 
+The table is the target, not a status. At 0.1 the shipped routes are the README's feature list and the
+companion verbs in `contracts/ompx.md`. Not built: goal, guided goal and loop modes; `/omfg`, `/tan` and
+`/cleanse`; session export, share and handoff; the worktree and `@`-dir rows; user port forwards; voice;
+the agents dashboard and the extensions control center; the store builds (`PLAN.md` §1 and §10).
+
 Route codes:
 
 - `RPC` — typed RPC command, event or frame.
