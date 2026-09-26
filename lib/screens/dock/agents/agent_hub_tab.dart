@@ -14,6 +14,7 @@ import '../../../models/machine.dart';
 import '../../../sessions/machine_images.dart';
 import '../../../sessions/session_view_builder.dart';
 import '../../../sessions/sessions_provider.dart';
+import '../../../utils/token_count.dart';
 import '../../chat/transcript/transcript_view.dart';
 import '../dock_controller.dart';
 import '../dock_empty_state.dart';
@@ -245,21 +246,15 @@ class _RosterTile extends StatelessWidget {
   }
 }
 
-/// `12.3k tok · 4 tools · $0.02 · 1m 5s`, from whatever the agent reports.
+/// `12.3K tok · 4 tools · $0.02 · 1m 5s`, from whatever the agent reports.
 String _usageLine(BuildContext context, RosterAgent agent) {
   final t = context.t.dock.hub;
   return [
-    if (agent.tokens case final tokens? when tokens > 0) t.tokens(count: _compact(tokens)),
+    if (agent.tokens case final tokens? when tokens > 0) t.tokens(count: formatTokens(tokens)),
     if (agent.tools case final tools? when tools > 0) t.tools(n: tools),
     if (agent.cost case final cost? when cost > 0) '\$${cost.toStringAsFixed(cost < 0.01 ? 4 : 2)}',
     if (agent.duration case final duration? when duration > Duration.zero) _duration(context, duration),
   ].join(' · ');
-}
-
-String _compact(int value) {
-  if (value < 1000) return '$value';
-  if (value < 1000000) return '${(value / 1000).toStringAsFixed(value < 10000 ? 1 : 0)}k';
-  return '${(value / 1000000).toStringAsFixed(1)}M';
 }
 
 String _duration(BuildContext context, Duration duration) {

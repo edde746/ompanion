@@ -77,6 +77,24 @@ final class PendingHostKey extends PendingPrompt {
   }
 }
 
+final class PendingPassphrase extends PendingPrompt {
+  PendingPassphrase(super.machine, this.request);
+
+  final KeyPassphraseRequest request;
+  final Completer<({String passphrase, bool remember})?> answer = Completer();
+
+  @override
+  bool get answered => answer.isCompleted;
+
+  @override
+  Future<void> get settled => answer.future;
+
+  @override
+  void cancel() {
+    if (!answer.isCompleted) answer.complete(null);
+  }
+}
+
 /// Connection prompts of every machine runtime, from foreground connects and background reconnects
 /// alike. A reconnect can need a password or a host-key decision while the app is in the background or
 /// the user is looking at another machine, so prompts wait here, oldest first, until the prompt host
@@ -92,6 +110,7 @@ class ConnectPromptQueue extends ChangeNotifier {
     password: (hop) => _enqueue(PendingPassword(machine, hop)).answer.future,
     keyboardInteractive: (request) => _enqueue(PendingKeyboardInteractive(machine, request)).answer.future,
     hostKey: (check, verdict) => _enqueue(PendingHostKey(machine, check, verdict)).answer.future,
+    passphrase: (request) => _enqueue(PendingPassphrase(machine, request)).answer.future,
   );
 
   /// Removes [prompt] once the host completed it.
@@ -134,6 +153,8 @@ class ConnectPromptQueue extends ChangeNotifier {
     (PendingKeyboardInteractive(), PendingKeyboardInteractive()) => a.machine.id == b.machine.id,
     (PendingHostKey(check: final x), PendingHostKey(check: final y)) =>
       a.machine.id == b.machine.id && x.host == y.host && x.port == y.port,
+    (PendingPassphrase(request: final x), PendingPassphrase(request: final y)) =>
+      a.machine.id == b.machine.id && x.hop == y.hop && x.path == y.path,
     _ => false,
   };
 }

@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/session_name.dart';
 import '../../sessions/session_reads.dart';
@@ -274,9 +275,11 @@ class _SidebarRowState extends State<SidebarRow> {
   }
 }
 
-/// A 24 px icon button that fits a dense row.
+/// A [size] px icon button that fits a dense row.
 class _RowButton extends StatelessWidget {
   const _RowButton({super.key, required this.icon, required this.tooltip, required this.onPressed});
+
+  static const double size = 24;
 
   final IconData icon;
   final String tooltip;
@@ -288,8 +291,8 @@ class _RowButton extends StatelessWidget {
     icon: Icon(icon),
     iconSize: 16,
     padding: EdgeInsets.zero,
-    constraints: const BoxConstraints.tightFor(width: 24, height: 24),
-    style: IconButton.styleFrom(minimumSize: const Size.square(24), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+    constraints: const BoxConstraints.tightFor(width: size, height: size),
+    style: IconButton.styleFrom(minimumSize: const Size.square(size), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
     onPressed: onPressed,
   );
 }
@@ -454,6 +457,9 @@ class _Notice extends StatelessWidget {
   }
 }
 
+/// A project folder in the sidebar: its row, then its sessions unless the user collapsed it. The collapsed state is
+/// an app setting per machine and folder. A collapsed row carries the mark of the session that most needs a look,
+/// so a session waiting for input is not hidden silently.
 class _Project extends StatelessWidget {
   const _Project({
     required this.machineId,
@@ -467,7 +473,8 @@ class _Project extends StatelessWidget {
     required this.onNewSession,
   });
 
-  static const _collapsedCount = 5;
+  /// Sessions listed before "Show more".
+  static const _shortListCount = 5;
 
   final String machineId;
   final String cwd;
@@ -483,12 +490,16 @@ class _Project extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
-    // Sessions open here (the selected one, one waiting for an answer) stay visible in a collapsed project.
+    final settings = context.watch<SettingsProvider>();
+    final collapsedPref = Prefs.projectCollapsed(machineId, cwd);
+    final collapsed = settings.get(collapsedPref);
+    void toggle() => unawaited(settings.set(collapsedPref, !collapsed));
+    // Sessions open here (the selected one, one waiting for an answer) stay listed past the short list.
     final shown = showAll
         ? entries
         : [
             for (final (index, entry) in entries.indexed)
-              if (index < _collapsedCount || entry.session != null) entry,
+              if (index < _shortListCount || entry.session != null) entry,
           ];
     final newSession = onNewSession;
     final muted = theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
@@ -496,9 +507,16 @@ class _Project extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SidebarRow(
-          indent: _projectIndent,
+          // The chevron fills the gap before the folder icon, in the machine chevron's column.
+          indent: _projectIndent - _RowButton.size,
+          onTap: toggle,
           builder: (context, hovered) => Row(
             children: [
+              _RowButton(
+                icon: collapsed ? Icons.chevron_right : Icons.expand_more,
+                tooltip: collapsed ? t.sessions.expand : t.sessions.collapse,
+                onPressed: toggle,
+              ),
               Icon(Icons.folder_outlined, size: _iconSize, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: _sessionIndent - _projectIndent - _iconSize),
               Expanded(
@@ -512,30 +530,107 @@ class _Project extends StatelessWidget {
                   ),
                 ),
               ),
+              if (collapsed) _ProjectMark(entries: entries),
               if (hovered && newSession != null && cwd.isNotEmpty)
                 _RowButton(icon: Icons.add, tooltip: t.sessions.newSessionHere, onPressed: newSession),
             ],
           ),
         ),
-        for (final entry in shown)
-          _SessionTile(
-            machineId: machineId,
-            entry: entry,
-            opening: entry.summary != null && opening.contains(entry.summary!.path),
-            onTap: () => onOpen(entry),
-          ),
-        if (shown.length < entries.length)
-          SidebarRow(
-            indent: _sessionIndent,
-            onTap: onShowAll,
-            builder: (context, _) => Align(
-              alignment: Alignment.centerLeft,
-              child: Text(t.sessions.showMore(n: entries.length - shown.length), style: muted),
+        if (!collapsed) ...[
+          for (final entry in shown)
+            _SessionTile(
+              machineId: machineId,
+              entry: entry,
+              opening: entry.summary != null && opening.contains(entry.summary!.path),
+              onTap: () => onOpen(entry),
             ),
-          ),
+          if (shown.length < entries.length)
+            SidebarRow(
+              indent: _sessionIndent,
+              onTap: onShowAll,
+              builder: (context, _) => Align(
+                alignment: Alignment.centerLeft,
+                child: Text(t.sessions.showMore(n: entries.length - shown.length), style: muted),
+              ),
+            ),
+        ],
       ],
     );
   }
+}
+
+/// A collapsed project's mark: the session row's mark of the first status any of [entries] has, in [_order].
+class _ProjectMark extends StatelessWidget {
+  const _ProjectMark({required this.entries});
+
+  final List<_Entry> entries;
+
+  static const _order = [SessionStatus.needsInput, SessionStatus.working, SessionStatus.runningOnMachine];
+
+  @override
+  Widget build(BuildContext context) => _collect(
+    context,
+    [for (final entry in entries) ?entry.session],
+    0,
+    {
+      for (final entry in entries)
+        if (entry.session == null && (entry.summary?.running ?? false)) SessionStatus.runningOnMachine,
+    },
+  );
+
+  /// One listener per open session, nested, each adding its session's status to [seen] for the ones inside it.
+  Widget _collect(BuildContext context, List<LiveSession> live, int index, Set<SessionStatus> seen) {
+    if (index == live.length) {
+      final status = _order.where(seen.contains).firstOrNull;
+      if (status == null) return const SizedBox.shrink();
+      final (mark, words) = _statusMark(context, status)!;
+      return Padding(
+        padding: const EdgeInsets.only(left: 6, right: 4),
+        child: SizedBox.square(
+          dimension: _iconSize,
+          child: Tooltip(message: words, child: Center(child: mark)),
+        ),
+      );
+    }
+    final session = live[index];
+    return LinkStateBuilder(
+      session: session,
+      builder: (context, link) => SessionViewSelector<SessionStatus>(
+        session: session,
+        select: _liveStatus,
+        builder: (context, status) =>
+            _collect(context, live, index + 1, {...seen, link is LinkClosed ? SessionStatus.disconnected : status}),
+      ),
+    );
+  }
+}
+
+SessionStatus _liveStatus(SessionView view) {
+  if (view.requests.any((request) => request is! EditorTextRequest)) return SessionStatus.needsInput;
+  return switch (view.run.status) {
+    RunStreaming() || RunCompacting() || RunRetrying() => SessionStatus.working,
+    RunFailed() => SessionStatus.failed,
+    RunIdle() || RunAborted() => SessionStatus.none,
+  };
+}
+
+/// The mark in a sidebar row's icon column for [status], and the words its tooltip says; null for none.
+(Widget, String)? _statusMark(BuildContext context, SessionStatus status) {
+  final t = context.t;
+  final scheme = Theme.of(context).colorScheme;
+  final colors = AppColors.of(context);
+  return switch (status) {
+    SessionStatus.none => null,
+    SessionStatus.opening => (const _Spinner(), t.sessions.opening),
+    SessionStatus.working => (const _Spinner(), t.sessions.working),
+    SessionStatus.needsInput => (Icon(Icons.help, size: _iconSize, color: colors.warning), t.sessions.needsInput),
+    SessionStatus.failed => (Icon(Icons.error, size: _iconSize, color: colors.error), t.sessions.failed),
+    SessionStatus.disconnected => (
+      Icon(Icons.link_off, size: _iconSize, color: scheme.onSurfaceVariant),
+      t.sessions.disconnected,
+    ),
+    SessionStatus.runningOnMachine => (_Dot(color: scheme.onSurfaceVariant), t.sessions.runningOnMachine),
+  };
 }
 
 /// What a session row says about its session, beside unread.
@@ -585,15 +680,6 @@ class _SessionTile extends StatelessWidget {
       ),
     );
   }
-
-  static SessionStatus _liveStatus(SessionView view) {
-    if (view.requests.any((request) => request is! EditorTextRequest)) return SessionStatus.needsInput;
-    return switch (view.run.status) {
-      RunStreaming() || RunCompacting() || RunRetrying() => SessionStatus.working,
-      RunFailed() => SessionStatus.failed,
-      RunIdle() || RunAborted() => SessionStatus.none,
-    };
-  }
 }
 
 /// A session in the sidebar: one mark in the icon column, then the title and the relative time. A status (working,
@@ -621,21 +707,9 @@ class SessionRow extends StatelessWidget {
     final t = context.t;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final colors = AppColors.of(context);
-    final (Widget? statusMark, String? statusWords) = switch (status) {
-      SessionStatus.none => (null, null),
-      SessionStatus.opening => (const _Spinner(), t.sessions.opening),
-      SessionStatus.working => (const _Spinner(), t.sessions.working),
-      SessionStatus.needsInput => (Icon(Icons.help, size: _iconSize, color: colors.warning), t.sessions.needsInput),
-      SessionStatus.failed => (Icon(Icons.error, size: _iconSize, color: colors.error), t.sessions.failed),
-      SessionStatus.disconnected => (
-        Icon(Icons.link_off, size: _iconSize, color: scheme.onSurfaceVariant),
-        t.sessions.disconnected,
-      ),
-      SessionStatus.runningOnMachine => (_Dot(color: scheme.onSurfaceVariant), t.sessions.runningOnMachine),
-    };
-    final mark = statusMark ?? (unread ? _Dot(color: scheme.onSurface) : null);
-    final states = [?statusWords, if (unread) t.sessions.unread];
+    final statusMark = _statusMark(context, status);
+    final mark = statusMark?.$1 ?? (unread ? _Dot(color: scheme.onSurface) : null);
+    final states = [?statusMark?.$2, if (unread) t.sessions.unread];
     final modified = this.modified;
     final time = modified == null ? null : relativeTime(t, modified, DateTime.now());
     return SidebarRow(

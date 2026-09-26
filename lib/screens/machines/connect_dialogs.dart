@@ -11,7 +11,7 @@ import '../../services/machine_connector.dart';
 import '../../widgets/labeled_field.dart';
 import '../chat/transcript/code_style.dart';
 
-/// Opens a link to [machine] with dialogs for passwords, keyboard-interactive prompts and host keys, runs
+/// Opens a link to [machine] with dialogs for passwords, keyboard-interactive prompts, passphrases and host keys, runs
 /// [action] on it, and closes the link.
 Future<T> runOnMachine<T>(BuildContext context, Machine machine, Future<T> Function(HostLink link) action) async {
   final link = await context.read<MachineConnector>().open(machine, dialogConnectPrompts(context));
@@ -41,6 +41,13 @@ ConnectPrompts dialogConnectPrompts(BuildContext context) => ConnectPrompts(
     );
     return trusted ?? false;
   },
+  passphrase: (request) async {
+    if (!context.mounted) return null;
+    return showDialog<({String passphrase, bool remember})>(
+      context: context,
+      builder: (_) => PassphraseDialog(request),
+    );
+  },
 );
 
 String describeConnectError(Translations t, Object error) => switch (error) {
@@ -50,6 +57,15 @@ String describeConnectError(Translations t, Object error) => switch (error) {
     CredentialProblem.passwordMissing => t.connectError.passwordMissing(hop: endpoint.label),
   },
   ConnectCancelled() => t.common.cancelled,
+  SshConnectException(:final hop, failure: SshFailure.authFailed, offer: final offer?) when offer.keys.isNotEmpty => [
+    describeRefusal(t, hop.host, offer),
+    t.connectError.authorizedKeysHint(user: hop.user, host: hop.host),
+  ].join('\n'),
+  // The transport's line says where keys were looked for and why the agent had none.
+  SshConnectException(:final hop, offer: final offer?) when offer.keys.isEmpty => [
+    t.connectError.noKeys(host: hop.host),
+    '$error',
+  ].join('\n'),
   SshConnectException(:final hop, :final failure) => [
     switch (failure) {
       SshFailure.unreachable => t.connectError.unreachable(hop: hop.label),
@@ -65,6 +81,29 @@ String describeConnectError(Translations t, Object error) => switch (error) {
   HostLinkException(:final message, :final cause) => cause == null ? message : '$message: $cause',
   _ => '$error',
 };
+
+/// Which keys [host] refused: `air.local did not accept the key 'MacBook' (ED25519 SHA256:…).`
+String describeRefusal(Translations t, String host, SshKeyOffer offer) {
+  final keys = offer.keys;
+  if (keys.length == 1) return t.connectError.keyRefused(host: host, key: _keyLabel(t, keys.single));
+  if (keys.every((key) => key.agent && key.path == null)) {
+    return t.connectError.agentKeysRefused(n: keys.length, host: host);
+  }
+  return [t.connectError.keysRefused(host: host), for (final key in keys) _keyLabel(t, key)].join('\n');
+}
+
+String _keyLabel(Translations t, SshOfferedKey key) {
+  final comment = key.publicKey.comment;
+  final what = switch (key) {
+    SshOfferedKey(:final name?) => "'$name'",
+    SshOfferedKey(:final path?) => path,
+    SshOfferedKey(agent: true) =>
+      comment.isEmpty ? t.connectError.agentKeyUnnamed : t.connectError.agentKey(comment: comment),
+    _ => comment.isEmpty ? null : "'$comment'",
+  };
+  final fingerprint = '${keyTypeLabel(key.publicKey.type)} ${key.publicKey.fingerprint}';
+  return what == null ? fingerprint : '$what ($fingerprint)';
+}
 
 /// Trust-on-first-use prompt, host-key-change warning, or revocation notice. Pops true to trust.
 class HostKeyDialog extends StatelessWidget {
@@ -178,7 +217,8 @@ class _PasswordDialogState extends State<PasswordDialog> {
   }
 }
 
-/// Asks a keyboard-interactive [request]'s prompts. Pops the answers, or null to cancel.
+/// Asks a keyboard-interactive [request]'s prompts, or the server's password after refused keys. Pops the answers, or
+/// null to cancel.
 class KeyboardInteractiveDialog extends StatefulWidget {
   const KeyboardInteractiveDialog(this.request, {super.key});
 
@@ -206,13 +246,26 @@ class _KeyboardInteractiveDialogState extends State<KeyboardInteractiveDialog> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final theme = Theme.of(context);
     final request = widget.request;
+    final refused = request.refused;
     return AlertDialog(
-      title: Text(request.name.isEmpty ? t.auth.keyboardInteractive : request.name),
+      title: Text(switch (request) {
+        KeyboardInteractiveRequest(:final name) when name.isNotEmpty => name,
+        KeyboardInteractiveRequest(password: true) => t.prompt.passwordTitle(hop: request.hop),
+        _ => t.prompt.signInTitle(hop: request.hop),
+      }),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (refused != null)
+            Text(
+              refused.keys.isEmpty
+                  ? t.connectError.noKeys(host: request.hop)
+                  : describeRefusal(t, request.hop, refused),
+              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
           if (request.instruction.isNotEmpty) Text(request.instruction),
           for (final (index, prompt) in request.prompts.indexed)
             Padding(
@@ -226,6 +279,84 @@ class _KeyboardInteractiveDialogState extends State<KeyboardInteractiveDialog> {
                   onSubmitted: index == request.prompts.length - 1 ? (_) => _submit() : null,
                 ),
               ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(t.common.cancel)),
+        FilledButton(onPressed: _submit, child: Text(t.common.continueAction)),
+      ],
+    );
+  }
+}
+
+/// Asks for the passphrase of an encrypted identity file from `~/.ssh/config`. Pops it with whether to keep it in
+/// secure storage, or null to cancel.
+class PassphraseDialog extends StatefulWidget {
+  const PassphraseDialog(this.request, {super.key});
+
+  final KeyPassphraseRequest request;
+
+  @override
+  State<PassphraseDialog> createState() => _PassphraseDialogState();
+}
+
+class _PassphraseDialogState extends State<PassphraseDialog> {
+  final _passphrase = TextEditingController();
+  var _remember = false;
+
+  @override
+  void dispose() {
+    _passphrase.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.pop(context, (passphrase: _passphrase.text, remember: _remember));
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final theme = Theme.of(context);
+    final request = widget.request;
+    final key = request.publicKey;
+    return AlertDialog(
+      title: Text(t.prompt.passphraseTitle(path: request.path)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            key == null
+                ? t.prompt.passphraseUnknownKey(hop: request.hop)
+                : t.prompt.passphraseAccepted(hop: request.hop),
+          ),
+          if (key != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: SelectableText(
+                '${keyTypeLabel(key.type)} ${key.fingerprint}',
+                style: codeTextStyle(theme).copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+          const SizedBox(height: 12),
+          LabeledField(
+            label: t.prompt.passphrase,
+            error: request.wrong ? t.prompt.passphraseWrong : null,
+            child: TextField(
+              controller: _passphrase,
+              autofocus: true,
+              obscureText: true,
+              onSubmitted: (_) => _submit(),
+            ),
+          ),
+          // Without a public key there is no fingerprint to keep the passphrase under.
+          if (key != null)
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(t.prompt.rememberPassphrase),
+              value: _remember,
+              onChanged: (value) => setState(() => _remember = value ?? false),
             ),
         ],
       ),

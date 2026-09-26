@@ -4,6 +4,7 @@ import 'package:omp_core/store.dart';
 
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
+import '../../../utils/token_count.dart';
 import 'code_style.dart';
 import 'images.dart';
 import 'markdown.dart';
@@ -70,8 +71,8 @@ class TranscriptRowView extends StatelessWidget {
     final CompactionItem item => _SummaryMarker(
       icon: Icons.compress,
       title: (t) => item.tokensAfter == null
-          ? '${t.compacted} · ${t.compactedFrom(before: _count(item.tokensBefore))}'
-          : '${t.compacted} · ${t.compactedTokens(before: _count(item.tokensBefore), after: _count(item.tokensAfter!))}',
+          ? '${t.compacted} · ${t.compactedFrom(before: formatTokens(item.tokensBefore))}'
+          : '${t.compacted} · ${t.compactedTokens(before: formatTokens(item.tokensBefore), after: formatTokens(item.tokensAfter!))}',
       summary: item.summary,
       storageKey: item.key,
     ),
@@ -95,13 +96,6 @@ class TranscriptRowView extends StatelessWidget {
     // Assistant messages and tool results have rows of their own (transcript_rows.dart).
     AssistantItem() || ToolResultItem() => const SizedBox.shrink(),
   };
-}
-
-/// 1234 → 1.2k, 1234567 → 1.2M: compact counts for small print.
-String _count(int value) {
-  if (value < 1000) return '$value';
-  if (value < 1000000) return '${(value / 1000).toStringAsFixed(value < 10000 ? 1 : 0)}k';
-  return '${(value / 1000000).toStringAsFixed(1)}M';
 }
 
 String _seconds(Duration duration) {
@@ -393,9 +387,9 @@ class _AssistantFooter extends StatelessWidget {
     final usage = item.usage;
     final facts = [
       item.model,
-      if (usage != null && usage.input > 0) t.tokensIn(count: _count(usage.input)),
-      if (usage != null && usage.output > 0) t.tokensOut(count: _count(usage.output)),
-      if (usage != null && usage.cacheRead > 0) t.tokensCached(count: _count(usage.cacheRead)),
+      if (usage != null && usage.input > 0) t.tokensIn(count: formatTokens(usage.input)),
+      if (usage != null && usage.output > 0) t.tokensOut(count: formatTokens(usage.output)),
+      if (usage != null && usage.cacheRead > 0) t.tokensCached(count: formatTokens(usage.cacheRead)),
       if (usage != null && usage.cost > 0) '\$${usage.cost.toStringAsFixed(usage.cost < 0.01 ? 4 : 3)}',
       if (item.duration != null) t.seconds(value: _seconds(item.duration!)),
     ];

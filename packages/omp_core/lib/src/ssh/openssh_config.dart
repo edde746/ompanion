@@ -47,6 +47,7 @@ final class SshJumpSpec {
 /// The settings `ssh -G` resolved for one host, after `Host`, `Match` and `Include`.
 final class SshResolvedHost {
   const SshResolvedHost({
+    this.name,
     required this.hostname,
     required this.user,
     required this.port,
@@ -58,11 +59,14 @@ final class SshResolvedHost {
     this.userKnownHostsFiles = const [],
   });
 
+  /// The name given to `ssh` (`%n`).
+  final String? name;
   final String hostname;
   final String user;
   final int port;
 
-  /// In config order, as ssh prints them: `~` is not expanded (see [expandHome]).
+  /// In config order, as ssh prints them: `~` and `%` tokens are not expanded (see [sshIdentities]). Without an
+  /// `IdentityFile`, ssh prints its defaults.
   final List<String> identityFiles;
   final bool identitiesOnly;
 
@@ -71,6 +75,8 @@ final class SshResolvedHost {
 
   /// A `ProxyCommand` ompanion cannot follow, reported so the UI can say so.
   final String? proxyCommand;
+
+  /// As configured, `none` included; null when unset (`SSH_AUTH_SOCK`).
   final String? identityAgent;
   final List<String> userKnownHostsFiles;
 }
@@ -96,6 +102,7 @@ SshResolvedHost parseSshG(String output) {
   if (port == null) throw FormatException('ssh -G printed a non-numeric port', output);
   final jump = optional('proxyjump');
   return SshResolvedHost(
+    name: values['host']?.first,
     hostname: required('hostname'),
     user: required('user'),
     port: port,
@@ -103,7 +110,7 @@ SshResolvedHost parseSshG(String output) {
     identitiesOnly: values['identitiesonly']?.first == 'yes',
     proxyJump: jump == null ? const [] : [for (final spec in jump.split(',')) SshJumpSpec.parse(spec)],
     proxyCommand: optional('proxycommand'),
-    identityAgent: optional('identityagent'),
+    identityAgent: values['identityagent']?.first,
     userKnownHostsFiles: [for (final value in values['userknownhostsfile'] ?? const <String>[]) ...value.split(' ')],
   );
 }
@@ -128,6 +135,74 @@ Future<SshResolvedHost> resolveSshAlias(String alias, {String? user, int? port, 
 /// Replaces a leading `~` with [home].
 String expandHome(String path, String home) =>
     path == '~' ? home : path.startsWith('~/') ? '$home${path.substring(1)}' : path;
+
+/// The keys `ssh` would offer one host: the agent's, then [files] (see `pubkey_prepare` in OpenSSH's sshconnect2.c).
+final class SshIdentities {
+  const SshIdentities({this.agentSocket, this.agentProblem, this.files = const [], this.identitiesOnly = false});
+
+  /// The ssh-agent to ask; null for none, and then [agentProblem] says why.
+  final String? agentSocket;
+  final String? agentProblem;
+
+  /// In config order: the path as configured, for messages, and expanded.
+  final List<({String configured, String path})> files;
+
+  /// Offer only agent keys that are also one of [files].
+  final bool identitiesOnly;
+}
+
+/// What `ssh` does with [host]'s `IdentityAgent`, `IdentityFile` and `IdentitiesOnly`: the agent is `IdentityAgent`
+/// (`none`, `SSH_AUTH_SOCK`, `$VAR` or a path) or else `SSH_AUTH_SOCK` from [environment]; paths get `~`, `${VAR}`
+/// and `%` tokens expanded. Throws [FormatException] for a token or variable ssh would reject.
+SshIdentities sshIdentities(
+  SshResolvedHost host, {
+  required String home,
+  required Map<String, String> environment,
+  String? localHostname,
+}) {
+  final local = localHostname ?? Platform.localHostname;
+  final tokens = {
+    '%': '%',
+    'd': home,
+    'h': host.hostname,
+    'n': host.name ?? host.hostname,
+    'p': '${host.port}',
+    'r': host.user,
+    'u': environment['USER'] ?? environment['USERNAME'] ?? environment['LOGNAME'] ?? '',
+    'l': local,
+    'L': local.split('.').first,
+  };
+  String expand(String path) => _expandPath(path, home, tokens, environment);
+
+  (String?, String?) fromEnvironment(String name) => switch (environment[name]) {
+    null || '' => (null, '$name is not set'),
+    final socket => (socket, null),
+  };
+  final (socket, problem) = switch (host.identityAgent) {
+    null || 'SSH_AUTH_SOCK' => fromEnvironment('SSH_AUTH_SOCK'),
+    'none' => (null, 'IdentityAgent is none'),
+    final agent when agent.startsWith(r'$') => fromEnvironment(agent.substring(1)),
+    final agent => (expand(agent), null),
+  };
+  return SshIdentities(
+    agentSocket: socket,
+    agentProblem: problem,
+    files: [for (final file in host.identityFiles) (configured: file, path: expand(file))],
+    identitiesOnly: host.identitiesOnly,
+  );
+}
+
+String _expandPath(String path, String home, Map<String, String> tokens, Map<String, String> environment) {
+  final withVariables = path.replaceAllMapped(RegExp(r'\$\{([A-Za-z_][A-Za-z0-9_]*)\}'), (match) {
+    final name = match.group(1)!;
+    return environment[name] ?? (throw FormatException('environment variable $name in "$path" is not set'));
+  });
+  final expanded = withVariables.replaceAllMapped(RegExp('%(.?)'), (match) {
+    final token = match.group(1)!;
+    return tokens[token] ?? (throw FormatException('unsupported token %$token in "$path"'));
+  });
+  return expandHome(expanded, home);
+}
 
 /// Host aliases from an OpenSSH client config and the files it `Include`s, in file order.
 /// Patterns (`*`, `?`, `!`) are skipped: they are defaults, not machines.

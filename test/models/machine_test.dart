@@ -23,6 +23,7 @@ void main() {
   );
 
   Future<List<String>?> noPrompts(KeyboardInteractiveRequest request) async => null;
+  Future<String?> noPassphrase(KeyPassphraseRequest request) async => null;
 
   group('rows', () {
     test('an SSH machine survives a round trip through its rows, jumps in dial order', () {
@@ -67,11 +68,12 @@ void main() {
   group('dial plan', () {
     const secrets = ConnectionSecrets(
       keys: {'key-a': StoredPrivateKey('PEM-A', passphrase: 'pass-a')},
+      keyNames: {'key-a': 'Laptop'},
       passwords: {'target': 'hunter2'},
     );
 
     test('every hop gets its own credentials, jumps first', () {
-      final plan = sshTargetFor(machine, secrets, keyboardInteractive: noPrompts);
+      final plan = sshTargetFor(machine, secrets, keyboardInteractive: noPrompts, passphrase: noPassphrase);
 
       expect([for (final hop in plan.hops) hop.label], [
         'ops@bastion.example.com',
@@ -79,9 +81,29 @@ void main() {
         'dev@localhost:2222',
       ]);
       final key = plan.jumps[0].auth as SshKeyAuth;
-      expect((key.privateKeyPem, key.passphrase), ('PEM-A', 'pass-a'));
-      expect((plan.jumps[1].auth as SshAgentAuth).socketPath, isNull);
+      expect((key.privateKeyPem, key.passphrase, key.name), ('PEM-A', 'pass-a', 'Laptop'));
       expect((plan.target.auth as SshPasswordAuth).password, 'hunter2');
+    });
+
+    test('an imported target reads ~/.ssh/config through its alias; jumps and typed-in hosts through their host', () {
+      SshTarget plan(String? alias) => sshTargetFor(
+        SshMachine(
+          id: 'm',
+          name: 'm',
+          createdAt: created,
+          updatedAt: updated,
+          target: const SshEndpoint(id: 'm', host: 'air.local', user: 'edde', auth: AuthMethod.agent),
+          jumps: const [SshEndpoint(id: 'j', host: 'gate', user: 'me', auth: AuthMethod.agent)],
+          sshConfigAlias: alias,
+        ),
+        secrets,
+        keyboardInteractive: noPrompts,
+        passphrase: noPassphrase,
+      );
+      String? alias(SshHop hop) => (hop.auth as SshConfigAuth).alias;
+
+      expect([for (final hop in plan('air').hops) alias(hop)], [null, 'air']);
+      expect(alias(plan(null).target), isNull);
     });
 
     test('none and keyboard-interactive auth need no stored secret', () {
@@ -94,7 +116,7 @@ void main() {
         jumps: const [SshEndpoint(id: 'otp', host: 'gate', user: 'me', auth: AuthMethod.keyboardInteractive)],
       );
 
-      final plan = sshTargetFor(tailnet, const ConnectionSecrets(), keyboardInteractive: noPrompts);
+      final plan = sshTargetFor(tailnet, const ConnectionSecrets(), keyboardInteractive: noPrompts, passphrase: noPassphrase);
 
       expect(plan.target.auth, isA<SshNoneAuth>());
       expect((plan.jumps.single.auth as SshKeyboardInteractiveAuth).respond, same(noPrompts));
@@ -106,7 +128,12 @@ void main() {
           .having((e) => e.problem, 'problem', problem);
 
       expect(
-        () => sshTargetFor(machine, const ConnectionSecrets(passwords: {'target': 'x'}), keyboardInteractive: noPrompts),
+        () => sshTargetFor(
+          machine,
+          const ConnectionSecrets(passwords: {'target': 'x'}),
+          keyboardInteractive: noPrompts,
+          passphrase: noPassphrase,
+        ),
         throwsA(missing('jump-a', CredentialProblem.keyMissing)),
       );
       expect(
@@ -114,6 +141,7 @@ void main() {
           machine,
           const ConnectionSecrets(keys: {'key-a': StoredPrivateKey('PEM-A')}),
           keyboardInteractive: noPrompts,
+          passphrase: noPassphrase,
         ),
         throwsA(missing('target', CredentialProblem.passwordMissing)),
       );
@@ -126,7 +154,7 @@ void main() {
         target: const SshEndpoint(id: 'k', host: 'h', user: 'u', auth: AuthMethod.key),
       );
       expect(
-        () => sshTargetFor(keyless, secrets, keyboardInteractive: noPrompts),
+        () => sshTargetFor(keyless, secrets, keyboardInteractive: noPrompts, passphrase: noPassphrase),
         throwsA(missing('k', CredentialProblem.noKeySelected)),
       );
     });

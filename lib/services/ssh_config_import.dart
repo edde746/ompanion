@@ -11,7 +11,7 @@ const _maxJumpDepth = 8;
 /// Editor prefill for a `~/.ssh/config` alias, from `ssh -G` (desktop).
 ///
 /// ProxyJump hops are resolved through their own config, like `ssh` does, and a hop's own ProxyJump is
-/// dialed before it. A hop whose identity file matches a stored key uses that key; otherwise the ssh-agent.
+/// dialed before it. A hop whose identity file matches a stored key uses that key; otherwise SSH config and agent auth.
 Future<MachineDraft> draftFromSshAlias(String alias, {required List<SshKeyRow> keys}) async {
   final config = await resolveSshAlias(alias);
   final fingerprints = {for (final key in keys) key.fingerprint: key.id};

@@ -4,6 +4,7 @@ import 'package:omp_core/rpc.dart';
 import '../../app/theme.dart';
 import '../../config/accounts.dart';
 import '../../i18n/strings.g.dart';
+import '../../utils/token_count.dart';
 import '../../widgets/app_search_field.dart';
 import '../../widgets/app_select.dart';
 
@@ -104,7 +105,7 @@ class _ModelPickerState extends State<_ModelPicker> {
                         subtitle: Text(
                           [
                             '${model.provider}/${model.id}',
-                            if (model.contextWindow case final window?) t.config.roles.context(tokens: _compact(window)),
+                            if (model.contextWindow case final window?) t.config.roles.context(tokens: formatTokens(window)),
                             if (model.input.contains('image')) t.config.roles.vision,
                           ].join(' · '),
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -124,9 +125,3 @@ class _ModelPickerState extends State<_ModelPicker> {
     );
   }
 }
-
-String _compact(int tokens) => tokens >= 1000000
-    ? '${(tokens / 1000000).toStringAsFixed(tokens % 1000000 == 0 ? 0 : 1)}M'
-    : tokens >= 1000
-    ? '${(tokens / 1000).round()}k'
-    : '$tokens';

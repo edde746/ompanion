@@ -393,7 +393,10 @@ class _TranscriptViewState extends State<TranscriptView> {
     return extent;
   }
 
-  bool _onMetrics(ScrollMetrics metrics) {
+  /// Takes the metrics of the transcript's own scroll view ([depth] 0). The code blocks and tables that scroll sideways
+  /// inside it notify through here too.
+  bool _onMetrics(int depth, ScrollMetrics metrics) {
+    if (depth != 0) return false;
     // The live sliver carries the bottom gap: the transcript overflows once its rows alone are taller than the viewport.
     _overflowing = metrics.maxScrollExtent - metrics.minScrollExtent > _bottomGap + 0.5;
     _atBottom.value = metrics.pixels >= metrics.maxScrollExtent - StickToBottomPhysics.pinDistance;
@@ -468,9 +471,9 @@ class _TranscriptViewState extends State<TranscriptView> {
         child: Stack(
           children: [
             NotificationListener<ScrollMetricsNotification>(
-              onNotification: (notification) => _onMetrics(notification.metrics),
+              onNotification: (notification) => _onMetrics(notification.depth, notification.metrics),
               child: NotificationListener<ScrollUpdateNotification>(
-                onNotification: (notification) => _onMetrics(notification.metrics),
+                onNotification: (notification) => _onMetrics(notification.depth, notification.metrics),
                 child: SelectionArea(
                   child: CustomScrollView(
                     controller: _scroll,
@@ -494,6 +497,10 @@ class _TranscriptViewState extends State<TranscriptView> {
                         key: _centerKey,
                         padding: const EdgeInsets.only(bottom: _bottomGap),
                         sliver: SliverList(
+                          // A new first item makes a new list. Toggling a turn moves rows between the slivers; an old
+                          // list would lay its rows out from the offsets their indexes had before, and correct the
+                          // scroll offset once they do not add up, moving the toggled row.
+                          key: ValueKey(_firstLiveItem),
                           delegate: SliverChildBuilderDelegate(
                             (context, index) => _row(rows[split + index]),
                             childCount: rows.length - split,

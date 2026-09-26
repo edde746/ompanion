@@ -157,13 +157,39 @@ class _CodeBlockState extends State<CodeBlock> {
                 ),
               ),
             ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          SideScrollView(
             padding: EdgeInsets.fromLTRB(12, widget.header ? 0 : 10, 12, 10),
             child: body,
           ),
         ],
       ),
     );
+  }
+}
+
+/// A horizontal scroll view whose text is selectable as part of the selection container around it.
+///
+/// Under a [SelectionArea], a [Scrollable] adds a selection container of its own. A transcript row that holds a
+/// selection (even the caret of a click) stays alive off screen with a zero paint transform; the container of a scroll
+/// view in that row then takes a later press anywhere for one inside it, computes a NaN position and fails the drag
+/// target assertion of `EdgeDraggingAutoScroller`. This view adds none: its text joins the container around it, like
+/// the rest of the row's text. A drag past its edge does not scroll it sideways.
+class SideScrollView extends StatelessWidget {
+  const SideScrollView({super.key, this.controller, this.padding, required this.child});
+
+  final ScrollController? controller;
+  final EdgeInsetsGeometry? padding;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final registrar = SelectionContainer.maybeOf(context);
+    final view = SingleChildScrollView(
+      controller: controller,
+      scrollDirection: Axis.horizontal,
+      padding: padding,
+      child: registrar == null ? child : SelectionRegistrarScope(registrar: registrar, child: child),
+    );
+    return registrar == null ? view : SelectionContainer.disabled(child: view);
   }
 }

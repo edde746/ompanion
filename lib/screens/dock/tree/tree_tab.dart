@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/sessions_provider.dart';
+import '../../../utils/token_count.dart';
 import '../../../widgets/app_search_field.dart';
 import '../../../widgets/labeled_field.dart';
 import '../dock_empty_state.dart';
@@ -523,7 +524,7 @@ String _rowText(BuildContext context, TreeEntry entry) {
   return switch (entry.kind) {
     TreeEntryKind.assistant when entry.aborted => t.aborted,
     TreeEntryKind.assistant when entry.text.isEmpty => t.noContent,
-    TreeEntryKind.compaction => t.compaction(tokens: ((entry.tokensBefore ?? 0) / 1000).round()),
+    TreeEntryKind.compaction => t.compaction(tokens: formatTokens(entry.tokensBefore ?? 0)),
     TreeEntryKind.branchSummary => t.branchSummary(summary: entry.text),
     TreeEntryKind.modelChange => t.model(model: entry.text),
     TreeEntryKind.thinkingChange => t.thinking(level: entry.text),

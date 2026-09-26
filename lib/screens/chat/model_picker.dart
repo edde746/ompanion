@@ -11,6 +11,7 @@ import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../utils/token_count.dart';
 import '../../widgets/app_search_field.dart';
 
 /// The composer's model button: opens a searchable list of the machine's models above the composer and switches
@@ -269,7 +270,7 @@ class _ModelListState extends State<_ModelList> {
                             subtitle: Text(
                               [
                                 model.id,
-                                if (model.contextWindow != null) t.chat.contextWindow(tokens: model.contextWindow!),
+                                if (model.contextWindow case final window?) t.chat.contextWindow(tokens: formatTokens(window)),
                                 if (model.reasoning) t.chat.reasoning,
                               ].join(' · '),
                             ),

@@ -6,6 +6,7 @@ import 'package:omp_core/store.dart';
 import '../../../app/theme.dart';
 import '../../../files/file_paths.dart';
 import '../../../i18n/strings.g.dart';
+import '../../../utils/token_count.dart';
 import 'code_block.dart';
 import 'diff.dart';
 import 'highlighter.dart';
@@ -585,7 +586,7 @@ class _AgentRow extends StatelessWidget {
       SubagentStatus.aborted => (t.agentAborted, scheme.onSurfaceVariant),
     };
     final facts = [
-      if (agent.tokens != null && agent.tokens! > 0) context.t.transcript.tool.tokens(count: agent.tokens!),
+      if (agent.tokens case final tokens? when tokens > 0) context.t.transcript.tool.tokens(count: formatTokens(tokens)),
       if (agent.duration != null) context.t.transcript.seconds(value: (agent.duration!.inMilliseconds / 1000).toStringAsFixed(1)),
     ];
     return InkWell(

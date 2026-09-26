@@ -116,10 +116,17 @@ void main() {
       ]);
     });
 
-    test('key not in authorized_keys fails as authFailed', () async {
+    test('a refused key fails as authFailed and names the key', () async {
       final stranger = generateEd25519Key();
-      final hop = targetHop(auth: SshKeyAuth(stranger.privateKeyPem));
-      await expectLater(SshLink.open(SshTarget(target: hop), verifyHostKey: trustTestHosts), failsWith(SshFailure.authFailed));
+      final hop = targetHop(auth: SshKeyAuth(stranger.privateKeyPem, name: 'Laptop'));
+      await expectLater(
+        SshLink.open(SshTarget(target: hop), verifyHostKey: trustTestHosts),
+        throwsA(isA<SshConnectException>()
+            .having((error) => error.failure, 'failure', SshFailure.authFailed)
+            .having((error) => [for (final key in error.offer!.keys) (key.name, key.publicKey.fingerprint)], 'offer', [
+              ('Laptop', stranger.publicKey.fingerprint),
+            ])),
+      );
     });
 
     test('encrypted key without its passphrase fails before dialing', () async {
@@ -128,48 +135,253 @@ void main() {
       await expectLater(SshLink.open(SshTarget(target: hop), verifyHostKey: trustTestHosts), failsWith(SshFailure.keyUnavailable));
     });
 
-    group('ssh-agent', () {
-      late Directory dir;
-      late Process agent;
-      late String socket;
+    // Like ssh: once every key is refused, the server's password and keyboard-interactive prompts reach the user.
+    group('after a refused key', () {
+      final stranger = generateEd25519Key();
+
+      test("the server's password prompt follows, saying which key was refused", () async {
+        final requests = <KeyboardInteractiveRequest>[];
+        final auth = SshKeyAuth(stranger.privateKeyPem, name: 'Laptop', fallback: (request) async {
+          requests.add(request);
+          return [password];
+        });
+        final link = await SshLink.open(SshTarget(target: targetHop(user: passwordUser, auth: auth)), verifyHostKey: trustTestHosts);
+        addTearDown(link.close);
+        expect((await run(link, 'id -un')).$1.trim(), passwordUser);
+        expect(requests.map((request) => (request.hop, request.password, request.refused!.keys.single.name)), [
+          ('$passwordUser@localhost:$targetPort', true, 'Laptop'),
+        ]);
+      });
+
+      test('a PAM keyboard-interactive prompt follows where the server takes passwords only that way', () async {
+        final requests = <KeyboardInteractiveRequest>[];
+        final auth = SshKeyAuth(stranger.privateKeyPem, fallback: (request) async {
+          requests.add(request);
+          return request.password ? null : [password];
+        });
+        final link = await SshLink.open(SshTarget(target: targetHop(user: 'kbd', auth: auth)), verifyHostKey: trustTestHosts);
+        addTearDown(link.close);
+        expect((await run(link, 'id -un')).$1.trim(), 'kbd');
+        final prompted = requests.where((request) => !request.password).single;
+        expect([for (final prompt in prompted.prompts) (prompt.text, prompt.echo)], [('Password: ', false)]);
+        expect(prompted.refused!.keys.single.publicKey.fingerprint, stranger.publicKey.fingerprint);
+      });
+
+      test('giving up on the prompt ends the attempt with the refusal, without asking again', () async {
+        var asked = 0;
+        final auth = SshKeyAuth(stranger.privateKeyPem, name: 'Laptop', fallback: (_) async {
+          asked++;
+          return null;
+        });
+        await expectLater(
+          SshLink.open(SshTarget(target: targetHop(user: passwordUser, auth: auth)), verifyHostKey: trustTestHosts),
+          throwsA(isA<SshConnectException>()
+              .having((error) => error.failure, 'failure', SshFailure.authFailed)
+              .having((error) => error.offer!.keys.single.name, 'refused key', 'Laptop')),
+        );
+        expect(asked, 1);
+      });
+    });
+
+    group('SSH config and agent (like ssh)', () {
+      late Directory home;
+      late String sshDir;
+      final agents = <Process>[];
 
       setUp(() async {
-        dir = await Directory.systemTemp.createTemp('omp-agent');
-        socket = '${dir.path}/agent.sock';
-        agent = await Process.start('ssh-agent', ['-D', '-a', socket]);
-        unawaited(agent.stdout.drain<void>());
-        unawaited(agent.stderr.drain<void>());
-        await eventually(() => FileSystemEntity.typeSync(socket) != FileSystemEntityType.notFound);
+        home = await Directory.systemTemp.createTemp('omp-ssh-home');
+        sshDir = '${home.path}/.ssh';
+        Directory(sshDir).createSync();
       });
 
       tearDown(() async {
-        agent.kill();
-        await agent.exitCode;
-        await dir.delete(recursive: true);
+        for (final agent in agents) {
+          agent.kill();
+          await agent.exitCode;
+        }
+        agents.clear();
+        await home.delete(recursive: true);
       });
 
-      Future<void> add(String name) async {
-        final result = await Process.run('ssh-add', ['$sshTestDir/$name'], environment: {'SSH_AUTH_SOCK': socket});
-        expect(result.exitCode, 0, reason: '${result.stderr}');
+      /// A throwaway ssh-agent (never the user's) holding the private keys at [keys].
+      Future<String> startAgent([List<String> keys = const []]) async {
+        final socket = '${home.path}/agent-${agents.length}.sock';
+        final agent = await Process.start('ssh-agent', ['-D', '-a', socket]);
+        agents.add(agent);
+        unawaited(agent.stdout.drain<void>());
+        unawaited(agent.stderr.drain<void>());
+        await eventually(() => FileSystemEntity.typeSync(socket) != FileSystemEntityType.notFound);
+        for (final key in keys) {
+          final result = await Process.run('ssh-add', [key], environment: {'SSH_AUTH_SOCK': socket});
+          expect(result.exitCode, 0, reason: '${result.stderr}');
+        }
+        return socket;
       }
 
+      /// Writes [pem] to [path] with the permissions ssh-add and ssh insist on.
+      Future<String> writeKey(String path, String pem) async {
+        File(path)
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(pem);
+        expect((await Process.run('chmod', ['600', path])).exitCode, 0);
+        return path;
+      }
+
+      /// A copy of a test key that authorizes as omp, encrypted with [passphrase] by ssh-keygen.
+      Future<String> encryptedCopy(String name, String path, String passphrase) async {
+        await writeKey(path, testPrivateKey(name));
+        final result = await Process.run('ssh-keygen', ['-q', '-p', '-P', '', '-N', passphrase, '-f', path]);
+        expect(result.exitCode, 0, reason: '${result.stderr}');
+        return path;
+      }
+
+      SshConfigAuth configAuth(
+        String config, {
+        Map<String, String> environment = const {},
+        KeyPassphraseHandler? passphrase,
+      }) {
+        File('$sshDir/config').writeAsStringSync(config);
+        return SshConfigAuth(
+          config: SshClientConfig(configFile: '$sshDir/config', home: home.path, environment: environment),
+          passphrase: passphrase,
+        );
+      }
+
+      Future<SshLink> open(SshAuth auth, {HostKeyVerifier verify = trustTestHosts, Duration? timeout}) async {
+        final link = await SshLink.open(
+          SshTarget(target: targetHop(auth: auth)),
+          verifyHostKey: verify,
+          connectTimeout: timeout ?? const Duration(seconds: 15),
+        );
+        addTearDown(link.close);
+        return link;
+      }
+
+      test('an encrypted IdentityFile from the config unlocks through the passphrase prompt, with an empty agent', () async {
+        final socket = await startAgent();
+        await encryptedCopy('id_ed25519', '$sshDir/work_key', 'secret');
+        final requests = <KeyPassphraseRequest>[];
+        final auth = configAuth(
+          'Host localhost\n  IdentityFile ~/.ssh/work_key\n',
+          environment: {'SSH_AUTH_SOCK': socket},
+          passphrase: (request) async {
+            requests.add(request);
+            return request.wrong ? 'secret' : 'a wrong guess';
+          },
+        );
+        final link = await open(auth);
+        expect((await run(link, 'id -un')).$1.trim(), 'omp');
+        final fingerprint = readPrivateKey(testPrivateKey()).fingerprint;
+        expect(requests.map((request) => (request.path, request.publicKey?.fingerprint, request.wrong)), [
+          ('~/.ssh/work_key', fingerprint, false),
+          ('~/.ssh/work_key', fingerprint, true),
+        ]);
+      });
+
+      test('an RSA IdentityFile at a quoted path with a space signs with rsa-sha2-256', () async {
+        await writeKey('$sshDir/my keys/id_rsa', testPrivateKey('id_rsa'));
+        // OpenSSH 8.8+ (the test machines run 9.6) refuses SHA-1 `ssh-rsa` signatures, so logging in proves rsa-sha2.
+        final link = await open(configAuth('Host *\n  IdentityFile "~/.ssh/my keys/id_rsa"\n  IdentityAgent none\n'));
+        expect((await run(link, 'id -un')).$1.trim(), 'omp');
+      });
+
       for (final name in ['id_ed25519', 'id_rsa']) {
-        test('signs with $name', () async {
-          await add(name);
-          final keys = await listAgentKeys(socket);
-          expect(keys.single.blob, readPrivateKey(testPrivateKey(name)).blob);
-          final link = await SshLink.open(SshTarget(target: targetHop(auth: SshAgentAuth(socket))), verifyHostKey: trustTestHosts);
-          addTearDown(link.close);
+        test('the SSH_AUTH_SOCK agent signs with $name', () async {
+          final socket = await startAgent(['$sshTestDir/$name']);
+          expect((await listAgentKeys(socket)).single.blob, readPrivateKey(testPrivateKey(name)).blob);
+          final link = await open(configAuth('', environment: {'SSH_AUTH_SOCK': socket}));
           expect((await run(link, 'id -un')).$1.trim(), 'omp');
         });
       }
 
-      test('empty agent fails as keyUnavailable', () async {
+      test('IdentityAgent names the agent, without SSH_AUTH_SOCK', () async {
+        final socket = await startAgent(['$sshTestDir/id_ed25519']);
+        final link = await open(configAuth('Host localhost\n  IdentityAgent $socket\n'));
+        expect((await run(link, 'id -un')).$1.trim(), 'omp');
+      });
+
+      test("IdentitiesOnly offers only the agent's keys that are identity files, also as a bare .pub", () async {
+        final stranger = generateEd25519Key(comment: 'stranger');
+        final strangerPath = await writeKey('${home.path}/stranger', stranger.privateKeyPem);
+        File('$sshDir/omp.pub').writeAsStringSync(File('$sshTestDir/id_ed25519.pub').readAsStringSync());
+        final onlyStranger = await startAgent([strangerPath]);
+        const config = 'Host localhost\n  IdentityFile ~/.ssh/omp.pub\n';
+
+        // Without IdentitiesOnly the agent's other key is offered and refused.
         await expectLater(
-          SshLink.open(SshTarget(target: targetHop(auth: SshAgentAuth(socket))), verifyHostKey: trustTestHosts),
-          failsWith(SshFailure.keyUnavailable),
+          open(configAuth(config, environment: {'SSH_AUTH_SOCK': onlyStranger})),
+          throwsA(isA<SshConnectException>()
+              .having((error) => error.failure, 'failure', SshFailure.authFailed)
+              .having((error) => [for (final key in error.offer!.keys) (key.agent, key.publicKey.fingerprint)], 'offer', [
+                (true, stranger.publicKey.fingerprint),
+              ])),
+        );
+        // With it, nothing is left to offer: the agent does not hold the key the .pub names.
+        await expectLater(
+          open(configAuth('$config  IdentitiesOnly yes\n', environment: {'SSH_AUTH_SOCK': onlyStranger})),
+          throwsA(isA<SshConnectException>()
+              .having((error) => error.failure, 'failure', SshFailure.keyUnavailable)
+              .having((error) => [for (final file in error.offer!.unusableFiles) file.path], 'unusable', ['~/.ssh/omp.pub'])),
+        );
+
+        final both = await startAgent([strangerPath, '$sshTestDir/id_ed25519']);
+        final link = await open(configAuth('$config  IdentitiesOnly yes\n', environment: {'SSH_AUTH_SOCK': both}));
+        expect((await run(link, 'id -un')).$1.trim(), 'omp');
+      });
+
+      test('with no key anywhere the error says where ssh looked and why the agent had none', () async {
+        final socket = await startAgent();
+        await expectLater(
+          open(configAuth('', environment: {'SSH_AUTH_SOCK': socket})),
+          throwsA(isA<SshConnectException>()
+              .having((error) => error.failure, 'failure', SshFailure.keyUnavailable)
+              .having((error) => error.offer!.agentProblem, 'agent', 'ssh-agent at $socket holds no keys')
+              .having((error) => error.offer!.missingFiles, 'looked for', containsAll(['~/.ssh/id_ed25519', '~/.ssh/id_rsa']))),
         );
       });
+
+      test('prompts slower than the connect timeout do not end the attempt', () async {
+        await encryptedCopy('id_ed25519', '$sshDir/work_key', 'secret');
+        final slow = Duration(milliseconds: 1500);
+        final auth = configAuth(
+          'Host localhost\n  IdentityFile ~/.ssh/work_key\n  IdentityAgent none\n',
+          passphrase: (_) => Future.delayed(slow, () => 'secret'),
+        );
+        final link = await open(
+          auth,
+          timeout: const Duration(seconds: 1),
+          verify: (check) => Future.delayed(slow, () => trustTestHosts(check)),
+        );
+        expect((await run(link, 'id -un')).$1.trim(), 'omp');
+
+        final refused = SshKeyAuth(generateEd25519Key().privateKeyPem, fallback: (_) => Future.delayed(slow, () => [password]));
+        final viaPassword = await SshLink.open(
+          SshTarget(target: targetHop(user: passwordUser, auth: refused)),
+          verifyHostKey: trustTestHosts,
+          connectTimeout: const Duration(seconds: 1),
+        );
+        addTearDown(viaPassword.close);
+        expect((await run(viaPassword, 'id -un')).$1.trim(), passwordUser);
+      });
+    });
+
+    test('a server that never answers times out during the key exchange', () async {
+      final silent = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final held = <Socket>[];
+      silent.listen(held.add);
+      addTearDown(() async {
+        for (final socket in held) {
+          socket.destroy();
+        }
+        await silent.close();
+      });
+      final hop = SshHop(host: '127.0.0.1', port: silent.port, user: 'omp', auth: const SshNoneAuth());
+      await expectLater(
+        SshLink.open(SshTarget(target: hop), verifyHostKey: trustTestHosts, connectTimeout: const Duration(seconds: 1)),
+        throwsA(isA<SshConnectException>()
+            .having((error) => error.failure, 'failure', SshFailure.timeout)
+            .having((error) => error.message, 'message', contains('during key exchange'))),
+      );
     });
   });
 

@@ -186,7 +186,7 @@
       "failed": "Failed: $error",
       "aborted": "(aborted)",
       "noContent": "(no content)",
-      "compaction": "Compaction (${tokens}k tokens)",
+      "compaction": "Compaction ($tokens tokens)",
       "branchSummary": "Branch summary: $summary",
       "model": "Model: $model",
       "thinking": "Thinking: $level",
@@ -330,7 +330,7 @@
   "auth": {
     "key": "Key",
     "password": "Password",
-    "agent": "SSH agent",
+    "agent": "SSH config and agent (like ssh)",
     "none": "None (Tailscale SSH)",
     "keyboardInteractive": "Keyboard-interactive"
   },
@@ -366,7 +366,8 @@
     "fromSshConfig": "From SSH config",
     "fromTailscale": "From Tailscale",
     "proxyCommandIgnored": "ProxyCommand is not supported and was ignored: $command",
-    "hostKeysPretrusted": "Host keys from Tailscale are trusted when you save."
+    "hostKeysPretrusted": "Host keys from Tailscale are trusted when you save.",
+    "agentHelp": "Like the ssh command: the ssh-agent's keys (IdentityAgent, else SSH_AUTH_SOCK), then the IdentityFile keys ~/.ssh/config sets for this host, else ~/.ssh/id_ed25519, id_ecdsa and id_rsa. Encrypted keys ask for their passphrase. If the host refuses every key, its password prompt follows."
   },
   "keys": {
     "empty": "No keys yet. Import an existing key or generate a new one.",
@@ -417,7 +418,14 @@
     "open": "Open"
   },
   "prompt": {
-    "passwordTitle": "Password for $hop"
+    "passwordTitle": "Password for $hop",
+    "signInTitle": "Sign in to $hop",
+    "passphraseTitle": "Passphrase for $path",
+    "passphraseAccepted": "$hop accepts this key. Enter its passphrase to use it.",
+    "passphraseUnknownKey": "Enter the passphrase to offer this key to $hop.",
+    "passphraseWrong": "Wrong passphrase.",
+    "passphrase": "Passphrase",
+    "rememberPassphrase": "Remember on this device"
   },
   "connectError": {
     "noKeySelected": "$hop uses key authentication, but no key is selected. Edit the machine to choose one.",
@@ -428,7 +436,17 @@
     "authFailed": "$hop rejected the credentials.",
     "timeout": "$hop did not answer in time.",
     "keyUnavailable": "The key for $hop cannot be used on this device.",
-    "protocol": "SSH handshake with $hop failed."
+    "protocol": "SSH handshake with $hop failed.",
+    "keyRefused": "$host did not accept the key $key.",
+    "agentKeysRefused": {
+      "one": "$host did not accept the $n key in the ssh-agent.",
+      "other": "$host did not accept any of the $n keys in the ssh-agent."
+    },
+    "keysRefused": "$host did not accept any of these keys:",
+    "agentKey": "$comment from the ssh-agent",
+    "agentKeyUnnamed": "a key from the ssh-agent",
+    "authorizedKeysHint": "Add the public key to ~/.ssh/authorized_keys of $user on $host.",
+    "noKeys": "No key to offer $host. Add one to the ssh-agent with ssh-add, or name it with IdentityFile in ~/.ssh/config."
   },
   "tailscale": {
     "title": "Tailscale devices",
@@ -555,7 +573,7 @@
     "noModels": "No models match.",
     "modelsFailed": "Could not load models: $error",
     "modelFailed": "Could not switch the model: $error",
-    "contextWindow": "$tokens tokens",
+    "contextWindow": "$tokens context",
     "reasoning": "reasoning",
     "thinking": "Thinking: $level",
     "noThinking": "This model has no thinking levels.",
@@ -806,7 +824,7 @@
     "sections": {
       "settings": "Settings",
       "roles": "Model roles",
-      "accounts": "Providers & accounts",
+      "accounts": "Providers",
       "mcp": "MCP servers",
       "plugins": "Plugins",
       "skills": "Skills",

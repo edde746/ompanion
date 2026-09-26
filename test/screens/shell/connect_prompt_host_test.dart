@@ -14,6 +14,7 @@ import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
+import 'package:omp_core/ssh.dart';
 import 'package:provider/provider.dart';
 
 final _machine = SshMachine(
@@ -90,5 +91,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(answer, 'secret');
     expect(find.byType(PasswordDialog), findsNothing);
+  });
+
+  // A reconnect in the background unlocks a key from ~/.ssh/config through the same host as the other prompts.
+  testWidgets('a passphrase prompt answers with the passphrase and whether to remember it', (tester) async {
+    await pumpHost(tester);
+    final request = KeyPassphraseRequest(
+      hop: 'me@box.example',
+      path: '~/.ssh/id_ed25519',
+      publicKey: generateEd25519Key().publicKey,
+    );
+    final answer = sessions.prompts.promptsFor(_machine).passphrase(request);
+    await tester.pumpAndSettle();
+    expect(find.byType(PassphraseDialog), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'secret');
+    await tester.tap(find.byType(Checkbox));
+    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+    await tester.pumpAndSettle();
+    expect(await answer, (passphrase: 'secret', remember: true));
+    expect(find.byType(PassphraseDialog), findsNothing);
   });
 }

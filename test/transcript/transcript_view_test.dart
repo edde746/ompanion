@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,6 +86,107 @@ List<TranscriptItem> _workedTurn(int n) {
 }
 
 Finder _markdown(String text) => find.textContaining(text, findRichText: true);
+
+/// A settled turn [n] with content wider than the transcript, which scrolls sideways: a fenced code block and a `bash`
+/// card with a multi-line command in its work, and a table in its answer.
+List<TranscriptItem> _codeTurn(int n) {
+  final start = n * 100000;
+  final wide = 'x' * 300;
+  final columns = [for (var c = 1; c < 8; c++) 'Output column $c'].join(' | ');
+  final values = [for (var c = 1; c < 8; c++) 'value $c'].join(' | ');
+  return [
+    UserItem(entryId: 'u$n', timestamp: start, content: [TextBlock('Question $n')]),
+    AssistantItem(
+      entryId: 's$n',
+      timestamp: start + 1000,
+      content: [
+        TextBlock('Checking $n.\n\n```dart\nconst fence$n = "$wide";\n```'),
+        ToolCallBlock(id: 'c$n', name: 'bash', arguments: {'command': 'echo step-$n \\\n  $wide'}),
+      ],
+      provider: 'fake',
+      model: 'fake-1',
+      stopReason: StopReason.toolUse,
+    ),
+    ToolResultItem(
+      entryId: 'r$n',
+      toolCallId: 'c$n',
+      toolName: 'bash',
+      state: ToolState.done,
+      timestamp: start + 3000,
+      content: [TextBlock(List.generate(6, (i) => 'out-$n line $i').join('\n'))],
+    ),
+    AssistantItem(
+      entryId: 'a$n',
+      timestamp: start + 4000,
+      content: [TextBlock('Answer $n.\n\n| Step | $columns |\n|${'---|' * 8}\n| cell-$n | $values |\n\nDone with $n.')],
+      provider: 'fake',
+      model: 'fake-1',
+      stopReason: StopReason.stop,
+      duration: const Duration(seconds: 8),
+    ),
+  ];
+}
+
+/// Scrolls the transcript toward its bottom ([down]) or its top with the mouse wheel or trackpad pans until it stops
+/// moving.
+Future<void> _scrollToEdge(
+  WidgetTester tester, {
+  required bool down,
+  PointerDeviceKind kind = PointerDeviceKind.mouse,
+}) async {
+  const at = Offset(500, 400);
+  final position = _position(tester);
+  final pointer = TestPointer(kind == PointerDeviceKind.mouse ? 1 : 2, kind);
+  if (kind == PointerDeviceKind.mouse) await tester.sendEventToBinding(pointer.hover(at));
+  for (var i = 0; i < 200; i++) {
+    final before = position.pixels;
+    if (kind == PointerDeviceKind.mouse) {
+      await tester.sendEventToBinding(pointer.scroll(Offset(0, down ? 400 : -400)));
+    } else {
+      // Fingers moving up scroll toward the bottom.
+      await tester.sendEventToBinding(pointer.panZoomStart(at));
+      for (var step = 1; step <= 4; step++) {
+        await tester.sendEventToBinding(pointer.panZoomUpdate(at, pan: Offset(0, (down ? -100.0 : 100.0) * step)));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.sendEventToBinding(pointer.panZoomEnd());
+    }
+    await tester.pumpAndSettle();
+    if (position.pixels == before) return;
+  }
+  fail('the transcript kept moving');
+}
+
+/// Turns the mouse wheel up until [finder] is on screen, then brings its last match to the middle of the view.
+Future<void> _wheelUpTo(WidgetTester tester, Finder finder) async {
+  final pointer = TestPointer(1, PointerDeviceKind.mouse);
+  await tester.sendEventToBinding(pointer.hover(const Offset(500, 400)));
+  for (var i = 0; i < 100 && finder.evaluate().isEmpty; i++) {
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -200)));
+    await tester.pumpAndSettle();
+  }
+  expect(finder, findsWidgets);
+  await tester.sendEventToBinding(pointer.scroll(Offset(0, tester.getCenter(finder.last).dy - 400)));
+  await tester.pumpAndSettle();
+}
+
+/// Shows [turns] as a session brings them: each turn's items arrive one by one while its run works, then it settles.
+/// Items that arrive once the transcript overflows go in the center sliver.
+Future<List<TranscriptItem>> _grow(WidgetTester tester, List<List<TranscriptItem>> turns) async {
+  var items = <TranscriptItem>[];
+  for (final turn in turns) {
+    for (var count = 1; count <= turn.length; count++) {
+      final shown = [...items, ...turn.take(count)];
+      await tester.pumpWidget(
+        _harness(SessionView(transcript: shown, historyLength: shown.length, run: const RunState(running: true))),
+      );
+    }
+    items = [...items, ...turn];
+    await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
+    await tester.pumpAndSettle();
+  }
+  return items;
+}
 
 void main() {
   setUp(() {
@@ -246,6 +348,41 @@ void main() {
     expect(tester.getTopLeft(anchor), before);
   });
 
+  testWidgets('a table that scrolls sideways leaves the transcript alone: no earlier page is asked for, and at the '
+      'bottom the jump-to-latest button stays hidden', (tester) async {
+    var loads = 0;
+    final actions = TranscriptActions(
+      onCopy: (_) {},
+      onOpenFile: (path, {line}) {},
+      onOpenSubagent: (_) {},
+      onLoadEarlier: () async => loads++,
+    );
+    final items = [for (var n = 1; n <= 20; n++) ..._codeTurn(n)];
+    await tester.pumpWidget(
+      TranslationProvider(
+        child: MaterialApp(
+          home: Scaffold(
+            body: TranscriptView(view: SessionView(transcript: items, historyLength: items.length), actions: actions),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final jump = find.ancestor(of: find.byTooltip(t.transcript.jumpToLatest), matching: find.byType(AnimatedScale));
+    expect(tester.widget<AnimatedScale>(jump).scale, 0);
+
+    // The newest answer's table, at the bottom edge, to its right end and back.
+    final table = tester.state<ScrollableState>(
+      find.byWidgetPredicate((widget) => widget is Scrollable && widget.axisDirection == AxisDirection.right).last,
+    );
+    for (final to in [table.position.maxScrollExtent, 0.0]) {
+      table.position.jumpTo(to);
+      await tester.pumpAndSettle();
+      expect(tester.widget<AnimatedScale>(jump).scale, 0, reason: 'the transcript is still at its bottom');
+    }
+    expect(loads, 0, reason: 'the transcript is thousands of pixels from its top');
+  });
+
   testWidgets('a short transcript sits at the bottom and does not scroll', (tester) async {
     final items = _turns(0, 1);
     await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
@@ -369,6 +506,95 @@ void main() {
       await tester.pumpAndSettle();
       expect(_markdown('Checking 11.'), findsOneWidget);
     });
+
+    testWidgets('a turn opened or closed in a session that grew turn by turn stays where it is, and the reader then '
+        'reaches the first row and the bottom, where the transcript follows its growth again', (tester) async {
+      var items = await _grow(tester, [for (var n = 1; n <= 12; n++) _codeTurn(n)]);
+      final position = _position(tester);
+      // Turn 6 arrived after the transcript overflowed: it sits in the center sliver.
+      final summary = find.byKey(const ValueKey('u6#turn'));
+      final first = find.byKey(ValueKey(items.first.key));
+
+      for (final (index, open) in [true, false].indexed) {
+        await _wheelUpTo(tester, summary);
+        final at = tester.getTopLeft(summary);
+        await tester.tap(find.descendant(of: summary, matching: find.byType(InkWell)), kind: PointerDeviceKind.mouse);
+        await tester.pump();
+        expect(_markdown('Checking 6.'), open ? findsOneWidget : findsNothing);
+        expect(tester.getTopLeft(summary), at, reason: 'the toggled row stays where it is');
+        await tester.pumpAndSettle();
+
+        for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.trackpad]) {
+          await _scrollToEdge(tester, down: false, kind: kind);
+          expect(position.pixels, position.minScrollExtent);
+          expect(tester.getTopLeft(first).dy, lessThan(60), reason: 'the first row meets the top edge ($kind)');
+
+          await _scrollToEdge(tester, down: true, kind: kind);
+          expect(position.pixels, position.maxScrollExtent);
+          final newest = find.byKey(ValueKey('${items.last.key}#0'));
+          expect(tester.getBottomLeft(newest).dy, greaterThan(800 - 60), reason: 'the newest row ends at the bottom');
+        }
+
+        final prompt = _user(1000 + index * 2);
+        items = [...items, prompt];
+        await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
+        await tester.pumpAndSettle();
+        for (var i = 1; i <= 8; i++) {
+          final streaming = [...items, _answer(1001 + index * 2, _paragraphs(i), streaming: true)];
+          const run = RunState(running: true);
+          await tester.pumpWidget(_harness(SessionView(transcript: streaming, historyLength: items.length, run: run)));
+          expect(position.pixels, position.maxScrollExtent, reason: 'update $i stays at the bottom');
+        }
+        items = [...items, _answer(1001 + index * 2, _paragraphs(8))];
+        await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
+        await tester.pumpAndSettle();
+      }
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+    testWidgets('a mouse selection in an open turn\'s code and in a table works, also once it scrolled away and the '
+        'reader selects elsewhere', (tester) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') copied = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      // A press held past the tap deadline, a drag, then Cmd+C.
+      Future<void> selectAndCopy(Offset from, Offset to) async {
+        final gesture = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
+        await tester.pump(const Duration(milliseconds: 300));
+        await gesture.moveTo(to);
+        await tester.pump();
+        await gesture.up();
+        await tester.pumpAndSettle();
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.pump();
+      }
+
+      final items = [for (var n = 1; n <= 20; n++) ..._codeTurn(n)];
+      await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
+      final summary = find.byKey(const ValueKey('u10#turn'));
+      await _wheelUpTo(tester, summary);
+      await tester.tap(find.descendant(of: summary, matching: find.byType(InkWell)), kind: PointerDeviceKind.mouse);
+      await tester.pumpAndSettle();
+
+      // The bash card's command, then the answer's table, both in views that scroll sideways.
+      for (final text in ['echo step-10', 'cell-10']) {
+        final target = find.textContaining(text, findRichText: true);
+        await _wheelUpTo(tester, target);
+        final start = tester.getTopLeft(target.last) + const Offset(2, 8);
+        await selectAndCopy(start, start + const Offset(60, 0));
+        expect(copied, startsWith(text.substring(0, 4)));
+
+        // The row holding the selection is off screen now. A press under the last row passes every row that can take
+        // the selection on its way there, the one off screen too; the drag ends at the start of the newest answer.
+        await _scrollToEdge(tester, down: true);
+        await selectAndCopy(const Offset(300, 795), tester.getTopLeft(_markdown('Done with 20.')) + const Offset(2, 8));
+        expect(copied, startsWith('Done with 20.'));
+      }
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
     testWidgets('the latest turn shows every row while the session works on it, and folds once it settles', (
       tester,

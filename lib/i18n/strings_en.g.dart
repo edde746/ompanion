@@ -517,8 +517,8 @@ class Translations$auth$en {
 	/// en: 'Password'
 	String get password => 'Password';
 
-	/// en: 'SSH agent'
-	String get agent => 'SSH agent';
+	/// en: 'SSH config and agent (like ssh)'
+	String get agent => 'SSH config and agent (like ssh)';
 
 	/// en: 'None (Tailscale SSH)'
 	String get none => 'None (Tailscale SSH)';
@@ -630,6 +630,9 @@ class Translations$editor$en {
 
 	/// en: 'Host keys from Tailscale are trusted when you save.'
 	String get hostKeysPretrusted => 'Host keys from Tailscale are trusted when you save.';
+
+	/// en: 'Like the ssh command: the ssh-agent's keys (IdentityAgent, else SSH_AUTH_SOCK), then the IdentityFile keys ~/.ssh/config sets for this host, else ~/.ssh/id_ed25519, id_ecdsa and id_rsa. Encrypted keys ask for their passphrase. If the host refuses every key, its password prompt follows.'
+	String get agentHelp => 'Like the ssh command: the ssh-agent\'s keys (IdentityAgent, else SSH_AUTH_SOCK), then the IdentityFile keys ~/.ssh/config sets for this host, else ~/.ssh/id_ed25519, id_ecdsa and id_rsa. Encrypted keys ask for their passphrase. If the host refuses every key, its password prompt follows.';
 }
 
 // Path: keys
@@ -795,6 +798,27 @@ class Translations$prompt$en {
 
 	/// en: 'Password for $hop'
 	String passwordTitle({required Object hop}) => 'Password for ${hop}';
+
+	/// en: 'Sign in to $hop'
+	String signInTitle({required Object hop}) => 'Sign in to ${hop}';
+
+	/// en: 'Passphrase for $path'
+	String passphraseTitle({required Object path}) => 'Passphrase for ${path}';
+
+	/// en: '$hop accepts this key. Enter its passphrase to use it.'
+	String passphraseAccepted({required Object hop}) => '${hop} accepts this key. Enter its passphrase to use it.';
+
+	/// en: 'Enter the passphrase to offer this key to $hop.'
+	String passphraseUnknownKey({required Object hop}) => 'Enter the passphrase to offer this key to ${hop}.';
+
+	/// en: 'Wrong passphrase.'
+	String get passphraseWrong => 'Wrong passphrase.';
+
+	/// en: 'Passphrase'
+	String get passphrase => 'Passphrase';
+
+	/// en: 'Remember on this device'
+	String get rememberPassphrase => 'Remember on this device';
 }
 
 // Path: connectError
@@ -831,6 +855,30 @@ class Translations$connectError$en {
 
 	/// en: 'SSH handshake with $hop failed.'
 	String protocol({required Object hop}) => 'SSH handshake with ${hop} failed.';
+
+	/// en: '$host did not accept the key $key.'
+	String keyRefused({required Object host, required Object key}) => '${host} did not accept the key ${key}.';
+
+	/// en: '(one) {$host did not accept the $n key in the ssh-agent.} (other) {$host did not accept any of the $n keys in the ssh-agent.}'
+	String agentKeysRefused({required num n, required Object host}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${host} did not accept the ${n} key in the ssh-agent.',
+		other: '${host} did not accept any of the ${n} keys in the ssh-agent.',
+	);
+
+	/// en: '$host did not accept any of these keys:'
+	String keysRefused({required Object host}) => '${host} did not accept any of these keys:';
+
+	/// en: '$comment from the ssh-agent'
+	String agentKey({required Object comment}) => '${comment} from the ssh-agent';
+
+	/// en: 'a key from the ssh-agent'
+	String get agentKeyUnnamed => 'a key from the ssh-agent';
+
+	/// en: 'Add the public key to ~/.ssh/authorized_keys of $user on $host.'
+	String authorizedKeysHint({required Object user, required Object host}) => 'Add the public key to ~/.ssh/authorized_keys of ${user} on ${host}.';
+
+	/// en: 'No key to offer $host. Add one to the ssh-agent with ssh-add, or name it with IdentityFile in ~/.ssh/config.'
+	String noKeys({required Object host}) => 'No key to offer ${host}. Add one to the ssh-agent with ssh-add, or name it with IdentityFile in ~/.ssh/config.';
 }
 
 // Path: tailscale
@@ -1234,8 +1282,8 @@ class Translations$chat$en {
 	/// en: 'Could not switch the model: $error'
 	String modelFailed({required Object error}) => 'Could not switch the model: ${error}';
 
-	/// en: '$tokens tokens'
-	String contextWindow({required Object tokens}) => '${tokens} tokens';
+	/// en: '$tokens context'
+	String contextWindow({required Object tokens}) => '${tokens} context';
 
 	/// en: 'reasoning'
 	String get reasoning => 'reasoning';
@@ -2041,8 +2089,8 @@ class Translations$dock$sessionTree$en {
 	/// en: '(no content)'
 	String get noContent => '(no content)';
 
-	/// en: 'Compaction (${tokens}k tokens)'
-	String compaction({required Object tokens}) => 'Compaction (${tokens}k tokens)';
+	/// en: 'Compaction ($tokens tokens)'
+	String compaction({required Object tokens}) => 'Compaction (${tokens} tokens)';
 
 	/// en: 'Branch summary: $summary'
 	String branchSummary({required Object summary}) => 'Branch summary: ${summary}';
@@ -2493,8 +2541,8 @@ class Translations$config$sections$en {
 	/// en: 'Model roles'
 	String get roles => 'Model roles';
 
-	/// en: 'Providers & accounts'
-	String get accounts => 'Providers & accounts';
+	/// en: 'Providers'
+	String get accounts => 'Providers';
 
 	/// en: 'MCP servers'
 	String get mcp => 'MCP servers';
@@ -3422,7 +3470,7 @@ extension on Translations {
 			'dock.sessionTree.failed' => ({required Object error}) => 'Failed: ${error}',
 			'dock.sessionTree.aborted' => '(aborted)',
 			'dock.sessionTree.noContent' => '(no content)',
-			'dock.sessionTree.compaction' => ({required Object tokens}) => 'Compaction (${tokens}k tokens)',
+			'dock.sessionTree.compaction' => ({required Object tokens}) => 'Compaction (${tokens} tokens)',
 			'dock.sessionTree.branchSummary' => ({required Object summary}) => 'Branch summary: ${summary}',
 			'dock.sessionTree.model' => ({required Object model}) => 'Model: ${model}',
 			'dock.sessionTree.thinking' => ({required Object level}) => 'Thinking: ${level}',
@@ -3550,7 +3598,7 @@ extension on Translations {
 			'machines.notProbed' => 'Connect to read the machine\'s OS, shell and omp.',
 			'auth.key' => 'Key',
 			'auth.password' => 'Password',
-			'auth.agent' => 'SSH agent',
+			'auth.agent' => 'SSH config and agent (like ssh)',
 			'auth.none' => 'None (Tailscale SSH)',
 			'auth.keyboardInteractive' => 'Keyboard-interactive',
 			'editor.addTitle' => 'Add machine',
@@ -3585,6 +3633,7 @@ extension on Translations {
 			'editor.fromTailscale' => 'From Tailscale',
 			'editor.proxyCommandIgnored' => ({required Object command}) => 'ProxyCommand is not supported and was ignored: ${command}',
 			'editor.hostKeysPretrusted' => 'Host keys from Tailscale are trusted when you save.',
+			'editor.agentHelp' => 'Like the ssh command: the ssh-agent\'s keys (IdentityAgent, else SSH_AUTH_SOCK), then the IdentityFile keys ~/.ssh/config sets for this host, else ~/.ssh/id_ed25519, id_ecdsa and id_rsa. Encrypted keys ask for their passphrase. If the host refuses every key, its password prompt follows.',
 			'keys.empty' => 'No keys yet. Import an existing key or generate a new one.',
 			'keys.import' => 'Import key',
 			'keys.generate' => 'Generate key',
@@ -3628,6 +3677,13 @@ extension on Translations {
 			'links.confirmBody' => ({required Object scheme}) => 'This is a ${scheme}: link, not a web page. It opens whichever app handles ${scheme}: links on this device.',
 			'links.open' => 'Open',
 			'prompt.passwordTitle' => ({required Object hop}) => 'Password for ${hop}',
+			'prompt.signInTitle' => ({required Object hop}) => 'Sign in to ${hop}',
+			'prompt.passphraseTitle' => ({required Object path}) => 'Passphrase for ${path}',
+			'prompt.passphraseAccepted' => ({required Object hop}) => '${hop} accepts this key. Enter its passphrase to use it.',
+			'prompt.passphraseUnknownKey' => ({required Object hop}) => 'Enter the passphrase to offer this key to ${hop}.',
+			'prompt.passphraseWrong' => 'Wrong passphrase.',
+			'prompt.passphrase' => 'Passphrase',
+			'prompt.rememberPassphrase' => 'Remember on this device',
 			'connectError.noKeySelected' => ({required Object hop}) => '${hop} uses key authentication, but no key is selected. Edit the machine to choose one.',
 			'connectError.keyMissing' => ({required Object hop}) => 'The private key for ${hop} is missing from this device.',
 			'connectError.passwordMissing' => ({required Object hop}) => 'No password for ${hop}.',
@@ -3637,6 +3693,13 @@ extension on Translations {
 			'connectError.timeout' => ({required Object hop}) => '${hop} did not answer in time.',
 			'connectError.keyUnavailable' => ({required Object hop}) => 'The key for ${hop} cannot be used on this device.',
 			'connectError.protocol' => ({required Object hop}) => 'SSH handshake with ${hop} failed.',
+			'connectError.keyRefused' => ({required Object host, required Object key}) => '${host} did not accept the key ${key}.',
+			'connectError.agentKeysRefused' => ({required num n, required Object host}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${host} did not accept the ${n} key in the ssh-agent.', other: '${host} did not accept any of the ${n} keys in the ssh-agent.', ), 
+			'connectError.keysRefused' => ({required Object host}) => '${host} did not accept any of these keys:',
+			'connectError.agentKey' => ({required Object comment}) => '${comment} from the ssh-agent',
+			'connectError.agentKeyUnnamed' => 'a key from the ssh-agent',
+			'connectError.authorizedKeysHint' => ({required Object user, required Object host}) => 'Add the public key to ~/.ssh/authorized_keys of ${user} on ${host}.',
+			'connectError.noKeys' => ({required Object host}) => 'No key to offer ${host}. Add one to the ssh-agent with ssh-add, or name it with IdentityFile in ~/.ssh/config.',
 			'tailscale.title' => 'Tailscale devices',
 			'tailscale.notInstalled' => 'Tailscale is not installed on this computer.',
 			'tailscale.failed' => ({required Object message}) => 'Tailscale did not answer: ${message}',
@@ -3747,7 +3810,7 @@ extension on Translations {
 			'chat.noModels' => 'No models match.',
 			'chat.modelsFailed' => ({required Object error}) => 'Could not load models: ${error}',
 			'chat.modelFailed' => ({required Object error}) => 'Could not switch the model: ${error}',
-			'chat.contextWindow' => ({required Object tokens}) => '${tokens} tokens',
+			'chat.contextWindow' => ({required Object tokens}) => '${tokens} context',
 			'chat.reasoning' => 'reasoning',
 			'chat.thinking' => ({required Object level}) => 'Thinking: ${level}',
 			'chat.noThinking' => 'This model has no thinking levels.',
@@ -3765,6 +3828,8 @@ extension on Translations {
 			'chat.detach' => 'Close on this device',
 			'chat.stopSession' => 'Stop the omp process',
 			'chat.stopSessionFailed' => ({required Object error}) => 'Could not stop the omp process: ${error}',
+			_ => null,
+		} ?? switch (path) {
 			'chat.reconnecting' => ({required Object attempt, required Object seconds}) => 'Connection lost. Reconnecting (attempt ${attempt}) in ${seconds} s.',
 			'chat.retryNow' => 'Retry now',
 			'chat.closed' => 'This session is closed.',
@@ -3780,8 +3845,6 @@ extension on Translations {
 			'chat.closedState' => 'Closed',
 			'chat.commandOutput' => 'Command output',
 			'chat.extensionError' => ({required Object path, required Object event, required Object error}) => 'Extension error in ${path} (${event}): ${error}',
-			_ => null,
-		} ?? switch (path) {
 			'chat.fallbackServed' => ({required Object model}) => 'Served by the fallback model ${model}.',
 			'chat.fallbackApplied' => ({required Object from, required Object to, required Object reason}) => 'Switched from ${from} to the fallback model ${to}. ${reason}',
 			'chat.compactionCancelled' => 'Compaction was cancelled.',
@@ -3952,7 +4015,7 @@ extension on Translations {
 			'config.noOutput' => '(no output)',
 			'config.sections.settings' => 'Settings',
 			'config.sections.roles' => 'Model roles',
-			'config.sections.accounts' => 'Providers & accounts',
+			'config.sections.accounts' => 'Providers',
 			'config.sections.mcp' => 'MCP servers',
 			'config.sections.plugins' => 'Plugins',
 			'config.sections.skills' => 'Skills',

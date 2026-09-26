@@ -66,6 +66,40 @@ String keyBlobType(Uint8List blob) {
   return type;
 }
 
+/// The key type as `ssh-keygen -l` prints it, e.g. `ED25519`, `RSA`, `ECDSA`.
+String keyTypeLabel(String type) => switch (type) {
+  'ssh-ed25519' => 'ED25519',
+  'ssh-rsa' => 'RSA',
+  'ssh-dss' => 'DSA',
+  'sk-ssh-ed25519@openssh.com' => 'ED25519-SK',
+  'sk-ecdsa-sha2-nistp256@openssh.com' => 'ECDSA-SK',
+  _ when type.startsWith('ecdsa-sha2-') => 'ECDSA',
+  _ => type,
+};
+
+/// The public half of an identity file without decrypting it: its `.pub` ([publicText]) when that parses, like
+/// `ssh` prefers, else the OpenSSH private key's cleartext copy. Null for an encrypted PEM key without a `.pub`.
+/// Throws [SshKeyException].
+SshPublicKey? identityPublicKey(String pem, {String? publicText}) {
+  if (publicText != null) {
+    try {
+      return SshPublicKey.parse(publicText);
+    } on FormatException {
+      // ssh ignores an unreadable `.pub` next to the key as well.
+    }
+  }
+  return _decode(() {
+    final decoded = SSHPem.decode(pem);
+    if (decoded.type == 'OPENSSH PRIVATE KEY') {
+      final pairs = OpenSSHKeyPairs.decode(decoded.content);
+      if (pairs.publicKeys.isEmpty) throw const SshKeyException(SshKeyProblem.malformed, 'the file holds no key');
+      return SshPublicKey(pairs.publicKeys.first);
+    }
+    if (SSHKeyPair.isEncryptedPem(pem)) return null;
+    return readPrivateKey(pem);
+  });
+}
+
 bool privateKeyIsEncrypted(String pem) => _decode(() => SSHKeyPair.isEncryptedPem(pem));
 
 /// The public half of a private key. Throws [SshKeyException].
@@ -112,6 +146,8 @@ List<SSHKeyPair> decodeKeyPairs(String pem, String? passphrase) {
 T _decode<T>(T Function() read) {
   try {
     return read();
+  } on SshKeyException {
+    rethrow;
   } on UnsupportedError catch (error) {
     throw SshKeyException(SshKeyProblem.unsupported, error.message ?? 'unsupported private key', cause: error);
   } on Object catch (error) {

@@ -93,6 +93,10 @@ void main() {
   });
 
   testWidgets('Save checks every hop, also those scrolled out of view', (tester) async {
+    // A desktop window: at the default 800x600 the dialog's buttons sit below the screen's edge.
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await pumpApp(tester);
     final form = find.descendant(of: find.byType(MachineEditor), matching: find.byType(Scrollable)).first;
     Future<void> reveal(Finder finder, {bool up = false}) async {

@@ -71,9 +71,9 @@ what stock lacks.
 | Thinking level | Shift+Tab | RPC `set_thinking_level`, `get_available_thinking_levels` | picker | M2 |
 | Model catalog, refresh | `omp models` | CLI `models --json` | models page | M5 |
 | OAuth login | `/login` | RPC `login` → `open_url` + `input`; APP callback port forward | login dialog | M5 |
-| API-key login | `/login` | CE-R (auth storage write; key delivered as a 0600 file) | accounts page | M5 |
-| Logout, account list | `/logout` | CE (credentials list/remove) | accounts page | M5 |
-| Account pin | `/session pin` | CE `pinCurrentProviderOAuthAccount` | accounts page | M5 |
+| API-key login | `/login` | CE-R (auth storage write; key delivered as a 0600 file) | providers page | M5 |
+| Logout, account list | `/logout` | CE (credentials list/remove) | providers page | M5 |
+| Account pin | `/session pin` | CE `pinCurrentProviderOAuthAccount` | providers page | M5 |
 | Provider setup wizard | `/setup` | CE-R over `get_login_providers`, `login`, auth storage, settings | onboarding | M5 |
 | Usage limits | `/usage`, `omp usage` | CLI `usage --json` per machine, `usage invalidate`; `config get auth.accountPolicies`, `retry.usageReservePct` for policy lines | usage pane (all machines, one entry per account) | M5 |
 | Stats | `/stats`, `/trace` | CLI `stats --json` | stats page | M5 |
@@ -145,6 +145,7 @@ what stock lacks.
 | Feature | Route | Surface | M |
 |---|---|---|---|
 | Machines, keys, known hosts, jump chains, import/export | APP | machines | M1 |
+| SSH auth: key, password, keyboard-interactive, SSH config and agent, Tailscale SSH | APP (`ssh -G` for `IdentityAgent`, `IdentityFile`, `IdentitiesOnly`; server prompts after refused keys, like `ssh`) | machine editor, connect prompts | M1 |
 | Install and upgrade omp | APP + installer | machines | M1 |
 | Terminal | APP (PTY over SSH; local PTY on desktop) | terminal dock | M7 |
 | File explorer, viewer, editor | APP (SFTP / local IO) | files dock | M7 |

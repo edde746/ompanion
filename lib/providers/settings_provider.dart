@@ -61,6 +61,9 @@ abstract final class Prefs {
   static const dockOpen = BoolPref('dock_open', true);
   static const dockTab = EnumPref<DockTab>('dock_tab', DockTab.agents, DockTab.values);
 
+  /// Whether the sidebar hides the sessions of the project folder [cwd] on machine [machineId].
+  static BoolPref projectCollapsed(String machineId, String cwd) => BoolPref('project_collapsed:$machineId:$cwd', false);
+
   /// Set once "this computer" was added automatically, so deleting it sticks.
   static const localMachineSeeded = BoolPref('local_machine_seeded', false);
 

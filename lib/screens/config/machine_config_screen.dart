@@ -21,8 +21,8 @@ Future<void> openMachineConfig(BuildContext context, Machine machine) =>
 
 enum ConfigSection { settings, roles, accounts, mcp, plugins, skills, stats }
 
-/// Machine-level omp configuration: settings, model roles, providers and accounts, MCP servers, plugins,
-/// skills and stats. Talks to the machine's control process and runs `omp` one-shots.
+/// Machine-level omp configuration: settings, model roles, providers, MCP servers, plugins, skills and stats. Talks
+/// to the machine's control process and runs `omp` one-shots.
 class MachineConfigScreen extends StatefulWidget {
   const MachineConfigScreen({super.key, required this.machine, this.initialSection = ConfigSection.settings});
 

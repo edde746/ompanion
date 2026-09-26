@@ -318,9 +318,8 @@ class _TableViewState extends State<_TableView> {
           borderRadius: BorderRadius.circular(AppSizes.radius),
           child: Scrollbar(
             controller: _scroll,
-            child: SingleChildScrollView(
+            child: SideScrollView(
               controller: _scroll,
-              scrollDirection: Axis.horizontal,
               child: ConstrainedBox(constraints: BoxConstraints(minWidth: width), child: grid),
             ),
           ),

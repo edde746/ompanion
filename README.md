@@ -42,7 +42,7 @@ There is no release yet. Build the app from source: see [Building from Source](#
 - Files named in tool cards open in the Files panel at the line; task cards open the subagent in the Agent Hub
 
 ### <img src="assets/readme_icons/sessions.svg" height="20" alt="" align="center" /> Sessions & branching
-- Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread
+- Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread; a project stays collapsed across restarts and shows on its row when a session in it waits for input or works
 - Resume any session on the machine, including ones started in omp's terminal UI
 - Session tree: search, filters, labels, branch into a new session, and navigate with an optional summary
 - Compactions show as dividers with their summary and file lists
@@ -53,7 +53,9 @@ There is no release yet. Build the app from source: see [Building from Source](#
 - This computer[^desktop], any SSH host, hosts behind a chain of jump hosts, and Tailscale peers
 - No daemon: the app runs stock omp and uploads a small companion extension for what omp's RPC lacks
 - Sessions run detached on the machine, so a dropped connection, a locked phone or a closed app does not stop the turn; the app reconnects and catches up
-- Key, password, keyboard-interactive, ssh-agent[^agent] and Tailscale SSH authentication
+- Key, password, keyboard-interactive, SSH config and agent[^agent] and Tailscale SSH authentication
+- SSH config and agent auth works like the `ssh` command: the agent from `IdentityAgent` or `SSH_AUTH_SOCK`, then the `IdentityFile` keys `~/.ssh/config` sets for the host (or the default `~/.ssh/id_*` keys), with `IdentitiesOnly`; encrypted keys ask for their passphrase and can remember it in secure storage
+- A host that refuses every key names the refused keys and asks for its password or keyboard-interactive answers, like `ssh`; waiting on a prompt never counts toward the connect timeout
 - Import hosts from `~/.ssh/config`, jump chains included, and peers from `tailscale status`[^desktop]
 - Host-key checks on every hop, honouring `~/.ssh/known_hosts` on desktop
 - Probes each machine and installs omp with a checksum check, or shows the commands to run by hand
@@ -71,7 +73,7 @@ There is no release yet. Build the app from source: see [Building from Source](#
 ### <img src="assets/readme_icons/configuration.svg" height="20" alt="" align="center" /> Configuration
 - Settings from omp's own schema, global or per project, with search and where each value comes from
 - Model roles, global or per project
-- Providers and accounts: OAuth login (the callback port is forwarded from remote machines), API keys, logout, and pinning an account to a session
+- Providers: OAuth login (the callback port is forwarded from remote machines), API keys, logout, and pinning an account to a session
 - MCP servers: add, remove, enable, test, reload, resources, prompts and Smithery search
 - Plugins and marketplaces: install, enable, upgrade and remove
 - Skills: search, install, update and remove
@@ -90,7 +92,7 @@ There is no release yet. Build the app from source: see [Building from Source](#
 - English UI
 
 [^desktop]: Desktop only.
-[^agent]: Desktop only, and not yet on Windows.
+[^agent]: Desktop only; reads `~/.ssh/config` through the `ssh` command (`ssh -G`). On Windows only identity files work: the OpenSSH agent's named pipe is not supported. Apple's Keychain passphrases (`UseKeychain`) are not read.
 [^windows]: Implemented, like this computer on Windows, but not yet tested on Windows.
 
 ## Building from Source

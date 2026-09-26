@@ -38,15 +38,13 @@ final class SshAgentClient {
     );
   }
 
-  /// Connects to [socketPath], or to `$SSH_AUTH_SOCK` when null.
-  static Future<SshAgentClient> connect([String? socketPath]) async {
-    final path = socketPath ?? Platform.environment['SSH_AUTH_SOCK'];
-    if (path == null || path.isEmpty) throw const SshAgentException('SSH_AUTH_SOCK is not set');
+  /// Connects to the agent listening on [socketPath].
+  static Future<SshAgentClient> connect(String socketPath) async {
     if (Platform.isWindows) throw const SshAgentException('the Windows OpenSSH agent pipe is not supported');
     try {
-      return SshAgentClient._(await Socket.connect(InternetAddress(path, type: InternetAddressType.unix), 0));
+      return SshAgentClient._(await Socket.connect(InternetAddress(socketPath, type: InternetAddressType.unix), 0));
     } on SocketException catch (error) {
-      throw SshAgentException('cannot reach ssh-agent at $path', cause: error);
+      throw SshAgentException('cannot reach ssh-agent at $socketPath', cause: error);
     }
   }
 
@@ -117,8 +115,8 @@ final class SshAgentClient {
   }
 }
 
-/// Lists the keys a running agent holds.
-Future<List<SshPublicKey>> listAgentKeys([String? socketPath]) async {
+/// Lists the keys the agent at [socketPath] holds.
+Future<List<SshPublicKey>> listAgentKeys(String socketPath) async {
   final agent = await SshAgentClient.connect(socketPath);
   try {
     return await agent.identities();
@@ -127,17 +125,25 @@ Future<List<SshPublicKey>> listAgentKeys([String? socketPath]) async {
   }
 }
 
-/// dartssh2 identities that sign through [agent]. The server is probed before each signature, so an
-/// agent that confirms every use (1Password, Secretive) only prompts for a key the server accepts.
-List<SSHIdentity> agentIdentities(SshAgentClient agent, List<SshPublicKey> keys) => [
-      for (final key in keys)
-        SSHIdentity.custom(
-          // RFC 8332: RSA keys sign with SHA-256; OpenSSH 8.8+ refuses SHA-1 `ssh-rsa` signatures.
-          type: key.type == 'ssh-rsa' ? 'rsa-sha2-256' : key.type,
-          publicKey: SSHRawHostKey(key.blob),
-          signer: (data) async =>
-              SSHRawSignature(await agent.sign(key.blob, data, flags: key.type == 'ssh-rsa' ? _rsaSha256 : 0)),
-          comment: key.comment,
-          shouldProbe: true,
-        ),
-    ];
+/// dartssh2 identities that sign through [agent], each signature inside [wait]: agents that confirm every use
+/// (1Password, Secretive) wait for the user there. The server is probed before each signature, so such an agent only
+/// asks about a key the server accepts.
+List<SSHIdentity> agentIdentities(
+  SshAgentClient agent,
+  List<SshPublicKey> keys, {
+  required Future<Uint8List> Function(Future<Uint8List> Function() sign) wait,
+}) => [
+  for (final key in keys)
+    SSHIdentity.custom(
+      // RFC 8332: RSA keys sign with SHA-256; OpenSSH 8.8+ refuses SHA-1 `ssh-rsa` signatures.
+      type: signatureType(key.type),
+      publicKey: SSHRawHostKey(key.blob),
+      signer: (data) async =>
+          SSHRawSignature(await wait(() => agent.sign(key.blob, data, flags: key.type == 'ssh-rsa' ? _rsaSha256 : 0))),
+      comment: key.comment,
+      shouldProbe: true,
+    ),
+];
+
+/// The signature algorithm a key of [keyType] signs with: `rsa-sha2-256` for RSA (RFC 8332), else its own type.
+String signatureType(String keyType) => keyType == 'ssh-rsa' ? 'rsa-sha2-256' : keyType;

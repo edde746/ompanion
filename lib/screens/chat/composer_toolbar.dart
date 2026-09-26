@@ -6,6 +6,7 @@ import 'package:omp_core/store.dart';
 
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../utils/token_count.dart';
 import 'model_picker.dart';
 
 /// The thinking level button: loads the model's levels when opened and marks the current one.
@@ -124,8 +125,8 @@ class ContextMeter extends StatelessWidget {
       message: usage == null
           ? t.chat.contextUnknown(cost: costText)
           : t.chat.contextTooltip(
-              tokens: _compact(usage.tokens),
-              window: _compact(usage.contextWindow),
+              tokens: formatTokens(usage.tokens),
+              window: formatTokens(usage.contextWindow),
               percent: usage.percent.toStringAsFixed(1),
               cost: costText,
             ),
@@ -156,6 +157,4 @@ class ContextMeter extends StatelessWidget {
       ),
     );
   }
-
-  static String _compact(int tokens) => tokens >= 1000 ? '${(tokens / 1000).toStringAsFixed(1)}k' : '$tokens';
 }

@@ -156,10 +156,13 @@ final class StoredPrivateKey {
 
 /// Secret material for one connection attempt, read from secure storage or asked for right before dialing.
 final class ConnectionSecrets {
-  const ConnectionSecrets({this.keys = const {}, this.passwords = const {}});
+  const ConnectionSecrets({this.keys = const {}, this.keyNames = const {}, this.passwords = const {}});
 
   /// Private keys by key id.
   final Map<String, StoredPrivateKey> keys;
+
+  /// What the user named the keys in [keys], by key id, for errors.
+  final Map<String, String> keyNames;
 
   /// Passwords by [SshEndpoint.id].
   final Map<String, String> passwords;
@@ -180,37 +183,51 @@ final class MissingCredential implements PermanentConnectFailure {
 }
 
 /// The dial plan for [machine]. Throws [MissingCredential] for the first hop whose secret is absent.
+///
+/// Key and SSH config hops fall back to the server's password and keyboard-interactive prompts through
+/// [keyboardInteractive] once their keys are refused, like `ssh`. SSH config hops read `~/.ssh/config` as [sshConfig]
+/// says, the target through the alias it was imported from, and unlock encrypted identity files with [passphrase].
 SshTarget sshTargetFor(
   SshMachine machine,
   ConnectionSecrets secrets, {
   required KeyboardInteractiveHandler keyboardInteractive,
+  required KeyPassphraseHandler passphrase,
+  SshClientConfig sshConfig = const SshClientConfig(),
 }) {
-  SshHop hop(SshEndpoint endpoint) => SshHop(
+  SshAuth auth(SshEndpoint endpoint, {String? alias}) {
+    switch (endpoint.auth) {
+      case AuthMethod.key:
+        final keyId = endpoint.keyId;
+        if (keyId == null) throw MissingCredential(endpoint, CredentialProblem.noKeySelected);
+        final key = secrets.keys[keyId];
+        if (key == null) throw MissingCredential(endpoint, CredentialProblem.keyMissing);
+        return SshKeyAuth(
+          key.pem,
+          passphrase: key.passphrase,
+          name: secrets.keyNames[keyId],
+          fallback: keyboardInteractive,
+        );
+      case AuthMethod.password:
+        final password = secrets.passwords[endpoint.id];
+        if (password == null) throw MissingCredential(endpoint, CredentialProblem.passwordMissing);
+        return SshPasswordAuth(password);
+      case AuthMethod.agent:
+        return SshConfigAuth(alias: alias, config: sshConfig, passphrase: passphrase, fallback: keyboardInteractive);
+      case AuthMethod.none:
+        return const SshNoneAuth();
+      case AuthMethod.keyboardInteractive:
+        return SshKeyboardInteractiveAuth(keyboardInteractive);
+    }
+  }
+
+  SshHop hop(SshEndpoint endpoint, {String? alias}) => SshHop(
     host: endpoint.host,
     port: endpoint.port,
     user: endpoint.user,
-    auth: _auth(endpoint, secrets, keyboardInteractive),
+    auth: auth(endpoint, alias: alias),
   );
-  return SshTarget(jumps: [for (final jump in machine.jumps) hop(jump)], target: hop(machine.target));
-}
-
-SshAuth _auth(SshEndpoint endpoint, ConnectionSecrets secrets, KeyboardInteractiveHandler keyboardInteractive) {
-  switch (endpoint.auth) {
-    case AuthMethod.key:
-      final keyId = endpoint.keyId;
-      if (keyId == null) throw MissingCredential(endpoint, CredentialProblem.noKeySelected);
-      final key = secrets.keys[keyId];
-      if (key == null) throw MissingCredential(endpoint, CredentialProblem.keyMissing);
-      return SshKeyAuth(key.pem, passphrase: key.passphrase);
-    case AuthMethod.password:
-      final password = secrets.passwords[endpoint.id];
-      if (password == null) throw MissingCredential(endpoint, CredentialProblem.passwordMissing);
-      return SshPasswordAuth(password);
-    case AuthMethod.agent:
-      return const SshAgentAuth();
-    case AuthMethod.none:
-      return const SshNoneAuth();
-    case AuthMethod.keyboardInteractive:
-      return SshKeyboardInteractiveAuth(keyboardInteractive);
-  }
+  return SshTarget(
+    jumps: [for (final jump in machine.jumps) hop(jump)],
+    target: hop(machine.target, alias: machine.sshConfigAlias),
+  );
 }

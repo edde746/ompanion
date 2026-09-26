@@ -504,6 +504,7 @@ class _HopEditor extends StatelessWidget {
             },
           ),
         ),
+        if (hop.auth == AuthMethod.agent) _Note(icon: Icons.info_outline, text: t.editor.agentHelp),
         if (hop.auth == AuthMethod.key) ...[
           const SizedBox(height: 12),
           if (keys.isEmpty)

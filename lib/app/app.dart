@@ -41,10 +41,21 @@ class OmpanionApp extends StatelessWidget {
       providers: [
         Provider.value(value: secrets),
         Provider(create: (_) => KnownHostsStore(db)),
-        Provider(create: (context) => MachineConnector(secrets, context.read<KnownHostsStore>())),
+        ChangeNotifierProvider(create: (_) => KeysProvider(db, secrets)),
+        Provider(
+          create: (context) => MachineConnector(
+            secrets,
+            context.read<KnownHostsStore>(),
+            // The provider is lazy: the first connect may come before it read the keys.
+            keyName: (keyId) async {
+              final keys = context.read<KeysProvider>();
+              await keys.ready;
+              return keys.byId(keyId)?.name;
+            },
+          ),
+        ),
         ChangeNotifierProvider.value(value: settings),
         ChangeNotifierProvider.value(value: machines),
-        ChangeNotifierProvider(create: (_) => KeysProvider(db, secrets)),
         ChangeNotifierProvider(create: (_) => ShellProvider()),
         ChangeNotifierProvider(
           create: (context) => SessionsProvider(

@@ -7,8 +7,8 @@ import '../../sessions/connect_prompt_queue.dart';
 import '../../sessions/sessions_provider.dart';
 import '../machines/connect_dialogs.dart';
 
-/// Shows the connection prompts machine runtimes queue (passwords, keyboard-interactive, host keys), one at
-/// a time and only while the app is in the foreground: a background reconnect waits for the user instead of
+/// Shows the connection prompts machine runtimes queue (passwords, keyboard-interactive, passphrases, host keys), one
+/// at a time and only while the app is in the foreground: a background reconnect waits for the user instead of
 /// failing on a prompt nobody sees.
 class ConnectPromptHost extends StatefulWidget {
   const ConnectPromptHost({super.key, required this.child});
@@ -68,6 +68,9 @@ class _ConnectPromptHostState extends State<ConnectPromptHost> with WidgetsBindi
           // Dismissing is declining: the connection attempt fails instead of trusting an unchecked key.
           final trusted = await _dialog<bool>(prompt, HostKeyDialog(check: check, verdict: verdict));
           if (!answer.isCompleted) answer.complete(trusted ?? false);
+        case PendingPassphrase(:final request, :final answer):
+          final passphrase = await _dialog<({String passphrase, bool remember})>(prompt, PassphraseDialog(request));
+          if (!answer.isCompleted) answer.complete(passphrase);
       }
     } finally {
       // A dialog that could not be shown fails its connection attempt rather than leaving it hanging.

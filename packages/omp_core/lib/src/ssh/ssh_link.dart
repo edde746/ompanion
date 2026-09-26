@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
@@ -8,6 +9,7 @@ import 'package:dartssh2/dartssh2.dart';
 import '../transport/host_link.dart';
 import 'host_key_tap.dart';
 import 'keys.dart';
+import 'openssh_config.dart';
 import 'ssh_agent_client.dart';
 import 'ssh_config.dart';
 
@@ -24,16 +26,17 @@ enum SshFailure {
   /// TCP connect failed, or a jump host could not open a channel to the next hop.
   unreachable,
 
-  /// No answer within the connect timeout (time spent in host-key and prompt callbacks excluded).
+  /// No answer within the connect timeout. Only network and protocol waits count: time the user spends on host-key,
+  /// password, keyboard-interactive and passphrase prompts or confirming an agent signature is excluded.
   timeout,
 
   /// The verifier refused the host key, or the key changed during the connection.
   hostKeyRejected,
 
-  /// The server refused every credential offered.
+  /// The server refused every credential offered; [SshConnectException.offer] lists the keys.
   authFailed,
 
-  /// The configured private key or ssh-agent could not be used on this device.
+  /// The configured private key or ssh-agent could not be used on this device, or there was no key to offer.
   keyUnavailable,
 
   /// The SSH handshake failed for another reason.
@@ -41,10 +44,14 @@ enum SshFailure {
 }
 
 final class SshConnectException extends HostLinkException {
-  SshConnectException(this.hop, this.failure, String message, {super.cause}) : super('${hop.label}: $message');
+  SshConnectException(this.hop, this.failure, String message, {this.offer, super.cause})
+    : super('${hop.label}: $message');
 
   final SshHop hop;
   final SshFailure failure;
+
+  /// The keys the hop refused ([SshFailure.authFailed]), or where keys were looked for when there were none.
+  final SshKeyOffer? offer;
 }
 
 /// A machine reached over SSH, directly or through a chain of jump hosts.
@@ -314,6 +321,9 @@ final class _Dialer {
   final Duration timeout;
   final void Function(SshHop hop, String banner)? _onBanner;
   final _keys = <int, List<SSHKeyPair>>{};
+
+  /// Identity files unlocked for this link, by path, so extra connections do not ask for passphrases again.
+  final _unlocked = <String, SSHKeyPair>{};
   final _acceptedHostKeys = <int, String>{};
   final _workingAuth = <int, SshAuth>{};
 
@@ -348,17 +358,25 @@ final class _Dialer {
   }
 
   Future<_Auth> _prepareAuth(SshHop hop, int index, SshAuth auth) async {
+    final waits = _UserWaits();
     switch (auth) {
-      case SshKeyAuth(:final privateKeyPem, :final passphrase):
+      case SshKeyAuth(:final privateKeyPem, :final passphrase, :final name, :final fallback):
+        final List<SSHKeyPair> keys;
         try {
-          return _Auth(identities: _keys[index] ??= decodeKeyPairs(privateKeyPem, passphrase));
+          keys = _keys[index] ??= decodeKeyPairs(privateKeyPem, passphrase);
         } on SshKeyException catch (error) {
           throw SshConnectException(hop, SshFailure.keyUnavailable, error.message, cause: error);
         }
+        final offer = SshKeyOffer(keys: [
+          for (final key in keys)
+            SshOfferedKey(SshPublicKey(key.toPublicKey().encode(), comment: key.comment ?? ''), name: name),
+        ]);
+        return _Auth.offering(hop, waits, offer, fallback, identities: keys);
       case SshPasswordAuth(:final password):
         var typed = false;
         return _Auth(
-          onPassword: () => password,
+          waits,
+          onPassword: () async => password,
           // Servers with PasswordAuthentication off often take the password through a PAM
           // keyboard-interactive prompt instead. dartssh2 tries the password method first whether or not
           // the server offers it, so its failure does not prove the password wrong: type it into one
@@ -372,25 +390,189 @@ final class _Dialer {
             return [password];
           },
         );
-      case SshAgentAuth(:final socketPath):
-        final SshAgentClient agent;
-        try {
-          agent = await SshAgentClient.connect(socketPath);
-        } on SshAgentException catch (error) {
-          throw SshConnectException(hop, SshFailure.keyUnavailable, error.message, cause: error);
-        }
-        try {
-          final keys = await agent.identities();
-          if (keys.isEmpty) throw const SshAgentException('ssh-agent holds no keys');
-          return _Auth(identities: agentIdentities(agent, keys), agent: agent);
-        } on SshAgentException catch (error) {
-          await agent.close();
-          throw SshConnectException(hop, SshFailure.keyUnavailable, error.message, cause: error);
-        }
+      case SshConfigAuth():
+        return _prepareConfig(hop, auth, waits);
       case SshNoneAuth():
-        return const _Auth();
+        return _Auth(waits);
       case SshKeyboardInteractiveAuth(:final respond):
-        return _Auth(respond: respond);
+        return _Auth(waits, respond: respond);
+    }
+  }
+
+  /// Offers keys like `ssh`'s `pubkey_prepare`: agent keys in agent order (one that is also an identity file counts as
+  /// that file; others only without `IdentitiesOnly`), then the remaining identity files.
+  Future<_Auth> _prepareConfig(SshHop hop, SshConfigAuth auth, _UserWaits waits) async {
+    final environment = auth.config.environment ?? Platform.environment;
+    final home = auth.config.home ?? environment[Platform.isWindows ? 'USERPROFILE' : 'HOME'] ?? '';
+    final SshIdentities plan;
+    try {
+      final resolved = await resolveSshAlias(
+        auth.alias ?? hop.host,
+        user: hop.user,
+        port: hop.port,
+        configFile: auth.config.configFile,
+      );
+      plan = sshIdentities(resolved, home: home, environment: environment);
+    } on ProcessException catch (error) {
+      final message = 'ssh -G cannot read the OpenSSH config: ${error.message}';
+      throw SshConnectException(hop, SshFailure.keyUnavailable, message, cause: error);
+    } on FormatException catch (error) {
+      throw SshConnectException(hop, SshFailure.keyUnavailable, 'OpenSSH config: ${error.message}', cause: error);
+    }
+
+    SshAgentClient? agent;
+    var agentKeys = const <SshPublicKey>[];
+    var agentProblem = plan.agentProblem;
+    if (plan.agentSocket case final socket?) {
+      try {
+        agent = await SshAgentClient.connect(socket);
+        agentKeys = await agent.identities().timeout(timeout);
+        if (agentKeys.isEmpty) agentProblem = 'ssh-agent at $socket holds no keys';
+      } on SshAgentException catch (error) {
+        agentProblem = error.message;
+      } on TimeoutException {
+        agentProblem = 'ssh-agent at $socket did not answer';
+      }
+      if (agentKeys.isEmpty) {
+        await agent?.close();
+        agent = null;
+      }
+    }
+
+    final missing = <String>[];
+    final unusable = <({String path, String reason})>[];
+    final files = <_IdentityFile>[];
+    for (final (:configured, :path) in plan.files) {
+      try {
+        final identity = await _readIdentityFile(configured, path);
+        if (identity == null) {
+          missing.add(configured);
+        } else if (identity.publicKey case final key? when !_signable.contains(key.type)) {
+          unusable.add((path: configured, reason: '${keyTypeLabel(key.type)} keys are not supported'));
+        } else {
+          files.add(identity);
+        }
+      } on SshKeyException catch (error) {
+        // ssh reports an unreadable identity file and goes on with the next.
+        unusable.add((path: configured, reason: error.message));
+      } on FormatException catch (error) {
+        unusable.add((path: configured, reason: error.message));
+      } on FileSystemException catch (error) {
+        unusable.add((path: configured, reason: error.osError?.message ?? error.message));
+      }
+    }
+
+    final identities = <SSHIdentity>[];
+    final offered = <SshOfferedKey>[];
+    final agentSigned = agent == null
+        ? const <SSHIdentity>[]
+        : agentIdentities(agent, agentKeys, wait: waits.run);
+    final remaining = List.of(files);
+    for (final (index, key) in agentKeys.indexed) {
+      final file = remaining.where((file) => _sameKey(file.publicKey, key)).firstOrNull;
+      if (file == null && plan.identitiesOnly) continue;
+      remaining.remove(file);
+      identities.add(agentSigned[index]);
+      offered.add(SshOfferedKey(key, path: file?.configured, agent: true));
+    }
+    for (final file in remaining) {
+      if (file.pem == null) {
+        const reason = 'only the public key is there, and the ssh-agent does not hold it';
+        unusable.add((path: file.configured, reason: reason));
+        continue;
+      }
+      final SshPublicKey publicKey;
+      if (file.publicKey case final known?) {
+        publicKey = known;
+      } else {
+        // Nothing tells which key an encrypted PEM file holds, so ssh unlocks it before offering it.
+        final pair = await _unlock(hop, file, auth.passphrase);
+        publicKey = SshPublicKey(pair.toPublicKey().encode());
+      }
+      identities.add(SSHIdentity.custom(
+        type: signatureType(publicKey.type),
+        publicKey: SSHRawHostKey(publicKey.blob),
+        signer: (data) async => (await waits.run(() => _unlock(hop, file, auth.passphrase))).sign(data),
+        comment: file.configured,
+        // The passphrase is asked only for a key the server accepts.
+        shouldProbe: true,
+      ));
+      offered.add(SshOfferedKey(publicKey, path: file.configured));
+    }
+
+    final offer = SshKeyOffer(
+      keys: offered,
+      agentProblem: agentProblem,
+      missingFiles: missing,
+      unusableFiles: unusable,
+    );
+    if (identities.isEmpty && auth.fallback == null) {
+      throw SshConnectException(hop, SshFailure.keyUnavailable, offer.describe(), offer: offer);
+    }
+    return _Auth.offering(hop, waits, offer, auth.fallback, identities: identities, agent: agent);
+  }
+
+  /// dartssh2 signs with these; others (`-sk` security keys) cannot be used from an identity file.
+  static const _signable = {
+    'ssh-ed25519',
+    'ssh-rsa',
+    'ecdsa-sha2-nistp256',
+    'ecdsa-sha2-nistp384',
+    'ecdsa-sha2-nistp521',
+  };
+
+  static bool _sameKey(SshPublicKey? a, SshPublicKey b) => a != null && a.fingerprint == b.fingerprint;
+
+  /// Reads an identity file like `ssh` loads one: the private key with its public half (from the `.pub` next to it
+  /// when there is one), or only a public key (`IdentityFile` naming a `.pub`, or a `.pub` without its private key)
+  /// for a key the agent holds. Null when neither exists.
+  static Future<_IdentityFile?> _readIdentityFile(String configured, String path) async {
+    final file = File(path);
+    final pub = File('$path.pub');
+    final publicText = await pub.exists() ? await pub.readAsString() : null;
+    if (!await file.exists()) {
+      return publicText == null ? null : _IdentityFile(configured, path, null, SshPublicKey.parse(publicText));
+    }
+    final text = await file.readAsString();
+    if (!text.contains('PRIVATE KEY-----')) {
+      try {
+        return _IdentityFile(configured, path, null, SshPublicKey.parse(text));
+      } on FormatException {
+        throw const SshKeyException(SshKeyProblem.malformed, 'neither a private nor a public key');
+      }
+    }
+    return _IdentityFile(configured, path, text, identityPublicKey(text, publicText: publicText));
+  }
+
+  /// The private key of [file], asking [ask] for its passphrase until it decrypts. Decryption (bcrypt) runs off this
+  /// isolate.
+  Future<SSHKeyPair> _unlock(SshHop hop, _IdentityFile file, KeyPassphraseHandler? ask) async {
+    if (_unlocked[file.path] case final pair?) return pair;
+    final pem = file.pem!;
+    try {
+      if (!privateKeyIsEncrypted(pem)) return _unlocked[file.path] = decodeKeyPairs(pem, null).first;
+      if (ask == null) throw SshConnectException(hop, SshFailure.keyUnavailable, '${file.configured} is encrypted');
+      var wrong = false;
+      while (true) {
+        final request = KeyPassphraseRequest(
+          hop: hop.label,
+          path: file.configured,
+          publicKey: file.publicKey,
+          wrong: wrong,
+        );
+        final passphrase = await ask(request);
+        if (passphrase == null) {
+          throw SshConnectException(hop, SshFailure.keyUnavailable, 'no passphrase for ${file.configured}');
+        }
+        try {
+          return _unlocked[file.path] = await Isolate.run(() => decodeKeyPairs(pem, passphrase).first);
+        } on SshKeyException catch (error) {
+          if (error.problem != SshKeyProblem.wrongPassphrase) rethrow;
+          wrong = true;
+        }
+      }
+    } on SshKeyException catch (error) {
+      throw SshConnectException(hop, SshFailure.keyUnavailable, '${file.configured}: ${error.message}', cause: error);
     }
   }
 
@@ -423,7 +605,8 @@ final class _Dialer {
     final tap = HostKeyTap(socket);
     late final _Deadline deadline;
     SshConnectException? verdict;
-
+    // Tells a hung key exchange from a server that stops answering once asked to authenticate.
+    var phase = 'key exchange';
     Future<bool> verifyHostKey(String type, Uint8List fingerprintBytes) async {
       final fingerprint = utf8.decode(fingerprintBytes);
       final blob = tap.hostKey(fingerprint);
@@ -457,70 +640,168 @@ final class _Dialer {
         return false;
       }
       _acceptedHostKeys[index] = fingerprint;
+      phase = 'authentication';
       return true;
     }
 
     final respond = auth.respond;
+    final onPassword = auth.onPassword;
     final client = SSHClient(
       tap,
       username: hop.user,
       onVerifyHostKey: verifyHostKey,
       identities: auth.identities,
-      onPasswordRequest: auth.onPassword,
+      onPasswordRequest: onPassword == null ? null : () => auth.waits.run(onPassword),
       onUserInfoRequest: respond == null
           ? null
           : (request) async {
               // OpenSSH ends a PAM conversation with an empty round; only one with text reaches the user.
               if (request.prompts.isEmpty && request.name.isEmpty && request.instruction.isEmpty) return const [];
-              return deadline.pausedWhile(() => respond(KeyboardInteractiveRequest(
+              return auth.waits.run(() => respond(KeyboardInteractiveRequest(
+                    hop: hop.label,
                     name: request.name,
                     instruction: request.instruction,
                     prompts: [
                       for (final prompt in request.prompts)
                         KeyboardInteractivePrompt(prompt.promptText, echo: prompt.echo),
                     ],
+                    refused: auth.offer,
                   )));
             },
       onUserauthBanner: _onBanner == null ? null : (banner) => _onBanner(hop, banner),
       keepAliveInterval: null,
     );
     deadline = _Deadline(timeout, () => unawaited(client.close()));
+    auth.waits.deadline = deadline;
     try {
       await client.authenticated;
       return client;
     } on Object catch (error) {
       unawaited(client.close());
       socket.destroy();
-      throw verdict ?? _classify(hop, error, timedOut: deadline.expired);
+      throw switch (auth.waits.abort) {
+        SshAgentException(:final message) && final abort =>
+          SshConnectException(hop, SshFailure.keyUnavailable, message, cause: abort),
+        final abort? => abort,
+        null => verdict ?? _classify(hop, error, auth.offer, timedOut: deadline.expired, phase: phase),
+      };
     } finally {
       deadline.cancel();
     }
   }
 
-  SshConnectException _classify(SshHop hop, Object error, {required bool timedOut}) {
-    if (timedOut) return SshConnectException(hop, SshFailure.timeout, 'no answer within $timeout', cause: error);
-    if (error is SSHAuthFailError) {
-      return SshConnectException(hop, SshFailure.authFailed, 'authentication failed', cause: error);
+  SshConnectException _classify(
+    SshHop hop,
+    Object error,
+    SshKeyOffer? offer, {
+    required bool timedOut,
+    required String phase,
+  }) {
+    if (timedOut) {
+      final message = 'no answer during $phase within ${_seconds(timeout)}';
+      return SshConnectException(hop, SshFailure.timeout, message, cause: error);
     }
     final reason = error is SSHAuthAbortError ? error.reason : error;
     return switch (reason) {
-      SSHHostkeyError(:final message) => SshConnectException(hop, SshFailure.hostKeyRejected, message, cause: error),
       // SSH_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE, e.g. "Too many authentication failures".
-      SSHDisconnectError(reasonCode: 14, :final message) =>
-        SshConnectException(hop, SshFailure.authFailed, message, cause: error),
+      SSHAuthFailError() || SSHDisconnectError(reasonCode: 14) => SshConnectException(
+        hop,
+        SshFailure.authFailed,
+        offer?.describe() ?? (reason is SSHDisconnectError ? reason.message : 'authentication failed'),
+        offer: offer,
+        cause: error,
+      ),
+      SSHHostkeyError(:final message) => SshConnectException(hop, SshFailure.hostKeyRejected, message, cause: error),
       SSHSocketError() => SshConnectException(hop, SshFailure.unreachable, 'connection lost during handshake', cause: error),
       _ => SshConnectException(hop, SshFailure.protocol, 'SSH handshake failed', cause: error),
     };
   }
+
+  static String _seconds(Duration duration) =>
+      duration.inMilliseconds % 1000 == 0 ? '${duration.inSeconds} s' : '${duration.inMilliseconds} ms';
+}
+
+/// An identity file `ssh -G` named for a hop, read before dialing.
+final class _IdentityFile {
+  const _IdentityFile(this.configured, this.path, this.pem, this.publicKey);
+
+  final String configured;
+  final String path;
+
+  /// Null when only the public key is there, for a key the agent holds.
+  final String? pem;
+
+  /// Null for an encrypted PEM key without a `.pub`.
+  final SshPublicKey? publicKey;
+}
+
+/// Where auth callbacks wait for the user (prompts, passphrases, agent confirmations): the handshake's deadline stops
+/// meanwhile, and an error a callback throws ends the attempt with that error.
+final class _UserWaits {
+  _Deadline? deadline;
+  Object? abort;
+
+  Future<T> run<T>(Future<T> Function() action) async {
+    try {
+      final deadline = this.deadline;
+      return await (deadline == null ? action() : deadline.pausedWhile(action));
+    } on Object catch (error) {
+      abort ??= error;
+      rethrow;
+    }
+  }
 }
 
 final class _Auth {
-  const _Auth({this.identities, this.onPassword, this.respond, this.agent});
+  _Auth(this.waits, {this.identities, this.onPassword, this.respond, this.agent, this.offer});
 
+  /// [identities] first; once the server refused them (or there were none), its password and keyboard-interactive
+  /// prompts go to [fallback], like `ssh` asks, until the user gives up on one.
+  factory _Auth.offering(
+    SshHop hop,
+    _UserWaits waits,
+    SshKeyOffer offer,
+    KeyboardInteractiveHandler? fallback, {
+    required List<SSHIdentity> identities,
+    SshAgentClient? agent,
+  }) {
+    if (fallback == null) return _Auth(waits, identities: identities, agent: agent, offer: offer);
+    var gaveUp = false;
+    Future<List<String>?> ask(KeyboardInteractiveRequest request) async {
+      if (gaveUp) return null;
+      final answers = await fallback(request);
+      gaveUp = answers == null;
+      return answers;
+    }
+
+    return _Auth(
+      waits,
+      identities: identities,
+      agent: agent,
+      offer: offer,
+      onPassword: () async {
+        final answers = await ask(KeyboardInteractiveRequest(
+          hop: hop.label,
+          name: '',
+          instruction: '',
+          prompts: const [KeyboardInteractivePrompt('Password:', echo: false)],
+          password: true,
+          refused: offer,
+        ));
+        return answers?.firstOrNull;
+      },
+      respond: ask,
+    );
+  }
+
+  final _UserWaits waits;
   final List<SSHIdentity>? identities;
-  final String? Function()? onPassword;
+  final Future<String?> Function()? onPassword;
   final KeyboardInteractiveHandler? respond;
   final SshAgentClient? agent;
+
+  /// The keys offered, for the error when the hop refuses them and for the prompts that follow.
+  final SshKeyOffer? offer;
 }
 
 /// A timeout that stops while the user answers a prompt and restarts in full afterwards.

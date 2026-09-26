@@ -9,6 +9,7 @@ import '../../config/config_target.dart';
 import '../../config/omp_cli.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../utils/token_count.dart';
 import 'config_widgets.dart';
 
 /// Request statistics over every session on the machine (`omp stats --json`; omp syncs the session files
@@ -84,9 +85,9 @@ class _StatsPageState extends State<StatsPage> {
                   children: [
                     _Metric(label: t.config.stats.requests, value: '${stats.overall.requests}'),
                     _Metric(label: t.config.stats.errors, value: '${stats.overall.failed} (${_percent(stats.overall.errorRate)})'),
-                    _Metric(label: t.config.stats.inputTokens, value: _compact(stats.overall.inputTokens)),
-                    _Metric(label: t.config.stats.outputTokens, value: _compact(stats.overall.outputTokens)),
-                    _Metric(label: t.config.stats.cacheRead, value: '${_compact(stats.overall.cacheReadTokens)} (${_percent(stats.overall.cacheRate)})'),
+                    _Metric(label: t.config.stats.inputTokens, value: formatTokens(stats.overall.inputTokens)),
+                    _Metric(label: t.config.stats.outputTokens, value: formatTokens(stats.overall.outputTokens)),
+                    _Metric(label: t.config.stats.cacheRead, value: '${formatTokens(stats.overall.cacheReadTokens)} (${_percent(stats.overall.cacheRate)})'),
                     _Metric(label: t.config.stats.cost, value: _cost(stats.overall.cost)),
                     if (stats.overall.avgTtftMs case final ttft?) _Metric(label: t.config.stats.ttft, value: '${ttft.round()} ms'),
                     if (stats.overall.avgTokensPerSecond case final rate?) _Metric(label: t.config.stats.speed, value: '${rate.toStringAsFixed(1)} tok/s'),
@@ -99,7 +100,7 @@ class _StatsPageState extends State<StatsPage> {
                   headers: [t.config.stats.model, t.config.stats.requests, t.config.stats.inputTokens, t.config.stats.outputTokens, t.config.stats.cost],
                   rows: [
                     for (final row in stats.byModel)
-                      ['${row.provider}/${row.model}', '${row.totals.requests}', _compact(row.totals.inputTokens), _compact(row.totals.outputTokens), _cost(row.totals.cost)],
+                      ['${row.provider}/${row.model}', '${row.totals.requests}', formatTokens(row.totals.inputTokens), formatTokens(row.totals.outputTokens), _cost(row.totals.cost)],
                   ],
                 ),
                 ConfigSectionTitle(t.config.stats.byFolder),
@@ -110,8 +111,8 @@ class _StatsPageState extends State<StatsPage> {
                       [
                         statsFolderPath(row.folder, home: target.probe.home, known: known),
                         '${row.totals.requests}',
-                        _compact(row.totals.inputTokens),
-                        _compact(row.totals.outputTokens),
+                        formatTokens(row.totals.inputTokens),
+                        formatTokens(row.totals.outputTokens),
                         _cost(row.totals.cost),
                       ],
                   ],
@@ -121,7 +122,7 @@ class _StatsPageState extends State<StatsPage> {
                   headers: [t.config.stats.agent, t.config.stats.requests, t.config.stats.inputTokens, t.config.stats.outputTokens, t.config.stats.cost],
                   rows: [
                     for (final row in stats.byAgentType)
-                      [row.agentType, '${row.requests}', _compact(row.inputTokens), _compact(row.outputTokens), _cost(row.cost)],
+                      [row.agentType, '${row.requests}', formatTokens(row.inputTokens), formatTokens(row.outputTokens), _cost(row.cost)],
                   ],
                 ),
               ],
@@ -263,12 +264,6 @@ class _Bars extends StatelessWidget {
       ],
     );
   }
-}
-
-String _compact(int value) {
-  if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
-  if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}k';
-  return '$value';
 }
 
 String _percent(double fraction) => '${(fraction * 100).toStringAsFixed(1)}%';

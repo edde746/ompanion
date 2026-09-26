@@ -45,7 +45,16 @@ class SecretStore {
 
   Future<void> deletePassword(String endpointId) => _storage.delete(key: _password(endpointId));
 
+  /// The kept passphrase of an identity file from `~/.ssh/config`, by the key's SHA-256 fingerprint.
+  Future<String?> keyFilePassphrase(String fingerprint) => _storage.read(key: _keyFilePassphrase(fingerprint));
+
+  Future<void> saveKeyFilePassphrase(String fingerprint, String passphrase) =>
+      _storage.write(key: _keyFilePassphrase(fingerprint), value: passphrase);
+
+  Future<void> deleteKeyFilePassphrase(String fingerprint) => _storage.delete(key: _keyFilePassphrase(fingerprint));
+
   static String _privateKey(String keyId) => '${devSecretPrefix}ssh-key.$keyId.private';
   static String _passphrase(String keyId) => '${devSecretPrefix}ssh-key.$keyId.passphrase';
   static String _password(String endpointId) => '${devSecretPrefix}password.$endpointId';
+  static String _keyFilePassphrase(String fingerprint) => '${devSecretPrefix}ssh-key-file.$fingerprint.passphrase';
 }
