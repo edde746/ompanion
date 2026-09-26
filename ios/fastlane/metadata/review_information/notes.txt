@@ -28,4 +28,4 @@ The chat shows replies produced by the user's own agent and providers. The app a
 
 About source and licence
 
-The app is free and open source (GPLv3); the complete source is at github.com/edde746/ompanion, which is also the marketing and support URL. The terminal library is MIT-licensed. No part of the app requires a purchase or a subscription. Settings → About shows the version, this privacy policy, the source, the issue tracker, the licence ("GPL-3.0 with an app-store exception") and Flutter's bundled-package licence list.
+The app is free and open source (GPLv3); the complete source is at github.com/edde746/ompanion, whose issue tracker is the support URL. The terminal library is MIT-licensed. No part of the app requires a purchase or a subscription. Settings → About shows the version, this privacy policy, the source, the issue tracker, the licence ("GPL-3.0") and Flutter's bundled-package licence list.

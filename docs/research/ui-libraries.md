@@ -214,8 +214,8 @@ Risks:
   drift.
 
 **xterm3 6.3.4** (2026-09-24, AGPL-3.0-or-later) is the fork this project used until the store work, and it is out
-of every build. AGPL-3.0 code cannot be conveyed through the App Store at all: the project can grant itself an
-app-store exception under GPLv3 §7 for its own code, not for klc's. Two forks of the same 4.0.0 base, one licence
+of every build. AGPL-3.0 code cannot be conveyed through the App Store by anyone but its copyright holder: the
+project publishes its own GPLv3 code as that holder, but it holds no rights in klc's. Two forks of the same 4.0.0 base, one licence
 apart, is not a trade worth carrying, so one terminal serves all builds.
 
 **What xterm3 has that xterm2 does not.** Compared library by library (its `core.dart`, `ui.dart` and `zmodem.dart`
@@ -305,8 +305,8 @@ terminal.onResize = (w, h, pw, ph) =>
 ```
 **Licence (not legal advice).** xterm2 is MIT: the copyright notice and the licence text travel with the app, and
 nothing about it conflicts with an app store. That is the whole point of the switch — the previous AGPL-3.0
-terminal could not be conveyed through the App Store by anyone but its own copyright holder, and the project's GPLv3
-§7 exception covers ompanion's code, not a third party's. `docs/research/licenses.md` records the licence of every
+terminal could not be conveyed through the App Store by anyone but its own copyright holder, and the project holds
+the rights to ompanion's code only, not a third party's. `docs/research/licenses.md` records the licence of every
 resolved package.
 
 **Other risks**

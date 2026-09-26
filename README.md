@@ -290,10 +290,7 @@ See [AGENTS.md](AGENTS.md) for the conventions (writing, code and tests) and [do
 
 ## License
 
-ompanion is licensed under [GPL-3.0](LICENSE), with an additional permission under
-[section 7](LICENSE-EXCEPTION.md) that allows conveying it through app stores whose terms add restrictions the
-GPL does not allow (the Apple App Store, Google Play), as long as the source stays available under the GPLv3.
-Downstream distributors may drop that permission and use the plain GPLv3.
+ompanion is licensed under [GPL-3.0](LICENSE).
 
 No third-party GPL or AGPL code ships in any build: [docs/research/licenses.md](docs/research/licenses.md) records
 the scan of every resolved package.

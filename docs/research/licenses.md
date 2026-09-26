@@ -69,15 +69,11 @@ also accounted for.
 
 ## What this means for the stores
 
-- Nothing in the iOS or Android build is GPL or AGPL except ompanion itself, which is GPLv3 with the additional
-  permission in `LICENSE-EXCEPTION.md`. See `docs/PLAN.md` R11 for why that exception is required and
-  <https://www.gnu.org/licenses/gpl-faq.en.html> for the FSF's position that only copyright holders can grant one.
-- The wording of that exception follows the precedent of other GPL projects shipping on the App Store (Signal's
-  `libsignal-protocol-c` exception, <https://signal.org/blog/license-update/>): grant conveyance through the store,
-  keep every other GPL duty, keep the Corresponding Source available, and let downstream remove the permission
-  (GPLv3 §7).
-- `xterm3`'s AGPL-3.0 could not have been covered by that exception, which is why the terminal is `xterm2` in every
-  build rather than only in store builds (`docs/research/ui-libraries.md` §4).
+- Nothing in the iOS or Android build is GPL or AGPL except ompanion itself, which is GPLv3 (`LICENSE`) and is
+  published in the stores by its sole copyright holder. See `docs/PLAN.md` R11 for why that works for the holder's
+  own code and not for anyone else's, and <https://www.gnu.org/licenses/gpl-faq.en.html> for the FSF's position.
+- `xterm3`'s AGPL-3.0 could not ship through the App Store by anyone but its own copyright holder, which is why the
+  terminal is `xterm2` in every build rather than only in store builds (`docs/research/ui-libraries.md` §4).
 - Not legal advice. Re-run the scan after any dependency change:
 
 ```sh

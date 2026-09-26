@@ -75,7 +75,7 @@ void main() {
       'Privacy policy': 'https://ompanion.app/privacy',
       'Source code': 'https://github.com/edde746/ompanion',
       'Report an issue': 'https://github.com/edde746/ompanion/issues',
-      'License': 'https://github.com/edde746/ompanion/blob/main/LICENSE-EXCEPTION.md',
+      'License': 'https://github.com/edde746/ompanion/blob/main/LICENSE',
     };
     for (final MapEntry(key: label, value: url) in expected.entries) {
       await tester.tap(find.text(label));
@@ -84,7 +84,7 @@ void main() {
       launched.clear();
     }
 
-    expect(find.text('GPL-3.0 with an app-store exception'), findsOneWidget);
+    expect(find.text('GPL-3.0'), findsOneWidget);
   });
 
   testWidgets('open-source licenses opens the license page of the bundled packages', (tester) async {
@@ -106,7 +106,7 @@ void main() {
     await pumpAbout(tester);
 
     expect(find.text('A client for omp, the oh-my-pi coding agent'), findsOneWidget);
-    expect(find.text('GPL-3.0 with an app-store exception'), findsOneWidget);
+    expect(find.text('GPL-3.0'), findsOneWidget);
     expect(find.text('Report an issue'), findsOneWidget);
     // The client line wraps over more than one line box here, and the row grew with it: a fixed-height row
     // would have thrown an overflow instead.

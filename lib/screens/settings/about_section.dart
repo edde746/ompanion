@@ -11,12 +11,11 @@ import '../external_links.dart';
 /// The app mark the About section and the licence page show.
 const _glyphAsset = 'assets/ompanion.png';
 
-/// The app's own repository and the pages a store review looks for; `LICENSE-EXCEPTION.md` is the reason the
-/// GPL-3.0 build may ship through the App Store.
+/// The app's own repository and the pages a store review looks for.
 final Uri _sourceUrl = Uri.parse('https://github.com/edde746/ompanion');
 final Uri _issuesUrl = Uri.parse('https://github.com/edde746/ompanion/issues');
 final Uri _privacyPolicyUrl = Uri.parse('https://ompanion.app/privacy');
-final Uri _licenseUrl = Uri.parse('https://github.com/edde746/ompanion/blob/main/LICENSE-EXCEPTION.md');
+final Uri _licenseUrl = Uri.parse('https://github.com/edde746/ompanion/blob/main/LICENSE');
 
 /// The agent this app is a client for.
 final Uri _ompUrl = Uri.parse('https://github.com/can1357/oh-my-pi');

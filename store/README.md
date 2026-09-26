@@ -141,10 +141,8 @@ Both descriptions sit well inside their limit, but re-run this after any wording
 
 ## Licence
 
-- ompanion ships under GPLv3 with an app-store exception: `LICENSE` (verbatim GPLv3) plus
-  `LICENSE-EXCEPTION.md`, an additional permission under GPLv3 §7 letting the copyright holder convey
-  ompanion, and the copyright holder's modified versions, through app stores whose terms add restrictions, as
-  long as the Corresponding Source stays available under GPLv3.
+- ompanion ships under plain GPLv3 (`LICENSE`), published in both stores by its sole copyright holder. A
+  contribution merged under GPLv3 alone needs its author's permission before it ships through a store.
 - The terminal is `xterm2` 5.2.0 (MIT) in every build, not `xterm3` (AGPL); `flutter_pty2` 2.0.0 (MIT)
   provides the PTY. No GPL/AGPL third-party code ships in any build (scan: `docs/research/licenses.md`).
 - One copyleft package is in the resolved dependency graph: `dbus` 0.7.15 (MPL-2.0), reached only by
@@ -157,7 +155,7 @@ Both descriptions sit well inside their limit, but re-run this after any wording
   Play has no licence field, so the GPLv3 line lives in the description.
 - In-app licence and privacy text: **Settings → About** (`lib/screens/settings/about_section.dart`) shows the
   app mark, the version, "A client for omp, the oh-my-pi coding agent", and rows for the privacy policy, the
-  source, the issue tracker, the licence ("GPL-3.0 with an app-store exception"), omp itself and Flutter's
+  source, the issue tracker, the licence ("GPL-3.0"), omp itself and Flutter's
   bundled-package licence list. That is the in-app half of App Review guideline 5.1.1(i); keep those rows
   working when the repository URL changes.
 - Not legal advice.

@@ -1076,8 +1076,8 @@ class Translations$settings$en {
 	/// en: 'License'
 	String get aboutLicense => 'License';
 
-	/// en: 'GPL-3.0 with an app-store exception'
-	String get aboutLicenseValue => 'GPL-3.0 with an app-store exception';
+	/// en: 'GPL-3.0'
+	String get aboutLicenseValue => 'GPL-3.0';
 
 	/// en: 'Open-source licenses'
 	String get aboutLicenses => 'Open-source licenses';
@@ -3853,7 +3853,7 @@ extension on Translations {
 			'settings.aboutSource' => 'Source code',
 			'settings.aboutIssues' => 'Report an issue',
 			'settings.aboutLicense' => 'License',
-			'settings.aboutLicenseValue' => 'GPL-3.0 with an app-store exception',
+			'settings.aboutLicenseValue' => 'GPL-3.0',
 			'settings.aboutLicenses' => 'Open-source licenses',
 			'time.now' => 'now',
 			'time.minutes' => ({required Object n}) => '${n}m',

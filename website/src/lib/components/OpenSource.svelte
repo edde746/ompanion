@@ -1,21 +1,19 @@
 <script lang="ts">
-  import { LICENSE_EXCEPTION_URL, LICENSE_URL, OMP_URL, REPO_URL } from '$lib/content/downloads';
+  import { LICENSE_URL, OMP_URL, REPO_URL } from '$lib/content/downloads';
   import SectionHeader from './SectionHeader.svelte';
 </script>
 
 <section id="open-source" class="page-section">
   <SectionHeader
     label="Open source"
-    heading="GPLv3, with a store exception."
+    heading="Free software, under GPLv3."
     description="The whole app, the SSH and RPC layer, and the companion extension are in one repository."
   />
 
   <div class="columns">
     <p>
-      ompanion is free software under the GNU General Public License, version 3. An additional permission
-      under section 7 allows it to be conveyed through app stores whose terms add restrictions the GPL does
-      not allow, as long as the source stays available under the GPLv3. Downstream distributors may drop that
-      permission and use the plain GPLv3.
+      ompanion is free software under the GNU General Public License, version 3: you may run, study, change and
+      share it, and what you distribute stays under the same licence.
     </p>
     <p>
       It drives <a href={OMP_URL} target="_blank" rel="noopener noreferrer">omp (oh-my-pi)</a>, the open-source
@@ -27,11 +25,6 @@
   <ul class="links">
     <li><a class="bar bar-secondary" href={REPO_URL} target="_blank" rel="noopener noreferrer">Source code</a></li>
     <li><a class="bar bar-secondary" href={LICENSE_URL} target="_blank" rel="noopener noreferrer">LICENSE</a></li>
-    <li>
-      <a class="bar bar-secondary" href={LICENSE_EXCEPTION_URL} target="_blank" rel="noopener noreferrer">
-        Licence exception
-      </a>
-    </li>
   </ul>
 </section>
 
