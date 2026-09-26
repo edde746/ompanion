@@ -21,7 +21,10 @@
   <meta property="og:image" content={image} />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="The ompanion glyph and wordmark on black." />
+  <meta
+    property="og:image:alt"
+    content="The ompanion glyph and wordmark, the line A client for omp, on machines you own, and a capture of the app on a desktop, on black."
+  />
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={title} />

@@ -24,9 +24,26 @@
   --motion-fast: 120ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
-  --font-display: "Avenir Next", "Segoe UI Variable Display", "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Inter", "Segoe UI Variable Text", "SF Pro Text", ui-sans-serif, system-ui, sans-serif;
+  /* The app's own faces: system stacks, no web fonts, so the page asks nothing of anyone else. */
+  --font-display: system-ui, "SF Pro Display", "Segoe UI Variable Display", ui-sans-serif, sans-serif;
+  --font-body: system-ui, "SF Pro Text", "Segoe UI Variable Text", ui-sans-serif, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+
+  /* The glyph's gradient, used as light only: a hairline on a frame's top edge, one soft glow
+     behind a frame, and the signal line between two things. Never as a fill under text. */
+  --rim: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(196 240 66 / 0.5) 22%,
+    rgb(34 197 94 / 0.5) 78%,
+    transparent 100%
+  );
+  --glow: radial-gradient(closest-side, rgb(196 240 66 / 0.16), rgb(34 197 94 / 0.08) 52%, transparent 76%);
+  --signal: linear-gradient(90deg, var(--color-lime), var(--color-emerald));
+
+  /* Grain and dot pitch, at 1x. Both are felt, not seen. */
+  --grain-size: 180px;
+  --dot-pitch: 24px;
 }
 
 *,
@@ -52,7 +69,32 @@ html {
   color: var(--color-text);
 }
 
-/* The header is sticky at the top, so an anchor jump has to stop below it. */
+/* Texture: film grain over the whole page, and a dot grid, a nod to terminal cells, that fades
+   out as it goes down. Both sit under the content; neither is noticeable at first glance. */
+html::before,
+html::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+}
+
+html::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: var(--grain-size) var(--grain-size);
+  opacity: 0.035;
+}
+
+html::after {
+  background-image: radial-gradient(circle at 50% 50%, rgb(237 237 237 / 0.06) 1px, transparent 1.3px);
+  background-size: var(--dot-pitch) var(--dot-pitch);
+  /* Fades out radially, so the grid reads at the top and never becomes a pattern. */
+  -webkit-mask-image: radial-gradient(95% 75% at 50% 6%, #000 0%, rgb(0 0 0 / 0.55) 42%, transparent 76%);
+  mask-image: radial-gradient(95% 75% at 50% 6%, #000 0%, rgb(0 0 0 / 0.55) 42%, transparent 76%);
+}
+
+/* The sticky header is at the top, so an anchor jump has to stop below it. */
 section[id] {
   scroll-margin-top: var(--anchor-offset);
 }
@@ -69,7 +111,7 @@ body {
   overflow-x: hidden;
   font-family: var(--font-body);
   line-height: 1.5;
-  background: var(--color-bg);
+  background: transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -116,12 +158,70 @@ ul {
   list-style: none;
 }
 
+/* The second voice: small uppercase monospace labels with wide tracking. */
+.mono-label {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 /* The only colour on the site: the glyph's gradient, as a bar under a section header. */
 .accent-bar {
   width: 2.5rem;
   height: 3px;
   border-radius: var(--radius-full);
-  background: linear-gradient(90deg, var(--color-lime), var(--color-emerald));
+  background: var(--signal);
+}
+
+/* Rim light: the gradient as a 1.5 px hairline along a frame's top edge, gone by the sides. */
+.rim {
+  position: absolute;
+  z-index: 2;
+  inset: 0 0 auto;
+  height: 1.5px;
+  background: var(--rim);
+}
+
+/* A node on the signal line. */
+.node {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-lime);
+}
+
+/* On a capture: the region a magnified detail was taken from. A hairline, not a fill. */
+.marker {
+  position: absolute;
+  z-index: 2;
+  top: var(--marker-top);
+  left: var(--marker-left);
+  width: var(--marker-width);
+  height: var(--marker-height);
+  border-radius: 4px;
+  padding: 1px;
+  background: linear-gradient(120deg, rgb(196 240 66 / 0.8), rgb(34 197 94 / 0.8));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* A frame holding a real capture: rounded, clipped, with room for its rim light. */
+.frame {
+  position: relative;
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.frame picture,
+.frame img {
+  display: block;
+  width: 100%;
 }
 
 .page-section {
@@ -167,6 +267,57 @@ ul {
 .card {
   border-radius: var(--radius-card);
   background: var(--color-surface-container);
+}
+
+/* Sections fade and step in as they enter the viewport. A browser without scroll-driven
+   animations shows everything; so does anyone who asks for less motion.
+   The animation has no fill mode: outside its range the element keeps its own style, so any
+   render that lays the page out without scrolling it (print, a paginated preview, a full-page
+   capture) still shows every section. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .page-section > * {
+      animation-name: reveal;
+      animation-duration: auto;
+      animation-timing-function: linear;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    translate: 0 1rem;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* Nothing may stay hidden on paper or in a preview that never scrolls. */
+@media print {
+  .page-section > * {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  .pulse {
+    display: none !important;
+  }
+}
+
+/* The foot of a crop window folds into the surface under it, instead of ending on a hard cut. */
+.fold::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: auto 0 0;
+  height: 25%;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0), var(--fold, var(--color-surface-container)));
 }
 
 @media (prefers-reduced-motion: reduce) {

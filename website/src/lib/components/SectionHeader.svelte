@@ -2,15 +2,20 @@
   import type { Snippet } from 'svelte';
 
   const {
+    index,
     label,
     heading,
     description,
     children,
-  }: { label: string; heading: string; description: string; children?: Snippet } = $props();
+  }: { index: string; label: string; heading: string; description: string; children?: Snippet } = $props();
 </script>
 
 <div class="section-header">
-  <p class="section-label">{label}</p>
+  <p class="mono-label section-label">
+    <span class="index">{index}</span>
+    <span aria-hidden="true">—</span>
+    <span>{label}</span>
+  </p>
   <h2>{heading}</h2>
   <div class="accent-bar"></div>
   <p class="section-description">{description}</p>
@@ -23,12 +28,14 @@
   }
 
   .section-label {
-    margin-bottom: 0.75rem;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .index {
+    color: var(--color-text);
   }
 
   h2 {

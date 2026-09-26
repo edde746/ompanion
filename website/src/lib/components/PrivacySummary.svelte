@@ -11,6 +11,7 @@
 
 <section id="privacy" class="page-section">
   <SectionHeader
+    index="05"
     label="Privacy"
     heading="Nothing to collect, nobody to tell."
     description="The short version of the privacy policy, which the App Store, Google Play and the app itself all point to."

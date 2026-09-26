@@ -9,7 +9,7 @@
       <Logo size={26} />
       <span>ompanion</span>
     </a>
-    <nav aria-label="Main">
+    <nav class="mono-label" aria-label="Main">
       <a href="#features">Features</a>
       <a href="#download">Download</a>
       <a href="/privacy">Privacy</a>
@@ -53,13 +53,11 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.25rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
   }
 
   nav a {
     border-radius: var(--radius-full);
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 0.7rem;
     color: var(--color-text-muted);
     transition: color var(--motion-fast) var(--ease-standard);
   }

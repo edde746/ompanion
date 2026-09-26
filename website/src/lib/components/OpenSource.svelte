@@ -5,6 +5,7 @@
 
 <section id="open-source" class="page-section">
   <SectionHeader
+    index="06"
     label="Open source"
     heading="Free software, under GPLv3."
     description="The whole app, the SSH and RPC layer, and the companion extension are in one repository."

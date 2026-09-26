@@ -5,6 +5,7 @@
 
 <section id="download" class="page-section">
   <SectionHeader
+    index="04"
     label="Download"
     heading="Free, and yours to build."
     description="Each release on GitHub carries these five files."
@@ -38,7 +39,9 @@
   }
 
   li {
+    position: relative;
     display: flex;
+    overflow: hidden;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
@@ -46,6 +49,22 @@
     border-radius: var(--radius-card);
     padding: 1rem 1.25rem;
     background: var(--color-surface-container);
+  }
+
+  /* The row picks up the rim light while the pointer or the keyboard is on it. */
+  li::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 1.5px;
+    background: var(--rim);
+    opacity: 0;
+    transition: opacity var(--motion-fast) var(--ease-standard);
+  }
+
+  li:hover::before,
+  li:focus-within::before {
+    opacity: 1;
   }
 
   h3 {
