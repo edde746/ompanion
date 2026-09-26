@@ -160,6 +160,62 @@ void main() {
     await ours.detach();
   }, timeout: const Timeout(Duration(minutes: 5)));
 
+  test('a run of the app that another omp wrote past is stale: it is stopped, never attached', () async {
+    final path = await closedSession('device-a');
+    // Device A resumes the session and leaves: the app's run stays alive, idle, with the file as it was.
+    final first = runtime('device-a');
+    final stale = await first.open(ResumeSession(path));
+    final staleRunId = stale.runId;
+    await stale.detach();
+
+    // Another omp resumes the same file, runs a turn and stays at its prompt, holding the file.
+    await fake.enqueue([
+      {
+        'steps': [
+          {'text': 'Written elsewhere'},
+        ],
+      },
+    ]);
+    final foreignLink = LocalLink(environment: machine.environment);
+    addTearDown(foreignLink.close);
+    final process = await foreignLink.exec(
+      'cd ${_quote(machine.project)} && exec env -i HOME="\$HOME" PATH="\$PATH" '
+      '${_quote('${machine.home}/.local/bin/omp')} --mode rpc-ui --model fake/fake-1 --session ${_quote(path)}',
+    );
+    addTearDown(process.close);
+    final settled = Completer<void>();
+    final output = process.stdout.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()).listen((
+      line,
+    ) {
+      if (line.contains('"type":"ready"')) {
+        process.write(utf8.encode('${jsonEncode({'id': 'turn', 'type': 'prompt', 'message': 'foreign prompt'})}\n'));
+      }
+      if (line.contains('"type":"session_settled"') && !settled.isCompleted) settled.complete();
+    });
+    addTearDown(output.cancel);
+    await settled.future.timeout(const Duration(seconds: 60));
+
+    final second = runtime('device-b');
+    final held = await second.open(ResumeSession(path));
+    expect(held, isA<ExternalSession>(), reason: 'the foreign omp holds the file; the stale run must not be attached');
+    expect(prompts(held.view), contains('foreign prompt'));
+    expect(
+      (await second.listRuns()).where((run) => run.id == staleRunId && run.live),
+      isEmpty,
+      reason: 'the stale run would write its old history over the other omp\'s turns',
+    );
+    await held.detach();
+
+    process.kill();
+    await process.exit;
+    await _eventually(() async => (await holdersOf(path)).isEmpty);
+    final ours = await second.open(ResumeSession(path));
+    expect(ours, isNot(isA<ExternalSession>()));
+    expect(ours.runId, isNot(staleRunId));
+    expect(prompts(ours.view), containsAll(['Start a session', 'foreign prompt']));
+    await ours.detach();
+  }, timeout: const Timeout(Duration(minutes: 5)));
+
   test('a device attaching to an already busy run sees it running, with its queue', () async {
     final first = runtime('device-a');
     await fake.enqueue([

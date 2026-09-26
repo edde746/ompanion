@@ -188,6 +188,7 @@ final class RunSession implements LiveSession {
   String? _historyFile;
   String? _leafId;
   bool _loadingEarlier = false;
+  bool _behindFile = false;
 
   bool _refreshing = false;
   bool _refreshAgain = false;
@@ -201,6 +202,11 @@ final class RunSession implements LiveSession {
 
   @override
   String? get sessionPath => _sessionPath;
+
+  /// Whether omp's history is a stale fork of its session file: on attach, the file ended in an entry this omp does
+  /// not know although omp still holds that file. Another process appended to it after this omp loaded it, so omp's
+  /// next write, a turn or even its exit record, hangs off its own older leaf.
+  bool get behindFile => _behindFile;
 
   @override
   SessionView get view => _view;
@@ -359,8 +365,9 @@ final class RunSession implements LiveSession {
     final state = rpc.request('get_state', const {}, stateId)..ignore();
     final path = _sessionPath;
     if (fileEntries == null || path == null) _historyFrom = 0;
-    final entries = (fileEntries == null || path == null ? rpc.getEntries() : _entriesAfter(rpc, path, fileEntries))
-      ..ignore();
+    final entries =
+        (fileEntries == null || path == null ? rpc.getEntries() : _entriesAfter(rpc, path, fileEntries, state))
+          ..ignore();
     final subagents = rpc.getSubagents()..ignore();
     final subscribed = fresh ? (rpc.setSubagentSubscription(SubagentSubscription.progress)..ignore()) : null;
     Object? commands;
@@ -484,11 +491,12 @@ final class RunSession implements LiveSession {
 
   /// [file]'s entries plus what omp appended after the last of them (`get_entries` since it), read back far enough to
   /// hold the leaf; everything from `get_entries` when the file could not be used or omp does not know that entry
-  /// (`unknown_since`: the run holds another session than the file meta.json names).
+  /// (`unknown_since`): the run holds another session than the file meta.json names, or another process appended to
+  /// the file ([behindFile], told apart by the session file in [state]).
   ///
   /// omp answers `get_entries` with the whole history in `rpc_chunk`s, 10.2 MB for a 7.6 MB session file: omp spent
   /// about 400 ms producing it, the app 230 ms decoding it, and every later attach replayed it from `out.jsonl`.
-  Future<RpcEntries> _entriesAfter(RpcClient rpc, String path, Future<_FilePage?> file) async {
+  Future<RpcEntries> _entriesAfter(RpcClient rpc, String path, Future<_FilePage?> file, Future<Object?> state) async {
     final page = await file;
     final last = page?.entries.lastOrNull?['id'];
     if (page == null || last is! String) {
@@ -500,6 +508,7 @@ final class RunSession implements LiveSession {
       after = await rpc.getEntries(since: last);
     } on RpcCommandException catch (error) {
       if (error.code != 'unknown_since') rethrow;
+      _behindFile = asJsonObject(await state, 'get_state result').optString('sessionFile') == path;
       _historyFrom = 0;
       return rpc.getEntries();
     }

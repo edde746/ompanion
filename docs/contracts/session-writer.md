@@ -49,13 +49,31 @@ counts, and a crumb naming no tty (a multiplexer or emulator id) is ignored rath
 
 | app run holds it | writer | result | what the app does |
 |---|---|---|---|
-| yes | anything | `appRun` | attach to that run |
+| yes | anything | `appRun` | attach to that run, unless its omp is behind the file (below) |
 | no | null | `free` | launch its own run (`--session <file>`) |
 | no | non-null | `foreign` | read the file, launch nothing |
 
 `appRun` is the app's own run lookup (`~/.ompanion/run/*/meta.json`, `listRuns`); it is checked before the probe,
 and the launch itself re-checks under the machine's launch lock, so two devices race into the same run and never
 into a second writer.
+
+## A run of the app that another process wrote past
+
+A run of the app holds its session in memory from the moment omp loaded the file. A terminal omp that resumes the
+same file later appends turns this run never sees, and the run's omp holds no write descriptor while it is idle
+(omp opens it on its first append), so nothing stops the terminal. Attaching to that run shows the old history, and a
+prompt there continues from the old leaf.
+
+`open(ResumeSession)` therefore checks the run it attaches to: the attach reads the file's last entry and asks omp
+for `get_entries` since it; `unknown_since` while `get_state` still names this file sets `RunSession.behindFile`.
+Such a run is detached and killed (`killRun`: SIGKILL on POSIX, a terminate on Windows), then the file is opened as
+if no run held it: read (`ExternalSession`) when a writer is there, else a fresh run. Killed, not stopped: omp's
+exit, graceful or on SIGTERM, appends `session_exit` under its own old leaf, which makes that leaf the file's last
+entry, and the reader then shows the conversation without the other process's turns (measured with omp 18.3.1,
+2026-09-27).
+
+An app run that is already attached on this device when another process starts writing is not checked; it shows the
+old history until it is attached again.
 
 ## Busy vs idle
 

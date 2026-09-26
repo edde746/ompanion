@@ -199,7 +199,21 @@ Future<int?> stopRun(
   Duration timeout = const Duration(seconds: 30),
 }) => probe.isWindows
     ? stopWindowsRun(link, probe, run, force: force, timeout: timeout)
-    : _stopPosixRun(link, run, force: force, timeout: timeout);
+    : _stopPosixRun(link, run, signal: force ? 'TERM' : null, timeout: timeout);
+
+/// Ends [run]'s omp at once, before it can write anything: SIGKILL on POSIX, a terminate on Windows (which gets no
+/// signal there either). For an omp whose history is a stale fork of its session file: omp's own exit, graceful or on
+/// SIGTERM, appends a `session_exit` entry under its old leaf, and the file's next resume continues from that leaf.
+/// Returns the exit code, or null when omp is gone without one; throws [HostLinkException] when omp still runs
+/// after [timeout].
+Future<int?> killRun(
+  HostLink link,
+  HostProbe probe,
+  DetachedRun run, {
+  Duration timeout = const Duration(seconds: 30),
+}) => probe.isWindows
+    ? stopWindowsRun(link, probe, run, force: true, timeout: timeout)
+    : _stopPosixRun(link, run, signal: 'KILL', timeout: timeout);
 
 /// Removes the directories of runs that are not live and whose `out.jsonl` was last written more than
 /// [olderThan] ago. Returns the removed run ids.
@@ -497,11 +511,12 @@ RunMeta? parseRunMeta(String? text) {
   }
 }
 
-Future<int?> _stopPosixRun(HostLink link, DetachedRun run, {required bool force, required Duration timeout}) async {
+/// [signal] (`TERM`, `KILL`) is sent to omp; without one, omp's stdin is closed.
+Future<int?> _stopPosixRun(HostLink link, DetachedRun run, {required String? signal, required Duration timeout}) async {
   final marker = newMarker();
   final result = await runPosixScript(
     link,
-    'm=${shQuote(marker)}; d=${shQuote(run.dir)}; force=${force ? 1 : 0}; ticks=${timeout.inMilliseconds ~/ 50}\n'
+    'm=${shQuote(marker)}; d=${shQuote(run.dir)}; signal=${signal ?? ''}; ticks=${timeout.inMilliseconds ~/ 50}\n'
     '$posixLockFunctions$_processFunctions$_stopBody',
   );
   if (result.exit.code != 0) throw result.failure('stopping run ${run.id} failed');
@@ -513,8 +528,8 @@ Future<int?> _stopPosixRun(HostLink link, DetachedRun run, {required bool force,
 /// Waits for the `exit` file; gives up early once omp has been gone for a second without one being written.
 const _stopBody = r'''
 p=$(cat "$d/omp.pid" 2>/dev/null)
-if [ "$force" = 1 ]; then
-  if running "$p" "$d/overlay.yml"; then kill -TERM "$p"; fi
+if [ -n "$signal" ]; then
+  if running "$p" "$d/overlay.yml"; then kill -"$signal" "$p"; fi
 else
   t=$(cat "$d/tail.pid" 2>/dev/null)
   if running "$t" "$d/in.jsonl"; then kill "$t"; fi
