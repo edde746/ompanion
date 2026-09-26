@@ -13,5 +13,19 @@
       "sourceText": "config override (models.yml)",
       "credentials": []
     }
+  ],
+  "logins": [
+    {
+      "provider": "anthropic",
+      "kind": "flow"
+    },
+    {
+      "provider": "deepseek",
+      "kind": "key"
+    },
+    {
+      "provider": "ollama",
+      "kind": "optional_key"
+    }
   ]
 }

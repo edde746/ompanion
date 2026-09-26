@@ -4,6 +4,7 @@ import '../../config/settings_schema.dart';
 import '../../config/settings_view.dart';
 import '../../i18n/strings.g.dart';
 import '../../widgets/app_select.dart';
+import '../chat/transcript/code_style.dart';
 
 /// Called with the new value of a setting.
 typedef SettingChanged = void Function(Object? value);
@@ -259,7 +260,7 @@ class _SecretDialogState extends State<_SecretDialog> {
           autofocus: true,
           obscureText: !_json,
           maxLines: _json ? 6 : 1,
-          style: _json ? const TextStyle(fontFamily: 'monospace', fontSize: 13) : null,
+          style: _json ? codeTextStyle(Theme.of(context)).copyWith(fontSize: 13) : null,
           decoration: InputDecoration(
             helperText: t.config.settings.secretHelp,
             helperMaxLines: 3,
@@ -434,7 +435,7 @@ class _JsonField extends StatelessWidget {
             describeValue(value),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+            style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize),
           ),
         ),
         const SizedBox(width: 8),
@@ -486,7 +487,7 @@ class _JsonDialogState extends State<_JsonDialog> {
           autofocus: true,
           maxLines: 16,
           minLines: 6,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          style: codeTextStyle(Theme.of(context)).copyWith(fontSize: 13),
           decoration: InputDecoration(errorText: _error),
         ),
       ),

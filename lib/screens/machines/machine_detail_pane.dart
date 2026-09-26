@@ -16,6 +16,7 @@ import '../../services/known_hosts_store.dart';
 import '../../services/machine_connector.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../utils/app_logger.dart';
+import '../chat/transcript/code_style.dart';
 import '../sessions/machine_status.dart';
 import 'connect_dialogs.dart';
 import 'machine_editor.dart';
@@ -407,7 +408,7 @@ class _HostKeysState extends State<_HostKeys> {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
-    final mono = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace');
+    final mono = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize);
     return StreamBuilder<List<KnownHostRow>>(
       stream: _rows,
       builder: (context, snapshot) {
@@ -434,7 +435,7 @@ class _HostKeysState extends State<_HostKeys> {
                             row.port == 22 ? '${row.host} · ${row.keyType}' : '${row.host}:${row.port} · ${row.keyType}',
                             style: theme.textTheme.bodyMedium,
                           ),
-                          SelectableText(row.fingerprint, style: mono?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                          SelectableText(row.fingerprint, style: mono.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                         ],
                       ),
                     ),

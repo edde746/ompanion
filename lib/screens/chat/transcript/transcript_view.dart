@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../i18n/strings.g.dart';
@@ -42,6 +44,49 @@ final class StickToBottomPhysics extends ScrollPhysics {
   }
 }
 
+/// The scroll controller of a bottom-anchored transcript: its positions stop scrolling up where the first row meets the
+/// top edge.
+final class _BottomAnchoredController extends ScrollController {
+  _BottomAnchoredController({required super.initialScrollOffset, required this.extentAbove});
+
+  final double Function() extentAbove;
+
+  @override
+  ScrollPosition createScrollPosition(ScrollPhysics physics, ScrollContext context, ScrollPosition? oldPosition) =>
+      _BottomAnchoredPosition(
+        physics: physics,
+        context: context,
+        initialPixels: initialScrollOffset,
+        keepScrollOffset: keepScrollOffset,
+        oldPosition: oldPosition,
+        extentAbove: extentAbove,
+      );
+}
+
+/// With `anchor: 1.0`, offset 0 puts the top of the center sliver at the bottom edge, and the viewport never lets the
+/// top limit go past 0. Once the rows above the center sliver are shorter than the viewport, scrolling to that limit
+/// would show them at the bottom edge under a blank viewport. The top limit is where the first row meets the top edge
+/// instead, but never past the bottom limit, so a transcript that fits does not scroll.
+final class _BottomAnchoredPosition extends ScrollPositionWithSingleContext {
+  _BottomAnchoredPosition({
+    required super.physics,
+    required super.context,
+    super.initialPixels,
+    super.keepScrollOffset,
+    super.oldPosition,
+    required this.extentAbove,
+  });
+
+  /// Scroll extent of the slivers above the center sliver, from the layout in progress.
+  final double Function() extentAbove;
+
+  @override
+  bool applyContentDimensions(double minScrollExtent, double maxScrollExtent) {
+    final top = math.min(viewportDimension - extentAbove(), maxScrollExtent);
+    return super.applyContentDimensions(math.max(minScrollExtent, top), maxScrollExtent);
+  }
+}
+
 /// The chat transcript of one session: every row of [SessionView.transcript], newest at the bottom.
 ///
 /// The list is a [CustomScrollView] around a center sliver with `anchor: 1.0`, so scroll offset 0 is the bottom edge.
@@ -49,7 +94,8 @@ final class StickToBottomPhysics extends ScrollPhysics {
 /// sliver that grows upward from the center: loading earlier history never moves what is on screen, and a short
 /// transcript sits at the bottom without scrolling. Items that arrive once the transcript overflows go in the center
 /// sliver, which grows downward: a reply streaming below does not move what the reader scrolled up to. At the bottom,
-/// [StickToBottomPhysics] follows the growth.
+/// [StickToBottomPhysics] follows the growth; at the top, the first row meets the top edge (see
+/// [_BottomAnchoredPosition]).
 ///
 /// With [alignTop] every row sits in the center sliver at `anchor: 0.0`: a short transcript starts at the top and
 /// grows downward, and once it overflows, [StickToBottomPhysics] follows the growth as before. Earlier pages then
@@ -107,11 +153,13 @@ final class _ThinkingClock {
 }
 
 class _TranscriptViewState extends State<TranscriptView> {
-  static const _centerKey = ValueKey<String>('transcript-center');
+  final _centerKey = GlobalKey(debugLabel: 'transcript-center');
   static const _bottomGap = 16.0;
 
   // Offset 0 is the top of the center sliver, whose bottom gap is all it holds at first: start below the gap.
-  late final _scroll = ScrollController(initialScrollOffset: widget.alignTop ? 0 : _bottomGap);
+  late final _scroll = widget.alignTop
+      ? ScrollController()
+      : _BottomAnchoredController(initialScrollOffset: _bottomGap, extentAbove: _extentAbove);
   final _atBottom = ValueNotifier<bool>(true);
   final _thinking = _ThinkingClock();
   final _widgets = <String, _CachedRow>{};
@@ -231,8 +279,19 @@ class _TranscriptViewState extends State<TranscriptView> {
     return position >= _splitRow ? position - _splitRow : null;
   }
 
+  double _extentAbove() {
+    final center = _centerKey.currentContext?.findRenderObject();
+    final viewport = center?.parent;
+    if (center is! RenderSliver || viewport is! RenderViewport) return 0;
+    var extent = 0.0;
+    for (var sliver = viewport.childBefore(center); sliver != null; sliver = viewport.childBefore(sliver)) {
+      extent += sliver.geometry?.scrollExtent ?? 0;
+    }
+    return extent;
+  }
+
   bool _onMetrics(ScrollMetrics metrics) {
-    // The live sliver carries the bottom gap, so a transcript that fits still scrolls by that much.
+    // The live sliver carries the bottom gap: the transcript overflows once its rows alone are taller than the viewport.
     _overflowing = metrics.maxScrollExtent - metrics.minScrollExtent > _bottomGap + 0.5;
     _atBottom.value = metrics.pixels >= metrics.maxScrollExtent - StickToBottomPhysics.pinDistance;
     if (metrics.extentBefore < 400) _loadEarlier();

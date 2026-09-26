@@ -10,12 +10,13 @@ import '../../config/config_target.dart';
 import '../../i18n/strings.g.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/app_search_field.dart';
+import '../chat/transcript/code_style.dart';
 import 'config_widgets.dart';
 import 'login_dialogs.dart';
 
 /// Every provider omp can use on the machine as one searchable list: sign-in providers, the providers of the
-/// available models and the ones with stored credentials. A row opens in place to sign in, paste an API key,
-/// pin an account or log out.
+/// available models, the ones models.yml adds and the ones with stored credentials. A row opens in place to sign
+/// in, paste an API key, pin an account or log out; the last row stores a key under any other provider id.
 ///
 /// The credentials come from the active session on this machine when there is one, because `active`, `sticky`
 /// and `pinnable` describe that session; otherwise from the control process. Credentials are machine-wide.
@@ -95,18 +96,18 @@ class _AccountsPageState extends State<AccountsPage> {
 
   /// The key goes to the machine as a 0600 file; the companion stores it in omp's credential store and deletes
   /// the file.
-  Future<bool> _setKey(ProviderRow row, String key) {
+  Future<bool> _setKey(String provider, String name, String key) {
     final t = context.t;
     return runReporting(context, () async {
       final control = await widget.target.control();
       final file = await widget.target.uploadSecret(key.trim());
       try {
-        await control.companion.call('accounts.setKey', {'provider': row.id, 'keyFile': file});
+        await control.companion.call('accounts.setKey', {'provider': provider, 'keyFile': file});
       } finally {
         await widget.target.discardSecret(file);
       }
       await _changed();
-    }, done: t.config.accounts.keyStored(provider: row.name), secret: true);
+    }, done: t.config.accounts.keyStored(provider: name), secret: true);
   }
 
   Future<void> _logout(ProviderRow row, StoredCredential credential) async {
@@ -173,25 +174,40 @@ class _AccountsPageState extends State<AccountsPage> {
           child: switch ((accounts, _error)) {
             (null, final error?) => Center(child: ConfigError(error, onRetry: _load)),
             (null, _) => const Center(child: CircularProgressIndicator()),
-            _ when rows.isEmpty => Center(child: Text(t.config.accounts.noMatches)),
-            _ => ListView.builder(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 32),
-              itemCount: rows.length,
-              itemBuilder: (context, index) {
-                final row = rows[index];
-                return _ProviderTile(
-                  key: ValueKey('provider-${row.id}'),
-                  row: row,
-                  open: _open == row.id,
-                  remote: !widget.target.isThisComputer,
-                  canPin: _project != null,
-                  onToggle: () => setState(() => _open = _open == row.id ? null : row.id),
-                  onSignIn: () => unawaited(_signIn(row)),
-                  onSaveKey: (key) => _setKey(row, key),
-                  onLogout: (credential) => unawaited(_logout(row, credential)),
-                  onPin: (credential) => unawaited(_pin(credential)),
-                );
-              },
+            _ => ListView(
+              // The rows' fill lines up with the search field above.
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+              children: [
+                if (rows.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Text(t.config.accounts.noMatches),
+                  ),
+                for (final row in rows)
+                  _ProviderTile(
+                    key: ValueKey('provider-${row.id}'),
+                    row: row,
+                    open: _open == row.id,
+                    remote: !widget.target.isThisComputer,
+                    canPin: _project != null,
+                    onToggle: () => setState(() => _open = _open == row.id ? null : row.id),
+                    onSignIn: () => unawaited(_signIn(row)),
+                    onSaveKey: (key) => _setKey(row.id, row.name, key),
+                    onLogout: (credential) => unawaited(_logout(row, credential)),
+                    onPin: (credential) => unawaited(_pin(credential)),
+                  ),
+                _OtherProviderTile(
+                  key: const ValueKey('provider-other'),
+                  open: _open == _otherRow,
+                  initialId: rows.isEmpty ? _query.trim() : '',
+                  onToggle: () => setState(() => _open = _open == _otherRow ? null : _otherRow),
+                  onSaveKey: (provider, key) async {
+                    final saved = await _setKey(provider, provider, key);
+                    if (saved && mounted) setState(() => _open = provider);
+                    return saved;
+                  },
+                ),
+              ],
             ),
           },
         ),
@@ -203,6 +219,9 @@ class _AccountsPageState extends State<AccountsPage> {
 /// On a machine where no model works yet, the control process runs on this placeholder provider and
 /// `accounts.list` names it as current; it is not a credential of the machine.
 final _bootstrapProvider = bootstrapModel.split('/').first;
+
+/// [_AccountsPageState._open] of the "Other provider" row; no provider id is empty.
+const _otherRow = '';
 
 /// One provider: name, kind and status on one dense line; open, the working source in plain words, stored
 /// credentials, sign-in and an API key field.
@@ -255,7 +274,7 @@ class _ProviderTile extends StatelessWidget {
                   children: [
                     Text(row.name, style: theme.textTheme.bodyMedium),
                     if (row.name != row.id)
-                      Text(row.id, style: theme.textTheme.labelSmall?.copyWith(fontFamily: 'monospace', color: scheme.onSurfaceVariant)),
+                      Text(row.id, style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: scheme.onSurfaceVariant)),
                   ],
                 ),
               ),
@@ -337,6 +356,94 @@ class _ProviderTile extends StatelessWidget {
   }
 }
 
+/// A key for a provider id the list does not show; open, the id and the key.
+class _OtherProviderTile extends StatefulWidget {
+  const _OtherProviderTile({super.key, required this.open, required this.initialId, required this.onToggle, required this.onSaveKey});
+
+  final bool open;
+
+  /// Fills the id when the row opens: the search text that matched no provider.
+  final String initialId;
+  final VoidCallback onToggle;
+  final Future<bool> Function(String provider, String key) onSaveKey;
+
+  @override
+  State<_OtherProviderTile> createState() => _OtherProviderTileState();
+}
+
+class _OtherProviderTileState extends State<_OtherProviderTile> {
+  final _id = TextEditingController();
+
+  @override
+  void didUpdateWidget(_OtherProviderTile old) {
+    super.didUpdateWidget(old);
+    if (widget.open && !old.open && widget.initialId.isNotEmpty) _id.text = widget.initialId;
+  }
+
+  @override
+  void dispose() {
+    _id.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final header = InkWell(
+      borderRadius: BorderRadius.circular(AppSizes.radius),
+      onTap: widget.onToggle,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AppSizes.control),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            children: [
+              Expanded(child: Text(t.config.accounts.other, style: theme.textTheme.bodyMedium)),
+              Icon(widget.open ? Icons.expand_less : Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!widget.open) return Padding(padding: const EdgeInsets.symmetric(vertical: 1), child: header);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Material(
+        color: scheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            header,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(t.config.accounts.otherNote, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: const ValueKey('other-provider-id'),
+                    controller: _id,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: InputDecoration(hintText: t.config.accounts.otherId),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: AppSizes.gap),
+                  _KeyField(ready: _id.text.trim().isNotEmpty, onSave: (key) => widget.onSaveKey(_id.text.trim(), key)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// What authenticates [row] now, in plain words.
 String _sourceText(Translations t, ProviderRow row) => switch (row.accounts?.sourceKind) {
   AuthSourceKind.runtime => t.config.accounts.source.runtime,
@@ -345,7 +452,8 @@ String _sourceText(Translations t, ProviderRow row) => switch (row.accounts?.sou
   AuthSourceKind.apiKey => t.config.accounts.source.apiKey,
   AuthSourceKind.env => t.config.accounts.source.env(name: row.accounts?.envVar ?? '?'),
   null when row.authenticated => t.config.accounts.source.working,
-  null => t.config.accounts.source.none,
+  null when row.kind == ProviderKind.account => t.config.accounts.source.none,
+  null => t.config.accounts.source.noKey,
 };
 
 class _CredentialRow extends StatelessWidget {
@@ -371,16 +479,8 @@ class _CredentialRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(credential.label, style: theme.textTheme.bodyMedium),
-                Text(
-                  [
-                    credential.oauth ? t.config.accounts.oauthAccount : t.config.accounts.apiKeyAccount,
-                    ?credential.detail,
-                    if (credential.active) t.config.accounts.active,
-                    if (credential.sticky) t.config.accounts.sticky,
-                    if (credential.expires case final expires?) t.config.accounts.expires(date: _date(expires)),
-                  ].join(' · '),
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
+                if (credentialStatus(t, credential) case final status?)
+                  Text(status, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -393,15 +493,31 @@ class _CredentialRow extends StatelessWidget {
   }
 }
 
+/// The line under a stored credential's label: what the label does not already say. omp labels an API key
+/// "API key #n" and details it "stored API key #n"; an OAuth account's label is its email and its detail the other
+/// identity parts.
+String? credentialStatus(Translations t, StoredCredential credential) {
+  final parts = [
+    if (credential.oauth) ?credential.detail,
+    if (credential.active) t.config.accounts.active,
+    if (credential.sticky) t.config.accounts.sticky,
+    if (credential.expires case final expires?) t.config.accounts.expires(date: _date(expires)),
+  ];
+  return parts.isEmpty ? null : parts.join(' · ');
+}
+
 String _date(DateTime time) =>
     '${time.year}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')} '
     '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
 /// A pasted API key for the row's provider and its save button, one control height.
 class _KeyField extends StatefulWidget {
-  const _KeyField({required this.onSave});
+  const _KeyField({required this.onSave, this.ready = true});
 
   final Future<bool> Function(String key) onSave;
+
+  /// Everything besides the key is filled in.
+  final bool ready;
 
   @override
   State<_KeyField> createState() => _KeyFieldState();
@@ -418,7 +534,7 @@ class _KeyFieldState extends State<_KeyField> {
   }
 
   Future<void> _save() async {
-    if (_key.text.trim().isEmpty || _saving) return;
+    if (_key.text.trim().isEmpty || !widget.ready || _saving) return;
     setState(() => _saving = true);
     final saved = await widget.onSave(_key.text);
     if (!mounted) return;
@@ -446,7 +562,7 @@ class _KeyFieldState extends State<_KeyField> {
         const SizedBox(width: AppSizes.gap),
         FilledButton.tonal(
           key: const ValueKey('api-key-save'),
-          onPressed: _saving || _key.text.trim().isEmpty ? null : _save,
+          onPressed: _saving || !widget.ready || _key.text.trim().isEmpty ? null : _save,
           child: _saving
               ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
               : Text(t.config.accounts.saveKey),

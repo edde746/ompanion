@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../i18n/strings.g.dart';
 import '../utils/app_logger.dart';
+import 'chat/transcript/code_style.dart';
 
 /// Whether [uri] is a web page, the only kind of link an OAuth `open_url` from a machine opens.
 bool isWebLink(Uri uri) => uri.isScheme('http') || uri.isScheme('https');
@@ -52,7 +53,7 @@ class _ConfirmLinkDialog extends StatelessWidget {
         children: [
           Text(t.links.confirmBody(scheme: uri.scheme)),
           const SizedBox(height: 12),
-          SelectableText('$uri', style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace')),
+          SelectableText('$uri', style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize)),
         ],
       ),
       actions: [

@@ -417,10 +417,16 @@ user message the main session receives (prompts, steers, follow-ups, after templ
 {kind: "runtime" | "config" | "oauth" | "api_key" | "env", envVar: string | null, concrete: boolean} | null,
 sourceText: string | null, credentials: {credentialId: number, type: "oauth" | "api_key", label, detail,
 active: boolean, sticky: boolean, pinnable: boolean, identity: {email, accountId, projectId, enterpriseUrl,
-orgId, orgName, expires} | null}[]}[]}`. One row per provider with stored credentials, plus the current
-model's provider. `active`: the account this session uses (the TUI logout list's mark); `sticky`: the OAuth
-account pinned or affine to this session (`/session pin`); `pinnable`: an OAuth account of the current
-model's provider. Tokens and keys are never included.
+orgId, orgName, expires} | null}[]}[], logins: {provider: string, kind: "key" | "optional_key" | "flow"}[]}`.
+`providers`: one row per provider with stored credentials, plus the current model's provider, plus every
+provider omp does not define itself (added by models.yml or an extension), with or without auth. `active`: the
+account this session uses (the TUI logout list's mark); `sticky`: the OAuth account pinned or affine to this
+session (`/session pin`); `pinnable`: an OAuth account of the current model's provider. Tokens and keys are
+never included. `logins`: one row per provider of omp's `/login` list. `key`: the login only asks for an API
+key, which `accounts.setKey` stores the same way; `optional_key`: the key may be left empty (a local server);
+`flow`: a browser, device-code or multi-prompt sign-in that only omp's `login` runs. omp gives extensions no
+login kind at runtime, so the companion takes it from the auth policies of the omp release it is built
+against; a provider added after that release is `flow`.
 
 ### accounts.logout
 

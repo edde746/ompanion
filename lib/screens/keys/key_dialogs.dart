@@ -13,6 +13,8 @@ import '../../database/app_database.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../providers/keys_provider.dart';
+import '../../widgets/labeled_field.dart';
+import '../chat/transcript/code_style.dart';
 
 /// OpenSSH private keys are a few KiB; anything much larger is the wrong file.
 const _maxKeyFileBytes = 64 * 1024;
@@ -131,25 +133,26 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextFormField(
-                  controller: _name,
-                  decoration: InputDecoration(labelText: t.keys.name),
-                  validator: (value) => value == null || value.trim().isEmpty ? t.common.required : null,
+                LabeledField(
+                  label: t.keys.name,
+                  child: TextFormField(
+                    controller: _name,
+                    validator: (value) => value == null || value.trim().isEmpty ? t.common.required : null,
+                  ),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _pem,
-                  minLines: 4,
-                  maxLines: 8,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
-                  decoration: InputDecoration(
-                    labelText: t.keys.privateKey,
-                    hintText: t.keys.privateKeyHint,
-                    alignLabelWithHint: true,
+                LabeledField(
+                  label: t.keys.privateKey,
+                  child: TextFormField(
+                    controller: _pem,
+                    minLines: 4,
+                    maxLines: 8,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize),
+                    decoration: InputDecoration(hintText: t.keys.privateKeyHint),
+                    validator: (value) => value == null || value.trim().isEmpty ? t.common.required : null,
                   ),
-                  validator: (value) => value == null || value.trim().isEmpty ? t.common.required : null,
                 ),
                 Align(
                   alignment: AlignmentDirectional.centerStart,
@@ -159,11 +162,14 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
                     onPressed: _busy ? null : _chooseFile,
                   ),
                 ),
-                TextFormField(
-                  controller: _passphrase,
-                  obscureText: true,
-                  decoration: InputDecoration(labelText: t.keys.passphrase, helperText: t.keys.passphraseHint),
-                  onFieldSubmitted: (_) => _import(),
+                LabeledField(
+                  label: t.keys.passphrase,
+                  child: TextFormField(
+                    controller: _passphrase,
+                    obscureText: true,
+                    decoration: InputDecoration(helperText: t.keys.passphraseHint),
+                    onFieldSubmitted: (_) => _import(),
+                  ),
                 ),
                 if (_error case final error?) ...[
                   const SizedBox(height: 12),
@@ -237,7 +243,7 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
               const SizedBox(height: 12),
               SelectableText(
                 generated.publicKey,
-                style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize),
               ),
             ],
           ),
@@ -262,12 +268,14 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                controller: _name,
-                autofocus: true,
-                decoration: InputDecoration(labelText: t.keys.name),
-                validator: (value) => value == null || value.trim().isEmpty ? t.common.required : null,
-                onFieldSubmitted: (_) => _generate(),
+              LabeledField(
+                label: t.keys.name,
+                child: TextFormField(
+                  controller: _name,
+                  autofocus: true,
+                  validator: (value) => value == null || value.trim().isEmpty ? t.common.required : null,
+                  onFieldSubmitted: (_) => _generate(),
+                ),
               ),
               if (_error case final error?) ...[
                 const SizedBox(height: 12),

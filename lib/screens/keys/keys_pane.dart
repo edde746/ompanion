@@ -6,6 +6,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../providers/keys_provider.dart';
 import '../../providers/machines_provider.dart';
+import '../chat/transcript/code_style.dart';
 import 'key_dialogs.dart';
 
 /// SSH keys of this device: import, generate, copy the public half, delete.
@@ -39,7 +40,7 @@ class KeysPane extends StatelessWidget {
     final t = context.t;
     final theme = Theme.of(context);
     final keys = context.watch<KeysProvider>().keys;
-    final mono = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace');
+    final mono = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize);
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [

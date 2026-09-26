@@ -320,8 +320,10 @@ class _Editor extends StatelessWidget {
         fontHeight: 1.35,
         textColor: scheme.onSurface,
         backgroundColor: scheme.surfaceContainerLowest,
-        selectionColor: scheme.onSurface.withValues(alpha: 0.2),
-        highlightColor: scheme.onSurfaceVariant.withValues(alpha: 0.35),
+        // The editor selects the current find match and paints every match's highlight over the selection, so a
+        // strong selection under a faint highlight sets the current match apart from the others.
+        selectionColor: scheme.onSurface.withValues(alpha: 0.32),
+        highlightColor: scheme.onSurface.withValues(alpha: 0.16),
         cursorColor: scheme.onSurface,
         cursorLineColor: scheme.surfaceContainer,
         codeTheme: CodeHighlightTheme(

@@ -174,6 +174,22 @@ void main() {
     expect(tester.getTopLeft(anchor), before, reason: 'growth below the reader moves nothing above it');
   });
 
+  testWidgets('the top of a reply that overflowed while streaming shows its first rows at the top edge', (tester) async {
+    final history = _turns(0, 1);
+    final prompt = _user(100);
+    await tester.pumpWidget(_harness(SessionView(transcript: [...history, prompt], historyLength: history.length)));
+    for (var i = 1; i <= 30; i++) {
+      final transcript = [...history, prompt, _answer(101, _paragraphs(i), streaming: true)];
+      await tester.pumpWidget(_harness(SessionView(transcript: transcript, historyLength: history.length)));
+    }
+    final position = _position(tester);
+    position.jumpTo(position.minScrollExtent);
+    await tester.pump();
+    final first = tester.getTopLeft(find.byKey(ValueKey(history.first.key)));
+    expect(first.dy, lessThan(60), reason: 'the first question starts near the top edge, not under a blank viewport');
+    expect(tester.getTopLeft(find.byKey(ValueKey(prompt.key))).dy, lessThan(800 / 2));
+  });
+
   testWidgets('loading an earlier page does not move what is on screen', (tester) async {
     final recent = _turns(20, 40);
     await tester.pumpWidget(_harness(SessionView(transcript: recent, historyLength: recent.length)));
@@ -209,5 +225,67 @@ void main() {
     final position = _position(tester);
     expect(position.maxScrollExtent, greaterThan(0));
     expect(position.pixels, position.maxScrollExtent, reason: 'it stays at the bottom as it grows');
+  });
+
+  testWidgets('an ask waiting for its answer shows one line, and the answer once it came', (tester) async {
+    const call = ToolCallBlock(
+      id: 'c1',
+      name: 'ask',
+      arguments: {
+        'i': 'Asking for a choice',
+        'questions': [
+          {
+            'id': 'pick',
+            'question': 'Which option should the demo take?',
+            'options': [
+              {'label': 'Option A'},
+              {'label': 'Option B'},
+            ],
+          },
+        ],
+      },
+    );
+    final asking = AssistantItem(
+      timestamp: 2,
+      content: const [call],
+      provider: 'fake',
+      model: 'fake-1',
+      stopReason: StopReason.toolUse,
+    );
+    SessionView view(ToolResultItem result) =>
+        SessionView(transcript: [_user(1), asking, result], historyLength: 3);
+
+    await tester.pumpWidget(
+      _harness(view(ToolResultItem(toolCallId: 'c1', toolName: 'ask', state: ToolState.running))),
+    );
+    expect(find.text(t.transcript.tool.askWaiting), findsOneWidget);
+    expect(find.textContaining('Which option should the demo take?'), findsNothing);
+    expect(find.textContaining('Option A'), findsNothing);
+
+    await tester.pumpWidget(
+      _harness(
+        view(
+          ToolResultItem(
+            toolCallId: 'c1',
+            toolName: 'ask',
+            state: ToolState.done,
+            content: const [TextBlock('User answers:\npick: Option A')],
+            details: const {
+              'results': [
+                {
+                  'id': 'pick',
+                  'question': 'Which option should the demo take?',
+                  'options': ['Option A', 'Option B'],
+                  'selectedOptions': ['Option A'],
+                },
+              ],
+            },
+          ),
+        ),
+      ),
+    );
+    expect(find.text(t.transcript.tool.askWaiting), findsNothing);
+    expect(find.textContaining('Option A'), findsOneWidget);
+    expect(find.textContaining('Option B'), findsOneWidget);
   });
 }

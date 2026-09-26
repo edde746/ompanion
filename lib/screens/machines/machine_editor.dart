@@ -14,6 +14,7 @@ import '../../services/secret_store.dart';
 import '../../utils/ids.dart';
 import '../../widgets/app_segmented.dart';
 import '../../widgets/app_select.dart';
+import '../../widgets/labeled_field.dart';
 import '../keys/key_dialogs.dart';
 import '../shell/layout.dart';
 import 'ssh_config_picker.dart';
@@ -322,11 +323,13 @@ class _MachineEditorState extends State<MachineEditor> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  TextFormField(
-                    controller: _name,
-                    autofocus: !isCompact(context),
-                    decoration: InputDecoration(labelText: t.editor.name),
-                    validator: (value) => _required(t, value),
+                  LabeledField(
+                    label: t.editor.name,
+                    child: TextFormField(
+                      controller: _name,
+                      autofocus: !isCompact(context),
+                      validator: (value) => _required(t, value),
+                    ),
                   ),
                   if (_kind == MachineKind.ssh) ...[
                     const SizedBox(height: 16),
@@ -448,38 +451,45 @@ class _HopEditor extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: TextFormField(
-                controller: hop.host,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                decoration: InputDecoration(labelText: t.editor.host, helperText: t.editor.hostHelper),
-                validator: (value) => _required(t, value),
+              child: LabeledField(
+                label: t.editor.host,
+                child: TextFormField(
+                  controller: hop.host,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  decoration: InputDecoration(helperText: t.editor.hostHelper),
+                  validator: (value) => _required(t, value),
+                ),
               ),
             ),
             const SizedBox(width: 12),
             SizedBox(
               width: 96,
-              child: TextFormField(
-                controller: hop.port,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: t.editor.port),
-                validator: (value) {
-                  final port = int.tryParse(value?.trim() ?? '');
-                  return port == null || port < 1 || port > 65535 ? t.editor.invalidPort : null;
-                },
+              child: LabeledField(
+                label: t.editor.port,
+                child: TextFormField(
+                  controller: hop.port,
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    final port = int.tryParse(value?.trim() ?? '');
+                    return port == null || port < 1 || port > 65535 ? t.editor.invalidPort : null;
+                  },
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        TextFormField(
-          controller: hop.user,
-          autocorrect: false,
-          decoration: InputDecoration(labelText: t.editor.user),
-          validator: (value) => _required(t, value),
+        LabeledField(
+          label: t.editor.user,
+          child: TextFormField(
+            controller: hop.user,
+            autocorrect: false,
+            validator: (value) => _required(t, value),
+          ),
         ),
         const SizedBox(height: 12),
-        _Labeled(
+        LabeledField(
           label: t.editor.auth,
           child: AppSelect<AuthMethod>(
             expand: true,
@@ -503,7 +513,7 @@ class _HopEditor extends StatelessWidget {
               validator: (_) => keys.any((k) => k.id == hop.keyId) ? null : t.editor.chooseKey,
               builder: (field) {
                 final chosen = keys.any((k) => k.id == hop.keyId) ? hop.keyId : null;
-                return _Labeled(
+                return LabeledField(
                   label: t.editor.key,
                   error: field.errorText,
                   child: AppSelect<String?>(
@@ -535,12 +545,14 @@ class _HopEditor extends StatelessWidget {
         ],
         if (hop.auth == AuthMethod.password) ...[
           const SizedBox(height: 12),
-          TextFormField(
-            controller: hop.password,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: t.editor.password,
-              helperText: hop.hasSavedPassword ? t.editor.passwordSavedHint : t.editor.passwordAskHint,
+          LabeledField(
+            label: t.editor.password,
+            child: TextFormField(
+              controller: hop.password,
+              obscureText: true,
+              decoration: InputDecoration(
+                helperText: hop.hasSavedPassword ? t.editor.passwordSavedHint : t.editor.passwordAskHint,
+              ),
             ),
           ),
           CheckboxListTile(
@@ -566,33 +578,6 @@ String authLabel(Translations t, AuthMethod method) => switch (method) {
   AuthMethod.none => t.auth.none,
   AuthMethod.keyboardInteractive => t.auth.keyboardInteractive,
 };
-
-/// A control with its label above it, and an error below when there is one.
-class _Labeled extends StatelessWidget {
-  const _Labeled({required this.label, required this.child, this.error});
-
-  final String label;
-  final Widget child;
-  final String? error;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(label, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        const SizedBox(height: 4),
-        child,
-        if (error case final error?)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, left: 12),
-            child: Text(error, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.of(context).error)),
-          ),
-      ],
-    );
-  }
-}
 
 class _Note extends StatelessWidget {
   const _Note({required this.icon, required this.text});

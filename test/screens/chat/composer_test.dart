@@ -3,17 +3,21 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omp_app/database/app_database.dart';
 import 'package:omp_app/i18n/strings.g.dart';
+import 'package:omp_app/models/machine.dart';
 import 'package:omp_app/providers/machines_provider.dart';
 import 'package:omp_app/screens/chat/composer.dart';
 import 'package:omp_app/screens/chat/exec_panel.dart';
+import 'package:omp_app/screens/chat/model_picker.dart';
 import 'package:omp_app/services/known_hosts_store.dart';
 import 'package:omp_app/services/machine_connector.dart';
 import 'package:omp_app/services/secret_store.dart';
 import 'package:omp_app/sessions/sessions_provider.dart';
+import 'package:omp_app/widgets/app_search_field.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
@@ -28,6 +32,9 @@ final class _Omp implements LineChannel {
 
   /// While set, prompts are answered once it completes, with its value as `success`.
   Completer<bool>? promptAnswer;
+
+  /// What `get_available_models` lists.
+  List<Map<String, Object?>> models = const [];
 
   List<Map<String, Object?>> get prompts => [
     for (final line in sent)
@@ -45,7 +52,11 @@ final class _Omp implements LineChannel {
     sent.add(json);
     final id = json['id'];
     if (id == null) return;
-    final data = json['type'] == 'negotiate_protocol' ? {'protocolVersion': 2} : null;
+    final data = switch (json['type']) {
+      'negotiate_protocol' => {'protocolVersion': 2},
+      'get_available_models' => {'models': models},
+      _ => null,
+    };
     void respond(bool success) => emit({
       'type': 'response',
       'id': id,
@@ -219,6 +230,29 @@ void main() {
     await tearDownProviders(tester);
   });
 
+  testWidgets('the model name takes the toolbar room it needs before the thinking level does', (tester) async {
+    addTearDown(tester.view.reset);
+    tester.view.devicePixelRatio = 1;
+    final session = await attachedSession(tester);
+    session.emit(
+      SessionView(
+        config: const SessionConfig(
+          model: ModelRef(provider: 'fake', id: 'fake-think', name: 'Fake Think'),
+          thinkingLevel: 'high',
+        ),
+      ),
+    );
+    // Wide enough for both names, then only for the model's: the thinking level gives way.
+    for (final width in [500.0, 450.0]) {
+      tester.view.physicalSize = Size(width, 800);
+      await pumpComposer(tester, session);
+      expect(tester.renderObject<RenderParagraph>(find.text('Fake Think')).didExceedMaxLines, isFalse, reason: '$width');
+      expect(find.byKey(const ValueKey('thinking-picker')), findsOneWidget);
+    }
+
+    await tearDownProviders(tester);
+  });
+
   testWidgets('a slash command after a prompt opens the palette; ! after it starts an exec run', (tester) async {
     final session = await pumpComposer(tester);
     session.emit(
@@ -295,6 +329,56 @@ void main() {
     await tester.enterText(composer, 'typed meanwhile');
     await promptResult(agentInvoked: false);
     expect(text(), 'typed meanwhile');
+
+    await tearDownProviders(tester);
+  });
+
+  testWidgets('the model list is as tall as its models, up to a limit', (tester) async {
+    final session = await attachedSession(tester);
+    // One machine per list: the provider caches a machine's models.
+    LocalMachine machine(int count) =>
+        LocalMachine(id: 'local-$count', name: 'This Mac', createdAt: DateTime(2026), updatedAt: DateTime(2026));
+    Map<String, Object?> model(int n) => {
+      'provider': 'fake',
+      'id': 'fake-$n',
+      'name': 'Fake $n',
+      'reasoning': false,
+      'input': ['text'],
+      'contextWindow': 128000,
+    };
+    Future<Rect> openList(int count) async {
+      session.omp.models = [for (var n = 0; n < count; n++) model(n)];
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: sessions,
+          child: TranslationProvider(
+            child: MaterialApp(
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: ModelPicker(key: ValueKey(count), session: session, machine: machine(count), model: null),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('model-picker')));
+      await tester.pumpAndSettle();
+      // The menu surface is the closest Material around the search field.
+      return tester.getRect(find.ancestor(of: find.byType(AppSearchField), matching: find.byType(Material)).first);
+    }
+
+    final short = await openList(2);
+    final lastModel = tester.getRect(find.textContaining('fake-1 ·'));
+    expect(short.bottom - lastModel.bottom, lessThan(40), reason: 'the list ends at its last model');
+
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+    final long = await openList(40);
+    expect(long.height, lessThanOrEqualTo(420));
+    expect(long.height, greaterThan(short.height));
+    expect(tester.getRect(find.text('Fake 39')).top, greaterThan(long.bottom), reason: 'a long list scrolls');
 
     await tearDownProviders(tester);
   });

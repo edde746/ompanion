@@ -10,6 +10,7 @@ import '../../i18n/strings.g.dart';
 import '../../sessions/exec_runs.dart';
 import '../../sessions/sessions_provider.dart';
 import 'transcript/ansi.dart';
+import 'transcript/code_style.dart';
 
 /// Output of the composer's `!` and `$` runs while they stream, and their result until dismissed.
 class ExecPanel extends StatelessWidget {
@@ -70,7 +71,7 @@ class _ExecCard extends StatelessWidget {
         : run.cancelled
         ? t.exec.cancelled
         : t.exec.exited(code: exitCode ?? '?');
-    final base = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace') ?? const TextStyle(fontFamily: 'monospace');
+    final base = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize);
     final output = run.output.trimRight();
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 2, 12, 2),

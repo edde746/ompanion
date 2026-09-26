@@ -14,6 +14,7 @@ import '../../../files/git_status.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../models/machine.dart';
 import '../../../sessions/sessions_provider.dart';
+import '../../../widgets/labeled_field.dart';
 import '../dock_controller.dart';
 import '../machine_access.dart';
 import 'file_editor_view.dart';
@@ -528,19 +529,21 @@ class _NameDialogState extends State<_NameDialog> {
       title: Text(widget.title),
       content: SizedBox(
         width: 360,
-        child: TextField(
-          controller: _name,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: t.name,
-            errorText: switch (_problem) {
-              null => null,
-              NameProblem.empty => context.t.common.required,
-              NameProblem.reserved => t.nameReserved,
-              NameProblem.separator => t.nameSeparator,
-            },
+        child: LabeledField(
+          label: t.name,
+          child: TextField(
+            controller: _name,
+            autofocus: true,
+            decoration: InputDecoration(
+              errorText: switch (_problem) {
+                null => null,
+                NameProblem.empty => context.t.common.required,
+                NameProblem.reserved => t.nameReserved,
+                NameProblem.separator => t.nameSeparator,
+              },
+            ),
+            onSubmitted: (_) => _submit(),
           ),
-          onSubmitted: (_) => _submit(),
         ),
       ),
       actions: [

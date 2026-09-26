@@ -88,6 +88,9 @@ class ToolbarButton extends StatelessWidget {
   /// Shows a spinner in place of [icon].
   final bool busy;
 
+  /// Width with the label shrunk away: the padding, the icon, the gaps and the chevron of [build].
+  static const double minWidth = 8 + 16 + 6 + 2 + 16 + 4;
+
   @override
   Widget build(BuildContext context) {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -146,12 +149,16 @@ class _ModelListState extends State<_ModelList> {
     final t = context.t;
     final theme = Theme.of(context);
     final screen = MediaQuery.sizeOf(context);
-    return SizedBox(
-      width: math.min(440, screen.width - 32),
-      height: math.min(420, screen.height * 0.6),
+    Widget message(Widget child) =>
+        Padding(padding: const EdgeInsets.all(24), child: Center(heightFactor: 1, child: child));
+    final width = math.min(440.0, screen.width - 32);
+    // As tall as the models it lists, up to the cap; a longer list scrolls.
+    return ConstrainedBox(
+      constraints: BoxConstraints(minWidth: width, maxWidth: width, maxHeight: math.min(420, screen.height * 0.6)),
       child: Padding(
         padding: const EdgeInsets.all(AppSizes.gap),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
@@ -172,28 +179,27 @@ class _ModelListState extends State<_ModelList> {
               ],
             ),
             const SizedBox(height: AppSizes.gap),
-            Expanded(
+            Flexible(
               child: FutureBuilder<List<RpcModel>>(
                 future: _models,
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return Center(child: Text(t.chat.modelsFailed(error: '${snapshot.error}')));
+                    return message(Text(t.chat.modelsFailed(error: '${snapshot.error}')));
                   }
                   final models = snapshot.data;
-                  if (models == null) return const Center(child: CircularProgressIndicator());
+                  if (models == null) return message(const CircularProgressIndicator());
                   final shown = _filter(models);
-                  if (shown.isEmpty) return Center(child: Text(t.chat.noModels));
-                  return ListView.builder(
-                    itemCount: shown.length,
-                    itemBuilder: (context, index) {
-                      final model = shown[index];
-                      final current = widget.current;
-                      final selected = current != null && current.provider == model.provider && current.id == model.id;
-                      final newProvider = index == 0 || shown[index - 1].provider != model.provider;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (newProvider)
+                  if (shown.isEmpty) return message(Text(t.chat.noModels));
+                  final current = widget.current;
+                  bool isCurrent(RpcModel model) =>
+                      current != null && current.provider == model.provider && current.id == model.id;
+                  // A column rather than a lazy list: the menu measures its content, which a viewport cannot report.
+                  return SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final (index, model) in shown.indexed) ...[
+                          if (index == 0 || shown[index - 1].provider != model.provider)
                             Padding(
                               padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
                               child: Text(
@@ -203,7 +209,7 @@ class _ModelListState extends State<_ModelList> {
                             ),
                           ListTile(
                             dense: true,
-                            selected: selected,
+                            selected: isCurrent(model),
                             title: Text(model.name),
                             subtitle: Text(
                               [
@@ -212,12 +218,12 @@ class _ModelListState extends State<_ModelList> {
                                 if (model.reasoning) t.chat.reasoning,
                               ].join(' · '),
                             ),
-                            trailing: selected ? const Icon(Icons.check, size: 18) : null,
+                            trailing: isCurrent(model) ? const Icon(Icons.check, size: 18) : null,
                             onTap: () => widget.onPick(model),
                           ),
                         ],
-                      );
-                    },
+                      ],
+                    ),
                   );
                 },
               ),

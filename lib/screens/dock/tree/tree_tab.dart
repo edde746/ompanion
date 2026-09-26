@@ -12,6 +12,7 @@ import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/sessions_provider.dart';
 import '../../../widgets/app_search_field.dart';
+import '../../../widgets/labeled_field.dart';
 import '../dock_empty_state.dart';
 import 'session_tree.dart';
 
@@ -628,12 +629,14 @@ class _SummaryDialogState extends State<_SummaryDialog> {
           children: [
             Text(t.summaryBody),
             const SizedBox(height: 12),
-            TextField(
-              controller: _instructions,
-              autofocus: true,
-              minLines: 2,
-              maxLines: 6,
-              decoration: InputDecoration(labelText: t.summaryInstructions),
+            LabeledField(
+              label: t.summaryInstructions,
+              child: TextField(
+                controller: _instructions,
+                autofocus: true,
+                minLines: 2,
+                maxLines: 6,
+              ),
             ),
           ],
         ),
@@ -683,11 +686,13 @@ class _LabelDialogState extends State<_LabelDialog> {
       title: Text(t.labelTitle),
       content: SizedBox(
         width: 360,
-        child: TextField(
-          controller: _label,
-          autofocus: true,
-          decoration: InputDecoration(labelText: t.labelField),
-          onSubmitted: (_) => _submit(),
+        child: LabeledField(
+          label: t.labelField,
+          child: TextField(
+            controller: _label,
+            autofocus: true,
+            onSubmitted: (_) => _submit(),
+          ),
         ),
       ),
       actions: [

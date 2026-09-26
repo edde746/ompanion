@@ -14,6 +14,7 @@ import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../widgets/app_search_field.dart';
 import '../../widgets/app_segmented.dart';
+import '../chat/transcript/code_style.dart';
 import 'config_widgets.dart';
 import 'setting_editors.dart';
 
@@ -46,6 +47,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _loading = true;
   String? _tab;
   String _query = '';
+  final _searchKey = GlobalKey(debugLabel: 'settings-search');
   final Set<String> _busy = {};
   StreamSubscription<CompanionEvent>? _events;
   StreamSubscription<LinkState>? _links;
@@ -271,17 +273,29 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
       if (sections.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Center(child: Text(t.config.settings.noMatches))),
     ];
-    // A phone keeps the search field wide: the scope shows its icons only.
-    final compact = MediaQuery.sizeOf(context).width < 600;
-    final scope = AppSegmented<SettingsScope>(
-      value: _scope,
-      segments: [
-        (SettingsScope.global, compact ? '' : t.config.scope.global, Icons.public),
-        (SettingsScope.project, compact ? '' : t.config.scope.project, Icons.folder_outlined),
-      ],
-      disabled: {if (project == null) SettingsScope.project},
-      onChanged: _setScope,
+    final scope = Tooltip(
+      message: switch ((project, _scope)) {
+        (null, _) => t.config.scope.projectNone,
+        (_, SettingsScope.global) => t.config.scope.global,
+        (_, SettingsScope.project) => t.config.scope.project,
+      },
+      child: AppSegmented<SettingsScope>(
+        value: _scope,
+        segments: [
+          (SettingsScope.global, t.config.scope.global, Icons.public),
+          (SettingsScope.project, t.config.scope.project, Icons.folder_outlined),
+        ],
+        disabled: {if (project == null) SettingsScope.project},
+        onChanged: _setScope,
+      ),
     );
+    final search = AppSearchField(
+      // A GlobalKey keeps the typed query when the window crosses the phone width.
+      key: _searchKey,
+      hint: t.config.settings.search,
+      onChanged: (text) => setState(() => _query = text),
+    );
+    final refresh = RefreshAction(loading: _loading, onPressed: _load);
     final path = switch (_scope) {
       SettingsScope.global => _globalPath,
       SettingsScope.project => _projectPath,
@@ -291,28 +305,25 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 12, 0),
-          child: Row(
-            children: [
-              Tooltip(
-                message: switch ((project, _scope)) {
-                  (null, _) => t.config.scope.projectNone,
-                  (_, SettingsScope.global) => t.config.scope.global,
-                  (_, SettingsScope.project) => t.config.scope.project,
-                },
-                child: scope,
-              ),
-              const SizedBox(width: AppSizes.gap),
-              Expanded(
-                child: AppSearchField(
-                  key: const ValueKey('settings-search'),
-                  hint: t.config.settings.search,
-                  onChanged: (text) => setState(() => _query = text),
+          // A phone gives the search field its own line, so the scope keeps its labels.
+          child: MediaQuery.sizeOf(context).width < 600
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(children: [scope, const Spacer(), refresh]),
+                    const SizedBox(height: AppSizes.gap),
+                    Padding(padding: const EdgeInsets.only(right: 4), child: search),
+                  ],
+                )
+              : Row(
+                  children: [
+                    scope,
+                    const SizedBox(width: AppSizes.gap),
+                    Expanded(child: search),
+                    const SizedBox(width: 4),
+                    refresh,
+                  ],
                 ),
-              ),
-              const SizedBox(width: 4),
-              RefreshAction(loading: _loading, onPressed: _load),
-            ],
-          ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
@@ -428,7 +439,7 @@ class _SettingTile extends StatelessWidget {
         final fieldInline = block != null && isFieldEditor(editor) && constraints.maxWidth >= 640;
         final control = trailing ?? (fieldInline ? SizedBox(width: 280, child: block) : null);
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -458,8 +469,8 @@ class _SettingTile extends StatelessWidget {
                         if (note != null) Text(note!, style: muted),
                         Text(
                           setting.path,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontFamily: 'monospace',
+                          style: codeTextStyle(theme).copyWith(
+                            fontSize: theme.textTheme.labelSmall?.fontSize,
                             color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                           ),
                         ),
@@ -467,13 +478,13 @@ class _SettingTile extends StatelessWidget {
                     ),
                   ),
                   if (control != null) ...[const SizedBox(width: 12), control],
-                  if (onReset != null)
-                    IconButton(tooltip: t.config.settings.reset, onPressed: onReset, icon: const Icon(Icons.restart_alt, size: 18))
-                  else
-                    const SizedBox(width: 40),
+                  if (onReset != null) ...[
+                    const SizedBox(width: 4),
+                    IconButton(tooltip: t.config.settings.reset, onPressed: onReset, icon: const Icon(Icons.restart_alt, size: 18)),
+                  ],
                 ],
               ),
-              if (block != null && !fieldInline) Padding(padding: const EdgeInsets.only(top: 8, right: 40), child: block),
+              if (block != null && !fieldInline) Padding(padding: const EdgeInsets.only(top: 8), child: block),
             ],
           ),
         );

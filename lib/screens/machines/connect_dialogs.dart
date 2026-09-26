@@ -8,6 +8,8 @@ import '../../i18n/strings.g.dart';
 import '../../models/host_key_trust.dart';
 import '../../models/machine.dart';
 import '../../services/machine_connector.dart';
+import '../../widgets/labeled_field.dart';
+import '../chat/transcript/code_style.dart';
 
 /// Opens a link to [machine] with dialogs for passwords, keyboard-interactive prompts and host keys, runs
 /// [action] on it, and closes the link.
@@ -76,7 +78,7 @@ class HostKeyDialog extends StatelessWidget {
     final t = context.t;
     final theme = Theme.of(context);
     final host = check.port == 22 ? check.host : '${check.host}:${check.port}';
-    final mono = theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace');
+    final mono = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodyMedium?.fontSize);
     final (title, body) = switch (verdict) {
       HostKeyUnknown() || HostKeyTrusted() => (t.hostKey.unknownTitle, t.hostKey.unknownBody(host: host)),
       HostKeyChanged(:final knownFingerprints) when knownFingerprints.isEmpty => (
@@ -159,12 +161,14 @@ class _PasswordDialogState extends State<PasswordDialog> {
     final t = context.t;
     return AlertDialog(
       title: Text(t.prompt.passwordTitle(hop: widget.hop)),
-      content: TextField(
-        controller: _password,
-        autofocus: true,
-        obscureText: true,
-        decoration: InputDecoration(labelText: t.editor.password),
-        onSubmitted: (value) => Navigator.pop(context, value),
+      content: LabeledField(
+        label: t.editor.password,
+        child: TextField(
+          controller: _password,
+          autofocus: true,
+          obscureText: true,
+          onSubmitted: (value) => Navigator.pop(context, value),
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(t.common.cancel)),
@@ -211,12 +215,17 @@ class _KeyboardInteractiveDialogState extends State<KeyboardInteractiveDialog> {
         children: [
           if (request.instruction.isNotEmpty) Text(request.instruction),
           for (final (index, prompt) in request.prompts.indexed)
-            TextField(
-              controller: _answers[index],
-              autofocus: index == 0,
-              obscureText: !prompt.echo,
-              decoration: InputDecoration(labelText: prompt.text.trim()),
-              onSubmitted: index == request.prompts.length - 1 ? (_) => _submit() : null,
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: LabeledField(
+                label: prompt.text.trim(),
+                child: TextField(
+                  controller: _answers[index],
+                  autofocus: index == 0,
+                  obscureText: !prompt.echo,
+                  onSubmitted: index == request.prompts.length - 1 ? (_) => _submit() : null,
+                ),
+              ),
             ),
         ],
       ),

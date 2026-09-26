@@ -51,9 +51,12 @@ something the rules do not cover extends this document first.
 | Secondary action | `FilledButton.tonal` (surfaceContainerHigh fill) |
 | Low-emphasis action | `TextButton` |
 | Text input | `TextField` with the theme's filled, borderless decoration |
+| Label of a field or select | `LabeledField`: the label above the control. Filled fields never float a label inside the fill |
 | Search | `AppSearchField` |
 | Choice from a list | `AppSelect<T>`: a flat filled button showing the value and a chevron, opening a flat menu |
 | Two to four exclusive options | `AppSegmented<T>`: flat track, the selected segment one tone lighter, no check icon |
 | On/off | `Switch` (monochrome through the theme) |
 | Grouping | a `surfaceContainer` block with `cardRadius`, no border |
 | Long list of choices (providers, models) | a searchable list: `AppSearchField` above dense rows |
+| Modal dialog | `surfaceContainer` with `sheetRadius`, over a black scrim (80 % dark, 50 % light), so a dialog opened from a dialog stands apart from it. Not `surfaceContainerHigh`: the fields, selects and tonal buttons inside have that tone |
+| Monospace text (ids, paths, keys, scripts) | `codeTextStyle`, the code blocks' font; the generic `monospace` family does not resolve on macOS |

@@ -2,14 +2,37 @@ import 'package:omp_core/rpc.dart';
 
 import 'settings_schema.dart';
 
-/// `accounts.list`: one row per provider with stored credentials, plus the current model's provider.
+/// `accounts.list`: one row per provider with stored credentials, the current model's provider and every provider
+/// models.yml adds; the kind of each of omp's login providers.
 final class AccountsState {
   AccountsState.fromJson(Map<String, Object?> json)
     : currentProvider = json.optString('currentProvider'),
-      providers = [for (final row in json.objects('providers')) ProviderAccounts.fromJson(row)];
+      providers = [for (final row in json.objects('providers')) ProviderAccounts.fromJson(row)],
+      logins = {
+        for (final row in json.objects('logins'))
+          row.string('provider'): switch (row.string('kind')) {
+            'key' => LoginKind.key,
+            'optional_key' => LoginKind.optionalKey,
+            'flow' => LoginKind.flow,
+            final kind => throw FormatException('unknown login kind "$kind"'),
+          },
+      };
 
   final String? currentProvider;
   final List<ProviderAccounts> providers;
+  final Map<String, LoginKind> logins;
+}
+
+/// What omp's `/login` asks for a provider.
+enum LoginKind {
+  /// Only an API key, which the row's key field stores the same way.
+  key,
+
+  /// An API key that may stay empty: a local server without auth.
+  optionalKey,
+
+  /// A browser, device-code or multi-prompt sign-in that only omp's `login` runs.
+  flow,
 }
 
 /// Where a provider's working auth comes from (`source.kind`).
@@ -47,18 +70,18 @@ final class ProviderAccounts {
 
 /// How a provider authenticates, as the accounts list names it.
 enum ProviderKind {
-  /// In omp's `/login` list: a browser sign-in or omp's key page.
+  /// A sign-in flow: a browser, a device code or several prompts.
   account,
 
-  /// Only reachable with a pasted API key.
+  /// A pasted API key.
   apiKey,
 
-  /// A server on the machine or the network (omp names these "Local").
+  /// A server on the machine or the network whose key is optional.
   local,
 }
 
 /// One provider of the accounts list: omp's login providers, the providers of the available models and every
-/// provider with stored credentials, merged by id.
+/// provider `accounts.list` names (stored credentials, models.yml), merged by id.
 final class ProviderRow {
   const ProviderRow({
     required this.id,
@@ -74,7 +97,7 @@ final class ProviderRow {
   final String name;
   final ProviderKind kind;
 
-  /// omp's `login` takes this id.
+  /// omp's `login` runs a flow for this id that the key field does not replace.
   final bool canSignIn;
 
   /// The provider of the current model.
@@ -109,27 +132,33 @@ List<ProviderRow> providerRows({
   final rows = [
     for (final id in {...logins.keys, ...stored.keys, ...modelProviders})
       if (id != hidden || (stored[id]?.credentials.isNotEmpty ?? false))
-        ProviderRow(
-          id: id,
-          name: logins[id]?.name ?? stored[id]?.name ?? id,
-          kind: switch ((logins[id], stored[id])) {
-            (final login?, _) when login.name.contains('Local') => ProviderKind.local,
-            (_?, _) => ProviderKind.account,
-            (null, final row?) when row.credentials.isNotEmpty && row.credentials.every((credential) => credential.oauth) =>
-              ProviderKind.account,
-            _ => ProviderKind.apiKey,
-          },
-          canSignIn: logins.containsKey(id),
-          current: id == accounts.currentProvider && id != hidden,
-          accounts: stored[id],
-          authenticated: logins[id]?.authenticated ?? false,
-        ),
+        _row(id, accounts, logins[id], stored[id], hidden),
   ];
   int rank(ProviderRow row) => row.inUse ? 0 : (row.signedIn ? 1 : 2);
   return rows..sort((a, b) {
     final byRank = rank(a).compareTo(rank(b));
     return byRank != 0 ? byRank : a.name.toLowerCase().compareTo(b.name.toLowerCase());
   });
+}
+
+ProviderRow _row(String id, AccountsState accounts, RpcLoginProvider? login, ProviderAccounts? stored, String? hidden) {
+  final kind = switch ((login, accounts.logins[id], stored)) {
+    (_?, LoginKind.key, _) => ProviderKind.apiKey,
+    (_?, LoginKind.optionalKey, _) => ProviderKind.local,
+    (_?, _, _) => ProviderKind.account,
+    (null, _, final row?) when row.credentials.isNotEmpty && row.credentials.every((credential) => credential.oauth) =>
+      ProviderKind.account,
+    _ => ProviderKind.apiKey,
+  };
+  return ProviderRow(
+    id: id,
+    name: login?.name ?? stored?.name ?? id,
+    kind: kind,
+    canSignIn: login != null && kind != ProviderKind.apiKey,
+    current: id == accounts.currentProvider && id != hidden,
+    accounts: stored,
+    authenticated: login?.authenticated ?? false,
+  );
 }
 
 /// The rows whose name or id contains every word of [query], case-insensitively.

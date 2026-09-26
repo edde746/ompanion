@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -354,19 +355,29 @@ class _ComposerState extends State<Composer> {
                             void steer() => unawaited(_send(followUp: false));
                             return Row(
                               children: [
-                                // The pickers take what they need and shrink first; the rest pushes send to the end.
                                 Expanded(
-                                  child: Row(
-                                    children: [
-                                      if (!closed) ...[
-                                        Flexible(
-                                          child: ModelPicker(session: session, machine: machine, model: data.model),
+                                  child: closed
+                                      ? const SizedBox.shrink()
+                                      : SizedBox(
+                                          height: AppSizes.control,
+                                          child: CustomMultiChildLayout(
+                                            delegate: _PickersLayout(),
+                                            children: [
+                                              LayoutId(
+                                                id: _Picker.model,
+                                                child: ModelPicker(session: session, machine: machine, model: data.model),
+                                              ),
+                                              LayoutId(
+                                                id: _Picker.thinking,
+                                                child: ThinkingPicker(session: session, level: data.thinking),
+                                              ),
+                                              LayoutId(
+                                                id: _Picker.meter,
+                                                child: ContextMeter(usage: data.context, cost: data.cost),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                        Flexible(child: ThinkingPicker(session: session, level: data.thinking)),
-                                        ContextMeter(usage: data.context, cost: data.cost),
-                                      ],
-                                    ],
-                                  ),
                                 ),
                                 IconButton(
                                   tooltip: t.composer.attachImage,
@@ -423,6 +434,34 @@ class _ComposerState extends State<Composer> {
       ),
     );
   }
+}
+
+enum _Picker { model, thinking, meter }
+
+/// The toolbar's pickers side by side. The model button gets the width its name needs first, up to what leaves the
+/// thinking button its icon and chevron; the thinking label shrinks next. The rest of the row stays free, so send sits
+/// at the end.
+final class _PickersLayout extends MultiChildLayoutDelegate {
+  @override
+  void performLayout(Size size) {
+    final meter = layoutChild(_Picker.meter, BoxConstraints.loose(size));
+    final model = layoutChild(
+      _Picker.model,
+      BoxConstraints.loose(Size(math.max(0, size.width - meter.width - ToolbarButton.minWidth), size.height)),
+    );
+    final thinking = layoutChild(
+      _Picker.thinking,
+      BoxConstraints.loose(Size(math.max(0, size.width - meter.width - model.width), size.height)),
+    );
+    var x = 0.0;
+    for (final (id, child) in [(_Picker.model, model), (_Picker.thinking, thinking), (_Picker.meter, meter)]) {
+      positionChild(id, Offset(x, (size.height - child.height) / 2));
+      x += child.width;
+    }
+  }
+
+  @override
+  bool shouldRelayout(_PickersLayout oldDelegate) => false;
 }
 
 /// What the composer shows besides the draft; compared field by field so streamed tokens do not rebuild it.

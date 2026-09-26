@@ -1,9 +1,15 @@
 import type { AuthCredential } from "@oh-my-pi/pi-coding-agent";
 import { toLogoutAccounts } from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/logout";
 import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
+import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
 import { expectKeys, optionalInteger, requireString } from "../../args.ts";
+import type { LoginKind } from "../../login-kinds.ts";
+import { keyLogins } from "../../login-kinds.ts" with { type: "macro" };
 import { takeSecretFile } from "../../paths.ts";
 import { VerbError, type VerbTable } from "../../protocol.ts";
+
+/** omp's /login providers whose login is a pasted key, from the omp release the companion is built against. */
+const KEY_LOGINS: Record<string, LoginKind> = keyLogins();
 
 function requireCredentialId(args: Record<string, unknown>): number {
 	const credentialId = optionalInteger(args, "credentialId", 1, Number.MAX_SAFE_INTEGER);
@@ -27,16 +33,24 @@ function identity(credential: AuthCredential) {
 
 export const accountVerbs: VerbTable = {
 	// The rows of the TUI's logout selector (selector-controller.ts:1909-1924) for every provider with
-	// stored credentials plus the current model's provider, with the session-pin state of /session pin.
+	// stored credentials, the current model's provider and every provider models.yml or an extension adds, with
+	// the session-pin state of /session pin. `logins` classifies omp's /login providers.
 	"accounts.list": async (args, { session }) => {
 		expectKeys(args, []);
-		const auth = session.modelRegistry.authStorage;
+		const registry = session.modelRegistry;
+		const auth = registry.authStorage;
 		await auth.credentials.reload();
 		const sessionId = session.sessionId;
 		const currentProvider = session.model?.provider ?? null;
 		const providerIds = new Set(auth.credentials.list().map(row => row.provider));
 		if (currentProvider) providerIds.add(currentProvider);
-		const names = new Map(getOAuthProviders().map(provider => [provider.id, provider.name]));
+		// omp defines every built-in provider; one it does not define came from models.yml or an extension, and
+		// may have no credential yet (a machine in bootstrap mode needs its key).
+		for (const provider of [...registry.getAll().map(model => model.provider), ...registry.getDiscoverableProviders()]) {
+			if (!getProviderDefinition(provider)) providerIds.add(provider);
+		}
+		const oauthProviders = getOAuthProviders();
+		const names = new Map(oauthProviders.map(provider => [provider.id, provider.name]));
 		const providers = [...providerIds].sort().map(provider => {
 			const rows = auth.credentials.list(provider);
 			const source = auth.keys.source(provider);
@@ -70,7 +84,8 @@ export const accountVerbs: VerbTable = {
 				}),
 			};
 		});
-		return { sessionId, currentProvider, providers };
+		const logins = oauthProviders.map(provider => ({ provider: provider.id, kind: KEY_LOGINS[provider.id] ?? "flow" }));
+		return { sessionId, currentProvider, providers, logins };
 	},
 
 	// The TUI's credential logout (selector-controller.ts:1870-1906).

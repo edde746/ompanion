@@ -10,6 +10,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../models/machine_export.dart';
 import '../../providers/machines_provider.dart';
+import '../chat/transcript/code_style.dart';
 
 /// Exports stay small: machine records and host keys only.
 const _maxImportBytes = 1024 * 1024;
@@ -175,7 +176,7 @@ class _ImportDialogState extends State<_ImportDialog> {
                 controller: _text,
                 minLines: 6,
                 maxLines: 12,
-                style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize),
               ),
               Align(
                 alignment: AlignmentDirectional.centerStart,
@@ -225,7 +226,7 @@ class _HostKeyChangeTile extends StatelessWidget {
     final t = context.t.transfer;
     final theme = Theme.of(context);
     final colors = AppColors.of(context);
-    final mono = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace');
+    final mono = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize);
     final label = theme.textTheme.labelMedium;
     return Container(
       margin: const EdgeInsets.only(top: 8),

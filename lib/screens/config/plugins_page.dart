@@ -9,6 +9,7 @@ import '../../config/omp_cli.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../widgets/app_segmented.dart';
+import '../chat/transcript/code_style.dart';
 import 'config_widgets.dart';
 
 /// Installed plugins (`omp plugin list --json`), marketplaces and what they offer, and the lifecycle
@@ -115,7 +116,7 @@ class _PluginsPageState extends State<PluginsPage> {
     final t = context.t;
     final theme = Theme.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-    final mono = theme.textTheme.labelSmall?.copyWith(fontFamily: 'monospace', color: theme.colorScheme.onSurfaceVariant);
+    final mono = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: theme.colorScheme.onSurfaceVariant);
     final plugins = _plugins;
     final installed = {...?plugins?.marketplace.map((plugin) => plugin.id)};
     final installField = TextField(

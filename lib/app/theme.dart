@@ -133,7 +133,9 @@ ThemeData appTheme(Brightness brightness) {
       suffixIconColor: scheme.onSurfaceVariant,
       hintStyle: TextStyle(color: scheme.onSurfaceVariant),
       labelStyle: TextStyle(color: scheme.onSurfaceVariant),
-      floatingLabelStyle: TextStyle(color: scheme.onSurfaceVariant),
+      // Safety net: a label floats across the top edge of a fill one control tall. Labels go above fields
+      // (LabeledField); a stray labelText stays a placeholder.
+      floatingLabelBehavior: FloatingLabelBehavior.never,
       border: _noBorder,
       enabledBorder: _noBorder,
       focusedBorder: _noBorder,
@@ -175,6 +177,8 @@ ThemeData appTheme(Brightness brightness) {
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: scheme.surfaceContainer,
+      // A dialog over a dialog: the scrim drops the lower one to near black, so the top one stands apart.
+      barrierColor: Colors.black.withValues(alpha: dark ? 0.8 : 0.5),
       elevation: 0,
       surfaceTintColor: Colors.transparent,
       shadowColor: Colors.transparent,

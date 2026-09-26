@@ -6,6 +6,7 @@ import '../../config/settings_schema.dart';
 import '../../i18n/strings.g.dart';
 import '../../utils/app_logger.dart';
 import '../chat/transcript/ansi.dart';
+import '../chat/transcript/code_style.dart';
 
 /// The layer a value comes from, as a small tag. An environment variable is the one layer the files cannot
 /// change, so it reads as a warning.
@@ -210,7 +211,7 @@ class CommandOutputView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final base = theme.textTheme.bodySmall!.copyWith(fontFamily: 'monospace', height: 1.35);
+    final base = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall!.fontSize, height: 1.35);
     return ConfigBlock(
       padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
       child: Row(
@@ -254,7 +255,7 @@ class CommandRun extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(command, style: theme.textTheme.labelMedium?.copyWith(fontFamily: 'monospace', color: theme.colorScheme.onSurfaceVariant)),
+                child: Text(command, style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.labelMedium?.fontSize, color: theme.colorScheme.onSurfaceVariant)),
               ),
               if (running) const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
             ],

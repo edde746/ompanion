@@ -650,6 +650,7 @@
       "agentCompleted": "Done",
       "agentFailed": "Failed",
       "agentAborted": "Aborted",
+      "askWaiting": "Waiting for your answer below",
       "recommended": "Recommended",
       "cancelled": "Cancelled",
       "note": "Note: $note",
@@ -781,8 +782,6 @@
     "accounts": {
       "machineWide": "Credentials are stored per machine.",
       "sessionView": "In use and pinned marks refer to the session in $path.",
-      "oauthAccount": "OAuth",
-      "apiKeyAccount": "API key",
       "active": "in use",
       "sticky": "pinned",
       "expires": "expires $date",
@@ -812,6 +811,9 @@
       "signedIn": "signed in",
       "signIn": "Sign in",
       "keyHint": "Paste an API key",
+      "other": "Other provider…",
+      "otherId": "Provider id",
+      "otherNote": "Stores a key under a provider id this list does not show, as models.yml or an extension names it.",
       "kind": {
         "account": "account",
         "apiKey": "API key",
@@ -824,7 +826,8 @@
         "apiKey": "omp uses a stored API key.",
         "env": "omp uses the key in the environment variable $name.",
         "working": "omp has a working credential for this provider.",
-        "none": "Not signed in."
+        "none": "Not signed in.",
+        "noKey": "No key stored."
       },
       "overridden": {
         "config": "models.yml sets a key for this provider, so omp uses that key and not the stored one.",

@@ -10,6 +10,7 @@ import 'package:omp_app/providers/shell_provider.dart';
 import 'package:omp_app/screens/machines/machine_editor.dart';
 import 'package:omp_app/services/secret_store.dart';
 import 'package:omp_app/widgets/app_select.dart';
+import 'package:omp_app/widgets/labeled_field.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -67,7 +68,7 @@ void main() {
     });
   }
 
-  Finder field(String label) => find.widgetWithText(TextFormField, label);
+  Finder field(String label) => find.descendant(of: find.widgetWithText(LabeledField, label), matching: find.byType(TextFormField));
 
   testWidgets('a new machine uses key auth when keys are stored', (tester) async {
     await tester.runAsync(
@@ -109,7 +110,7 @@ void main() {
     }
     Finder jump(int n, String label) => find.descendant(
       of: find.ancestor(of: find.text('Jump host $n'), matching: find.byType(Card)),
-      matching: find.widgetWithText(TextFormField, label),
+      matching: field(label),
     );
     await reveal(jump(1, 'User'));
     await tester.enterText(jump(1, 'Host'), 'relay.example');

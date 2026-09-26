@@ -6,6 +6,7 @@ import 'package:flutter_pty2/flutter_pty2.dart';
 import 'package:omp_core/transport.dart';
 import 'package:xterm3/xterm.dart';
 
+import '../utils/app_logger.dart';
 import 'shell_launch.dart';
 
 /// The process a terminal shows: a shell on a PTY, over SSH or on this computer.
@@ -304,7 +305,15 @@ final class TerminalSession extends ChangeNotifier {
     unawaited(_output?.cancel());
     final backend = _backend;
     _backend = null;
-    if (backend != null) unawaited(backend.close());
+    // Nothing awaits a disposed tab: a close that fails (the PTY refusing a signal or a kill while the app shuts
+    // down) is logged here instead of surfacing as an uncaught async error.
+    if (backend != null) {
+      unawaited(
+        backend.close().catchError(
+          (Object error, StackTrace stack) => appLogger.w('closing the terminal failed', error: error, stackTrace: stack),
+        ),
+      );
+    }
     controller.dispose();
     terminal.dispose();
     super.dispose();

@@ -40,6 +40,14 @@ void main() {
     ]);
     await expectLater(bootstrap.rpc.prompt('Hello?'), throwsStateError, reason: 'no model call in bootstrap mode');
     await expectLater(bootstrap.companion.call('btw', {'prompt': 'Hello?'}), throwsStateError);
+    // The provider models.yml configures has no credential, yet the accounts list names it, so the app offers its
+    // key field; the placeholder provider is the current one.
+    final before = (await bootstrap.companion.call('accounts.list'))! as Map<String, Object?>;
+    expect(before['currentProvider'], 'minimax');
+    final keyless = (before['providers']! as List<Object?>).cast<Map<String, Object?>>().singleWhere(
+      (row) => row['provider'] == 'fake',
+    );
+    expect([keyless['source'], keyless['credentials']], [null, isEmpty]);
 
     final files = await runtime.link.files();
     final String keyFile;

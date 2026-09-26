@@ -8,18 +8,60 @@ import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../sessions/session_view_builder.dart';
 import 'transcript/ansi.dart';
+import 'transcript/code_style.dart';
 
 typedef _StripData = ({Map<String, String> statuses, RunStatus status, bool paused, bool running});
 
-/// One line of run state and extension statuses (`setStatus`) under the header: compacting, retrying, a
-/// failed run, a parked run while paused. A closed session has no run left to describe.
-class StatusStrip extends StatelessWidget {
+/// One line of run state and extension statuses (`setStatus`) under the header: compacting, retrying, a failed run, a
+/// parked run while paused, and for [stoppedFor] after a stop, Stopped (the transcript's Interrupted marker stays). A
+/// closed session has no run left to describe.
+class StatusStrip extends StatefulWidget {
   const StatusStrip({super.key, required this.session});
 
   final LiveSession session;
 
+  static const stoppedFor = Duration(seconds: 4);
+
+  @override
+  State<StatusStrip> createState() => _StatusStripState();
+}
+
+class _StatusStripState extends State<StatusStrip> {
+  /// Each session's current stop, running while Stopped shows. Kept per session, not per strip: a strip built again
+  /// (another layout, the chat opened again) must not show an old stop anew.
+  static final _stops = Expando<Timer>();
+
+  /// Ticks when a stop's time is up, so the strips showing it rebuild.
+  static final _stopEnded = ValueNotifier<int>(0);
+
+  @override
+  void initState() {
+    super.initState();
+    _stopEnded.addListener(_rebuild);
+  }
+
+  @override
+  void dispose() {
+    _stopEnded.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  void _rebuild() => setState(() {});
+
+  /// Whether Stopped still shows for [status].
+  bool _showStopped(RunStatus status) {
+    final session = widget.session;
+    if (status is! RunAborted) {
+      _stops[session]?.cancel();
+      _stops[session] = null;
+      return false;
+    }
+    return (_stops[session] ??= Timer(StatusStrip.stoppedFor, () => _stopEnded.value++)).isActive;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final session = widget.session;
     return LinkStateBuilder(
       session: session,
       builder: (context, link) => SessionViewSelector<_StripData>(
@@ -31,6 +73,7 @@ class StatusStrip extends StatelessWidget {
           final theme = Theme.of(context);
           final colors = AppColors.of(context);
           final live = link is! LinkClosed;
+          final stopped = _showStopped(data.status);
           final chips = <Widget>[
             if (live && data.paused && data.running) _StatusChip(icon: Icons.pause_circle_outline, text: t.chat.parked),
             if (live)
@@ -51,7 +94,7 @@ class StatusStrip extends StatelessWidget {
                     color: colors.error,
                   ),
                 ],
-                RunAborted() => [_StatusChip(icon: Icons.stop_circle_outlined, text: t.chat.aborted)],
+                RunAborted() => [if (stopped) _StatusChip(icon: Icons.stop_circle_outlined, text: t.chat.aborted)],
                 RunStreaming() || RunIdle() => const <Widget>[],
               },
             for (final MapEntry(:key, :value) in data.statuses.entries)
@@ -158,7 +201,7 @@ class _WidgetPanelState extends State<_WidgetPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final base = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace') ?? const TextStyle(fontFamily: 'monospace');
+    final base = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize);
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 2, 12, 2),
       child: Column(
@@ -201,8 +244,15 @@ class CommandOutputs extends StatefulWidget {
 }
 
 class _CommandOutputsState extends State<CommandOutputs> {
-  /// Outputs up to this sequence number are dismissed; the ones before opening the chat count as seen.
-  late int _dismissedThrough = _latestSeq(widget.session.view);
+  /// Outputs up to this sequence number are dismissed; the ones before opening the chat count as seen. Set when the
+  /// chat opens: read lazily, it would first be read when an output arrives and hide that one.
+  late int _dismissedThrough;
+
+  @override
+  void initState() {
+    super.initState();
+    _dismissedThrough = _latestSeq(widget.session.view);
+  }
 
   static int _latestSeq(SessionView view) => view.commandOutputs.isEmpty ? -1 : view.commandOutputs.last.seq;
 
@@ -210,7 +260,7 @@ class _CommandOutputsState extends State<CommandOutputs> {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
-    final base = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace') ?? const TextStyle(fontFamily: 'monospace');
+    final base = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize);
     return SessionViewSelector<List<CommandOutput>>(
       session: widget.session,
       select: (view) => view.commandOutputs,

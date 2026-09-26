@@ -12,6 +12,7 @@ import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
+import '../chat/transcript/code_style.dart';
 import '../machines/connect_dialogs.dart';
 import '../machines/machine_detail_pane.dart';
 
@@ -236,7 +237,7 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
                                 padding: const EdgeInsets.symmetric(vertical: 8),
                                 child: SelectableText(
                                   _manualCommand(probe),
-                                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                                  style: codeTextStyle(theme).copyWith(fontSize: 12),
                                 ),
                               ),
                             ),

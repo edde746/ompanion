@@ -331,7 +331,7 @@ class _TerminalPaneState extends State<_TerminalPane> {
                   focusNode: _focus,
                   autofocus: true,
                   theme: terminalTheme(theme),
-                  textStyle: TerminalStyle(fontSize: widget.fontSize, fontFamily: code.fontFamily ?? 'monospace'),
+                  textStyle: TerminalStyle(fontSize: widget.fontSize, fontFamily: code.fontFamily!),
                   padding: const EdgeInsets.all(6),
                   keyboardAppearance: theme.brightness,
                   deleteDetection: Platform.isAndroid || Platform.isIOS,

@@ -11,6 +11,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../widgets/labeled_field.dart';
 import '../machines/connect_dialogs.dart';
 import 'machine_sessions.dart';
 
@@ -173,23 +174,25 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_connecting) const LinearProgressIndicator(),
-            TextField(
-              key: const ValueKey('new-session-cwd'),
-              controller: _cwd,
-              autofocus: true,
-              // Desktop fields select everything when the focus comes back from the directory picker; a typed key
-              // would then replace the picked path.
-              selectAllOnFocus: false,
-              decoration: InputDecoration(
-                labelText: t.sessions.directory,
-                hintText: t.sessions.directoryHint,
-                suffixIcon: IconButton(
-                  tooltip: t.sessions.browse,
-                  icon: const Icon(Icons.folder_open),
-                  onPressed: _probe == null ? null : () => unawaited(_browse()),
+            LabeledField(
+              label: t.sessions.directory,
+              child: TextField(
+                key: const ValueKey('new-session-cwd'),
+                controller: _cwd,
+                autofocus: true,
+                // Desktop fields select everything when the focus comes back from the directory picker; a typed key
+                // would then replace the picked path.
+                selectAllOnFocus: false,
+                decoration: InputDecoration(
+                  hintText: t.sessions.directoryHint,
+                  suffixIcon: IconButton(
+                    tooltip: t.sessions.browse,
+                    icon: const Icon(Icons.folder_open),
+                    onPressed: _probe == null ? null : () => unawaited(_browse()),
+                  ),
                 ),
+                onSubmitted: ready ? (_) => unawaited(_create()) : null,
               ),
-              onSubmitted: ready ? (_) => unawaited(_create()) : null,
             ),
             if (recent.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -209,10 +212,13 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
               ),
             ],
             const SizedBox(height: 12),
-            TextField(
-              controller: _model,
-              decoration: InputDecoration(labelText: t.sessions.model, hintText: t.sessions.modelHint),
-              onSubmitted: ready ? (_) => unawaited(_create()) : null,
+            LabeledField(
+              label: t.sessions.model,
+              child: TextField(
+                controller: _model,
+                decoration: InputDecoration(hintText: t.sessions.modelHint),
+                onSubmitted: ready ? (_) => unawaited(_create()) : null,
+              ),
             ),
             if (error != null) ...[
               const SizedBox(height: 12),

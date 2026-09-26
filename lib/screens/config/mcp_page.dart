@@ -10,6 +10,8 @@ import '../../config/txt_command.dart';
 import '../../i18n/strings.g.dart';
 import '../../widgets/app_search_field.dart';
 import '../../widgets/app_segmented.dart';
+import '../../widgets/labeled_field.dart';
+import '../chat/transcript/code_style.dart';
 import 'config_widgets.dart';
 
 /// MCP servers from `<agentDir>/mcp.json` and the active project's `.omp/mcp.json`, read over SFTP. Changes
@@ -263,7 +265,7 @@ class _ServerRow extends StatelessWidget {
                     style: muted,
                   ),
                   if (server.target case final target?)
-                    Text(target, style: muted?.copyWith(fontFamily: 'monospace'), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(target, style: codeTextStyle(theme).copyWith(fontSize: muted?.fontSize, color: muted?.color), maxLines: 2, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
@@ -341,11 +343,14 @@ class _AddServerDialogState extends State<_AddServerDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              key: const ValueKey('mcp-name'),
-              controller: _name,
-              autofocus: true,
-              decoration: InputDecoration(labelText: t.config.mcp.name, errorText: _nameError),
+            LabeledField(
+              label: t.config.mcp.name,
+              child: TextField(
+                key: const ValueKey('mcp-name'),
+                controller: _name,
+                autofocus: true,
+                decoration: InputDecoration(errorText: _nameError),
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -366,24 +371,28 @@ class _AddServerDialogState extends State<_AddServerDialog> {
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
-              key: const ValueKey('mcp-target'),
-              controller: _target,
-              decoration: InputDecoration(
-                labelText: _transport == 'stdio' ? t.config.mcp.command : t.config.mcp.url,
-                hintText: _transport == 'stdio' ? 'npx -y @modelcontextprotocol/server-everything' : 'https://example.com/mcp',
+            LabeledField(
+              label: _transport == 'stdio' ? t.config.mcp.command : t.config.mcp.url,
+              child: TextField(
+                key: const ValueKey('mcp-target'),
+                controller: _target,
+                decoration: InputDecoration(
+                  hintText: _transport == 'stdio' ? 'npx -y @modelcontextprotocol/server-everything' : 'https://example.com/mcp',
+                ),
               ),
             ),
             if (_transport != 'stdio') ...[
               const SizedBox(height: 12),
-              TextField(
-                controller: _token,
-                enabled: _scope == McpScope.user,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: t.config.mcp.token,
-                  helperText: _scope == McpScope.user ? t.config.mcp.tokenHint : t.config.mcp.tokenUserOnly,
-                  helperMaxLines: 2,
+              LabeledField(
+                label: t.config.mcp.token,
+                child: TextField(
+                  controller: _token,
+                  enabled: _scope == McpScope.user,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    helperText: _scope == McpScope.user ? t.config.mcp.tokenHint : t.config.mcp.tokenUserOnly,
+                    helperMaxLines: 2,
+                  ),
                 ),
               ),
             ],

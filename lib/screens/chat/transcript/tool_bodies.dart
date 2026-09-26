@@ -685,6 +685,18 @@ List<_Question> _questions(ToolData data) {
 }
 
 ToolParts _ask(BuildContext context, ToolData data) {
+  final done = data.status != ToolStatus.pending && data.status != ToolStatus.running;
+  // While the call waits, the question and its options are answered in the request panel under the transcript.
+  if (!done) {
+    return (
+      subject: context.t.transcript.tool.askWaiting,
+      monoSubject: false,
+      meta: const [],
+      expanded: false,
+      open: null,
+      body: null,
+    );
+  }
   final questions = _questions(data);
   return (
     subject: questions.isEmpty ? '' : questions.first.question,
@@ -693,27 +705,24 @@ ToolParts _ask(BuildContext context, ToolData data) {
     expanded: true,
     open: null,
     body: (context) => _column([
-      for (final question in questions) _QuestionView(question, done: data.status != ToolStatus.pending &&
-          data.status != ToolStatus.running),
+      for (final question in questions) _QuestionView(question),
       ..._errorAndImages(context, data),
     ]),
   );
 }
 
 class _QuestionView extends StatelessWidget {
-  const _QuestionView(this.question, {required this.done});
+  const _QuestionView(this.question);
 
   final _Question question;
-
-  /// The call finished: an unanswered question was cancelled.
-  final bool done;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final t = context.t.transcript.tool;
-    final cancelled = done && question.answered && question.selected.isEmpty && question.custom == null;
+    // Shown once the call finished: an answered question without a choice was cancelled.
+    final cancelled = question.answered && question.selected.isEmpty && question.custom == null;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Column(

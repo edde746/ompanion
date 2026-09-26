@@ -8,6 +8,7 @@ import 'package:omp_core/session.dart';
 import '../../config/accounts.dart';
 import '../../config/config_target.dart';
 import '../../i18n/strings.g.dart';
+import '../chat/transcript/code_style.dart';
 import 'config_widgets.dart';
 import 'model_picker.dart';
 
@@ -184,16 +185,14 @@ class _RoleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
+    final mono = codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodyMedium?.fontSize);
     Widget layer(String label, String? value, {required bool project, required bool available}) => Row(
       children: [
         SizedBox(width: 72, child: Text(label, style: theme.textTheme.labelMedium)),
         Expanded(
           child: Text(
             value ?? t.config.roles.auto,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontFamily: value == null ? null : 'monospace',
-              color: value == null ? theme.colorScheme.onSurfaceVariant : null,
-            ),
+            style: value == null ? theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant) : mono,
           ),
         ),
         TextButton(
@@ -201,8 +200,11 @@ class _RoleCard extends StatelessWidget {
           onPressed: available && !busy ? () => onAssign(project) : null,
           child: Text(t.config.roles.assign),
         ),
+        // Full tone like Set beside it: the default grey of an enabled icon is too close to a disabled one.
         IconButton(
+          key: ValueKey('role-${role.role}-${project ? 'project' : 'global'}-clear'),
           tooltip: t.config.roles.clear,
+          color: theme.colorScheme.onSurface,
           onPressed: available && !busy && value != null ? () => onClear(project) : null,
           icon: const Icon(Icons.clear, size: 18),
         ),
@@ -219,7 +221,7 @@ class _RoleCard extends StatelessWidget {
               children: [
                 Text(role.name, style: theme.textTheme.titleSmall),
                 const SizedBox(width: 8),
-                Text(role.role, style: theme.textTheme.labelSmall?.copyWith(fontFamily: 'monospace', color: theme.colorScheme.onSurfaceVariant)),
+                Text(role.role, style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: theme.colorScheme.onSurfaceVariant)),
                 const Spacer(),
                 if (busy) const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
               ],
@@ -231,7 +233,7 @@ class _RoleCard extends StatelessWidget {
                 Flexible(
                   child: Text(
                     role.model ?? t.config.roles.auto,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontFamily: role.model == null ? null : 'monospace'),
+                    style: role.model == null ? theme.textTheme.bodyMedium : mono,
                   ),
                 ),
                 const SizedBox(width: 8),

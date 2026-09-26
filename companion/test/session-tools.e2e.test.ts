@@ -310,6 +310,17 @@ describe("accounts", () => {
 		expect(JSON.stringify(listed)).not.toContain("access-");
 	});
 
+	test("accounts.list tells a pasted-key login from a sign-in flow", async () => {
+		const { logins } = (await omp.call("accounts.list")) as { logins: { provider: string; kind: string }[] };
+		const kinds = new Map(logins.map(row => [row.provider, row.kind]));
+		expect([kinds.get("deepseek"), kinds.get("ollama"), kinds.get("anthropic"), kinds.get("kilo")]).toEqual([
+			"key",
+			"optional_key",
+			"flow",
+			"flow",
+		]);
+	});
+
 	test("accounts.pin refuses accounts of other providers than the current model's", async () => {
 		const oauth = (await providers()).find(row => row.provider === OAUTH_PROVIDER);
 		const id = oauth?.credentials[0]?.credentialId;

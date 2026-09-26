@@ -2150,6 +2150,9 @@ class Translations$transcript$tool$en {
 	/// en: 'Aborted'
 	String get agentAborted => 'Aborted';
 
+	/// en: 'Waiting for your answer below'
+	String get askWaiting => 'Waiting for your answer below';
+
 	/// en: 'Recommended'
 	String get recommended => 'Recommended';
 
@@ -2456,12 +2459,6 @@ class Translations$config$accounts$en {
 	/// en: 'In use and pinned marks refer to the session in $path.'
 	String sessionView({required Object path}) => 'In use and pinned marks refer to the session in ${path}.';
 
-	/// en: 'OAuth'
-	String get oauthAccount => 'OAuth';
-
-	/// en: 'API key'
-	String get apiKeyAccount => 'API key';
-
 	/// en: 'in use'
 	String get active => 'in use';
 
@@ -2548,6 +2545,15 @@ class Translations$config$accounts$en {
 
 	/// en: 'Paste an API key'
 	String get keyHint => 'Paste an API key';
+
+	/// en: 'Other provider…'
+	String get other => 'Other provider…';
+
+	/// en: 'Provider id'
+	String get otherId => 'Provider id';
+
+	/// en: 'Stores a key under a provider id this list does not show, as models.yml or an extension names it.'
+	String get otherNote => 'Stores a key under a provider id this list does not show, as models.yml or an extension names it.';
 
 	late final Translations$config$accounts$kind$en kind = Translations$config$accounts$kind$en.internal(_root);
 	late final Translations$config$accounts$source$en source = Translations$config$accounts$source$en.internal(_root);
@@ -3005,6 +3011,9 @@ class Translations$config$accounts$source$en {
 
 	/// en: 'Not signed in.'
 	String get none => 'Not signed in.';
+
+	/// en: 'No key stored.'
+	String get noKey => 'No key stored.';
 }
 
 // Path: config.accounts.overridden
@@ -3600,6 +3609,7 @@ extension on Translations {
 			'transcript.tool.agentCompleted' => 'Done',
 			'transcript.tool.agentFailed' => 'Failed',
 			'transcript.tool.agentAborted' => 'Aborted',
+			'transcript.tool.askWaiting' => 'Waiting for your answer below',
 			'transcript.tool.recommended' => 'Recommended',
 			'transcript.tool.cancelled' => 'Cancelled',
 			'transcript.tool.note' => ({required Object note}) => 'Note: ${note}',
@@ -3706,8 +3716,6 @@ extension on Translations {
 			'config.roles.noModels' => 'No model matches.',
 			'config.accounts.machineWide' => 'Credentials are stored per machine.',
 			'config.accounts.sessionView' => ({required Object path}) => 'In use and pinned marks refer to the session in ${path}.',
-			'config.accounts.oauthAccount' => 'OAuth',
-			'config.accounts.apiKeyAccount' => 'API key',
 			'config.accounts.active' => 'in use',
 			'config.accounts.sticky' => 'pinned',
 			'config.accounts.expires' => ({required Object date}) => 'expires ${date}',
@@ -3737,6 +3745,9 @@ extension on Translations {
 			'config.accounts.signedIn' => 'signed in',
 			'config.accounts.signIn' => 'Sign in',
 			'config.accounts.keyHint' => 'Paste an API key',
+			'config.accounts.other' => 'Other provider…',
+			'config.accounts.otherId' => 'Provider id',
+			'config.accounts.otherNote' => 'Stores a key under a provider id this list does not show, as models.yml or an extension names it.',
 			'config.accounts.kind.account' => 'account',
 			'config.accounts.kind.apiKey' => 'API key',
 			'config.accounts.kind.local' => 'local',
@@ -3747,6 +3758,7 @@ extension on Translations {
 			'config.accounts.source.env' => ({required Object name}) => 'omp uses the key in the environment variable ${name}.',
 			'config.accounts.source.working' => 'omp has a working credential for this provider.',
 			'config.accounts.source.none' => 'Not signed in.',
+			'config.accounts.source.noKey' => 'No key stored.',
 			'config.accounts.overridden.config' => 'models.yml sets a key for this provider, so omp uses that key and not the stored one.',
 			'config.accounts.overridden.env' => ({required Object name}) => 'The environment variable ${name} sets a key, so omp uses it and not the stored one.',
 			'config.accounts.overridden.runtime' => 'A key set for this omp process wins over the stored one.',

@@ -10,6 +10,7 @@ import '../../config/config_target.dart';
 import '../../config/login.dart';
 import '../../i18n/strings.g.dart';
 import '../../utils/app_logger.dart';
+import '../chat/transcript/code_style.dart';
 import '../external_links.dart';
 import 'config_widgets.dart';
 
@@ -241,7 +242,14 @@ class _LinkBlock extends StatelessWidget {
       children: [
         Text(t.config.accounts.openLink),
         const SizedBox(height: 8),
-        SelectableText(link.url, minLines: 1, maxLines: 3, style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace')),
+        // One line: the link is long and opaque; Copy link takes all of it.
+        Text(
+          link.url,
+          key: const ValueKey('login-link'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize, color: theme.colorScheme.onSurfaceVariant),
+        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,

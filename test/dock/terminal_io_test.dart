@@ -282,6 +282,19 @@ void main() {
       session.dispose();
       expect(backend.closed, isTrue);
     });
+
+    testWidgets('a close that fails while the tab goes away is no uncaught error', (tester) async {
+      // A live local shell when the app shuts down: the PTY may refuse the hang-up signal or the kill.
+      final backend = _Backend()..closeError = StateError('sending POSIX signal failed');
+      final session = TerminalSession(title: 'sh', open: (columns, rows) async => backend);
+      session.terminal.resize(90, 30);
+      await tester.pump();
+      expect(session.phase, isA<TerminalRunning>());
+
+      session.dispose();
+      await tester.pump();
+      expect(backend.closed, isTrue);
+    });
   });
 }
 
@@ -360,6 +373,7 @@ final class _Backend implements TerminalBackend {
   final sizes = <(int, int)>[];
   final pixels = <(int, int)>[];
   var closed = false;
+  Object? closeError;
 
   void exit(int code) {
     _exit.complete(code);
@@ -386,5 +400,8 @@ final class _Backend implements TerminalBackend {
   Future<int?> get exitCode => _exit.future;
 
   @override
-  Future<void> close() async => closed = true;
+  Future<void> close() async {
+    closed = true;
+    if (closeError case final error?) throw error;
+  }
 }
