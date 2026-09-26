@@ -63,6 +63,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$sessions$en sessions = Translations$sessions$en.internal(_root);
 	late final Translations$install$en install = Translations$install$en.internal(_root);
 	late final Translations$chat$en chat = Translations$chat$en.internal(_root);
+	late final Translations$attachments$en attachments = Translations$attachments$en.internal(_root);
 	late final Translations$composer$en composer = Translations$composer$en.internal(_root);
 	late final Translations$queue$en queue = Translations$queue$en.internal(_root);
 	late final Translations$exec$en exec = Translations$exec$en.internal(_root);
@@ -1412,6 +1413,33 @@ class Translations$chat$en {
 	String branchFailed({required Object error}) => 'Could not branch: ${error}';
 }
 
+// Path: attachments
+class Translations$attachments$en {
+	Translations$attachments$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'The large paste'
+	String get paste => 'The large paste';
+
+	/// en: '$name is no longer on this device. Nothing was sent.'
+	String missing({required Object name}) => '${name} is no longer on this device. Nothing was sent.';
+
+	/// en: '$name is $size; attachments can be at most $limit. Nothing was sent.'
+	String tooLarge({required Object name, required Object size, required Object limit}) => '${name} is ${size}; attachments can be at most ${limit}. Nothing was sent.';
+
+	/// en: '$name is a folder. Folders can be attached only to sessions on this computer. Nothing was sent.'
+	String folder({required Object name}) => '${name} is a folder. Folders can be attached only to sessions on this computer. Nothing was sent.';
+
+	/// en: '$name needs the companion to reach the session's machine, and this session has none. Nothing was sent.'
+	String needsCompanion({required Object name}) => '${name} needs the companion to reach the session\'s machine, and this session has none. Nothing was sent.';
+
+	/// en: '$name could not be copied to the session's machine: $error. Nothing was sent.'
+	String uploadFailed({required Object name, required Object error}) => '${name} could not be copied to the session\'s machine: ${error}. Nothing was sent.';
+}
+
 // Path: composer
 class Translations$composer$en {
 	Translations$composer$en.internal(this._root);
@@ -1435,14 +1463,41 @@ class Translations$composer$en {
 	/// en: 'Follow-up'
 	String get followUp => 'Follow-up';
 
-	/// en: 'Attach images'
-	String get attachImage => 'Attach images';
+	/// en: 'Attach files'
+	String get attach => 'Attach files';
 
-	/// en: 'Remove image'
-	String get removeImage => 'Remove image';
+	/// en: 'Remove'
+	String get remove => 'Remove';
 
-	/// en: '$name is not a PNG, JPEG, GIF or WebP image.'
-	String unsupportedImage({required Object name}) => '${name} is not a PNG, JPEG, GIF or WebP image.';
+	/// en: 'Pasted image'
+	String get pastedImage => 'Pasted image';
+
+	/// en: '(one) {Pasted text · $n line} (other) {Pasted text · $n lines}'
+	String pastedText({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: 'Pasted text · ${n} line',
+		other: 'Pasted text · ${n} lines',
+	);
+
+	/// en: 'Paste inline'
+	String get pasteInline => 'Paste inline';
+
+	/// en: 'Showing the first $shown of $total characters.'
+	String previewTruncated({required Object shown, required Object total}) => 'Showing the first ${shown} of ${total} characters.';
+
+	/// en: 'Drop to attach'
+	String get dropToAttach => 'Drop to attach';
+
+	/// en: 'Only files and folders can be attached.'
+	String get dropNothing => 'Only files and folders can be attached.';
+
+	/// en: 'Could not paste: $error'
+	String pasteFailed({required Object error}) => 'Could not paste: ${error}';
+
+	/// en: 'Could not attach: $error'
+	String attachFailed({required Object error}) => 'Could not attach: ${error}';
+
+	/// en: 'Uploading $sent of $total'
+	String uploading({required Object sent, required Object total}) => 'Uploading ${sent} of ${total}';
 
 	/// en: '/$name is not a command of this session. Nothing was sent.'
 	String unknownCommand({required Object name}) => '/${name} is not a command of this session. Nothing was sent.';
@@ -1752,6 +1807,12 @@ class Translations$transcript$en {
 
 	/// en: 'Hide summary'
 	String get hideSummary => 'Hide summary';
+
+	/// en: '(one) {Show all ($n line)} (other) {Show all ($n lines)}'
+	String showAll({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: 'Show all (${n} line)',
+		other: 'Show all (${n} lines)',
+	);
 
 	/// en: 'Summary of the branch you left'
 	String get branchSummary => 'Summary of the branch you left';
@@ -3855,14 +3916,28 @@ extension on Translations {
 			'chat.branchTitle' => 'Branch from this message?',
 			'chat.branchBody' => ({required Object text}) => 'A new session file starts before this message, and the message goes back into the composer:\n\n${text}',
 			'chat.branchFailed' => ({required Object error}) => 'Could not branch: ${error}',
+			'attachments.paste' => 'The large paste',
+			'attachments.missing' => ({required Object name}) => '${name} is no longer on this device. Nothing was sent.',
+			'attachments.tooLarge' => ({required Object name, required Object size, required Object limit}) => '${name} is ${size}; attachments can be at most ${limit}. Nothing was sent.',
+			'attachments.folder' => ({required Object name}) => '${name} is a folder. Folders can be attached only to sessions on this computer. Nothing was sent.',
+			'attachments.needsCompanion' => ({required Object name}) => '${name} needs the companion to reach the session\'s machine, and this session has none. Nothing was sent.',
+			'attachments.uploadFailed' => ({required Object name, required Object error}) => '${name} could not be copied to the session\'s machine: ${error}. Nothing was sent.',
 			'composer.hint' => 'Message omp',
 			'composer.hintRunning' => 'Steer the running turn',
 			'composer.send' => 'Send',
 			'composer.steer' => 'Steer',
 			'composer.followUp' => 'Follow-up',
-			'composer.attachImage' => 'Attach images',
-			'composer.removeImage' => 'Remove image',
-			'composer.unsupportedImage' => ({required Object name}) => '${name} is not a PNG, JPEG, GIF or WebP image.',
+			'composer.attach' => 'Attach files',
+			'composer.remove' => 'Remove',
+			'composer.pastedImage' => 'Pasted image',
+			'composer.pastedText' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Pasted text · ${n} line', other: 'Pasted text · ${n} lines', ), 
+			'composer.pasteInline' => 'Paste inline',
+			'composer.previewTruncated' => ({required Object shown, required Object total}) => 'Showing the first ${shown} of ${total} characters.',
+			'composer.dropToAttach' => 'Drop to attach',
+			'composer.dropNothing' => 'Only files and folders can be attached.',
+			'composer.pasteFailed' => ({required Object error}) => 'Could not paste: ${error}',
+			'composer.attachFailed' => ({required Object error}) => 'Could not attach: ${error}',
+			'composer.uploading' => ({required Object sent, required Object total}) => 'Uploading ${sent} of ${total}',
 			'composer.unknownCommand' => ({required Object name}) => '/${name} is not a command of this session. Nothing was sent.',
 			'composer.sendFailed' => ({required Object error}) => 'Not sent: ${error}',
 			'queue.steer' => 'Steering',
@@ -3985,6 +4060,7 @@ extension on Translations {
 			'transcript.compactedFrom' => ({required Object before}) => 'from ${before} tokens',
 			'transcript.showSummary' => 'Show summary',
 			'transcript.hideSummary' => 'Hide summary',
+			'transcript.showAll' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Show all (${n} line)', other: 'Show all (${n} lines)', ), 
 			'transcript.branchSummary' => 'Summary of the branch you left',
 			'transcript.summaryFiles' => 'Files',
 			'transcript.fileRead' => 'read',

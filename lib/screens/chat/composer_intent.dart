@@ -57,7 +57,7 @@ final _commandName = RegExp(r'^/([^\s/]+)(?=\s|$)');
 /// (Alt/Option+Enter) and only matters while [running]. [commands] is the session's live command list.
 ComposerIntent composerIntent(
   String text, {
-  required bool hasImages,
+  required bool hasAttachments,
   required bool running,
   required bool followUp,
   required List<SlashCommand> commands,
@@ -73,7 +73,7 @@ ComposerIntent composerIntent(
     final code = trimmed.substring(exclude ? 2 : 1).trim();
     return code.isEmpty ? const NothingToSend() : RunPython(code, excludeFromContext: exclude);
   }
-  if (trimmed.isEmpty && !hasImages) return const NothingToSend();
+  if (trimmed.isEmpty && !hasAttachments) return const NothingToSend();
   final behavior = running ? (followUp ? StreamingBehavior.followUp : StreamingBehavior.steer) : null;
   if (trimmed == '/') return const NothingToSend();
   final match = _commandName.firstMatch(trimmed);

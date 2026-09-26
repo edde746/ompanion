@@ -13,31 +13,32 @@ import 'package:provider/provider.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
+import '../../sessions/composer_attachments.dart';
 import '../../sessions/composer_draft.dart';
+import '../../sessions/prompt_attachments.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../utils/byte_size.dart';
+import '../dock/machine_access.dart';
+import 'attachment_chips.dart';
+import 'attachment_input.dart';
 import 'composer_intent.dart';
 import 'composer_toolbar.dart';
 import 'model_picker.dart';
 import 'queue_list.dart';
 import 'slash_palette.dart';
 
-/// Image types omp accepts, by file extension.
-const _imageTypes = {
-  'png': 'image/png',
-  'jpg': 'image/jpeg',
-  'jpeg': 'image/jpeg',
-  'gif': 'image/gif',
-  'webp': 'image/webp',
-};
-
 /// The toolbar's icon buttons: one control tall, as its pickers and text buttons are (docs/design.md rule 4).
 const _toolbarIcon = BoxConstraints.tightFor(width: AppSizes.control, height: AppSizes.control);
 
-/// The prompt box: one flat block with the queued messages on top, the text in the middle and a toolbar with the
-/// model, thinking level and context meter, attach and send at the bottom. Enter sends (Shift+Enter is a new
-/// line); while a run streams Enter steers and Alt/Option+Enter queues a follow-up. `/` opens the palette of the
-/// session's commands, `!`/`!!` run shell commands and `$`/`$$` Python through the companion.
+/// Image types an Android keyboard may insert (a GIF, a sticker, a copied image in its clipboard).
+const _keyboardImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+/// The prompt box: one flat block with the queued messages on top, the attachments and the text in the middle and a
+/// toolbar with the model, thinking level and context meter, attach and send at the bottom. Enter sends (Shift+Enter
+/// is a new line); while a run streams Enter steers and Alt/Option+Enter queues a follow-up. `/` opens the palette of
+/// the session's commands, `!`/`!!` run shell commands and `$`/`$$` Python through the companion. A paste of copied
+/// files, an image or a large text becomes an attachment chip, as in the TUI.
 class Composer extends StatefulWidget {
   const Composer({super.key, required this.session});
 
@@ -58,6 +59,9 @@ class _ComposerState extends State<Composer> {
   /// The palette query the user dismissed with Esc; it reopens once the text changes.
   String? _dismissedQuery;
   bool _sending = false;
+
+  /// Bytes of this prompt's files uploaded so far, while a send uploads.
+  ({int sent, int total})? _upload;
 
   @override
   void initState() {
@@ -167,16 +171,17 @@ class _ComposerState extends State<Composer> {
     final session = widget.session;
     final view = session.view;
     final text = _draft.text.text;
-    final images = _draft.images;
+    final attachments = _draft.attachments;
     final intent = composerIntent(
       text,
-      hasImages: images.isNotEmpty,
+      hasAttachments: attachments.isNotEmpty,
       running: view.run.running,
       followUp: followUp,
       commands: view.commands,
     );
     final t = context.t;
     final messenger = ScaffoldMessenger.of(context);
+    final sessions = context.read<SessionsProvider>();
     switch (intent) {
       case NothingToSend():
         return;
@@ -203,39 +208,130 @@ class _ComposerState extends State<Composer> {
         setState(() => _sending = true);
         draft.clear();
         try {
+          final prompt = await preparePrompt(
+            text: message,
+            attachments: attachments,
+            session: session,
+            link: () async {
+              final machine = sessions.machineOf(session) ?? (throw StateError('The session has no machine.'));
+              return (await machineAccess(sessions.runtimeFor(machine))).$1;
+            },
+            onUploadProgress: (sent, total) {
+              if (mounted) setState(() => _upload = (sent: sent, total: total));
+            },
+          );
+          if (mounted) setState(() => _upload = null);
           await _prompt(
             session.rpc,
-            message,
-            images: images,
+            prompt.message,
+            images: prompt.images,
             behavior: behavior,
-            onRefused: () => draft.giveBack(text, images: images),
+            onRefused: () => draft.giveBack(text, attachments: attachments),
           );
+        } on AttachmentException catch (error) {
+          // Nothing went to omp: the whole draft comes back, with what kept it from going.
+          draft.giveBack(text, attachments: attachments);
+          messenger.showSnackBar(SnackBar(content: Text(error.describe(t))));
         } on Object catch (error) {
-          // Nothing was queued: give the text back.
-          draft.giveBack(text, images: images);
+          // Nothing was queued: give the draft back.
+          draft.giveBack(text, attachments: attachments);
           messenger.showSnackBar(SnackBar(content: Text(t.composer.sendFailed(error: '$error'))));
         } finally {
-          if (mounted) setState(() => _sending = false);
+          if (mounted) {
+            setState(() {
+              _sending = false;
+              _upload = null;
+            });
+          }
         }
     }
   }
 
-  Future<void> _attachImages() async {
+  /// The attach button: any files; images omp takes as image content become images, as a paste of them does.
+  Future<void> _attachFiles() async {
     final t = context.t;
     final messenger = ScaffoldMessenger.of(context);
     final draft = _draft;
-    final files = await FilePicker.pickFiles(type: FileType.image);
-    final images = <RpcImage>[];
-    for (final file in files) {
-      final mimeType = _imageTypes[file.extension?.toLowerCase()];
-      if (mimeType == null) {
-        messenger.showSnackBar(SnackBar(content: Text(t.composer.unsupportedImage(name: file.name))));
-        continue;
-      }
-      images.add(RpcImage(data: base64Encode(await file.readAsBytes()), mimeType: mimeType));
+    try {
+      final files = await FilePicker.pickFiles();
+      final attachments = [
+        for (final file in files)
+          ...switch (file.path) {
+            final path? => await attachmentsFromPaths([path]),
+            null => [attachmentFromBytes(file.name, await file.readAsBytes())],
+          },
+      ];
+      draft.addAttachments(attachments);
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(t.composer.attachFailed(error: '$error'))));
     }
-    if (images.isNotEmpty) draft.addImages(images);
     if (mounted) _focus.requestFocus();
+  }
+
+  /// A paste into the text field (Cmd/Ctrl+V, the context menu's Paste): copied files, an image and a large text
+  /// become chips, other text goes in at the cursor.
+  Future<void> _paste() async {
+    final t = context.t;
+    final messenger = ScaffoldMessenger.of(context);
+    final draft = _draft;
+    try {
+      switch (await readPaste(context.read<AttachmentSource>())) {
+        case null:
+          return;
+        case PasteText(:final text):
+          draft.insert(text);
+        case PasteAttachments(:final attachments):
+          draft.addAttachments(attachments);
+      }
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(t.composer.pasteFailed(error: '$error'))));
+    }
+  }
+
+  /// An image an Android keyboard inserts: a GIF, a sticker, an image from its clipboard.
+  void _insertContent(KeyboardInsertedContent content) {
+    final bytes = content.data;
+    if (bytes == null || bytes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.t.composer.pasteFailed(error: content.uri))),
+      );
+      return;
+    }
+    _draft.addAttachments([ImageAttachment(RpcImage(data: base64Encode(bytes), mimeType: content.mimeType))]);
+  }
+
+  /// The field's context menu with its Paste taking [_paste]'s way. The field offers Paste only while the clipboard
+  /// holds text; a copied file or image pastes too, so Paste is always there. iOS keeps its own menu, whose Paste
+  /// inserts text without asking for the clipboard; for anything else the menu gets a Paste of ours.
+  Widget _contextMenu(BuildContext context, EditableTextState field) {
+    void paste() {
+      field.hideToolbar();
+      unawaited(_paste());
+    }
+
+    final items = [
+      for (final item in field.contextMenuButtonItems)
+        item.type == ContextMenuButtonType.paste ? item.copyWith(onPressed: paste) : item,
+    ];
+    final canPaste = !field.widget.readOnly && field.textEditingValue.selection.isValid;
+    final offersPaste = items.any((item) => item.type == ContextMenuButtonType.paste);
+    if (SystemContextMenu.isSupportedByField(field)) {
+      return SystemContextMenu.editableText(
+        editableTextState: field,
+        items: [
+          ...SystemContextMenu.getDefaultItems(field),
+          if (canPaste && !offersPaste)
+            IOSSystemContextMenuItemCustom(title: MaterialLocalizations.of(context).pasteButtonLabel, onPressed: paste),
+        ],
+      );
+    }
+    if (canPaste && !offersPaste) {
+      final at = items.indexWhere(
+        (item) => item.type != ContextMenuButtonType.cut && item.type != ContextMenuButtonType.copy,
+      );
+      items.insert(at < 0 ? items.length : at, ContextMenuButtonItem(type: ContextMenuButtonType.paste, onPressed: paste));
+    }
+    return AdaptiveTextSelectionToolbar.buttonItems(anchors: field.contextMenuAnchors, buttonItems: items);
   }
 
   /// Sends [message] as a prompt; throws when omp rejects it. omp acknowledges a prompt before it starts it, so one it
@@ -296,7 +392,7 @@ class _ComposerState extends State<Composer> {
           // A closed session has no omp to talk to; its model, thinking level and context are gone with it.
           final closed = link is LinkClosed;
           final palette = _paletteItems(session.view);
-          final images = _draft.images;
+          final attachments = _draft.attachments;
           final canSend = !_sending && !closed;
           return Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
@@ -322,40 +418,47 @@ class _ComposerState extends State<Composer> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       QueueList(session: session),
-                      if (images.isNotEmpty)
-                        SizedBox(
-                          height: 72,
-                          child: ListView(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              for (final (index, image) in images.indexed)
-                                _Thumbnail(
-                                  key: ObjectKey(image),
-                                  image: image,
-                                  onRemove: () => _draft.removeImageAt(index),
-                                ),
-                            ],
-                          ),
+                      if (attachments.isNotEmpty)
+                        AttachmentChips(
+                          attachments: attachments,
+                          onRemove: _draft.removeAttachment,
+                          onInline: _draft.inline,
                         ),
-                      TextField(
-                        key: const ValueKey('composer'),
-                        controller: _draft.text,
-                        focusNode: _focus,
-                        minLines: 1,
-                        maxLines: 10,
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                        decoration: InputDecoration(
-                          hintText: data.running && !closed ? t.composer.hintRunning : t.composer.hint,
-                          filled: false,
-                          // No outline: the theme's field border adds its gap to the start and centres the text
-                          // vertically, which moves the text off these insets.
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          // 11 + the glyphs' side bearing puts the text's ink on the 12 px edge of the model icon below;
-                          // 12 above the line box leaves as much space over the text as under the toolbar's labels.
-                          contentPadding: const EdgeInsets.fromLTRB(11, 12, 12, 0),
+                      Actions(
+                        // Cmd/Ctrl+V; the context menu's Paste goes through [_contextMenu].
+                        actions: {
+                          PasteTextIntent: CallbackAction<PasteTextIntent>(
+                            onInvoke: (_) {
+                              unawaited(_paste());
+                              return null;
+                            },
+                          ),
+                        },
+                        child: TextField(
+                          key: const ValueKey('composer'),
+                          controller: _draft.text,
+                          focusNode: _focus,
+                          minLines: 1,
+                          maxLines: 10,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          contextMenuBuilder: _contextMenu,
+                          contentInsertionConfiguration: ContentInsertionConfiguration(
+                            allowedMimeTypes: _keyboardImageTypes,
+                            onContentInserted: _insertContent,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: data.running && !closed ? t.composer.hintRunning : t.composer.hint,
+                            filled: false,
+                            // No outline: the theme's field border adds its gap to the start and centres the text
+                            // vertically, which moves the text off these insets.
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            // 11 + the glyphs' side bearing puts the text's ink on the 12 px edge of the model icon
+                            // below; 12 above the line box leaves as much space over the text as under the toolbar's
+                            // labels.
+                            contentPadding: const EdgeInsets.fromLTRB(11, 12, 12, 0),
+                          ),
                         ),
                       ),
                       Padding(
@@ -398,14 +501,31 @@ class _ComposerState extends State<Composer> {
                                         ),
                                 ),
                                 IconButton(
-                                  tooltip: t.composer.attachImage,
-                                  icon: const Icon(Icons.image_outlined, size: 20),
+                                  tooltip: t.composer.attach,
+                                  icon: const Icon(Icons.attach_file, size: 20),
                                   constraints: _toolbarIcon,
                                   color: theme.colorScheme.onSurfaceVariant,
-                                  onPressed: closed ? null : () => unawaited(_attachImages()),
+                                  onPressed: closed ? null : () => unawaited(_attachFiles()),
                                 ),
                                 const SizedBox(width: 4),
-                                if (data.running && !closed && narrow) ...[
+                                if (_upload case (:final sent, :final total))
+                                  Tooltip(
+                                    message: t.composer.uploading(sent: formatBytes(sent), total: formatBytes(total)),
+                                    child: SizedBox.fromSize(
+                                      size: const Size.square(AppSizes.control),
+                                      child: Center(
+                                        child: SizedBox.square(
+                                          dimension: 20,
+                                          child: CircularProgressIndicator(
+                                            key: const ValueKey('upload-progress'),
+                                            strokeWidth: 2.5,
+                                            value: total == 0 ? null : sent / total,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                else if (data.running && !closed && narrow) ...[
                                   IconButton(
                                     key: const ValueKey('follow-up'),
                                     tooltip: t.composer.followUp,
@@ -504,50 +624,3 @@ _ComposerData _select(SessionView view) => (
   context: view.contextUsage,
   cost: view.usageTotals.cost,
 );
-
-class _Thumbnail extends StatefulWidget {
-  const _Thumbnail({super.key, required this.image, required this.onRemove});
-
-  final RpcImage image;
-  final VoidCallback onRemove;
-
-  @override
-  State<_Thumbnail> createState() => _ThumbnailState();
-}
-
-class _ThumbnailState extends State<_Thumbnail> {
-  late final Uint8List _bytes = base64Decode(widget.image.data);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: AppSizes.gap),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.all(Radius.circular(8)),
-            child: Image.memory(_bytes, width: 64, height: 64, fit: BoxFit.cover),
-          ),
-          Positioned(
-            top: 0,
-            right: 0,
-            child: IconButton.filled(
-              style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                foregroundColor: Theme.of(context).colorScheme.onSurface,
-                minimumSize: const Size.square(24),
-                fixedSize: const Size.square(24),
-                padding: EdgeInsets.zero,
-              ),
-              visualDensity: VisualDensity.compact,
-              iconSize: 14,
-              tooltip: context.t.composer.removeImage,
-              icon: const Icon(Icons.close),
-              onPressed: widget.onRemove,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

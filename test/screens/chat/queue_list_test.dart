@@ -12,6 +12,7 @@ import 'package:ompanion/screens/chat/queue_list.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/composer_attachments.dart';
 import 'package:ompanion/sessions/composer_draft.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
@@ -55,7 +56,10 @@ final class _Omp implements LineChannel {
 }
 
 final class _Session implements LiveSession {
-  _Session(Map<String, Object?> popped) : omp = _Omp(popped);
+  _Session(Map<String, Object?> popped, {this.steering = 'queued message'}) : omp = _Omp(popped);
+
+  /// The queued steering message.
+  final String steering;
 
   final _Omp omp;
   @override
@@ -64,7 +68,7 @@ final class _Session implements LiveSession {
   late final CompanionClient companion = CompanionClient(rpc);
 
   @override
-  SessionView get view => SessionView(queue: const QueueState(count: 2, steering: ['queued message'], followUp: ['later']));
+  SessionView get view => SessionView(queue: QueueState(count: 2, steering: [steering], followUp: const ['later']));
 
   @override
   Stream<SessionView> get views => const Stream.empty();
@@ -127,18 +131,21 @@ void main() {
     );
   });
 
-  Future<(_Session, ComposerDraft)> pumpQueue(WidgetTester tester) async {
+  Future<(_Session, ComposerDraft)> pumpQueue(WidgetTester tester, {String steering = 'queued message'}) async {
     final session = _Session({
-      'text': 'queued message',
+      'text': steering,
       'images': [
         {'data': 'QUEUED', 'mimeType': 'image/png'},
       ],
-    });
+    }, steering: steering);
     final attached = session.rpc.attach();
     await tester.pump();
     await attached;
     final draft = sessions.draftOf(session)
-      ..replace('half typed', images: const [RpcImage(data: 'DRAFT', mimeType: 'image/png')]);
+      ..replace(
+        'half typed',
+        attachments: const [ImageAttachment(RpcImage(data: 'DRAFT', mimeType: 'image/png')), TextAttachment('pasted')],
+      );
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: sessions,
@@ -158,7 +165,15 @@ void main() {
     });
   }
 
-  testWidgets('editing a queued message takes that one back ahead of the draft and appends its images', (tester) async {
+  String describe(ComposerAttachment attachment) => switch (attachment) {
+    ImageAttachment(:final image) => 'image ${image.data}',
+    FileAttachment(:final name) => 'file $name',
+    TextAttachment(:final text) => 'text $text',
+  };
+
+  testWidgets('editing a queued message takes it back ahead of the draft and its images after the draft\'s attachments', (
+    tester,
+  ) async {
     final (session, draft) = await pumpQueue(tester);
     await tester.tap(find.descendant(of: find.byKey(const ValueKey('queued-steering-0')), matching: find.byTooltip('Edit in the composer')));
     await tester.pump();
@@ -169,7 +184,7 @@ void main() {
       'args': {'mode': 'steering', 'index': 0},
     });
     expect(draft.text.text, 'queued message\n\nhalf typed');
-    expect([for (final image in draft.images) image.data], ['DRAFT', 'QUEUED']);
+    expect(draft.attachments.map(describe), ['image DRAFT', 'text pasted', 'image QUEUED']);
     await tearDownProviders(tester);
   });
 
@@ -184,7 +199,23 @@ void main() {
       'args': {'mode': 'followUp', 'index': 0},
     });
     expect(draft.text.text, 'half typed');
-    expect([for (final image in draft.images) image.data], ['DRAFT']);
+    expect(draft.attachments.map(describe), ['image DRAFT', 'text pasted']);
+    await tearDownProviders(tester);
+  });
+
+  testWidgets('a queued message names its mentioned files, and editing it gives back the message as sent', (
+    tester,
+  ) async {
+    const message = 'Check @"/home/u/.omp/agent/sessions/-p/1/local/meeting notes.txt" too';
+    final (_, draft) = await pumpQueue(tester, steering: message);
+    final row = find.byKey(const ValueKey('queued-steering-0'));
+    expect(find.descendant(of: row, matching: find.text('meeting notes.txt')), findsOneWidget);
+    expect(find.descendant(of: row, matching: find.textContaining('/home/u')), findsNothing);
+
+    await tester.tap(find.descendant(of: row, matching: find.byTooltip('Edit in the composer')));
+    await tester.pump();
+    await tester.pump();
+    expect(draft.text.text, '$message\n\nhalf typed');
     await tearDownProviders(tester);
   });
 }

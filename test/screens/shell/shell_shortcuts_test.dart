@@ -12,6 +12,7 @@ import 'package:ompanion/providers/keys_provider.dart';
 import 'package:ompanion/providers/machines_provider.dart';
 import 'package:ompanion/providers/settings_provider.dart';
 import 'package:ompanion/providers/shell_provider.dart';
+import 'package:ompanion/screens/chat/attachment_input.dart';
 import 'package:ompanion/screens/dock/dock_controller.dart';
 import 'package:ompanion/screens/shell/shell_screen.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
@@ -138,6 +139,7 @@ void main() {
           ChangeNotifierProvider.value(value: shell),
           ChangeNotifierProvider<SessionsProvider>.value(value: sessions),
           ChangeNotifierProvider(create: (_) => DockController(machines)),
+          Provider<AttachmentSource>.value(value: const SystemAttachmentSource()),
         ],
         child: TranslationProvider(child: const MaterialApp(home: ShellScreen())),
       ),

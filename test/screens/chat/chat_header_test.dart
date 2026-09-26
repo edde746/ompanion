@@ -12,6 +12,7 @@ import 'package:ompanion/screens/chat/chat_header.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/composer_attachments.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
@@ -272,7 +273,7 @@ void main() {
       },
     ]);
     expect(draft.text.text, 'steer me\n\nlater\n\nhalf typed');
-    expect([for (final image in draft.images) image.data], ['QUEUED']);
+    expect([for (final attachment in draft.attachments) (attachment as ImageAttachment).image.data], ['QUEUED']);
 
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {

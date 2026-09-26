@@ -8,8 +8,11 @@ import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../sessions/composer_attachments.dart';
+import '../../sessions/message_mentions.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
+import 'mention_spans.dart';
 
 /// A queued message the companion handed back (`Restored` in docs/contracts/ompx.md).
 typedef RestoredMessage = ({String text, List<RpcImage> images});
@@ -37,7 +40,10 @@ void restoreIntoDraft(BuildContext context, LiveSession session, List<RestoredMe
       .draftOf(session)
       .restoreQueued(
         messages.map((message) => message.text).join('\n\n'),
-        images: [for (final message in messages) ...message.images],
+        attachments: [
+          for (final message in messages)
+            for (final image in message.images) ImageAttachment(image),
+        ],
       );
 }
 
@@ -140,7 +146,12 @@ class _QueueRow extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSizes.gap),
                 Expanded(
-                  child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
+                  child: Text.rich(
+                    TextSpan(children: mentionSpans(splitMentions(text), style: theme.textTheme.bodyMedium)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
                 _RowButton(tooltip: t.queue.edit, icon: Icons.edit_outlined, onPressed: onEdit),
                 _RowButton(tooltip: t.queue.remove, icon: Icons.close, onPressed: onRemove),

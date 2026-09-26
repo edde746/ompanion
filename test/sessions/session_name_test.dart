@@ -31,6 +31,30 @@ void main() {
     expect(sessionName(t, title: '  ', firstMessage: '  refactor the\n\n  parser\tplease '), 'refactor the parser please');
   });
 
+  test('a title from the first message leaves out its file mentions and local:// references', () {
+    expect(
+      sessionName(
+        t,
+        firstMessage:
+            'Please review these. @"/Users/x/.omp/agent/sessions/-p/2026/local/meeting notes.txt" '
+            '@src/foo.ts\nand local://paste-1.md',
+      ),
+      'Please review these. and',
+    );
+  });
+
+  test('a first message of mentions only is named after its first file', () {
+    expect(sessionName(t, firstMessage: '@"/tmp/up/meeting notes.txt" @b.md'), 'meeting notes.txt');
+    expect(sessionName(t, firstMessage: ' local://paste-2.md '), 'paste-2.md');
+  });
+
+  test('a quoted mention the listing cut short leaves no path fragment in the title', () {
+    expect(
+      sessionName(t, firstMessage: 'Please review these. @"/tmp/AttachmentDelivery-home/.omp/agent/sess'),
+      'Please review these.',
+    );
+  });
+
   test('a session with neither is a new session', () {
     expect(sessionName(t), 'New session');
     expect(sessionName(t, firstMessage: ' \n '), 'New session');

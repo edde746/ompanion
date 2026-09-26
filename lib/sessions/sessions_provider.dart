@@ -10,6 +10,7 @@ import '../database/app_database.dart' show AuthMethod;
 import '../models/machine.dart';
 import '../providers/machines_provider.dart';
 import '../services/machine_connector.dart';
+import 'composer_attachments.dart';
 import 'composer_draft.dart';
 import 'connect_prompt_queue.dart';
 import 'exec_runs.dart';
@@ -120,10 +121,10 @@ class SessionsProvider extends ChangeNotifier {
   /// The composer draft of [session], kept while the session is open.
   ComposerDraft draftOf(LiveSession session) => _drafts.putIfAbsent(session, ComposerDraft.new);
 
-  /// Puts [text] and [images] into [session]'s composer, replacing its draft: `set_editor_text`, a branch's
+  /// Puts [text] and [attachments] into [session]'s composer, replacing its draft: `set_editor_text`, a branch's
   /// user message, a tree navigation's `editorText`.
-  void setDraft(LiveSession session, String text, {List<RpcImage> images = const []}) =>
-      draftOf(session).replace(text, images: images);
+  void setDraft(LiveSession session, String text, {List<ComposerAttachment> attachments = const []}) =>
+      draftOf(session).replace(text, attachments: attachments);
 
   /// The `!` / `$` runs started from [session]'s composer.
   ExecRuns execRunsOf(LiveSession session) => _execRuns.putIfAbsent(session, ExecRuns.new);

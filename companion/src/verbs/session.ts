@@ -7,6 +7,7 @@ import {
 	type SessionInfo,
 	SessionManager,
 } from "@oh-my-pi/pi-coding-agent";
+import { resolveLocalRoot } from "@oh-my-pi/pi-coding-agent/internal-urls/local-protocol";
 import {
 	computeSessionContextBreakdown,
 	getSessionCompactionBoundaries,
@@ -272,6 +273,19 @@ const lifecycleVerbs: VerbTable = {
 			})),
 			snapcompact: breakdown.snapcompact ?? null,
 			boundaries: getSessionCompactionBoundaries(session.settings, breakdown.contextWindow, model),
+		};
+	},
+
+	// Where `local://` points for the open session, as omp's read tool and the TUI's "Attach as local file" resolve
+	// it. The app writes attachments there over SFTP; the directory may not exist yet.
+	"session.localRoot": async (args, { session }) => {
+		expectKeys(args, []);
+		const manager = session.sessionManager;
+		return {
+			path: resolveLocalRoot({
+				getArtifactsDir: () => manager.getArtifactsDir(),
+				getSessionId: () => manager.getSessionId(),
+			}),
 		};
 	},
 };

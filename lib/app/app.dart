@@ -7,6 +7,7 @@ import '../providers/keys_provider.dart';
 import '../providers/machines_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/shell_provider.dart';
+import '../screens/chat/attachment_input.dart';
 import '../screens/dock/dock_controller.dart';
 import '../screens/shell/connect_prompt_host.dart';
 import '../screens/shell/shell_screen.dart';
@@ -40,6 +41,7 @@ class OmpanionApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider.value(value: secrets),
+        Provider<AttachmentSource>.value(value: const SystemAttachmentSource()),
         Provider(create: (_) => KnownHostsStore(db)),
         ChangeNotifierProvider(create: (_) => KeysProvider(db, secrets)),
         Provider(

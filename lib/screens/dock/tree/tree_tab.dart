@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
+import '../../../sessions/composer_attachments.dart';
 import '../../../sessions/sessions_provider.dart';
 import '../../../utils/token_count.dart';
 import '../../../widgets/app_search_field.dart';
@@ -177,10 +178,10 @@ class _TreeTabState extends State<TreeTab> {
         final attachments = [
           for (final image in images)
             if (image case {'data': final String data, 'mimeType': final String mimeType})
-              RpcImage(data: data, mimeType: mimeType),
+              ImageAttachment(RpcImage(data: data, mimeType: mimeType)),
         ];
         if ((text != null && text.isNotEmpty) || attachments.isNotEmpty) {
-          sessions.setDraft(session, text ?? '', images: attachments);
+          sessions.setDraft(session, text ?? '', attachments: attachments);
         }
       }
       await _reload();

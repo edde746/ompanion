@@ -16,3 +16,4 @@ export 'src/host/scripts.dart'
         runPosixScript,
         runPowerShell;
 export 'src/host/session_listing.dart';
+export 'src/host/upload.dart' show savePaste, uploadAttachment;

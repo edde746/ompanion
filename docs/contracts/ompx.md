@@ -319,6 +319,17 @@ boundaries: {thresholdPercent: number, speculationPercent: number | null} | null
 data; `snapcompact` is omp's `ContextSavingsEstimate` when a snapcompact setting is on; `boundaries` are the
 auto-compaction marks for a gauge (`null` when compaction is off).
 
+### session.localRoot
+
+`args: {}` → `result: {path: string}`: the absolute, host-native directory `local://` resolves to for the open
+session (omp's `resolveLocalRoot`): `<session file without .jsonl>/local`; on Windows, when that path reaches 180
+characters, and for a process without a session file, `<temp dir>/omp-local/<session id>`. It may not exist yet.
+The app writes composer attachments there over SFTP: uploaded files, which the prompt names as `@"<path>"` so omp
+auto-reads them (omp refuses a prompt with an `@local://` mention), and pastes over 256 KB as `paste-<n>.md`, which
+the prompt names as `local://paste-<n>.md`, as the TUI's "Attach as local file" does. Deleting the session
+(`session.delete`) removes `<session file without .jsonl>/local` with the session's other artifacts; the temp-dir
+form is left to the machine's temp cleanup, as omp leaves it.
+
 ### agents.list
 
 `args: {}` → `result: {agents: AgentRow[]}`. `AgentRow` is omp's registry `AgentRef` without the live

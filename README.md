@@ -30,7 +30,8 @@ There is no release yet. Build the app from source: see [Building from Source](#
 - Model and thinking-level pickers, and a context and cost meter
 - `!` shell and `$` Python runs on the machine, streamed into the chat
 - Pause and resume every agent of a session; Stop aborts the run and puts queued messages back into the composer
-- Image attachments
+- Attach by pasting, dropping or picking: files copied in Finder or Explorer, screenshots and copied images, and files and folders dropped on the chat (macOS, Windows, Linux) become chips above the text; a paste over 10 lines or 1000 characters becomes a "Pasted text" chip with a preview and "Paste inline", as in omp's terminal UI
+- Attached images go to the model as images; a pasted text chip goes into the message after the typed text, and one over 256 KB into the session's `local://` store as `local://paste-N.md`; files reach omp as `@` mentions it reads itself (text, images, videos as a contact sheet): on this computer where they are, on another machine uploaded over SSH into the session's `local://` directory with progress, 100 MB at most each, deleted with the session; folders attach on this computer only, as a listing
 - Images the agent reads show in the read card; images a reply names by a path on the machine load on their own, as previews ffmpeg makes on the machine when it has ffmpeg (WebP, or JPEG and PNG), cached in memory and on disk; web images still wait for a tap
 - Copy messages, code and tool output; branch from any of your messages
 

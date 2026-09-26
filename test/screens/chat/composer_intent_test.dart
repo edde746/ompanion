@@ -10,8 +10,8 @@ const _commands = [
   SlashCommand(name: 'skill:review', aliases: ['review'], source: 'skill'),
 ];
 
-ComposerIntent _intent(String text, {bool running = false, bool followUp = false, bool images = false}) =>
-    composerIntent(text, hasImages: images, running: running, followUp: followUp, commands: _commands);
+ComposerIntent _intent(String text, {bool running = false, bool followUp = false, bool attachments = false}) =>
+    composerIntent(text, hasAttachments: attachments, running: running, followUp: followUp, commands: _commands);
 
 void main() {
   group('prompts', () {
@@ -32,8 +32,8 @@ void main() {
       expect((_intent('hi', followUp: true) as SendPrompt).behavior, isNull);
     });
 
-    test('images alone are a prompt; nothing at all is not', () {
-      expect(_intent('', images: true), isA<SendPrompt>());
+    test('attachments alone are a prompt; nothing at all is not', () {
+      expect(_intent('', attachments: true), isA<SendPrompt>());
       expect(_intent('   '), isA<NothingToSend>());
     });
   });

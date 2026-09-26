@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
 import '../transport/host_link.dart';
 import 'probe.dart';
 import 'scripts.dart';
+import 'upload.dart';
 
 /// One omp release: SHA-256 digests of its assets, copied from the release's `SHA256SUMS.txt`.
 final class OmpRelease {
@@ -149,7 +149,7 @@ Future<String> uploadOmp(
       }
       final remote = toSftpPath(upload);
       try {
-        await _upload(files, remote, asset);
+        await writeStream(files, remote, asset, mode: 0x1C0);
       } on Object catch (error, stack) {
         try {
           if (await files.stat(remote) != null) await files.remove(remote);
@@ -176,23 +176,6 @@ Future<String> uploadOmp(
   } finally {
     await files.close();
   }
-}
-
-/// Streams [bytes] to [path] in 4 MiB appends, so a 200 MB binary is never held in memory at once.
-Future<void> _upload(HostFiles files, String path, Stream<List<int>> bytes) async {
-  const chunkSize = 4 << 20;
-  final chunk = BytesBuilder(copy: false);
-  var first = true;
-  Future<void> flush() async {
-    await files.write(path, chunk.takeBytes(), append: !first, mode: first ? 0x1C0 : null);
-    first = false;
-  }
-
-  await for (final part in bytes) {
-    chunk.add(part);
-    if (chunk.length >= chunkSize) await flush();
-  }
-  if (first || chunk.length > 0) await flush();
 }
 
 String _posixPlaceScript(String marker, String upload, String target, String digest, String version) =>

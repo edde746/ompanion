@@ -106,7 +106,7 @@ class TranscriptImage extends StatelessWidget {
       label: context.t.transcript.image,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: () => showDialog<void>(context: context, builder: (context) => _ZoomedImage(imageBytes(image))),
+        onTap: () => showDialog<void>(context: context, builder: (context) => ZoomedImage(imageBytes(image))),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: SizedBox(
@@ -128,8 +128,9 @@ class TranscriptImage extends StatelessWidget {
   }
 }
 
-class _ZoomedImage extends StatelessWidget {
-  const _ZoomedImage(this.bytes);
+/// [bytes] in a dialog as large as the window allows, zoomable; the viewer for images in the chat and the composer.
+class ZoomedImage extends StatelessWidget {
+  const ZoomedImage(this.bytes, {super.key});
 
   final Uint8List bytes;
 
@@ -194,7 +195,7 @@ class FittedImage extends StatelessWidget {
             label: context.t.transcript.image,
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () => showDialog<void>(context: context, builder: (context) => _ZoomedImage(bytes)),
+              onTap: () => showDialog<void>(context: context, builder: (context) => ZoomedImage(bytes)),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.memory(

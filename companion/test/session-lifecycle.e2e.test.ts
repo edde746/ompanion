@@ -446,3 +446,34 @@ describe("session.delete", () => {
 		}
 	});
 });
+
+describe("session.localRoot", () => {
+	test("names the directory local:// reads resolve to, and omp auto-reads an @ mention of a file there", async () => {
+		const { sessionFile } = await state();
+		const reply = await omp.call("session.localRoot");
+		if (!isRecord(reply) || typeof reply.path !== "string") throw new Error(`malformed reply ${JSON.stringify(reply)}`);
+		const root = reply.path;
+		expect(root).toBe(path.join(sessionFile.slice(0, -".jsonl".length), "local"));
+
+		await mkdir(root, { recursive: true });
+		const mentioned = path.join(root, "mentioned notes.txt");
+		await writeFile(mentioned, "mentioned body 7c1f");
+		await writeFile(path.join(root, "read.txt"), "read body 93ae");
+		const before = (await omp.fake.requests()).length;
+		await omp.fake.enqueue([
+			{ steps: [{ toolCall: { name: "read", arguments: { i: "Reading", path: "local://read.txt" } } }] },
+			{ steps: [{ text: "done" }] },
+		]);
+		const since = omp.mark();
+		const response = await omp.command({ type: "prompt", message: `summarize @"${mentioned}"` });
+		expect(response.success).toBe(true);
+		await omp.waitFor(frame => frame.type === "prompt_result" && frame.id === response.id, { since });
+
+		const [first, second] = (await omp.fake.requests()).slice(before).map(request => JSON.stringify(request.body));
+		// omp wraps a mentioned file as `<file path="…">` with its lines numbered (hashline display).
+		expect(first).toContain(JSON.stringify(`<file path="${mentioned}">`).slice(1, -1));
+		expect(first).toContain("1:mentioned body 7c1f");
+		expect(first).not.toContain("read body 93ae");
+		expect(second).toContain("read body 93ae");
+	});
+});

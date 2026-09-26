@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/app/theme.dart';
@@ -11,12 +13,15 @@ import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/models/machine.dart';
 import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/screens/chat/attachment_drop.dart';
+import 'package:ompanion/screens/chat/attachment_input.dart';
 import 'package:ompanion/screens/chat/composer.dart';
 import 'package:ompanion/screens/chat/exec_panel.dart';
 import 'package:ompanion/screens/chat/model_picker.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/composer_attachments.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:ompanion/widgets/app_search_field.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
@@ -140,10 +145,68 @@ final class _Session implements LiveSession {
   Future<void> stop() async {}
 }
 
+/// The clipboard and drops as the test sets them; the real clipboard stays untouched.
+final class _Source implements AttachmentSource {
+  List<String> files = const [];
+  Uint8List? image;
+  String? text;
+
+  /// The drop target's callbacks while it is enabled.
+  ValueChanged<bool>? hover;
+  ValueChanged<List<String>>? drop;
+
+  @override
+  Future<List<String>> clipboardFiles() async => files;
+
+  @override
+  Future<Uint8List?> clipboardImage() async => image;
+
+  @override
+  Future<String?> clipboardText() async => text;
+
+  @override
+  Widget dropTarget({
+    required bool enabled,
+    required ValueChanged<bool> onHover,
+    required ValueChanged<List<String>> onDrop,
+    required Widget child,
+  }) {
+    hover = enabled ? onHover : null;
+    drop = enabled ? onDrop : null;
+    return child;
+  }
+}
+
+/// A 1×1 PNG.
+final _png = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+);
+
+String _describe(ComposerAttachment attachment) => switch (attachment) {
+  ImageAttachment(:final image, :final name) => 'image ${image.mimeType} $name',
+  FileAttachment(:final name, :final size) => 'file $name $size',
+  TextAttachment(:final text) => 'text $text',
+};
+
+/// Pumps until [done]: file reads complete outside the test's fake clock.
+Future<void> _until(WidgetTester tester, bool Function() done) async {
+  for (var i = 0; i < 200 && !done(); i++) {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
+    await tester.pump();
+  }
+  expect(done(), isTrue);
+  // What completed last may have changed state after the frame was drawn.
+  await tester.pump();
+}
+
 void main() {
   late AppDatabase db;
   late MachinesProvider machines;
   late SessionsProvider sessions;
+  late _Source source;
+
+  /// Holds `notes.txt` (5 bytes), `shot.png` and the folder `docs`.
+  late Directory dir;
 
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
@@ -156,7 +219,14 @@ void main() {
       deviceId: 'test',
       companionBytes: (_) async => const [],
     );
+    source = _Source();
+    dir = Directory.systemTemp.createTempSync('composer_test');
+    File('${dir.path}/notes.txt').writeAsStringSync('hello');
+    File('${dir.path}/shot.png').writeAsBytesSync(_png);
+    Directory('${dir.path}/docs').createSync();
   });
+
+  tearDown(() => dir.deleteSync(recursive: true));
 
   Future<_Session> attachedSession(WidgetTester tester) async {
     final session = _Session(SessionView());
@@ -169,17 +239,23 @@ void main() {
   Future<_Session> pumpComposer(WidgetTester tester, [_Session? shown]) async {
     final session = shown ?? await attachedSession(tester);
     await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: sessions,
-        child: TranslationProvider(
-          child: MaterialApp(
-            home: Scaffold(
-              body: Column(
-                children: [
-                  const Expanded(child: SizedBox()),
-                  ExecPanel(session: session),
-                  Composer(session: session),
-                ],
+      Provider<AttachmentSource>.value(
+        value: source,
+        child: ChangeNotifierProvider.value(
+          value: sessions,
+          child: TranslationProvider(
+            child: MaterialApp(
+              home: Scaffold(
+                body: AttachmentDropTarget(
+                  session: session,
+                  child: Column(
+                    children: [
+                      const Expanded(child: SizedBox()),
+                      ExecPanel(session: session),
+                      Composer(session: session),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -295,7 +371,7 @@ void main() {
     await tearDownProviders(tester);
   });
 
-  testWidgets('a prompt omp acknowledged but could not start comes back into the draft', (tester) async {
+  testWidgets('a prompt omp acknowledged but could not start comes back into the draft, attachments too', (tester) async {
     final session = await pumpComposer(tester);
     String text() => tester.widget<TextField>(composer).controller!.text;
     Future<void> send(String message) async {
@@ -321,9 +397,14 @@ void main() {
     await promptResult(agentInvoked: true);
     expect(text(), isEmpty);
 
+    const pasted = TextAttachment('pasted');
+    sessions.draftOf(session).addAttachments([pasted]);
     await send('again');
+    expect(session.omp.prompts.last['message'], 'again pasted');
     await promptResult(agentInvoked: false);
     expect(text(), 'again');
+    expect(sessions.draftOf(session).attachments, [pasted]);
+    sessions.draftOf(session).removeAttachment(pasted);
 
     // What the user typed in the meantime stays.
     await send('third');
@@ -396,5 +477,173 @@ void main() {
     expect(tester.getRect(find.text('Fake 39')).top, greaterThan(long.bottom), reason: 'a long list scrolls');
 
     await tearDownProviders(tester);
+  });
+
+  group('attachments', () {
+    Future<void> paste(WidgetTester tester) async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    }
+
+    testWidgets('a paste takes copied files first, then an image, then text; a large text becomes a chip', (
+      tester,
+    ) async {
+      final session = await pumpComposer(tester);
+      final draft = sessions.draftOf(session);
+      await tester.enterText(composer, 'see ');
+
+      // Files the clipboard names that are not on disk (a browser's link) are left out.
+      source
+        ..files = ['${dir.path}/notes.txt', '${dir.path}/shot.png', '${dir.path}/docs', '/no/such/file']
+        ..image = _png
+        ..text = 'notes.txt';
+      await paste(tester);
+      await _until(tester, () => draft.attachments.isNotEmpty);
+      expect(draft.attachments.map(_describe), ['file notes.txt 5', 'image image/png shot.png', 'file docs 0']);
+
+      source.files = const [];
+      await paste(tester);
+      await _until(tester, () => draft.attachments.length == 4);
+      expect(_describe(draft.attachments.last), 'image image/png null');
+
+      // Eleven lines, as Windows copies them.
+      source
+        ..image = null
+        ..text = [for (var i = 1; i <= 11; i++) 'line $i'].join('\r\n');
+      await paste(tester);
+      await _until(tester, () => draft.attachments.length == 5);
+      expect(_describe(draft.attachments.last), 'text ${[for (var i = 1; i <= 11; i++) 'line $i'].join('\n')}');
+      expect(find.text('Pasted text · 11 lines'), findsOneWidget);
+
+      source.text = 'x' * 1001;
+      await paste(tester);
+      await _until(tester, () => draft.attachments.length == 6);
+      expect(find.text('Pasted text · 1 line'), findsOneWidget);
+      expect(draft.text.text, 'see ');
+
+      // Ten lines go in at the cursor, like any other text.
+      source.text = [for (var i = 1; i <= 10; i++) '$i'].join('\n');
+      await paste(tester);
+      await _until(tester, () => draft.text.text != 'see ');
+      expect(draft.text.text, 'see 1\n2\n3\n4\n5\n6\n7\n8\n9\n10');
+      expect(draft.attachments, hasLength(6));
+
+      await tearDownProviders(tester);
+    });
+
+    testWidgets('the context menu offers Paste for a copied image, which holds no text, and pastes it as a chip', (
+      tester,
+    ) async {
+      final session = await pumpComposer(tester);
+      final draft = sessions.draftOf(session);
+      source.image = _png;
+      await tester.enterText(composer, 'word');
+      await tester.longPress(composer);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Paste'));
+      await _until(tester, () => draft.attachments.isNotEmpty);
+      expect(draft.attachments.map(_describe), ['image image/png null']);
+      expect(draft.text.text, 'word');
+
+      await tearDownProviders(tester);
+    });
+
+    testWidgets('a chip removes its attachment; a pasted text previews and goes inline at the cursor', (tester) async {
+      final session = await pumpComposer(tester);
+      final draft = sessions.draftOf(session);
+      await tester.enterText(composer, 'before after');
+      draft.text.selection = const TextSelection.collapsed(offset: 7);
+      final pasted = TextAttachment([for (var i = 1; i <= 12; i++) 'row $i'].join('\n'));
+      final file = FileAttachment.bytes(name: 'data.bin', bytes: Uint8List(2048));
+      final image = ImageAttachment(RpcImage(data: base64Encode(_png), mimeType: 'image/png'));
+      draft.addAttachments([pasted, file, image]);
+      await tester.pump();
+      expect(find.text('data.bin'), findsOneWidget);
+      expect(find.text('2.0 KB'), findsOneWidget);
+
+      await tester.tap(find.descendant(of: find.byKey(ObjectKey(file)), matching: find.byTooltip('Remove')));
+      await tester.pump();
+      expect(draft.attachments, [pasted, image]);
+      expect(find.text('data.bin'), findsNothing);
+
+      await tester.tap(find.text('Pasted text · 12 lines'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('row 12'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('paste-inline')));
+      await tester.pumpAndSettle();
+      expect(draft.attachments, [image]);
+      expect(draft.text.text, 'before ${pasted.text}after');
+      expect(find.textContaining('Pasted text'), findsNothing);
+
+      await tearDownProviders(tester);
+    });
+
+    testWidgets('a drop highlights the pane while it hovers and attaches files and folders', (tester) async {
+      final session = await pumpComposer(tester);
+      final draft = sessions.draftOf(session);
+
+      source.hover!(true);
+      await tester.pump();
+      expect(find.text('Drop to attach'), findsOneWidget);
+      source.hover!(false);
+      await tester.pump();
+      expect(find.text('Drop to attach'), findsNothing);
+
+      source
+        ..hover!(true)
+        ..drop!(['${dir.path}/notes.txt', '${dir.path}/docs', 'https://example.com/']);
+      await _until(tester, () => draft.attachments.isNotEmpty);
+      expect(find.text('Drop to attach'), findsNothing);
+      expect(draft.attachments.map(_describe), ['file notes.txt 5', 'file docs 0']);
+
+      // Nothing that names a file: a link dragged from a browser.
+      source.drop!(['https://example.com/']);
+      await _until(tester, () => find.text('Only files and folders can be attached.').evaluate().isNotEmpty);
+      expect(draft.attachments, hasLength(2));
+
+      await tearDownProviders(tester);
+    });
+
+    testWidgets('a prompt sends its pasted text in the message and its images as image content', (tester) async {
+      final session = await pumpComposer(tester);
+      final draft = sessions.draftOf(session);
+      await tester.enterText(composer, 'look');
+      const pasted = TextAttachment('one\ntwo');
+      draft.addAttachments([pasted, ImageAttachment(RpcImage(data: base64Encode(_png), mimeType: 'image/png'))]);
+      await tester.tap(find.byKey(const ValueKey('send')));
+      await _until(tester, () => session.omp.prompts.isNotEmpty);
+
+      expect(session.omp.prompts.single['message'], 'look one\ntwo');
+      expect(session.omp.prompts.single['images'], [
+        {'type': 'image', 'data': base64Encode(_png), 'mimeType': 'image/png'},
+      ]);
+      expect(draft.attachments, isEmpty);
+
+      await tearDownProviders(tester);
+    });
+
+    testWidgets('a draft whose file cannot go comes back whole, with the reason', (tester) async {
+      final session = await pumpComposer(tester);
+      final draft = sessions.draftOf(session);
+      await tester.enterText(composer, 'look at these');
+      final attachments = [
+        const TextAttachment('pasted'),
+        FileAttachment.path(name: 'gone.txt', size: 3, path: '${dir.path}/gone.txt'),
+        ImageAttachment(RpcImage(data: base64Encode(_png), mimeType: 'image/png')),
+      ];
+      draft.addAttachments(attachments);
+      await tester.tap(find.byKey(const ValueKey('send')));
+      await tester.pump();
+      expect(draft.attachments, isEmpty, reason: 'the composer empties while the prompt goes out');
+      await _until(tester, () => draft.attachments.isNotEmpty);
+
+      expect(draft.text.text, 'look at these');
+      expect(draft.attachments, attachments);
+      expect(find.text('gone.txt is no longer on this device. Nothing was sent.'), findsOneWidget);
+      expect(session.omp.prompts, isEmpty);
+
+      await tearDownProviders(tester);
+    });
   });
 }

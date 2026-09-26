@@ -1,10 +1,14 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
+import '../../../sessions/message_mentions.dart';
 import '../../../utils/token_count.dart';
+import '../mention_spans.dart';
 import 'code_style.dart';
 import 'images.dart';
 import 'markdown.dart';
@@ -117,9 +121,66 @@ class _UserMessage extends StatefulWidget {
   State<_UserMessage> createState() => _UserMessageState();
 }
 
+/// A user message over this many lines or characters folds to its first [_foldedLines] lines, at most
+/// [_foldedChars] characters: a long paste would otherwise fill the screen.
+const _foldLines = 12;
+const _foldChars = 1200;
+const _foldedLines = 6;
+const _foldedChars = 600;
+
+/// Where a folded [text] ends: after its first [_foldedLines] lines, at most [_foldedChars] characters in.
+int _foldAt(String text) {
+  var end = -1;
+  for (var line = 0; line < _foldedLines; line++) {
+    end = text.indexOf('\n', end + 1);
+    if (end < 0) return min(text.length, _foldedChars);
+  }
+  return min(end, _foldedChars);
+}
+
+/// [parts] up to [end] of the message they split: a mention that [end] falls in stays whole, text cut in the middle
+/// of a line ends in "…".
+List<MessagePart> _head(List<MessagePart> parts, int end) {
+  final head = <MessagePart>[];
+  var at = 0;
+  for (final part in parts) {
+    if (at >= end) break;
+    final length = part.source.length;
+    if (part is MessageText && at + length > end) {
+      final cut = part.source.substring(0, end - at);
+      head.add(MessageText(part.source[end - at] == '\n' ? cut : '${cut.trimRight()}…'));
+    } else {
+      head.add(part);
+    }
+    at += length;
+  }
+  return head;
+}
+
 class _UserMessageState extends State<_UserMessage> {
   final _menu = MenuController();
   bool _hovered = false;
+  bool _expanded = false;
+  late List<MessagePart> _parts = splitMentions(widget.item.text);
+
+  String get _storageId => 'transcript-user-expanded:${widget.item.key}';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _expanded = PageStorage.maybeOf(context)?.readState(context, identifier: _storageId) as bool? ?? _expanded;
+  }
+
+  @override
+  void didUpdateWidget(_UserMessage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.text != widget.item.text) _parts = splitMentions(widget.item.text);
+  }
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    PageStorage.maybeOf(context)?.writeState(context, _expanded, identifier: _storageId);
+  }
 
   void _open([Offset? position]) => _menu.open(position: position);
 
@@ -135,6 +196,10 @@ class _UserMessageState extends State<_UserMessage> {
     final agent = item.synthetic || item.attribution == 'agent';
     final images = item.images.toList();
     final text = item.text;
+    final lines = '\n'.allMatches(text).length + 1;
+    final folds = lines > _foldLines || text.length > _foldChars;
+    final style = theme.textTheme.bodyMedium?.copyWith(color: agent ? scheme.onSurfaceVariant : scheme.onSurface);
+    final dim = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     final bubble = DecoratedBox(
       decoration: BoxDecoration(
         color: agent ? scheme.surfaceContainer : scheme.surfaceContainerHigh,
@@ -157,9 +222,44 @@ class _UserMessageState extends State<_UserMessage> {
                 ),
               ),
             if (text.isNotEmpty)
-              Text(
-                text,
-                style: theme.textTheme.bodyMedium?.copyWith(color: agent ? scheme.onSurfaceVariant : scheme.onSurface),
+              Text.rich(
+                TextSpan(
+                  children: mentionSpans(
+                    folds && !_expanded ? _head(_parts, _foldAt(text)) : _parts,
+                    style: style,
+                    onOpen: (path) => TranscriptScope.of(context).onOpenFile(path),
+                  ),
+                ),
+                style: style,
+              ),
+            if (folds)
+              SelectionContainer.disabled(
+                child: Semantics(
+                  expanded: _expanded,
+                  // The bubble covers the page's Material; the toggle's ink needs a surface above it.
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(6),
+                      onTap: _toggle,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6, bottom: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_expanded ? t.showLess : t.showAll(n: lines), style: dim),
+                            const SizedBox(width: 2),
+                            Icon(
+                              _expanded ? Icons.expand_less : Icons.expand_more,
+                              size: 16,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             if (images.isNotEmpty) ...[if (text.isNotEmpty) const SizedBox(height: 8), ImageStrip(images)],
           ],

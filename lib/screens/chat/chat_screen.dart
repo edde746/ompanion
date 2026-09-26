@@ -11,6 +11,7 @@ import '../../sessions/machine_images.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../dock/dock_controller.dart';
+import 'attachment_drop.dart';
 import 'chat_header.dart';
 import 'composer.dart';
 import 'exec_panel.dart';
@@ -46,25 +47,28 @@ class ChatScreen extends StatelessWidget {
     final turns = sessions.turnsOf(session);
     return NoticeHost(
       session: session,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ChatHeader(session: session, leading: leading, trailing: trailing, compact: compact),
-          LinkBanner(session: session),
-          StatusStrip(session: session),
-          Expanded(
-            child: SessionViewBuilder(
-              session: session,
-              builder: (context, view) => TranscriptView(view: view, actions: actions, turns: turns),
+      child: AttachmentDropTarget(
+        session: session,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ChatHeader(session: session, leading: leading, trailing: trailing, compact: compact),
+            LinkBanner(session: session),
+            StatusStrip(session: session),
+            Expanded(
+              child: SessionViewBuilder(
+                session: session,
+                builder: (context, view) => TranscriptView(view: view, actions: actions, turns: turns),
+              ),
             ),
-          ),
-          CommandOutputs(key: ObjectKey(session), session: session),
-          ExecPanel(session: session),
-          ExtensionWidgets(session: session, placement: WidgetPlacement.aboveEditor),
-          RequestPanel(session: session),
-          SafeArea(top: false, child: Composer(session: session)),
-          ExtensionWidgets(session: session, placement: WidgetPlacement.belowEditor),
-        ],
+            CommandOutputs(key: ObjectKey(session), session: session),
+            ExecPanel(session: session),
+            ExtensionWidgets(session: session, placement: WidgetPlacement.aboveEditor),
+            RequestPanel(session: session),
+            SafeArea(top: false, child: Composer(session: session)),
+            ExtensionWidgets(session: session, placement: WidgetPlacement.belowEditor),
+          ],
+        ),
       ),
     );
   }
