@@ -322,10 +322,21 @@ export const coreVerbs: VerbTable = {
 		const model = requireNullableString(args, "model");
 		const scope = requireOneOf(args, "scope", ["global", "project"]);
 		const { settings } = session;
-		if (scope === "global") settings.setModelRole(role, model ?? undefined);
-		else if (model === null) settings.clearProjectModelRole(role);
-		else settings.setProjectModelRole(role, model);
+		const write = (): void => {
+			if (scope === "global") settings.setModelRole(role, model ?? undefined);
+			else if (model === null) settings.clearProjectModelRole(role);
+			else settings.setProjectModelRole(role, model);
+		};
+		write();
 		await settings.flush();
+		if (scope === "project") {
+			// omp 18.3.1's flush() saves the project file without registering the save, so a config-watcher
+			// reload running meanwhile does not wait for it: it can read the old file and commit it over
+			// this write. With the file now holding the value, writing again makes such a reload re-read
+			// (the write bumps its generation check) or overwrites what it already committed.
+			write();
+			await settings.flush();
+		}
 		return rolesState(settings);
 	},
 };

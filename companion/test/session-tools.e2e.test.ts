@@ -100,18 +100,20 @@ describe("subagents", () => {
 	test("revive brings a parked agent back; steer prompts an idle agent and steers a running one", async () => {
 		expect(await omp.call("subagent.revive", { id: "Helper" })).toEqual({ id: "Helper", status: "idle" });
 		await omp.fake.enqueue({ wait: true });
+		const count = (await omp.fake.requests()).length;
 		expect(await omp.call("subagent.steer", { id: "Helper", text: "also say bye" })).toEqual({
 			id: "Helper",
 			delivery: "prompt",
 		});
+		// The reply comes once the turn started, before its model request reaches the provider.
+		await requestsReceived(count + 1);
 		expect(await omp.call("subagent.steer", { id: "Helper", text: "and thanks" })).toEqual({
 			id: "Helper",
 			delivery: "steer",
 		});
-		const count = (await omp.fake.requests()).length;
 		await omp.fake.enqueue([{ steps: [{ text: "bye" }] }, { steps: [{ text: "thanks noted" }] }]);
-		await requestsReceived(count + 1);
-		expect(await lastRequestText()).toContain("and thanks");
+		await requestsReceived(count + 2);
+		expect(JSON.stringify((await omp.fake.requests())[count + 1]?.body)).toContain("and thanks");
 	});
 
 	test("kill tombstones the agent so it can never be revived", async () => {
