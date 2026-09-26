@@ -279,10 +279,8 @@ class SidebarState extends State<Sidebar> {
               ),
               const SizedBox(width: 8),
             ] else ...[
-              // The title moves the window like the rest of the row.
-              Expanded(
-                child: IgnorePointer(child: Text(t.sidebar.machines, style: Theme.of(context).textTheme.titleSmall)),
-              ),
+              // Empty, so it moves the window like the rest of the row.
+              const Spacer(),
               IconButton(tooltip: t.sidebar.search, icon: const Icon(Icons.search), onPressed: focusSearch),
               const _SidebarActions(),
             ],

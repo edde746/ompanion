@@ -263,7 +263,7 @@ void main() {
 
     await tester.tap(find.byTooltip(t.sidebar.search));
     await tester.pump();
-    expect(find.text(t.sidebar.machines), findsNothing);
+    expect(find.byTooltip(t.sidebar.search), findsNothing);
     // The field has the focus, so typing goes straight into it.
     await tester.enterText(find.byType(TextField), 'LICEN');
     await tester.pump(const Duration(milliseconds: 250));
@@ -291,7 +291,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     expect(find.byType(TextField), findsNothing);
-    expect(find.text(t.sidebar.machines), findsOneWidget);
+    expect(find.byTooltip(t.sidebar.search), findsOneWidget);
     expect(find.text('Fix the build'), findsOneWidget);
     // Still collapsed, as the user left it.
     expect(find.text('Pick a license'), findsNothing);
@@ -373,26 +373,27 @@ void main() {
       });
       await _pump(tester, await _loadSettings(tester));
       await tester.pump();
-      final title = find.text(t.sidebar.machines);
-      // 12 px after the zoom button's right edge.
-      expect(tester.getTopLeft(title).dx, 92);
+      final search = find.byTooltip(t.sidebar.search);
+      final field = find.byKey(const ValueKey('sidebar-search'));
+      // The empty part of the header, between the traffic lights and the search button.
+      final empty = Offset((92 + tester.getTopLeft(search).dx) / 2, tester.getCenter(search).dy);
 
-      // The title lets the pointer through to the row.
-      await tester.dragFrom(tester.getCenter(title), const Offset(40, 20));
+      // The empty part moves the window.
+      await tester.dragFrom(empty, const Offset(40, 20));
       await tester.pumpAndSettle();
       expect(window, ['startDragging']);
 
-      // The header's buttons stay theirs.
-      await tester.tap(find.byTooltip(t.sidebar.search));
+      // The header's buttons stay theirs, and the search field starts 12 px after the zoom button's right edge.
+      await tester.tap(search);
       await tester.pumpAndSettle();
-      expect(find.byType(TextField), findsOneWidget);
+      expect(tester.getTopLeft(field).dx, 92);
       expect(window, ['startDragging']);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
 
-      await tester.tapAt(tester.getCenter(title));
+      await tester.tapAt(empty);
       await tester.pump(const Duration(milliseconds: 50));
-      await tester.tapAt(tester.getCenter(title));
+      await tester.tapAt(empty);
       await tester.pumpAndSettle();
       expect(chrome, ['state', 'doubleClickTitleBar']);
 
@@ -402,7 +403,9 @@ void main() {
         (_) {},
       );
       await tester.pump();
-      expect(tester.getTopLeft(title).dx, 16);
+      await tester.tap(search);
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(field).dx, 16);
     },
   );
 }

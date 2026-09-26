@@ -287,7 +287,6 @@
     }
   },
   "sidebar": {
-    "machines": "Machines",
     "addMachine": "Add machine",
     "more": "More",
     "importMachines": "Import machines…",

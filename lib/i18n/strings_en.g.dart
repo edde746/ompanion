@@ -383,9 +383,6 @@ class Translations$sidebar$en {
 
 	// Translations
 
-	/// en: 'Machines'
-	String get machines => 'Machines';
-
 	/// en: 'Add machine'
 	String get addMachine => 'Add machine';
 
@@ -3632,7 +3629,6 @@ extension on Translations {
 			'dock.terminals.failed' => ({required Object error}) => 'Terminal failed: ${error}',
 			'dock.terminals.exited' => ({required Object code}) => 'The shell exited with code ${code}.',
 			'dock.terminals.exitedBySignal' => 'The shell ended.',
-			'sidebar.machines' => 'Machines',
 			'sidebar.addMachine' => 'Add machine',
 			'sidebar.more' => 'More',
 			'sidebar.importMachines' => 'Import machines…',
@@ -3901,9 +3897,9 @@ extension on Translations {
 			'chat.abortFailed' => ({required Object error}) => 'Could not stop the run: ${error}',
 			'chat.noCompanion' => 'The companion is not loaded in this session, so pause, queue editing and shell or Python runs are unavailable.',
 			'chat.more' => 'More',
+			'chat.copyPath' => 'Copy session file path',
 			_ => null,
 		} ?? switch (path) {
-			'chat.copyPath' => 'Copy session file path',
 			'chat.detach' => 'Close on this device',
 			'chat.stopSession' => 'Stop the omp process',
 			'chat.stopSessionFailed' => ({required Object error}) => 'Could not stop the omp process: ${error}',
