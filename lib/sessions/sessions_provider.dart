@@ -15,6 +15,7 @@ import 'connect_prompt_queue.dart';
 import 'exec_runs.dart';
 import 'oauth_callback.dart';
 import 'request_deadlines.dart';
+import 'turn_expansion.dart';
 
 typedef _Hop = (String host, int port, String user, AuthMethod auth, String? keyId);
 
@@ -73,6 +74,7 @@ class SessionsProvider extends ChangeNotifier {
   final Map<LiveSession, String> _machineIds = {};
   final Map<LiveSession, ComposerDraft> _drafts = {};
   final Map<LiveSession, ExecRuns> _execRuns = {};
+  final Map<LiveSession, TurnExpansion> _turns = {};
   final Map<LiveSession, RequestDeadlines> _deadlines = {};
   final Map<String, LocalForward> _oauthForwards = {};
   LiveSession? _active;
@@ -125,6 +127,9 @@ class SessionsProvider extends ChangeNotifier {
 
   /// The `!` / `$` runs started from [session]'s composer.
   ExecRuns execRunsOf(LiveSession session) => _execRuns.putIfAbsent(session, ExecRuns.new);
+
+  /// The turns the reader opened in [session]'s chat, kept while the session is open.
+  TurnExpansion turnsOf(LiveSession session) => _turns.putIfAbsent(session, TurnExpansion.new);
 
   /// The deadlines of [session]'s timed dialogs, counted from when the session was opened here or the dialog arrived.
   RequestDeadlines deadlinesOf(LiveSession session) =>
@@ -185,6 +190,8 @@ class SessionsProvider extends ChangeNotifier {
     _machineIds[replacement] = machine.id;
     final draft = _drafts.remove(session);
     if (draft != null) _drafts[replacement] = draft;
+    final turns = _turns.remove(session);
+    if (turns != null) _turns[replacement] = turns;
     _disposeLater(_execRuns.remove(session));
     _deadlines.remove(session)?.dispose();
     deadlinesOf(replacement);
@@ -323,6 +330,7 @@ class SessionsProvider extends ChangeNotifier {
     _machineIds.remove(session);
     _disposeLater(_drafts.remove(session));
     _disposeLater(_execRuns.remove(session));
+    _disposeLater(_turns.remove(session));
     _deadlines.remove(session)?.dispose();
     final index = _open.indexOf(session);
     if (index < 0) return;

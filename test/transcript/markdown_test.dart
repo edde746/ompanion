@@ -186,6 +186,28 @@ void main() {
         'https://y.example/2.png': r'\]c',
       });
     });
+
+    test('paths name machine images; data, web and other URLs do not', () {
+      expect(machineImagePath('/home/u/out/chart.png'), '/home/u/out/chart.png');
+      expect(machineImagePath('~/shots/a.png'), '~/shots/a.png');
+      expect(machineImagePath('out/chart%20v2.png'), 'out/chart v2.png');
+      expect(machineImagePath('./chart.png'), './chart.png');
+      expect(machineImagePath(r'C:\Users\u\shot.png'), r'C:\Users\u\shot.png');
+      expect(machineImagePath('C:/Users/u/shot.png'), 'C:/Users/u/shot.png');
+      expect(machineImagePath('file:///home/u/a%20b.png'), '/home/u/a b.png');
+      expect(machineImagePath('file:///C:/Users/u/shot.png'), 'C:/Users/u/shot.png');
+      expect(machineImagePath('file://host/srv/a.png'), '/srv/a.png');
+      expect(machineImagePath('data:image/png;base64,$png'), isNull);
+      expect(machineImagePath('https://example.com/a.png'), isNull);
+      expect(machineImagePath('ftp://example.com/a.png'), isNull);
+      expect(machineImagePath(''), isNull);
+    });
+
+    testWidgets('without a machine to load from, a path shows as text', (tester) async {
+      await pumpMarkdown(tester, '![chart](out/chart.png)');
+      expect(find.text('out/chart.png'), findsOneWidget);
+      expect(find.byType(Image), findsNothing);
+    });
   });
 
   group('links', () {

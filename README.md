@@ -24,12 +24,14 @@ There is no release yet. Build the app from source: see [Building from Source](#
 
 ### <img src="assets/readme_icons/chat.svg" height="20" alt="" align="center" /> Chat & transcript
 - Streaming transcript with markdown, LaTeX math, highlighted code, collapsible thinking and images
+- Finished turns fold their thinking, tool calls and interim messages under a one-line summary (time, tool calls, files edited) and open on a click
 - Steer the running turn or queue a follow-up; edit or remove queued messages
 - `/` command palette from the session's own command list; a slash command omp does not list is never sent to the model
 - Model and thinking-level pickers, and a context and cost meter
 - `!` shell and `$` Python runs on the machine, streamed into the chat
 - Pause and resume every agent of a session; Stop aborts the run and puts queued messages back into the composer
 - Image attachments
+- Images the agent reads show in the read card; images a reply names by a path on the machine load on their own, as previews ffmpeg makes on the machine when it has ffmpeg (WebP, or JPEG and PNG), cached in memory and on disk; web images still wait for a tap
 - Copy messages, code and tool output; branch from any of your messages
 
 ### <img src="assets/readme_icons/tools.svg" height="20" alt="" align="center" /> Tools & approvals

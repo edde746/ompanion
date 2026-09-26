@@ -687,6 +687,18 @@
     "seconds": "$value s",
     "image": "Image",
     "loadImage": "Load image",
+    "imageLoading": "Loading $name…",
+    "imageMissing": "Image not found: $path",
+    "imageNotFile": "Not a file: $path",
+    "imageDenied": "No permission to read $path",
+    "imageNotImage": "Not an image: $path",
+    "imageUnsupported": "$path ($size) is in a format this app cannot show",
+    "imageTooLarge": "$path ($size) is too large to load on its own",
+    "imageFailed": "Could not load $path: $error",
+    "loadOriginal": "Load original ($size)",
+    "retryImage": "Retry",
+    "imagePreview": "preview, $sent of $size",
+    "openInFiles": "Open in Files",
     "showMoreLines": {
       "one": "Show $n more line",
       "other": "Show $n more lines"
@@ -767,7 +779,22 @@
     "skippedTooLarge": "too large",
     "skippedBinary": "binary",
     "backgroundResult": "Background result",
-    "delegated": "Delegated request"
+    "delegated": "Delegated request",
+    "turn": {
+      "workedFor": "Worked for $duration",
+      "worked": "Worked",
+      "toolCalls": {
+        "one": "$n tool call",
+        "other": "$n tool calls"
+      },
+      "filesEdited": {
+        "one": "$n file edited",
+        "other": "$n files edited"
+      },
+      "durationHours": "${hours}h ${minutes}m",
+      "durationMinutes": "${minutes}m ${seconds}s",
+      "durationSeconds": "${seconds}s"
+    }
   },
   "config": {
     "title": "Configure $machine",

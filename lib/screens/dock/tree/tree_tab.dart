@@ -170,6 +170,8 @@ class _TreeTabState extends State<TreeTab> {
         if (mounted) _snack(aborted ? t.summaryAborted : t.navigationCancelled);
         return;
       }
+      // A user message goes back into the editor; anything else becomes the leaf, and the chat opens its turn.
+      if (entry.kind != TreeEntryKind.user) sessions.turnsOf(session).reveal(entry.id);
       if (result case {'editorText': final String? text, 'editorImages': final List<Object?> images}) {
         final attachments = [
           for (final image in images)

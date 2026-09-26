@@ -14,6 +14,7 @@ import '../services/known_hosts_store.dart';
 import '../services/machine_connector.dart';
 import '../services/secret_store.dart';
 import '../sessions/companion_asset.dart';
+import '../sessions/machine_images.dart';
 import '../sessions/session_reads.dart';
 import '../sessions/sessions_provider.dart';
 import 'theme.dart';
@@ -64,6 +65,10 @@ class OmpanionApp extends StatelessWidget {
           lazy: false,
         ),
         ChangeNotifierProvider(create: (_) => DockController(machines)),
+        Provider(
+          create: (_) => MachineImages(cacheDir: machineImageCacheDir),
+          dispose: (_, images) => images.dispose(),
+        ),
       ],
       child: TranslationProvider(
         child: Builder(

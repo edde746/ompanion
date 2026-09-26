@@ -5,6 +5,9 @@ tags:
   docker:
     description: Needs Docker (colima) and the SSH test containers from testing/sshd.
     skip: "integration test; run with -P integration or -t docker"
+  ffmpeg:
+    description: Runs this computer's ffmpeg (PATH or Homebrew's directories); CI installs it for the integration job.
+    skip: "integration test; run with -P integration or -t ffmpeg"
 
 presets:
   integration:
@@ -12,4 +15,6 @@ presets:
       omp:
         skip: false
       docker:
+        skip: false
+      ffmpeg:
         skip: false

@@ -1,6 +1,8 @@
 /// Paths in SFTP path space, the form `HostFiles` takes: POSIX paths, and Windows drives as `/C:/...`.
 library;
 
+import 'package:omp_core/host.dart' show toSftpPath;
+
 /// `/C:` or `/C:/`: a Windows drive root in SFTP form.
 final _driveRoot = RegExp(r'^/[A-Za-z]:/?$');
 
@@ -29,6 +31,20 @@ bool isRootPath(String path) => path == '/' || _driveRoot.hasMatch(path);
 
 /// [name] inside directory [dir].
 String joinPath(String dir, String name) => dir.endsWith('/') ? '$dir$name' : '$dir/$name';
+
+/// A path from the transcript as an SFTP path: `~` and `~/…` under [home], an absolute path (POSIX, or `C:\…`) as it
+/// is, anything else under [cwd], [home] when that is null, `/` when both are. [home] and [cwd] are host-native or
+/// SFTP paths; on a [windows] machine a backslash separates too.
+String resolveMachinePath(String path, {required String? home, required String? cwd, bool windows = false}) {
+  final slashed = windows ? path.replaceAll(r'\', '/') : path;
+  if (home != null && (slashed == '~' || slashed.startsWith('~/'))) {
+    return normalizePath(joinPath(toSftpPath(home), slashed.substring(1)));
+  }
+  final sftp = toSftpPath(slashed);
+  if (sftp.startsWith('/')) return normalizePath(sftp);
+  final base = cwd ?? home;
+  return normalizePath(joinPath(base == null ? '/' : toSftpPath(base), sftp));
+}
 
 /// The directory holding [path]; a root is its own parent, and a drive root's parent is `/`.
 String parentPath(String path) {

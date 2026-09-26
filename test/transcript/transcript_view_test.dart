@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/screens/chat/transcript/message_rows.dart';
 import 'package:ompanion/screens/chat/transcript/transcript_view.dart';
+import 'package:ompanion/sessions/turn_expansion.dart';
 import 'package:omp_core/store.dart';
 
 import 'fixtures.dart';
@@ -14,9 +16,11 @@ final _actions = TranscriptActions(
   onOpenSubagent: (_) {},
 );
 
-Widget _harness(SessionView view, {bool alignTop = false}) => TranslationProvider(
+Widget _harness(SessionView view, {bool alignTop = false, TurnExpansion? turns, Key? key}) => TranslationProvider(
   child: MaterialApp(
-    home: Scaffold(body: TranscriptView(view: view, actions: _actions, alignTop: alignTop)),
+    home: Scaffold(
+      body: TranscriptView(key: key, view: view, actions: _actions, alignTop: alignTop, turns: turns),
+    ),
   ),
 );
 
@@ -44,6 +48,44 @@ List<TranscriptItem> _turns(int from, int to) => [
   for (var n = from; n < to; n++) ...[_user(n * 2), _answer(n * 2 + 1, _paragraphs(3))],
 ];
 
+/// A settled turn [n]: a question, a step that runs `bash`, its result, and the answer, 12 s from question to answer.
+List<TranscriptItem> _workedTurn(int n) {
+  final start = n * 100000;
+  return [
+    UserItem(entryId: 'u$n', timestamp: start, content: [TextBlock('Question $n')]),
+    AssistantItem(
+      entryId: 's$n',
+      timestamp: start + 1000,
+      content: [
+        TextBlock('Checking $n.'),
+        ToolCallBlock(id: 'c$n', name: 'bash', arguments: {'command': 'echo step-$n'}),
+      ],
+      provider: 'fake',
+      model: 'fake-1',
+      stopReason: StopReason.toolUse,
+    ),
+    ToolResultItem(
+      entryId: 'r$n',
+      toolCallId: 'c$n',
+      toolName: 'bash',
+      state: ToolState.done,
+      timestamp: start + 3000,
+      content: [TextBlock('step-$n')],
+    ),
+    AssistantItem(
+      entryId: 'a$n',
+      timestamp: start + 4000,
+      content: [TextBlock('Answer $n.')],
+      provider: 'fake',
+      model: 'fake-1',
+      stopReason: StopReason.stop,
+      duration: const Duration(seconds: 8),
+    ),
+  ];
+}
+
+Finder _markdown(String text) => find.textContaining(text, findRichText: true);
+
 void main() {
   setUp(() {
     final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -66,8 +108,8 @@ void main() {
         }
         final last = replay.views.last;
         if (last.transcript.isNotEmpty) expect(find.byType(TranscriptRowView), findsWidgets);
-        // Open every collapsed card and summary so every body renders once.
-        for (var round = 0; round < 3; round++) {
+        // Open every folded turn, then every collapsed card and summary in it, so every body renders once.
+        for (var round = 0; round < 4; round++) {
           final closed = find.byIcon(Icons.expand_more);
           if (closed.evaluate().isEmpty) break;
           for (final element in closed.evaluate().toList()) {
@@ -252,8 +294,9 @@ void main() {
       model: 'fake-1',
       stopReason: StopReason.toolUse,
     );
+    // The run goes on while the ask waits and after it is answered.
     SessionView view(ToolResultItem result) =>
-        SessionView(transcript: [_user(1), asking, result], historyLength: 3);
+        SessionView(transcript: [_user(1), asking, result], historyLength: 3, run: const RunState(running: true));
 
     await tester.pumpWidget(
       _harness(view(ToolResultItem(toolCallId: 'c1', toolName: 'ask', state: ToolState.running))),
@@ -287,5 +330,108 @@ void main() {
     expect(find.text(t.transcript.tool.askWaiting), findsNothing);
     expect(find.textContaining('Option A'), findsOneWidget);
     expect(find.textContaining('Option B'), findsOneWidget);
+  });
+
+  group('folded turns', () {
+    testWidgets('a summary row opens and closes its turn by tap and by keyboard, and stays where it is', (tester) async {
+      final items = [for (var n = 1; n <= 12; n++) ..._workedTurn(n)];
+      await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
+      expect(_markdown('Answer 12.'), findsOneWidget);
+      expect(_markdown('Checking 12.'), findsNothing);
+      expect(find.textContaining('echo step-12'), findsNothing);
+      // The summary row of turn n; its key is the turn's first item's.
+      Finder summary(int n) => find.byKey(ValueKey('u$n#turn'));
+      Finder label(int n) => find.descendant(of: summary(n), matching: find.text('Worked for 12s  ·  1 tool call'));
+      expect(label(12), findsOneWidget);
+
+      // The newest turn, at the bottom edge: the transcript does not follow the bottom as the turn opens.
+      final at = tester.getTopLeft(summary(12));
+      await tester.tap(label(12));
+      await tester.pumpAndSettle();
+      expect(_markdown('Checking 12.'), findsOneWidget);
+      expect(find.textContaining('echo step-12'), findsOneWidget);
+      expect(tester.getTopLeft(summary(12)), at);
+
+      // An older turn above it.
+      final olderAt = tester.getTopLeft(summary(11));
+      await tester.tap(label(11));
+      await tester.pumpAndSettle();
+      expect(_markdown('Checking 11.'), findsOneWidget);
+      expect(tester.getTopLeft(summary(11)), olderAt);
+
+      Focus.of(tester.element(label(11))).requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(_markdown('Checking 11.'), findsNothing);
+      expect(tester.getTopLeft(summary(11)), olderAt);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(_markdown('Checking 11.'), findsOneWidget);
+    });
+
+    testWidgets('the latest turn shows every row while the session works on it, and folds once it settles', (
+      tester,
+    ) async {
+      final items = [..._workedTurn(1), ..._workedTurn(2)];
+      SessionView view({required bool running, List<UiRequest> requests = const []}) => SessionView(
+        transcript: items,
+        historyLength: items.length,
+        run: RunState(running: running),
+        requests: requests,
+      );
+      await tester.pumpWidget(_harness(view(running: true)));
+      expect(_markdown('Checking 2.'), findsOneWidget);
+      expect(find.textContaining('echo step-2'), findsOneWidget);
+      expect(find.textContaining('Worked for'), findsOneWidget, reason: 'only the first turn folds');
+
+      await tester.pumpWidget(
+        _harness(view(running: false, requests: const [ConfirmRequest('q1', title: 'Go on?', message: '')])),
+      );
+      expect(_markdown('Checking 2.'), findsOneWidget, reason: 'an open request keeps the turn open');
+
+      await tester.pumpWidget(_harness(view(running: false)));
+      expect(_markdown('Checking 2.'), findsNothing);
+      expect(find.textContaining('echo step-2'), findsNothing);
+      expect(find.textContaining('Worked for'), findsNWidgets(2));
+      expect(_markdown('Answer 2.'), findsOneWidget);
+    });
+
+    testWidgets('turns the reader opened stay open when the chat switches sessions and back', (tester) async {
+      final turnsA = TurnExpansion();
+      final turnsB = TurnExpansion();
+      final a = SessionView(transcript: _workedTurn(1), historyLength: 4);
+      final b = SessionView(transcript: _workedTurn(2), historyLength: 4);
+      await tester.pumpWidget(_harness(a, turns: turnsA, key: const ValueKey('a')));
+      await tester.tap(find.textContaining('Worked for'));
+      await tester.pumpAndSettle();
+      expect(_markdown('Checking 1.'), findsOneWidget);
+
+      await tester.pumpWidget(_harness(b, turns: turnsB, key: const ValueKey('b')));
+      expect(_markdown('Checking 2.'), findsNothing);
+
+      await tester.pumpWidget(_harness(a, turns: turnsA, key: const ValueKey('a')));
+      expect(_markdown('Checking 1.'), findsOneWidget);
+    });
+
+    testWidgets('revealing an entry opens the turn that holds it, also when the transcript brings it later', (
+      tester,
+    ) async {
+      final turns = TurnExpansion();
+      final items = [..._workedTurn(1), ..._workedTurn(2)];
+      await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length), turns: turns));
+      turns.reveal('r1');
+      await tester.pump();
+      expect(_markdown('Checking 1.'), findsOneWidget);
+      expect(_markdown('Checking 2.'), findsNothing);
+
+      // The tree navigated to an entry that the rebuilt transcript brings afterwards.
+      turns.reveal('s3');
+      await tester.pump();
+      final more = [...items, ..._workedTurn(3)];
+      await tester.pumpWidget(_harness(SessionView(transcript: more, historyLength: more.length), turns: turns));
+      expect(_markdown('Checking 3.'), findsOneWidget);
+      expect(_markdown('Checking 2.'), findsNothing);
+    });
   });
 }

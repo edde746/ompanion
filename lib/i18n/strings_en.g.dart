@@ -1642,6 +1642,42 @@ class Translations$transcript$en {
 	/// en: 'Load image'
 	String get loadImage => 'Load image';
 
+	/// en: 'Loading $name…'
+	String imageLoading({required Object name}) => 'Loading ${name}…';
+
+	/// en: 'Image not found: $path'
+	String imageMissing({required Object path}) => 'Image not found: ${path}';
+
+	/// en: 'Not a file: $path'
+	String imageNotFile({required Object path}) => 'Not a file: ${path}';
+
+	/// en: 'No permission to read $path'
+	String imageDenied({required Object path}) => 'No permission to read ${path}';
+
+	/// en: 'Not an image: $path'
+	String imageNotImage({required Object path}) => 'Not an image: ${path}';
+
+	/// en: '$path ($size) is in a format this app cannot show'
+	String imageUnsupported({required Object path, required Object size}) => '${path} (${size}) is in a format this app cannot show';
+
+	/// en: '$path ($size) is too large to load on its own'
+	String imageTooLarge({required Object path, required Object size}) => '${path} (${size}) is too large to load on its own';
+
+	/// en: 'Could not load $path: $error'
+	String imageFailed({required Object path, required Object error}) => 'Could not load ${path}: ${error}';
+
+	/// en: 'Load original ($size)'
+	String loadOriginal({required Object size}) => 'Load original (${size})';
+
+	/// en: 'Retry'
+	String get retryImage => 'Retry';
+
+	/// en: 'preview, $sent of $size'
+	String imagePreview({required Object sent, required Object size}) => 'preview, ${sent} of ${size}';
+
+	/// en: 'Open in Files'
+	String get openInFiles => 'Open in Files';
+
 	/// en: '(one) {Show $n more line} (other) {Show $n more lines}'
 	String showMoreLines({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
 		one: 'Show ${n} more line',
@@ -1719,6 +1755,8 @@ class Translations$transcript$en {
 
 	/// en: 'Delegated request'
 	String get delegated => 'Delegated request';
+
+	late final Translations$transcript$turn$en turn = Translations$transcript$turn$en.internal(_root);
 }
 
 // Path: config
@@ -2403,6 +2441,42 @@ class Translations$transcript$execution$en {
 
 	/// en: 'Output truncated'
 	String get truncated => 'Output truncated';
+}
+
+// Path: transcript.turn
+class Translations$transcript$turn$en {
+	Translations$transcript$turn$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Worked for $duration'
+	String workedFor({required Object duration}) => 'Worked for ${duration}';
+
+	/// en: 'Worked'
+	String get worked => 'Worked';
+
+	/// en: '(one) {$n tool call} (other) {$n tool calls}'
+	String toolCalls({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} tool call',
+		other: '${n} tool calls',
+	);
+
+	/// en: '(one) {$n file edited} (other) {$n files edited}'
+	String filesEdited({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} file edited',
+		other: '${n} files edited',
+	);
+
+	/// en: '${hours}h ${minutes}m'
+	String durationHours({required Object hours, required Object minutes}) => '${hours}h ${minutes}m';
+
+	/// en: '${minutes}m ${seconds}s'
+	String durationMinutes({required Object minutes, required Object seconds}) => '${minutes}m ${seconds}s';
+
+	/// en: '${seconds}s'
+	String durationSeconds({required Object seconds}) => '${seconds}s';
 }
 
 // Path: config.sections
@@ -3792,6 +3866,18 @@ extension on Translations {
 			'transcript.seconds' => ({required Object value}) => '${value} s',
 			'transcript.image' => 'Image',
 			'transcript.loadImage' => 'Load image',
+			'transcript.imageLoading' => ({required Object name}) => 'Loading ${name}…',
+			'transcript.imageMissing' => ({required Object path}) => 'Image not found: ${path}',
+			'transcript.imageNotFile' => ({required Object path}) => 'Not a file: ${path}',
+			'transcript.imageDenied' => ({required Object path}) => 'No permission to read ${path}',
+			'transcript.imageNotImage' => ({required Object path}) => 'Not an image: ${path}',
+			'transcript.imageUnsupported' => ({required Object path, required Object size}) => '${path} (${size}) is in a format this app cannot show',
+			'transcript.imageTooLarge' => ({required Object path, required Object size}) => '${path} (${size}) is too large to load on its own',
+			'transcript.imageFailed' => ({required Object path, required Object error}) => 'Could not load ${path}: ${error}',
+			'transcript.loadOriginal' => ({required Object size}) => 'Load original (${size})',
+			'transcript.retryImage' => 'Retry',
+			'transcript.imagePreview' => ({required Object sent, required Object size}) => 'preview, ${sent} of ${size}',
+			'transcript.openInFiles' => 'Open in Files',
 			'transcript.showMoreLines' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Show ${n} more line', other: 'Show ${n} more lines', ), 
 			'transcript.showLess' => 'Show less',
 			'transcript.tool.running' => 'Running…',
@@ -3851,6 +3937,13 @@ extension on Translations {
 			'transcript.skippedBinary' => 'binary',
 			'transcript.backgroundResult' => 'Background result',
 			'transcript.delegated' => 'Delegated request',
+			'transcript.turn.workedFor' => ({required Object duration}) => 'Worked for ${duration}',
+			'transcript.turn.worked' => 'Worked',
+			'transcript.turn.toolCalls' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} tool call', other: '${n} tool calls', ), 
+			'transcript.turn.filesEdited' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} file edited', other: '${n} files edited', ), 
+			'transcript.turn.durationHours' => ({required Object hours, required Object minutes}) => '${hours}h ${minutes}m',
+			'transcript.turn.durationMinutes' => ({required Object minutes, required Object seconds}) => '${minutes}m ${seconds}s',
+			'transcript.turn.durationSeconds' => ({required Object seconds}) => '${seconds}s',
 			'config.title' => ({required Object machine}) => 'Configure ${machine}',
 			'config.connect' => 'Connect',
 			'config.connecting' => 'Connecting…',

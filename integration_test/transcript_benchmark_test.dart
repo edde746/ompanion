@@ -3,9 +3,9 @@
 //   flutter drive --profile -d macos --driver=test_driver/integration_test.dart \
 //     --target=integration_test/transcript_benchmark_test.dart
 //
-// A 2,000-item session is on screen while a 12 KB markdown reply (prose, lists, code, tables) streams in 300 updates
-// at 50 per second. Frame timings of the streaming phase are printed and written to
-// build/integration_response_data.json.
+// A 2,000-item session, its settled turns folded, is on screen while its run works on the last turn: a 12 KB markdown
+// reply (prose, lists, code, tables) streams into that turn in 300 updates at 50 per second, then the run settles and
+// the turn folds. Frame timings of the streaming phase are printed and written to build/integration_response_data.json.
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -31,7 +31,9 @@ void main() {
     await windowManager.show();
 
     final history = syntheticTranscript(2000);
-    final view = ValueNotifier(SessionView(transcript: history, historyLength: history.length));
+    final view = ValueNotifier(
+      SessionView(transcript: history, historyLength: history.length, run: const RunState(running: true)),
+    );
     final actions = TranscriptActions(
       onCopy: (_) {},
       onOpenFile: (path, {line}) {},
@@ -67,7 +69,11 @@ void main() {
         stopReason: StopReason.stop,
         streaming: sent < updates,
       );
-      view.value = SessionView(transcript: [...history, item], historyLength: history.length);
+      view.value = SessionView(
+        transcript: [...history, item],
+        historyLength: history.length,
+        run: RunState(running: sent < updates),
+      );
       await Future<void>.delayed(const Duration(milliseconds: 20));
     }
     await Future<void>.delayed(const Duration(seconds: 1));

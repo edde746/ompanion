@@ -71,6 +71,27 @@ void main() {
       expect(isRootPath('/D:/'), isTrue);
       expect(isRootPath('/D:/x'), isFalse);
     });
+
+    test('transcript paths resolve against the home and the session directory', () {
+      String posix(String path, {String? cwd = '/home/u/proj'}) => resolveMachinePath(path, home: '/home/u', cwd: cwd);
+      expect(posix('/var/log/a.png'), '/var/log/a.png');
+      expect(posix('~/Pictures/a.png'), '/home/u/Pictures/a.png');
+      expect(posix('~'), '/home/u');
+      expect(posix('out/chart.png'), '/home/u/proj/out/chart.png');
+      expect(posix('./out/../chart.png'), '/home/u/proj/chart.png');
+      expect(posix('chart.png', cwd: null), '/home/u/chart.png');
+      expect(posix(r'dir\a.png'), r'/home/u/proj/dir\a.png', reason: 'a backslash is a name character on POSIX');
+    });
+
+    test('on a Windows machine drives, backslashes and ~ resolve in SFTP form', () {
+      String windows(String path) =>
+          resolveMachinePath(path, home: r'C:\Users\u', cwd: r'D:\work\proj', windows: true);
+      expect(windows(r'C:\Temp\shot.png'), '/C:/Temp/shot.png');
+      expect(windows('C:/Temp/shot.png'), '/C:/Temp/shot.png');
+      expect(windows(r'~\Pictures\a.png'), '/C:/Users/u/Pictures/a.png');
+      expect(windows(r'out\chart.png'), '/D:/work/proj/out/chart.png');
+      expect(windows(r'..\chart.png'), '/D:/work/chart.png');
+    });
   });
 
   group('git status', () {

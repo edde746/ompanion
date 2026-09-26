@@ -8,6 +8,7 @@ import '../../../i18n/strings.g.dart';
 import '../../external_links.dart';
 import 'code_block.dart';
 import 'highlighter.dart';
+import 'images.dart';
 import 'transcript_actions.dart';
 
 /// A CommonMark fenced code block (spec §4.5), replacing gpt_markdown's built-in fence, which knows only ``` and
@@ -382,8 +383,9 @@ Widget _quote(BuildContext context, Widget content, BlockQuoteStyle style) => Co
 /// A thematic break is a gap, not a rule.
 Widget _rule(BuildContext context, HrStyle style) => const SizedBox(height: 8);
 
-/// An image of the transcript's markdown: an inline `data:` image is drawn, a web image waits for a tap
-/// ([_RemoteImage]), and anything else shows its URL. [alt] is the image's alt text, empty when unknown.
+/// An image of the transcript's markdown: an inline `data:` image is drawn, a path names a file of the session's
+/// machine and loads from there ([MachineImage]), a web image waits for a tap ([_RemoteImage]), and anything else
+/// shows its URL. [alt] is the image's alt text, empty when unknown.
 Widget _image(BuildContext context, String url, String alt, double? width, double? height) {
   final uri = Uri.tryParse(url);
   final data = uri != null && uri.isScheme('data') ? uri.data : null;
@@ -395,8 +397,28 @@ Widget _image(BuildContext context, String url, String alt, double? width, doubl
       errorBuilder: (context, error, stack) => Text(alt.isEmpty ? context.t.transcript.image : alt),
     );
   }
+  if (machineImagePath(url) case final path?) return MachineImage(path: path);
   if (uri == null || !isWebLink(uri)) return Text(url);
   return _RemoteImage(url: url, host: uri.host, alt: alt, width: width, height: height);
+}
+
+final _windowsPath = RegExp(r'^(?:[A-Za-z]:[\\/]|\\\\)');
+
+/// The machine path a markdown image names: an absolute POSIX or Windows path, `~/…`, a path relative to the session's
+/// directory, or a `file:` URL (its host ignored). Null for `data:`, web and any other URL. Percent-escapes are
+/// decoded, since a markdown image URL cannot hold a space.
+String? machineImagePath(String src) {
+  final target = src.trim();
+  if (target.isEmpty) return null;
+  if (_windowsPath.hasMatch(target)) return _decoded(target);
+  final uri = Uri.tryParse(target);
+  if (uri == null) return _decoded(target);
+  if (uri.isScheme('file')) {
+    final path = _decoded(uri.path);
+    // `file:///C:/x` names the Windows path `C:/x`.
+    return RegExp(r'^/[A-Za-z]:/').hasMatch(path) ? path.substring(1) : path;
+  }
+  return uri.scheme.isEmpty ? _decoded(target) : null;
 }
 
 /// A web image of model output, fetched only once the user taps it. Loading it on its own would send whatever its

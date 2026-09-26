@@ -13,7 +13,8 @@ import 'transcript_actions.dart';
 import 'transcript_rows.dart';
 
 /// The widget for one transcript row. [result] is the tool result of a [ToolRow]; [thought] is the measured duration
-/// of a finished [ThinkingRow] that streamed while this transcript was open.
+/// of a finished [ThinkingRow] that streamed while this transcript was open; [onToggle] opens or closes the turn of a
+/// [TurnSummaryRow] and gets the row's box.
 class TranscriptRowView extends StatelessWidget {
   const TranscriptRowView({
     super.key,
@@ -21,12 +22,14 @@ class TranscriptRowView extends StatelessWidget {
     this.result,
     this.subagents = const [],
     this.thought,
+    this.onToggle,
   });
 
   final TranscriptRow row;
   final ToolResultItem? result;
   final List<Subagent> subagents;
   final Duration? thought;
+  final void Function(RenderBox row)? onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +42,7 @@ class TranscriptRowView extends StatelessWidget {
       final ToolRow row => (ToolCard(data: ToolData(row: row, result: result, subagents: subagents)), 6.0),
       final AssistantFooterRow row => (_AssistantFooter(row.item, retryFailed: row.retryFailed), 4.0),
       PendingRow() => (const _Pending(), 10.0),
+      final TurnSummaryRow row => (_TurnSummary(row, onToggle: onToggle), 6.0),
     };
     return Align(
       alignment: Alignment.topCenter,
@@ -308,6 +312,66 @@ class _ThinkingViewState extends State<_ThinkingView> {
           ),
       ],
     );
+  }
+}
+
+/// The one-line summary of a folded turn's work; tapping it, or Enter or Space while it has focus, opens or closes
+/// the turn.
+class _TurnSummary extends StatelessWidget {
+  const _TurnSummary(this.row, {required this.onToggle});
+
+  final TurnSummaryRow row;
+  final void Function(RenderBox row)? onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final t = context.t.transcript.turn;
+    final facts = row.facts;
+    final parts = [
+      if (facts.worked case final worked?) t.workedFor(duration: _duration(t, worked)),
+      if (facts.toolCalls > 0) t.toolCalls(n: facts.toolCalls),
+      if (facts.filesEdited > 0) t.filesEdited(n: facts.filesEdited),
+    ];
+    return SelectionContainer.disabled(
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Semantics(
+          expanded: row.open,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: () => onToggle?.call(context.findRenderObject()! as RenderBox),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      parts.isEmpty ? t.worked : parts.join('  ·  '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(row.open ? Icons.expand_less : Icons.expand_more, size: 16, color: scheme.onSurfaceVariant),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _duration(Translations$transcript$turn$en t, Duration duration) {
+    if (duration.inHours > 0) return t.durationHours(hours: duration.inHours, minutes: duration.inMinutes % 60);
+    if (duration.inMinutes > 0) {
+      return t.durationMinutes(minutes: duration.inMinutes, seconds: duration.inSeconds % 60);
+    }
+    return t.durationSeconds(seconds: duration.inSeconds);
   }
 }
 

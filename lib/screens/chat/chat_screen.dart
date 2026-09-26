@@ -7,6 +7,7 @@ import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
 
 import '../../i18n/strings.g.dart';
+import '../../sessions/machine_images.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../dock/dock_controller.dart';
@@ -34,12 +35,15 @@ class ChatScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sessions = context.read<SessionsProvider>();
     final actions = TranscriptActions(
       onBranchFrom: (entryId) => unawaited(branchFrom(context, session, entryId)),
       onCopy: (text) => unawaited(_copy(context, text)),
       onOpenFile: (path, {line}) => context.read<DockController>().openFile(path, line: line),
       onOpenSubagent: (id) => context.read<DockController>().openSubagent(id),
+      images: context.read<MachineImages?>()?.forSession(sessions, session),
     );
+    final turns = sessions.turnsOf(session);
     return NoticeHost(
       session: session,
       child: Column(
@@ -51,7 +55,7 @@ class ChatScreen extends StatelessWidget {
           Expanded(
             child: SessionViewBuilder(
               session: session,
-              builder: (context, view) => TranscriptView(view: view, actions: actions),
+              builder: (context, view) => TranscriptView(view: view, actions: actions, turns: turns),
             ),
           ),
           CommandOutputs(key: ObjectKey(session), session: session),

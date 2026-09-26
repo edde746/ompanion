@@ -205,6 +205,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends csh
 
+      # The ffmpeg-tagged tests make image previews with this computer's ffmpeg; the ubuntu-24.04 runner image has
+      # none, and without it they fail rather than skip. Ubuntu's build encodes WebP, so CI covers the WebP preview.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Install omp_core dependencies
         working-directory: packages/omp_core
         run: dart pub get --enforce-lockfile

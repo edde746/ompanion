@@ -27,6 +27,7 @@ what stock lacks.
 | Queued message list, dequeue | Alt+Up | CE `getQueuedMessages`, `popLastQueuedMessage`, `clearQueue`; companion `queue.take` | queue rows in the composer (edit, remove) | M2 |
 | Queue and interrupt modes | settings | RPC `set_steering_mode` etc.; persisted via CE settings | settings | M5 |
 | Images | Ctrl+V, `@img` | RPC `images[]` | attachments | M2 |
+| Read and reply images | image in the `read` result; terminal image protocols | `toolResult` image blocks (live and via `get_entries`); host image script (`fetchHostImage`, ffmpeg preview) over SSH | read card preview; markdown machine-path images with notices | M2 |
 | `@` file mentions | `@` | FS file index | composer | M7 |
 | Tool approvals | inline | RPC `extension_ui_request select` "Allow tool: …" Approve/Deny | inline request panel | M2 |
 | `ask` tool | ask dialog | CE `ctx.ui.askDialog` (headers, previews, notes, multi-select); RPC select/editor fallback | inline question form | M2 |

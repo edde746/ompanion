@@ -7,6 +7,7 @@ import '../channel/detached_run.dart' hide listRuns;
 import '../channel/detached_run.dart' as runs show listRuns;
 import '../channel/run_log.dart';
 import '../host/companion.dart';
+import '../host/host_image.dart';
 import '../host/probe.dart';
 import '../host/scripts.dart';
 import '../host/session_listing.dart' hide listSessions;
@@ -139,6 +140,7 @@ final class MachineRuntime {
   _ControlAccess? _controlAccess;
   Future<RunSession>? _controlStarting;
   final _forwards = <_Forward>{};
+  ({HostLink link, Future<ImageTools> tools})? _imageTools;
   bool _disposed = false;
 
   /// Emits every new [status]. Broadcast.
@@ -186,6 +188,22 @@ final class MachineRuntime {
   Future<List<DetachedRun>> listRuns() async {
     final connection = await _connected();
     return runs.listRuns(connection.link, connection.probe);
+  }
+
+  /// ffmpeg on the machine ([probeImageTools]), looked up once per connection. A failed lookup is tried again on the
+  /// next call.
+  Future<ImageTools> imageTools() async {
+    final connection = await _connected();
+    final cached = _imageTools;
+    if (cached != null && identical(cached.link, connection.link)) return cached.tools;
+    final tools = probeImageTools(connection.link, connection.probe);
+    _imageTools = (link: connection.link, tools: tools);
+    try {
+      return await tools;
+    } on Object {
+      if (identical(_imageTools?.tools, tools)) _imageTools = null;
+      rethrow;
+    }
   }
 
   /// Opens a session: launches or finds its run, attaches, and completes once the view is built. An open session

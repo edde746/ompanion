@@ -160,15 +160,9 @@ final class FileWorkspace extends ChangeNotifier {
     }
   }
 
-  /// Resolves a path from the transcript: absolute, host-native (`C:\x`), `~/x`, or relative to the session's
-  /// directory.
-  String resolve(String path, {required String? cwd}) {
-    if (path.startsWith('~/') && _home != null) return normalizePath(joinPath(_home!, path.substring(2)));
-    final sftp = toSftpPath(path);
-    if (sftp.startsWith('/')) return normalizePath(sftp);
-    final base = cwd == null ? (_home ?? '/') : toSftpPath(cwd);
-    return normalizePath(joinPath(base, sftp));
-  }
+  /// Resolves a path from the transcript ([resolveMachinePath]).
+  String resolve(String path, {required String? cwd}) =>
+      resolveMachinePath(path, home: _home, cwd: cwd, windows: _probe?.isWindows ?? false);
 
   /// Browses [dir].
   Future<void> openDir(String dir) async {

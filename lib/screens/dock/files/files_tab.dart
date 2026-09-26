@@ -14,6 +14,7 @@ import '../../../files/git_status.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../models/machine.dart';
 import '../../../sessions/sessions_provider.dart';
+import '../../../utils/byte_size.dart';
 import '../../../widgets/labeled_field.dart';
 import '../dock_controller.dart';
 import '../machine_access.dart';
@@ -418,7 +419,7 @@ class _EntryTile extends StatelessWidget {
             else if (dirty)
               Icon(Icons.circle, size: 6, color: AppColors.of(context).warning)
             else if (!row.isDirectory && !row.isLink)
-              Text(_size(row.entry.stat.size), style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+              Text(formatBytes(row.entry.stat.size), style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
           ],
         ),
       ),
@@ -460,12 +461,6 @@ IconData _fileIcon(String name) => switch (extensionOf(name)) {
   'zip' || 'gz' || 'tar' || 'tgz' || 'xz' || '7z' => Icons.archive_outlined,
   _ => Icons.insert_drive_file_outlined,
 };
-
-String _size(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(bytes < 10 * 1024 ? 1 : 0)} KB';
-  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-}
 
 class _StatusTile extends StatelessWidget {
   const _StatusTile({required this.depth, required this.child});

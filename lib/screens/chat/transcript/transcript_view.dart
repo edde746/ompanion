@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../i18n/strings.g.dart';
+import '../../../sessions/turn_expansion.dart';
 import 'message_rows.dart';
 import 'transcript_actions.dart';
 import 'transcript_rows.dart';
@@ -80,6 +81,22 @@ final class _BottomAnchoredPosition extends ScrollPositionWithSingleContext {
   /// Scroll extent of the slivers above the center sliver, from the layout in progress.
   final double Function() extentAbove;
 
+  bool _holding = false;
+
+  /// Moves to [pixels] and keeps that offset through the next layout, which would otherwise follow the bottom: the
+  /// reader toggled a turn and the toggled row stays where it was.
+  void keepAt(double pixels) {
+    correctBy(pixels - this.pixels);
+    _holding = true;
+  }
+
+  @override
+  bool correctForNewDimensions(ScrollMetrics oldPosition, ScrollMetrics newPosition) {
+    if (!_holding) return super.correctForNewDimensions(oldPosition, newPosition);
+    _holding = false;
+    return true;
+  }
+
   @override
   bool applyContentDimensions(double minScrollExtent, double maxScrollExtent) {
     final top = math.min(viewportDimension - extentAbove(), maxScrollExtent);
@@ -87,7 +104,7 @@ final class _BottomAnchoredPosition extends ScrollPositionWithSingleContext {
   }
 }
 
-/// The chat transcript of one session: every row of [SessionView.transcript], newest at the bottom.
+/// The chat transcript of one session: the rows of [SessionView.transcript], newest at the bottom.
 ///
 /// The list is a [CustomScrollView] around a center sliver with `anchor: 1.0`, so scroll offset 0 is the bottom edge.
 /// Rows that existed while the transcript still fit the viewport, and older pages inserted before them, sit in a
@@ -101,14 +118,31 @@ final class _BottomAnchoredPosition extends ScrollPositionWithSingleContext {
 /// grows downward, and once it overflows, [StickToBottomPhysics] follows the growth as before. Earlier pages then
 /// insert above what is on screen, so it suits transcripts that load whole (a subagent's).
 ///
+/// With [foldTurns], a settled turn folds its work under a summary row (see [TranscriptRowModel]); the latest turn
+/// shows every row while the session works on it: while it streams, compacts, retries or is paused, and while a
+/// request waits for an answer. Toggling a turn keeps its summary row where it is.
+///
 /// Rows are rebuilt only when what they render changed: a row's widget is reused while its item, block or tool result
 /// is the same instance (the reducer keeps unchanged parts identical), so a streaming update rebuilds one row.
 class TranscriptView extends StatefulWidget {
-  const TranscriptView({super.key, required this.view, required this.actions, this.alignTop = false});
+  const TranscriptView({
+    super.key,
+    required this.view,
+    required this.actions,
+    this.alignTop = false,
+    this.foldTurns = true,
+    this.turns,
+  });
 
   final SessionView view;
   final TranscriptActions actions;
   final bool alignTop;
+
+  /// Settled turns fold (the main chat); a subagent's transcript shows every row.
+  final bool foldTurns;
+
+  /// Which turns the reader opened; kept by the caller to outlive this view. Without it the view keeps its own.
+  final TurnExpansion? turns;
 
   @override
   State<TranscriptView> createState() => _TranscriptViewState();
@@ -165,7 +199,12 @@ class _TranscriptViewState extends State<TranscriptView> {
   final _widgets = <String, _CachedRow>{};
 
   List<TranscriptItem>? _transcript;
-  final _model = TranscriptRowModel();
+  late TranscriptRowModel _model;
+  late TurnExpansion _turns;
+  TurnExpansion? _ownTurns;
+
+  /// The session worked on its latest turn at the last update.
+  bool _live = false;
 
   /// Index of the first row of the center sliver in [TranscriptRowModel.rows].
   var _splitRow = 0;
@@ -188,6 +227,7 @@ class _TranscriptViewState extends State<TranscriptView> {
   @override
   void initState() {
     super.initState();
+    _attachTurns();
     _update(initial: true);
     // Opened on a long transcript, a top-aligned view starts at its newest row like the bottom-anchored one.
     if (widget.alignTop) {
@@ -200,14 +240,79 @@ class _TranscriptViewState extends State<TranscriptView> {
   @override
   void didUpdateWidget(TranscriptView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(widget.view.transcript, _transcript)) _update(initial: false);
+    if (!identical(oldWidget.turns, widget.turns) || oldWidget.foldTurns != widget.foldTurns) {
+      _turns.removeListener(_onTurns);
+      _attachTurns();
+      _update(initial: false);
+    } else if (!identical(widget.view.transcript, _transcript) || _inProgress(widget.view) != _live) {
+      _update(initial: false);
+    }
   }
 
   @override
   void dispose() {
+    _turns.removeListener(_onTurns);
+    _ownTurns?.dispose();
     _scroll.dispose();
     _atBottom.dispose();
     super.dispose();
+  }
+
+  /// Takes [TranscriptView.turns] and starts a row model that folds by it.
+  void _attachTurns() {
+    _turns = widget.turns ?? (_ownTurns ??= TurnExpansion());
+    _turns.addListener(_onTurns);
+    _model = TranscriptRowModel(isOpen: widget.foldTurns ? _turns.isOpen : null);
+  }
+
+  /// The session works on its latest turn, which then shows every row.
+  static bool _inProgress(SessionView view) {
+    final run = view.run;
+    return run.running || run.compacting != null || run.retrying != null || run.paused || view.requests.isNotEmpty;
+  }
+
+  void _onTurns() {
+    _reveal();
+    _model.refold();
+    setState(() => _splitRow = _model.rowOf(_split(_transcript ?? const [])));
+  }
+
+  /// Opens the turn of the entry [TurnExpansion.reveal] asked for, once the transcript holds it.
+  void _reveal() {
+    final entryId = _turns.pendingReveal;
+    final transcript = _transcript;
+    if (entryId == null || transcript == null || !widget.foldTurns) return;
+    for (var index = transcript.length - 1; index >= 0; index--) {
+      if (transcript[index].entryId == entryId) {
+        _turns.revealedIn(_model.headOf(index));
+        _model.refold();
+        return;
+      }
+    }
+  }
+
+  /// Index in [transcript] of the first item of the center sliver.
+  int _split(List<TranscriptItem> transcript) {
+    if (widget.alignTop) return 0;
+    final index = _splitIndex(transcript);
+    if (index == null) _firstLiveItem = null;
+    return index ?? transcript.length;
+  }
+
+  /// Opens or closes the turn of the summary row [key], whose box is [box]. The summary row becomes the last row of
+  /// the upper sliver, which ends at scroll offset 0, and the turn's rows go below it into the center sliver; the
+  /// offset that puts the row's bottom edge where it is now keeps it in place.
+  void _toggleTurn(String key, RenderBox box) {
+    final position = _model.positionOf(key);
+    final row = position == null ? null : _model.rows[position];
+    if (row is! TurnSummaryRow) return;
+    final scroll = _scroll.hasClients ? _scroll.position : null;
+    if (scroll is _BottomAnchoredPosition) {
+      final bottom = box.localToGlobal(Offset(0, box.size.height), ancestor: RenderAbstractViewport.of(box)).dy;
+      _firstLiveItem = row.rest.key;
+      scroll.keepAt(scroll.viewportDimension - bottom);
+    }
+    _turns.setOpen(row.head, !row.open);
   }
 
   void _update({required bool initial}) {
@@ -218,11 +323,7 @@ class _TranscriptViewState extends State<TranscriptView> {
     final previous = _lastItem;
     _lastItem = newest;
 
-    var split = widget.alignTop ? 0 : _splitIndex(transcript);
-    if (split == null) {
-      _firstLiveItem = null;
-      split = transcript.length;
-    }
+    var split = _split(transcript);
     if (!widget.alignTop && _firstLiveItem == null && _overflowing && previous != null && newest != null) {
       if (newest.key != previous.key) {
         // The transcript overflowed before these items arrived: they grow downward from here on.
@@ -241,7 +342,9 @@ class _TranscriptViewState extends State<TranscriptView> {
         split = transcript.length - 1;
       }
     }
-    _model.update(transcript);
+    _live = _inProgress(widget.view);
+    _model.update(transcript, live: _live);
+    _reveal();
     _splitRow = _model.rowOf(split);
     final rows = _model.rows;
     if (_widgets.length > rows.length + 64) {
@@ -347,6 +450,7 @@ class _TranscriptViewState extends State<TranscriptView> {
       result: result,
       subagents: subagents,
       thought: thought,
+      onToggle: row is TurnSummaryRow ? (box) => _toggleTurn(row.key, box) : null,
     );
     _widgets[row.key] = _CachedRow(row.content, result, subagents, thought, built);
     return built;

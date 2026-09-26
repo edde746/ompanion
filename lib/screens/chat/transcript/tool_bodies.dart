@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../app/theme.dart';
+import '../../../files/file_paths.dart';
 import '../../../i18n/strings.g.dart';
 import 'code_block.dart';
 import 'diff.dart';
@@ -66,12 +67,12 @@ Widget _dim(BuildContext context, String text) {
   return Text(text, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant));
 }
 
-List<Widget> _errorAndImages(BuildContext context, ToolData data, {bool showText = true}) => [
+List<Widget> _errorAndImages(BuildContext context, ToolData data, {bool showText = true, bool showImages = true}) => [
   if (showText && data.isError && data.text.trim().isNotEmpty) ...[
     const SizedBox(height: 6),
     TerminalOutput(_withoutNotices(data.text), error: true),
   ],
-  if (data.images.isNotEmpty) ...[const SizedBox(height: 8), ImageStrip(data.images)],
+  if (showImages && data.images.isNotEmpty) ...[const SizedBox(height: 8), ImageStrip(data.images)],
 ];
 
 Widget _column(List<Widget> children) =>
@@ -127,6 +128,12 @@ String _readTarget(Map<String, Object?>? details, String path) =>
       _ => _withoutSelector(path),
     };
 
+/// Extensions of the image files omp reads as images (`read` of a PNG, JPEG, GIF, WebP, …).
+const _imageExtensions = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'heic', 'heif', 'avif'};
+
+/// `PNG` for `image/png`.
+String _imageType(String mimeType) => mimeType.split('/').last.split(RegExp('[+;]')).first.toUpperCase();
+
 ToolParts _read(BuildContext context, ToolData data) {
   final t = context.t.transcript.tool;
   final path = _string(data.args['path']) ?? _string(data.args['file_path']) ?? '';
@@ -140,16 +147,27 @@ ToolParts _read(BuildContext context, ToolData data) {
   final shown = gutter.whereType<int>();
   final total = _int(details?['totalLines']);
   final target = _readTarget(details, path);
+  // omp sends a read image only to a model that takes images; for another it sends the image's metadata as text, and
+  // the card shows the file from the machine instead.
+  final images = data.images;
+  final fromMachine = images.isEmpty &&
+      text == null &&
+      data.status == ToolStatus.done &&
+      _imageExtensions.contains(extensionOf(_withoutSelector(target)));
+  // What the model got, which omp may have converted (a PNG arrives as WebP): the file's own facts are in Files.
+  final pixels = images.isEmpty ? null : imageSize(images.first);
   return (
     subject: path,
     monoSubject: true,
     meta: [
+      if (pixels != null) '${pixels.width.round()}×${pixels.height.round()}',
+      if (images.isNotEmpty) _imageType(images.first.mimeType),
       if (shown.isNotEmpty && (shown.first != 1 || (total != null && shown.last != total)))
         t.lineRange(from: shown.first, to: shown.last)
       else if (total != null)
         t.lines(n: total),
     ],
-    expanded: false,
+    expanded: images.isNotEmpty || fromMachine,
     open: path.isEmpty ? null : () => TranscriptScope.of(context).onOpenFile(target, line: startLine),
     body: (context) => _column([
       if (text != null)
@@ -163,9 +181,14 @@ ToolParts _read(BuildContext context, ToolData data) {
             header: false,
           ),
         )
-      else if (!data.isError && data.text.trim().isNotEmpty)
+      else if (images.isEmpty && !data.isError && data.text.trim().isNotEmpty)
         TerminalOutput(data.text, max: 20),
-      ..._errorAndImages(context, data),
+      for (final (index, image) in images.indexed) ...[
+        if (index > 0) const SizedBox(height: 8),
+        FittedImage(imageBytes(image)),
+      ],
+      if (fromMachine) ...[const SizedBox(height: 8), MachineImage(path: _withoutSelector(target), caption: false)],
+      ..._errorAndImages(context, data, showImages: false),
     ]),
   );
 }
@@ -381,7 +404,7 @@ ToolParts _todo(BuildContext context, ToolData data) {
     meta: [if (tasks.isNotEmpty) t.todoProgress(done: done, total: tasks.length)],
     expanded: true,
     open: null,
-    body: phases.isEmpty
+    body: phases.isEmpty && data.images.isEmpty
         ? null
         : (context) => _column([
             for (final (name, tasks) in phases) ...[
@@ -805,7 +828,7 @@ ToolParts _webSearch(BuildContext context, ToolData data) {
     meta: [if (sources.isNotEmpty) t.sources(n: sources.length)],
     expanded: true,
     open: null,
-    body: response == null && error == null && !data.isError
+    body: response == null && error == null && !data.isError && data.images.isEmpty
         ? null
         : (context) => _column([
             if (answer != null && answer.trim().isNotEmpty) TranscriptMarkdown(answer),

@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../models/machine.dart';
+import '../../../sessions/machine_images.dart';
 import '../../../sessions/session_view_builder.dart';
 import '../../../sessions/sessions_provider.dart';
 import '../../chat/transcript/transcript_view.dart';
@@ -518,6 +519,7 @@ class _AgentDetailState extends State<_AgentDetail> {
                     child: TranscriptView(
                       view: transcript.view,
                       alignTop: true,
+                      foldTurns: false,
                       actions: TranscriptActions(
                         onCopy: (text) async {
                           await Clipboard.setData(ClipboardData(text: text));
@@ -525,6 +527,7 @@ class _AgentDetailState extends State<_AgentDetail> {
                         },
                         onOpenFile: (path, {line}) => dock.openFile(path, line: line),
                         onOpenSubagent: widget.onOpenAgent,
+                        images: context.read<MachineImages?>()?.forSession(context.read<SessionsProvider>(), widget.session),
                       ),
                     ),
                   ),

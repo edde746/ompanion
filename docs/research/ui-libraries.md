@@ -357,15 +357,28 @@ DiffRow? parseOmpDiffLine(String s) {
 The transcript meets the frame budget while a long reply streams into a long session. Measured on macOS
 (Apple silicon, profile build) with `integration_test/transcript_benchmark_test.dart` (command in README):
 2,000 synthetic items (questions, `bash` calls with results, markdown answers with code and tables), then a
-12,385-character markdown reply streamed in 300 updates at 50 per second.
+12,385-character markdown reply streamed in 300 updates at 50 per second. The session's run works on the last
+turn while the reply streams into it and settles with the last update, so the 499 settled turns are folded and
+the last turn folds inside the measured frames.
 
 | | Build p50 | Build p90 | Build p99 | Build max | Frames over 16.7 ms |
 |---|---|---|---|---|---|
-| Before | 12.92 ms | 23.44 ms | 106.80 ms | 162.66 ms | 72 of 296 |
-| After | 1.34 ms | 2.34 ms | 7.08 ms | 8.15 ms | 0 of 476 |
+| Before incremental rows | 12.92 ms | 23.44 ms | 106.80 ms | 162.66 ms | 72 of 296 |
+| Incremental rows | 1.34 ms | 2.34 ms | 7.08 ms | 8.15 ms | 0 of 476 |
+| Incremental rows, measured again (median of 3 runs, alternating with the next row) | 0.93 ms | 2.15 ms | 6.64 ms | 8.90 ms | 0 of 469 |
+| Folded turns (median of 3 runs) | 0.94 ms | 2.27 ms | 6.40 ms | 8.96 ms | 0 of 468 |
 
-Raster after: p90 1.30 ms, max 8.80 ms. The "before" run used an earlier harness with the same data and
-rate that also rebuilt its own window chrome on every update, so part of the difference is harness overhead.
+Raster with folded turns: p90 1.30 ms, max 2.96 ms (medians). Over 10 runs with folded turns and 8 without, no
+frame took more than 16.7 ms, and each build had one run with a single 12 ms frame. The build max comes from the
+same frames with and without folding: the eight frames in which the reply starts a new 1,500-character row, and
+the frame of the final update, which with folding also folds the last turn (6.4 to 8.0 ms). A settled last turn
+that a run resumes without a new user message unfolds in one frame of 11 to 14 ms (the same benchmark with the run
+starting at the first update). The "before" run used an earlier harness with the same data and rate that also
+rebuilt its own window chrome on every update, so part of that difference is harness overhead.
+
+The row model itself (`flutter test`, debug VM, the same 2,000 items): the first update takes 0.44 ms with and
+without folding and shows 2,000 rows instead of 2,500; an update of the reply streaming into the live last turn
+takes 0.05 ms; opening the first turn, which shows every turn after it again, takes 0.44 ms.
 
 What changed:
 - **Rows are kept incrementally** (`TranscriptRowModel`). An update skips the unchanged leading items by
@@ -375,5 +388,9 @@ What changed:
 - **Long text blocks are split into rows** of at most 1,500 characters, cut between markdown segments
   (`splitStreamSegments` with the fence rule). A streaming reply then rebuilds, lays out and repaints only its
   last part. Before, the whole reply was one list item that was laid out and repainted on every update.
+- **Settled turns fold in the same model** (`TranscriptRowModel.isOpen`). While the run works on the last turn,
+  that turn shows every row and a streaming update cuts and appends rows from the changed item as before. An
+  update that settles a turn, and a toggle, show the rows from that turn's start again. A turn's summary row
+  compares equal while its facts and open state do, so its widget is reused.
 - Coalescing is not needed in the app: `SessionViewBuilder` rebuilds through `setState`, so several views in
   one frame produce one build.
