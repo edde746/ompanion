@@ -176,6 +176,8 @@ void main() {
     expect(await stopRun(link, probe, run), 0);
   });
 
+  // The omp upload streams the whole release binary through dartssh2's SFTP: 278 MB for linux-x64 took close to
+  // 5 minutes on a GitHub-hosted runner, 231 MB for linux-arm64 about 2 minutes on an Apple silicon Mac with colima.
   test('companion and omp uploads over SFTP land intact', () async {
     final companion = utf8.encode('export default function () {}\n');
     final path = await uploadCompanion(link, ompVersion: '18.3.1', bytes: companion);
@@ -186,5 +188,5 @@ void main() {
     final installed = await uploadOmp(link, probe, '18.3.1', asset: File(asset).openRead(), installDir: '${probe.home}/upload');
     final version = await runPosixScript(link, '${shQuote(installed)} --version');
     expect(version.stdout.trim(), 'omp/18.3.1');
-  }, timeout: const Timeout(Duration(minutes: 5)));
+  }, timeout: const Timeout(Duration(minutes: 10)));
 }
