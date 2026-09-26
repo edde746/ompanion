@@ -4,8 +4,12 @@ Flutter client for [omp](https://github.com/can1357/oh-my-pi) with TUI parity, d
 machines without a host daemon. Reference product: [T3 Code](https://github.com/pingdotgg/t3code),
 limited to omp.
 
-Status: plan only, no code. Numbers were measured on this machine on 2026-09-25 (omp 18.3.0 installed,
-source read at tags v18.3.0 and v18.3.1, Flutter 3.47.1, Dart 3.13.1) unless marked [INFERENCE].
+Status: 0.1.0 is built; this file is the plan it was built to. Implemented: the surfaces the README lists,
+and the companion verbs in `contracts/ompx.md`. Not built: goal, guided goal and loop modes, `/omfg` and
+`/tan`, session export and share, the worktree and `@`-dir rows of `parity.md`, user port forwards, voice
+(§8), the agents dashboard, the extensions control center and the store builds (§9). M0's spike results are
+in `research/`. Numbers were measured on 2026-09-25 (omp 18.3.0 installed, source read at tags v18.3.0 and
+v18.3.1, Flutter 3.47.1, Dart 3.13.1) unless marked [INFERENCE].
 
 | Doc | Contents |
 |---|---|
@@ -42,13 +46,13 @@ decisions.
 | D2 | `rpc-ui`, not `rpc`. | Only `rpc-ui` registers the `ask` tool and hands tools a UI context. It forces `PI_NO_PTY=1`, which is correct for a pipe. `--no-ui` would silence the companion and is not used. |
 | D3 | RPC gaps are closed only by a companion extension: one script the app uploads and loads with `-e` into every rpc process. No upstream omp changes. | User choice. The companion reaches the live main session through `pi.pi.AgentRegistry.global().get(pi.pi.MAIN_AGENT_ID).session`, plus settings with their schema, auth storage, the model registry, session listing, tree navigation, labels, queues, subagent control, user bash and Python, `runEphemeralTurn`, themes (`research/companion-reach.md`). Cost: it depends on omp internals and must be built and tested per omp version. |
 | D4 | Protocol v2 is mandatory. The Dart client negotiates v2 and reassembles `rpc_chunk` frames. | `get_available_models` fails on v1 with `RPC response exceeded the transport limit`; on v2 it is 8 chunks, 2,039,508 bytes, 1,039 models. Cached per machine and omp version. |
-| D5 | Every session runs detached from the SSH channel: a per-session run directory, commands appended to `in.jsonl`, output appended to `out.jsonl`. POSIX hosts feed omp with `tail -f in.jsonl | omp`; Windows hosts start omp through WMI with job breakaway and a PowerShell byte pump (§5). | User choice. A dropped connection, a locked phone or a closed app no longer aborts the running turn. POSIX form verified on macOS; Windows form is an M0 spike. |
+| D5 | Every session runs detached from the SSH channel: a per-session run directory, commands appended to `in.jsonl`, output appended to `out.jsonl`. POSIX hosts feed omp with `tail -f in.jsonl | omp`; Windows hosts start omp through WMI with job breakaway and a PowerShell byte pump (§5). | User choice. A dropped connection, a locked phone or a closed app no longer aborts the running turn. Both forms are built: `test/channel/` and `test/windows/` cover them and CI's `windows-host` job runs the Windows form end to end. |
 | D6 | Any device may send to a live session at any time. Appends are serialized by a short lock; every device also tails `in.jsonl` to see what the others sent. Dialogs are settled by the first answer. | User choice. omp ignores `extension_ui_response` frames with unknown ids, so a late second answer is harmless. |
 | D7 | One SSH stack on every client platform: `dartssh2` 4.1.0 (MIT, 2026-09-04), pinned exactly. "This computer" on desktop uses `Process` with the same framing. | Only pure-Dart SSH works on iOS and Android. Covers exec, PTY, SFTP, `-L/-R/-D`, unix-socket forwards, jump-host chains, encrypted OpenSSH keys, keyboard-interactive, `none` auth. App-side work: known_hosts, an ssh-agent client, `~/.ssh/config`, ProxyCommand, dead-peer detection. Channel-stall fixes landed in 3.1.0 and 4.0.1, hence the exact pin. |
 | D8 | Jump hosts are a connection property: an ordered chain, each hop with its own auth and host-key check. A host behind NAT with a reverse tunnel is a jump through the relay host to `localhost:<port>`. | `SSHClient(await jump.forwardLocal(target, 22))`, chainable. One code path for bastions and reverse tunnels. |
 | D9 | Desktop reads `~/.ssh/config` through `ssh -G <alias>` and lists aliases from `Host` lines and `Include`. Phones: manual entry, pasted config, or import from a desktop. | No maintained Dart parser exists. `ssh -G` gives the effective config including `Match`. |
-| D10 | Tailscale through the OS client; machines are dialed over SSH by MagicDNS name or 100.x address. Discovery: `tailscale status --json` on desktop, a Tailscale API token on any device, and machine import from a desktop (records only, never private keys). Tailscale SSH (`none` auth) works; desktop pre-trusts peers' `sshHostKeys`. | User choices (OS client; both discovery paths). Phones need the Tailscale app running. |
-| D11 | Port forwards per machine: automatic `-L` for OAuth callback ports during `login`, user-defined `-L` for previews, `-R 9224` for the browser relay [INFERENCE: untested]. | RPC `login` redirects to the host's loopback (anthropic 54545, openai-codex 1455, …). Phones fall back to pasting the redirect URL. |
+| D10 | Tailscale through the OS client; machines are dialed over SSH by MagicDNS name or 100.x address. Discovery: `tailscale status --json` on desktop, and machine import from a desktop (records only, never private keys). Tailscale SSH (`none` auth) works; desktop pre-trusts peers' `sshHostKeys`. | User choices (OS client; CLI status and import). Phones need the Tailscale app running. |
+| D11 | Port forwards per machine: automatic `-L` for OAuth callback ports during `login` is built; user-defined `-L` for previews and `-R 9224` for the browser relay are not. | RPC `login` redirects to the host's loopback (anthropic 54545, openai-codex 1455, …). Phones fall back to pasting the redirect URL. |
 | D12 | Bootstrap: probe (POSIX `sh -l -s` script; Windows `powershell -EncodedCommand`), then install with the official installer pinned to a release and `--binary` (`-Binary` on Windows), or upload a release asset and check its SHA-256. Manual mode shows the commands. The absolute omp path is stored. | Auto and manual install were both requested. Without `--binary` the installer prefers `bun install -g`; on Windows `-Ref` alone means a source install. Non-login shells and fresh Windows sessions miss the install dir on PATH. |
 | D13 | TUI sessions on the same machine are listed from disk and opened by resuming them in a new rpc process. | User choice. omp has no liveness marker for a TUI holding a session (`.lock.os` is a per-write gate), so the app warns when the file changed recently and offers fork instead (R6). |
 | D14 | The app sends a slash command as prompt text only if the live `get_available_commands` list contains it. The companion registers the TUI-only names it implements (`/pause`, `/goal`, `/loop`, `/btw`, `/tree`, …), so typed commands keep working. | 40 TUI-only builtins are not handled in RPC; sent as text they reach the model as a paid turn (#13281). RPC does not reserve those names, so the companion may claim them. |
@@ -119,7 +123,7 @@ Machine records, host keys and settings live in drift; private keys and password
 | SSH | host:port | key (in-app, or ssh-agent on desktop), password, keyboard-interactive | desktop `~/.ssh/config`, manual, import |
 | SSH through jump hosts | hop chain, then target | per hop | `ProxyJump` from `ssh -G`, manual |
 | Reverse tunnel | relay host, then `localhost:<port>` | per hop | manual |
-| Tailscale | MagicDNS name or 100.x over SSH | SSH key or Tailscale SSH `none` | `tailscale status --json` (desktop), Tailscale API token, import |
+| Tailscale | MagicDNS name or 100.x over SSH | SSH key or Tailscale SSH `none` | `tailscale status --json` (desktop), import |
 
 Per-host facts the app stores after the probe: OS, arch, libc, shell, home, agent dir, absolute omp path,
 omp version, and for Windows the OpenSSH default shell and PowerShell version.
@@ -252,14 +256,15 @@ Wire:
 - Detection: `ompx` appears in `get_available_commands` with `source: "extension"`; its first reply
   carries the companion build and `pi.pi.VERSION`.
 
-What it implements, by class (details and API paths in `research/companion-reach.md`):
+What it implements, by class (`not built` rows are the plan; details and API paths in `research/companion-reach.md`):
 
 | Class | Items |
 |---|---|
-| Thin wrappers | settings with schema (type, enum, default, tab, group, scope provenance), model roles, session listing, fork, `/clear`, delete, queue list and dequeue, subagent steer/kill/revive, pause and resume, user bash with streaming and `excludeFromContext`, user Python, `/btw`, prompt history search, context breakdown, logout and account lists, account pin, full-fidelity `ask` via `ctx.ui.askDialog` |
-| Rebuilt from session APIs | goal and guided goal (including continuation), loop (including `--while`/`--until` conditions and limits), `/omfg`, `/tan`, provider setup, agents dashboard, extensions control center, API-key login |
-| App only, no companion | push-to-talk, reply TTS |
-| Other routes | `/cleanse` (`omp cleanse` one-shot; `src/cleanse` is not exported), project-scope settings (edit `.omp/config.yml` over SFTP; rpc-ui watches it) |
+| Thin wrappers, built | settings with schema (type, enum, default, tab, group, scope provenance), model roles, session listing, fork, `/clear`, delete, queue list and dequeue, subagent steer/kill/revive, pause and resume, user bash with streaming and `excludeFromContext`, user Python, `/btw`, prompt history search, context breakdown, logout and account lists, account pin, API-key login (`accounts.setKey`), full-fidelity `ask` via `ctx.ui.askDialog` |
+| Rebuilt from session APIs, not built | goal and guided goal (including continuation), loop (including `--while`/`--until` conditions and limits), `/omfg`, `/tan`, provider setup, agents dashboard, extensions control center |
+| App only, no companion, not built | push-to-talk, reply TTS (§8) |
+| Other routes, built | project-scope settings (edit `.omp/config.yml` over SFTP; rpc-ui watches it) |
+| Other routes, not built | `/cleanse` (`omp cleanse` one-shot; `src/cleanse` is not exported) |
 | Unreachable | extension TUI components |
 
 Anything that must keep working while no device is attached runs in the companion, not the app: goal
@@ -273,19 +278,19 @@ logic in the app would stop with it.
   one session, so pause is per session, the same scope as the TUI's `/pause`; the app adds "pause all
   sessions on this machine" by sending it to every live run. The gate stays engaged while no device is
   attached; any device can resume.
-- Goal: `session.goalRuntime` (`createGoal`, `resumeGoal`, `pauseGoal`, `dropGoal`,
+- Goal (not built): `session.goalRuntime` (`createGoal`, `resumeGoal`, `pauseGoal`, `dropGoal`,
   `buildContinuationPrompt`), `getGoalModeState`/`setGoalModeState`, `sendGoalModeContext`. The TUI's
   continuation (`interactive-mode.ts` 2377-2418) sends `buildContinuationPrompt()` as a hidden
   `goal-continuation` message 800 ms after the agent settles, when the goal is active and nothing else
   is queued. The companion does the same on `agent_end`, gated by `goal.continuationModes` containing
   `interactive` (its default).
-- Loop: `parseLoopArgs` and the limit runtime from `modes/loop-limit`, `evaluateLoopCondition` from
+- Loop (not built): `parseLoopArgs` and the limit runtime from `modes/loop-limit`, `evaluateLoopCondition` from
   `modes/loop-condition`, the `prompt`/`compact`/`reset` action from settings; each iteration waits
   until the session is not streaming, compacting or finishing post-prompt work (`interactive-mode.ts`
   2351-2515).
 
 Version policy: `companion/` holds one build target per supported omp version, starting at 18.3.1. CI
-runs the companion's tests against each supported version's published package. A host on an unknown
+runs the companion's tests against 18.3.1, the only supported version today. A host on an unknown
 newer version gets the latest build with feature detection and a warning; a host older than 18.3.1 gets
 an upgrade prompt.
 
@@ -312,8 +317,8 @@ Hub, todos, session tree, files, terminal. Phone: the same screens, one at a tim
 
 ## 8. Voice
 
-omp's voice features run on the host's mic and speaker and are TUI-only (`research/voice.md`). The app
-owns audio instead:
+omp's voice features run on the host's mic and speaker and are TUI-only (`research/voice.md`). None of the
+following is built yet (M8). The app owns audio instead:
 
 - Push-to-talk: on-device speech recognition, text into the composer, sent as `prompt`, `steer` or
   `follow_up`. Optional host engine: upload a 16 kHz WAV, the companion transcribes with
@@ -334,9 +339,11 @@ owns audio instead:
 | Google Play | foreground-service policy | no background service; reconnect on resume |
 | Flathub | sandbox | "this computer" through `flatpak-spawn --host` with the permission, or flagged off |
 
+The build flags exist (`lib/app/build_channel.dart`); no store build has been made.
+
 ## 10. Milestones
 
-Each ends with a demo on real machines, not a green build.
+Each ends with a demo on real machines, not a green build. M0 is complete; its spike results are in `research/`.
 
 | M | Deliverable | Gate |
 |---|---|---|
@@ -356,10 +363,10 @@ Each ends with a demo on real machines, not a green build.
 | ID | Risk | Mitigation |
 |---|---|---|
 | R1 | The companion depends on omp internals, including TypeScript-private fields and rebuilt goal and loop logic; every omp release can break it, and goal and loop behaviour can drift from the TUI. | per-version builds and CI; feature checks with fallbacks; the rebuilds track `interactive-mode.ts` line by line per supported version |
-| R2 | Detached sessions are shell plumbing; `tail` differences and log growth are unmeasured. | M0 spikes; rotation rules in §5 |
-| R3 | The Windows detached form rests on WMI breakaway and a byte pump, neither tested yet. | M0 spike; attached fallback |
+| R2 | Detached sessions are shell plumbing; `tail` behaviour and log growth vary by host. | measured in M0 (`research/m0-detached-sessions.md`); rotation and offset replay are implemented (`packages/omp_core/lib/src/channel/detached_run.dart`) |
+| R3 | The Windows detached form rests on WMI breakaway and a byte pump. | CI's `windows-host` job runs it end to end, PowerShell default shell included (`packages/omp_core/test/windows/`) |
 | R4 | `message_update` carries the whole accumulated message each time (O(n²) bytes per reply) and dartssh2 has no compression. | coalesce rendering; `set_event_filter` where it helps; truncate `out.jsonl` when settled |
-| R5 | dartssh2 fixed channel-stall and flow-control bugs as late as 2026-09-03. | exact pin; transport soak test in M0 |
+| R5 | dartssh2 fixed channel-stall and flow-control bugs as late as 2026-09-03. | exact pin `dartssh2: 4.1.0` (`packages/omp_core/pubspec.yaml`); the integration suite runs the transport against real sshd hosts |
 | R6 | Two writers on one session file: the app resumes a session a TUI still holds. omp only has per-write locks. | warn on recent mtime; offer fork |
 | R7 | Concurrent devices race: two prompts land in either order; a dialog is answered twice. | ordered by `in.jsonl`; every device sees every command; unknown dialog ids are ignored by omp |
 | R8 | A 2 MB model list and a cold start per session over slow links. | cache per machine and omp version |
@@ -372,10 +379,11 @@ Each ends with a demo on real machines, not a green build.
 All product decisions are answered: platforms, no daemon, install, tunneling, Tailscale, extra scope,
 TUI sessions, notifications (later), session lifetime (detached everywhere), gap route (companion
 only), omp versions (18.3.1 onward), host OSes, license (GPLv3), distribution (build flags), multi-device
-(any device sends), phone discovery (import and Tailscale API), terminal-bound features (voice, on-device
+(any device sends), phone discovery (import from a desktop), terminal-bound features (voice, on-device
 loop), look (Material 3), modes (goal, loop and pause in; plan and vibe out), name (ompanion).
 
-Left to spikes, not to the user: markdown renderer (M3), every [INFERENCE] above.
+Left to spikes, not to the user: the [INFERENCE] items above that remain open — Tailscale SSH `none` auth,
+the `-R 9224` relay, the Windows ssh-agent pipe, Android background execution and TailscaleKit.
 
 ## 13. Evidence
 
