@@ -9,8 +9,7 @@ A GUI client for omp, the oh-my-pi coding agent, on this computer and on remote 
   <a href="#download">Download</a> ·
   <a href="#features">Features</a> ·
   <a href="#building-from-source">Building from Source</a> ·
-  <a href="LICENSE">License</a> ·
-  <a href="https://github.com/can1357/oh-my-pi">omp</a>
+  <a href="LICENSE">License</a>
 </p>
 
 <p align="center">
@@ -206,5 +205,4 @@ ompanion is licensed under [GPL-3.0](LICENSE).
 - SSH by [dartssh2](https://pub.dev/packages/dartssh2); terminal by [xterm3](https://pub.dev/packages/xterm3) and [flutter_pty2](https://pub.dev/packages/flutter_pty2)
 - Markdown by [gpt_markdown](https://pub.dev/packages/gpt_markdown); code viewing, editing and highlighting by [re_editor](https://pub.dev/packages/re_editor) and [re_highlight](https://pub.dev/packages/re_highlight)
 - Storage by [drift](https://pub.dev/packages/drift) and [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage); translations by [slang](https://pub.dev/packages/slang); state by [provider](https://pub.dev/packages/provider); desktop windows by [window_manager](https://pub.dev/packages/window_manager)
-- Layout after [T3 Code](https://github.com/pingdotgg/t3code)
 - Section icons from [Material Icons](https://github.com/google/material-design-icons) (Apache-2.0)
