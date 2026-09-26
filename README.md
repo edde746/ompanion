@@ -19,8 +19,9 @@ A GUI client for omp, the oh-my-pi coding agent, on this computer and on remote 
 ## Download
 
 There is no release yet. Build the app from source: see [Building from Source](#building-from-source). The
-[build workflow](.github/workflows/build.yml), run from Actions → Build → Run workflow, produces unsigned
-artifacts named `ompanion-<platform>-<sha>`.
+[build workflow](.github/workflows/build.yml), run from Actions → Build → Run workflow, produces artifacts
+named `ompanion-<platform>-<sha>`; the macOS one is unsigned until the signing secrets in "Building from
+Source" → Releasing are set.
 
 ## Features
 
