@@ -59,6 +59,8 @@ class _ModelPickerState extends State<ModelPicker> {
     return MenuAnchor(
       controller: _menu,
       alignmentOffset: _offset,
+      // The list pads itself evenly; the theme's vertical menu padding would make its top inset deeper than its sides.
+      style: const MenuStyle(padding: WidgetStatePropertyAll(EdgeInsets.zero)),
       menuChildren: [
         if (machine != null)
           _ModelList(
@@ -219,11 +221,12 @@ class _ModelListState extends State<_ModelList> {
                 IconButton(
                   tooltip: t.chat.refreshModels,
                   icon: const Icon(Icons.refresh, size: 18),
+                  // The field's height, so the search row is 36 px and the list's 8 px inset holds at the top too.
+                  constraints: const BoxConstraints.tightFor(width: AppSizes.control, height: AppSizes.control),
                   onPressed: () => setState(() => _models = widget.load(refresh: true)),
                 ),
               ],
             ),
-            const SizedBox(height: AppSizes.gap),
             Flexible(
               child: FutureBuilder<List<RpcModel>>(
                 future: _models,
@@ -246,7 +249,7 @@ class _ModelListState extends State<_ModelList> {
                         for (final (index, model) in shown.indexed) ...[
                           if (index == 0 || shown[index - 1].provider != model.provider)
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                               child: Text(
                                 model.provider,
                                 style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
@@ -254,11 +257,13 @@ class _ModelListState extends State<_ModelList> {
                             ),
                           ListTile(
                             dense: true,
+                            minTileHeight: 0,
+                            minVerticalPadding: 4,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                             shape: const RoundedRectangleBorder(
                               borderRadius: BorderRadius.all(Radius.circular(AppSizes.radius)),
                             ),
-                            selectedTileColor: scheme.onSurface.withValues(alpha: 0.14),
+                            selectedTileColor: scheme.onSurface.withValues(alpha: 0.10),
                             selected: isCurrent(model),
                             title: Text(model.name),
                             subtitle: Text(

@@ -44,7 +44,7 @@ something the rules do not cover extends this document first.
 | `surfaceContainer` | `#121212` | `#F0F0F0` | cards, tool cards, composer, code blocks |
 | `surfaceContainerHigh` | `#1A1A1A` | `#E8E8E8` | fields, chips, tonal buttons |
 | `surfaceContainerHighest` | `#262626` | `#DDDDDD` | hover, selected rows, focused fields, selected segment, navigation indicators |
-| `surfaceBright` | `#2E2E2E` | `#D4D4D4` | popovers: menus, select and dropdown menus, popup menus. Distinct from every tone they open over; in light mode it is the darkest surface, because nothing is lighter than the white chat |
+| `surfaceBright` | `#1E1E1E` | `#E4E4E4` | popovers: menus, select and dropdown menus, popup menus. One quiet step off the cards and composer (`#121212` / `#F0F0F0`) they open over; a brighter tone makes the whole popover louder than the content it serves |
 | `onSurface` | `#EDEDED` | `#111111` | primary text, primary button fill |
 | `onSurfaceVariant` | `#8F8F8F` | `#5C5C5C` | secondary text, icons |
 | `primary` / `onPrimary` | `#EDEDED` / `#000000` | `#111111` / `#FFFFFF` | primary buttons, switches on, progress |
@@ -70,7 +70,7 @@ something the rules do not cover extends this document first.
 | On/off | `Switch` (monochrome through the theme) |
 | Grouping | a `surfaceContainer` block with `cardRadius`, no border |
 | Long list of choices (providers, models) | a searchable list: `AppSearchField` above dense rows |
-| Content inside a popover | tones step up from the popover's own as `onSurface` overlays: a field 6 % (8 % focused), the selected row 14 % with `radius`. The container ladder's field and selection tones would sink into `surfaceBright` |
+| Content inside a popover | an 8 px inset on every side (the popover adds no padding of its own around a custom list). Tones step up from the popover's own as `onSurface` overlays: a field 6 % (8 % focused), the selected row 10 % with `radius`. Two-line rows take 4 px above and below their text; a group label sits 8 px under the row above it and 4 px over its first row |
 | Menu from the composer toolbar | opens `gap` (8 px) above the composer block, never over it; the model list starts at the block's left edge and is at most as wide as the block |
 | Composer | a `surfaceContainer` block with `cardRadius`. The text's ink and the toolbar's first icon share one left edge 12 px inside the block; 12 px above the first line box; the toolbar's 36 px controls sit 8 px from the bottom and right edges |
 | Sidebar session row | one mark in the icon column, under the project's folder icon: the status (working, needs input, failed, disconnected, open in omp on the machine), else the unread dot. Unread with a status shows through the bold title alone. The title starts in the project path's column; the relative time sits at the end |
