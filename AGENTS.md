@@ -62,3 +62,6 @@ barrel file re-exporting everything.
   `companion/`.
 - Integration tests that need omp or Docker are tagged (`@Tags(['omp'])`, `@Tags(['docker'])` in Dart;
   a separate file suffix in Bun) so the unit suite runs without them.
+- `packages/omp_core/test/ssh/fixtures/` holds throwaway private keys (OpenSSH and PEM, plain and
+  passphrase-protected, plus ECDSA) that exist only for the SSH key and known_hosts tests; no other code
+  reads them. They are test material, not credentials.
