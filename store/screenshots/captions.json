@@ -1,37 +1,46 @@
 {
+  "_comment": "The words on every store image. `label` is the small mono line above the headline, `headline` and `subline` the two voices below it. Every claim must be true of the shipped app.",
   "feature": {
     "tagline": "Drive omp on your machines"
   },
   "shots": {
     "01-chat": {
+      "label": "01 — CHAT",
       "headline": "Chat with a running task",
       "subline": "Streaming answers, diffs and test runs"
     },
     "02-approval": {
+      "label": "02 — APPROVAL",
       "headline": "Approve every tool call",
       "subline": "Read the diff and the command first"
     },
     "03-tree": {
+      "label": "03 — TREE",
       "headline": "The session tree",
       "subline": "Branch, label and follow compactions"
     },
     "04-machines": {
+      "label": "04 — MACHINES",
       "headline": "Every machine, one list",
       "subline": "Sessions grouped by project"
     },
     "05-terminal": {
+      "label": "05 — TERMINAL",
       "headline": "A real terminal",
       "subline": "The machine's own shell, over SSH"
     },
     "06-files": {
+      "label": "06 — FILES",
       "headline": "Browse and edit",
       "subline": "Files, search and git diffs"
     },
     "07-agents": {
+      "label": "07 — AGENTS",
       "headline": "Subagents at work",
       "subline": "Progress, tokens and transcripts"
     },
     "08-config": {
+      "label": "08 — CONFIG",
       "headline": "Configure omp",
       "subline": "Model roles, providers and skills"
     }

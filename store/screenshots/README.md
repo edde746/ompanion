@@ -10,7 +10,7 @@ model turns, photographs the screen from the host and writes the store images in
 | --- | --- |
 | `capture.sh` | One device class: boots the device, seeds the host, runs `flutter drive`, composes |
 | `compose.py` | Frames the raw captures, draws the captions, renders the icons and the feature graphic |
-| `captions.json` | The headline and subline of every shot (plain words, no trademarks) |
+| `captions.json` | The mono label, headline and subline of every shot (plain words, no trademarks) |
 | `contact-sheet.sh` | One image of everything that was composed, for a quick review |
 | `demo/turns.ts` | The scripted model turns, queued on the fake provider's control API |
 | `demo/seed-host.sh` | Puts the omp home and the demo projects on the SSH host |
@@ -80,6 +80,35 @@ bun store/screenshots/demo/rehearse.ts --session deploy --keep
    own sandbox and waits for `<name>.done`, the driver polls that directory (a path on this Mac for a
    simulator) and answers with the PNG.
 6. `compose.py` frames every raw capture, draws the caption from `captions.json` and writes the store images.
+
+## The look
+
+One colour, the π gradient (lime `#C4F042` → emerald `#22C55E`), used as light rather than ink: a hairline rim
+along the top edge of the frame, one small glow behind that edge, and the signal line. The monochrome greys are
+the app's own (`#000` canvas, `#EDEDED` text, `#8F8F8F` labels). Two voices of type: SF Pro Display with tight
+tracking for the headline, SF Mono uppercase with wide tracking for the label (with `edit`, SFNSMono), plus a
+faint dot grid and film grain that keep the black from reading flat. The website uses the same language, and it
+carries the magnified crops — the exploded details need more room than a store image has — so a listing and the
+site read as one brand; see `website/` for its copy.
+
+Its pieces, per image:
+
+- The **frame** is the real capture, rounded, as wide as the class's layout allows (0.84 of the canvas on the
+  iPhone and the iPad, 0.70 on the Play phone, 0.742 on the tablets, where it sits to the right of the caption
+  column). Its height follows its width, so the canvas crops its bottom edge and it reads as a device that
+  continues past the picture.
+- The **signal line** runs across every image of a class at the same height, turns down once with a rounded
+  elbow and ends in one node on the frame's top edge at the frame's right third. On portrait canvases it is
+  carried in the gap between the caption and the frame — the caption is measured first, so the gap is a fixed
+  share of the height; in the landscape it runs in the band above the frame. Either way the run reaches both
+  canvas edges, so a class laid side by side reads as one strip. It stands for the SSH link.
+- The **watermark**: the π as a 6% outline, on the hero only, cropped by a canvas edge and kept clear of the
+  headline.
+
+`compose.py --review <dir>` writes what to look at while judging that: a contact sheet, the class as a
+side-by-side strip (for the signal line), the set at store-thumbnail size and the hero at full size. A class
+whose capture differs in shape gets its own geometry: the Play phone's canvas is squarer than its capture, so
+its frame is narrower, and the tablets put the caption beside the frame rather than above it.
 
 ## What the shots show
 
