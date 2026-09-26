@@ -8,6 +8,12 @@ import 'package:omp_core/transport.dart';
 
 import '../omp_binary.dart';
 
+/// PowerShell 7, when installed: it runs the Windows scripts that do not need Windows itself.
+final String? pwsh = () {
+  final result = Process.runSync('/bin/sh', ['-c', 'command -v pwsh']);
+  return result.exitCode == 0 ? (result.stdout as String).trim() : null;
+}();
+
 /// A temporary machine for tests on this computer: `home/` is an isolated omp home (testing/omp-home.sh,
 /// fake provider on a port nothing listens on, so no model turn can run) with the release binary linked at
 /// `~/.local/bin/omp`, and `work dir/` is a project directory whose name needs quoting.

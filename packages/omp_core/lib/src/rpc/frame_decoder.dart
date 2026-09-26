@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -49,7 +51,26 @@ final class RpcFrameDecoder {
 
   /// Returns the next complete frame, or null when [line] was noise before `ready`, blank, or a
   /// non-final `rpc_chunk`.
-  Map<String, Object?>? push(String line) {
+  Map<String, Object?>? push(String line) => switch (_push(line)) {
+    final _Reassembled frame => _observed(_decodeReassembled(frame)),
+    final json => json as Map<String, Object?>?,
+  };
+
+  /// Like [push], but a frame reassembled from an `rpc_chunk` sequence is decoded on another isolate and comes as a
+  /// future, which must complete before the next line is pushed. Such a frame is up to 64 MiB of JSON; decoding a
+  /// 7.6 MB session history took 90–110 ms on the UI isolate.
+  FutureOr<Map<String, Object?>?> pushOffIsolate(String line) => switch (_push(line)) {
+    final _Reassembled frame => Isolate.run(() => _decodeReassembled(frame)).then(_observed),
+    final json => json as Map<String, Object?>?,
+  };
+
+  Map<String, Object?> _observed(Map<String, Object?> frame) {
+    _observe(frame);
+    return frame;
+  }
+
+  /// A frame, null, or the bytes of a completed `rpc_chunk` sequence.
+  Object? _push(String line) {
     if (!_ready) return _pushBeforeReady(line);
     if (line.trim().isEmpty) return null;
     final Object? value;
@@ -111,7 +132,8 @@ final class RpcFrameDecoder {
     _maxReassembledBytes = min(maxReassembled, _maxReassembledCap);
   }
 
-  Map<String, Object?>? _pushChunk(Map<String, Object?> chunk) {
+  /// Null, or the bytes of the sequence once its last chunk arrived.
+  _Reassembled? _pushChunk(Map<String, Object?> chunk) {
     if (!_chunksAllowed) throw RpcProtocolException('rpc_chunk before protocol v2 was negotiated');
     final chunkId = chunk['chunkId'];
     final index = chunk['index'];
@@ -168,16 +190,7 @@ final class RpcFrameDecoder {
         'rpc_chunk sequence $chunkId carried ${pending.received} bytes, declared ${pending.byteLength}',
       );
     }
-
-    final Object? value;
-    try {
-      value = _utf8Json.convert(pending.bytes.takeBytes());
-    } on FormatException catch (error) {
-      throw RpcProtocolException('rpc_chunk sequence $chunkId is not UTF-8 JSON: ${error.message}');
-    }
-    if (value is! Map<String, Object?>) throw RpcProtocolException('rpc_chunk sequence $chunkId is not a JSON object');
-    _observe(value);
-    return value;
+    return _Reassembled(chunkId, pending.bytes.takeBytes());
   }
 
   void _keepNoise(String line) {
@@ -201,6 +214,25 @@ Uint8List _decodeChunkData(Object? data) {
 }
 
 String _clip(String text, [int max = 200]) => text.length <= max ? text : '${text.substring(0, max)}…';
+
+/// The bytes of a completed `rpc_chunk` sequence, not decoded yet.
+final class _Reassembled {
+  const _Reassembled(this.chunkId, this.bytes);
+
+  final String chunkId;
+  final Uint8List bytes;
+}
+
+Map<String, Object?> _decodeReassembled(_Reassembled frame) {
+  final Object? value;
+  try {
+    value = _utf8Json.convert(frame.bytes);
+  } on FormatException catch (error) {
+    throw RpcProtocolException('rpc_chunk sequence ${frame.chunkId} is not UTF-8 JSON: ${error.message}');
+  }
+  if (value is! Map<String, Object?>) throw RpcProtocolException('rpc_chunk sequence ${frame.chunkId} is not a JSON object');
+  return value;
+}
 
 Object? _tryJson(String text) {
   try {

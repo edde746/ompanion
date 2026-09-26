@@ -15,6 +15,7 @@ import 'package:ompanion/providers/shell_provider.dart';
 import 'package:ompanion/screens/chat/attachment_input.dart';
 import 'package:ompanion/screens/dock/dock_controller.dart';
 import 'package:ompanion/screens/shell/shell_screen.dart';
+import 'package:ompanion/screens/shell/sidebar.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
@@ -52,6 +53,9 @@ final class _Omp implements LineChannel {
 
 /// A session whose run streams.
 final class _Session implements LiveSession {
+
+  @override
+  Future<void> Function()? get loadEarlier => null;
   final omp = _Omp();
   @override
   late final RpcClient rpc = RpcClient(omp, deviceId: 'test');
@@ -164,6 +168,69 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     expect(aborts(), 2);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() async {
+      machines.dispose();
+      await db.close();
+    });
+  });
+
+  testWidgets('Cmd/Ctrl+F from the chat shows the hidden sidebar with its search focused; Esc there aborts nothing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    FlutterSecureStorage.setMockInitialValues({});
+    final db = AppDatabase(NativeDatabase.memory());
+    final secrets = SecretStore();
+    final settings = (await tester.runAsync(() => SettingsProvider.load(db)))!;
+    await tester.runAsync(() => settings.set(Prefs.sidebarOpen, false));
+    final machines = MachinesProvider(db, secrets);
+    final session = _Session();
+    final attached = session.rpc.attach();
+    await tester.pump();
+    await attached;
+    final sessions = _Sessions(
+      session,
+      connector: MachineConnector(secrets, KnownHostsStore(db)),
+      machines: machines,
+    );
+    final shell = ShellProvider()..select(const SessionSelection());
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: settings),
+          ChangeNotifierProvider.value(value: machines),
+          ChangeNotifierProvider(create: (_) => KeysProvider(db, secrets)),
+          ChangeNotifierProvider.value(value: shell),
+          ChangeNotifierProvider<SessionsProvider>.value(value: sessions),
+          ChangeNotifierProvider(create: (_) => DockController(machines)),
+          Provider<AttachmentSource>.value(value: const SystemAttachmentSource()),
+        ],
+        child: TranslationProvider(child: const MaterialApp(home: ShellScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(Sidebar), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('composer')));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    final field = find.descendant(of: find.byType(Sidebar), matching: find.byType(EditableText));
+    expect(field, findsOneWidget);
+    expect(tester.widget<EditableText>(field).focusNode.hasFocus, isTrue);
+    expect(settings.get(Prefs.sidebarOpen), isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(field, findsNothing);
+    expect(session.omp.sent.where((type) => type == 'abort'), isEmpty);
 
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {

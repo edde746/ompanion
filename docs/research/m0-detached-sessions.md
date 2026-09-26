@@ -3,8 +3,8 @@
 The POSIX detached session works on macOS and Linux with omp 18.3.1. omp outlives the process and the SSH
 connection that launched it. Devices re-attach from a saved byte offset and get only newer lines. Concurrent
 appenders never interleave. Rotation is followed by BSD and GNU `tail`. A graceful stop exits 0 in about
-80 ms. The Windows form is implemented but has not run on Windows; its scripts were checked with
-PowerShell 7 on macOS.
+80 ms. The Windows form runs in CI on Windows Server 2025; appending over SFTP failed there and was replaced
+by a PowerShell appender (see Windows below).
 
 Measured on 2026-09-25 with the omp 18.3.1 release binaries, isolated homes (`testing/omp-home.sh`) and no
 model turn.
@@ -32,7 +32,6 @@ Code: `packages/omp_core/lib/src/channel/`. Tests: `test/channel/detached_omp_te
 | Graceful stop (kill the feeding `tail`) | exit 0; attached channels end with exit code 0. | exit 0. |
 | Force stop (SIGTERM) | exit 143. | exit 143. |
 | Garbage collection | Both dead run directories removed. | Same. |
-| SFTP transport (the Windows channel) against a real sftp-server | — | 2 × 10 concurrent appends under the SFTP `mkdir` lock, all answered. |
 
 ## Timings
 
@@ -56,13 +55,18 @@ The one-second round trips over SSH came from GNU `tail`, not from SSH: on the c
 cannot use inotify and polls once a second (measured directly: 491 ms average from append to output for
 `tail -f`, 499 ms for `tail -F`). A round trip passes two tails, the feeder on `in.jsonl` and the follower on
 `out.jsonl`. Every tail now gets `-s 0.05` where it accepts it (GNU, BusyBox; BSD `tail` rejects `-s` and
-follows with kqueue), which brought the round trip to about 100 ms.
+follows with kqueue), which brought the round trip to about 100 ms. BSD `tail -F` copies byte by byte
+(`getc`/`putchar`) at about 15 MB/s (20 MB in 1.36 s), a plain `tail -c +N` sends the same 20 MB in 15 ms: the
+follower sends what `out.jsonl` already holds with a plain `tail`, then follows with `tail -F`. A Perl loop
+reading 1 MiB blocks was as fast but polled: 5–25 ms per line against 0.3–0.6 ms for `tail -F`.
 
 Attached omp (`AttachedChannel`) for comparison: `ready` 314 ms on macOS, 307 ms over SSH; `get_state`
 25 ms first, then under 1 ms on macOS; 53 ms first, then 20 ms over SSH.
 
 Uploading the 231 MB `omp-linux-arm64` over dartssh2 SFTP to the container took 140 s and 172 s in two runs
-(`uploadOmp`, 4 MiB appends), 1.3 to 1.6 MB/s.
+(`uploadOmp`, 4 MiB appends), 1.3 to 1.6 MB/s. dartssh2's pure-Dart ciphers bound such transfers: AES-GCM, then
+first in its list, reads 0.8–1.2 MB/s from the container on an M-series Mac, chacha20-poly1305 13.8 MB/s (4–7.6 MB
+`exec` reads). The link now prefers chacha20-poly1305.
 
 ## `tail -F` on a truncated file
 
@@ -117,30 +121,32 @@ from the new file; otherwise its `lines` fail with `RunLogGap` and the device re
 - The probe found BusyBox `wget` and `sha256sum` on Alpine, and only `sha256sum` (no curl, no wget) on stock
   Ubuntu 24.04 and Debian 12 images: there, uploading a release asset is the only install route.
 
-## Windows: implemented, not run on Windows
+## Windows: run in CI
 
-Checked with PowerShell 7.6.4 on macOS (`test/channel/windows_scripts_test.dart`):
+CI's Windows host job (`packages/omp_core/test/windows/`) runs on `windows-latest` (Windows Server 2025, OpenSSH
+for Windows 9.5p2) over dartssh2 against the runner's own sshd, with cmd.exe and with PowerShell as the default
+shell: probe, exec, long scripts uploaded and run with `-File`, the download install, the file browser's SFTP
+operations, attachments in 4 MiB appends, image fetches with an ffmpeg preview, and detached runs with the fake provider (launch
+through WMI, reply, a second device, reattach, graceful stop with exit 0, 2 × 10 concurrent appends plus a
+200 KB line from two connections).
 
-- `feed.ps1` copies `in.jsonl` byte for byte (non-ASCII, CRLF, a 200 KB line) and exits once
-  `in.jsonl.stop` exists.
-- The session listing script returns the same sessions as the POSIX one.
-- The probe script reads `PROCESSOR_ARCHITEW6432` before `PROCESSOR_ARCHITECTURE` and finds
-  `%LOCALAPPDATA%\omp\omp.exe`.
-- Encoded command lengths with realistic paths (limit 8,191): probe 7,035, session listing 7,163, run
-  listing 6,247, launch 5,983, kill 1,743 characters. Longer scripts are uploaded and run with `-File`.
-- `SftpRunChannel`, the Windows channel, passed its appends-under-lock test against OpenSSH's sftp-server in
-  the Linux container and the local file system.
+- Win32-OpenSSH's sftp-server cannot append to `in.jsonl` while omp runs. `fileio_open` opens `O_WRONLY` with
+  `FILE_SHARE_WRITE` only (and `O_RDWR` with no sharing), so the open fails against `feed.ps1`'s read handle
+  with `ERROR_SHARING_VIOLATION`; its log shows `failed to open file:… error:32`, the client gets status 4
+  (`Failure`). Appends go through a PowerShell appender instead (PLAN.md, Windows hosts).
+- Windows PowerShell 5.1's `[Console]::OpenStandardInput()` stream returns the first read from the SSH
+  channel's stdin pipe and then blocks for good, locally as over sshd (`[Console]::In` too); PowerShell 7 reads
+  on. A `FileStream` on the same handle reads every line and sees the end of stdin, so the appender wraps it.
+- SFTP reads of `out.jsonl` and `in.jsonl` share with cmd.exe's `>>` and `feed.ps1`: `O_RDONLY` opens with
+  `FILE_SHARE_READ | FILE_SHARE_WRITE`.
 
-Not verified, because no Windows machine is available:
+Checked with PowerShell 7.6.4 on macOS (`test/channel/windows_scripts_test.dart`): `feed.ps1` byte for byte
+(non-ASCII, CRLF, a 200 KB line); the session listing script against the POSIX one; the probe under WOW64.
+Encoded command lengths with realistic paths (limit 8,191): probe 7,035, session listing 7,163, run listing
+6,247, launch 5,983, kill 1,743 characters.
 
-- `Win32_Process.Create` with `CREATE_BREAKAWAY_FROM_JOB` surviving the SSH channel, and the environment
-  block (`USERPROFILE`, `LOCALAPPDATA`, `PATH` passed explicitly from the SSH session).
-- cmd.exe `>>` redirection sharing `out.jsonl` with sftp-server reads, and `feed.ps1` sharing `in.jsonl` with
-  sftp-server appends.
-- Win32-OpenSSH's SFTP append (each append is checked by comparing sizes and fails loudly).
-- `run.cmd` taking omp's exit code from `%ERRORLEVEL%` after the pipe, and `chcp`-independent paths (they
-  reach cmd.exe only through `OMPANION_*` environment variables).
-- Windows PowerShell 5.1 differences from PowerShell 7; the WMI orphan discovery by command line.
+Not verified: a Windows machine whose OpenSSH default shell is Git Bash or another POSIX shell; ARM64
+Windows; OpenSSH versions other than 9.5p2.
 
 ## Risks left open
 

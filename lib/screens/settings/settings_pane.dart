@@ -91,6 +91,7 @@ List<(String, String)> shortcutList(Translations t, Map<ShortcutActivator, Inten
       NewSessionIntent() => s.shortcutNewSession,
       TogglePauseIntent() => s.shortcutTogglePause,
       OpenPaletteIntent() => s.shortcutPalette,
+      SearchSessionsIntent() => s.shortcutSearchSessions,
       AbortRunIntent() => s.shortcutAbort,
       _ => throw StateError('no label for $intent'),
     };

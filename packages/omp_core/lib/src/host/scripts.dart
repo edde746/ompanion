@@ -199,6 +199,14 @@ Future<ScriptResult> runPowerShell(HostLink link, CommandShell shell, String scr
   }
 }
 
+/// Starts [script] with Windows PowerShell, after [powershellPreamble], and leaves stdin to the script, which reads
+/// it with `[Console]::OpenStandardInput()`. The script travels on the command line, so it must fit on one.
+Future<HostProcess> startPowerShell(HostLink link, CommandShell shell, String script) async {
+  final command = encodedPowerShellCommand(shell, '$powershellPreamble$script');
+  if (command == null) throw ArgumentError.value(script, 'script', 'does not fit on one command line');
+  return link.exec(command);
+}
+
 Future<ScriptResult> _collect(HostProcess process) async {
   const decoder = Utf8Decoder(allowMalformed: true);
   final (out, err, exit) = await (

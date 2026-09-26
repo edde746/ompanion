@@ -437,14 +437,31 @@ final class RpcClient {
 
   void _onLine(String line) {
     if (_stopReason != null) return;
-    final Map<String, Object?>? json;
+    final FutureOr<Map<String, Object?>?> decoded;
     try {
-      json = _decoder!.push(line);
+      decoded = _decoder!.pushOffIsolate(line);
     } on RpcProtocolException catch (error) {
       _stop(error, clean: false);
       return;
     }
-    if (json == null) return;
+    if (decoded is Future<Map<String, Object?>?>) {
+      // Later lines wait until this frame is decoded, so frames keep their order.
+      _subscription!.pause(
+        decoded.then(
+          _onFrame,
+          onError: (Object error) => _stop(
+            error is RpcProtocolException ? error : RpcProtocolException('decoding a chunked frame failed: $error'),
+            clean: false,
+          ),
+        ),
+      );
+    } else {
+      _onFrame(decoded);
+    }
+  }
+
+  void _onFrame(Map<String, Object?>? json) {
+    if (json == null || _stopReason != null) return;
     final frame = RpcFrame.fromJson(json);
     switch (json['type']) {
       case 'ready':

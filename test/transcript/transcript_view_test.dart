@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -392,6 +394,32 @@ void main() {
     expect(answer.dy, greaterThan(800 - 60), reason: 'the newest row ends near the bottom edge');
   });
 
+  testWidgets('the scroll extent stays steady while the wheel scrolls up through rows of very different heights',
+      (tester) async {
+    // Runs of one-line answers alternate with runs of answers holding a 30-line code block, so the rows around the
+    // viewport are all short, then all tall.
+    final code = ['```dart', for (var line = 0; line < 30; line++) 'final value$line = compute($line);', '```'].join('\n');
+    final items = [
+      for (var n = 0; n < 160; n++) ...[_user(n * 2), _answer(n * 2 + 1, (n ~/ 20).isEven ? 'Short answer $n.' : code)],
+    ];
+    await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
+    final position = _position(tester);
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await tester.sendEventToBinding(pointer.hover(const Offset(500, 400)));
+    var range = position.maxScrollExtent - position.minScrollExtent;
+    var worst = 0.0;
+    for (var step = 0; step < 2000 && position.pixels > position.minScrollExtent; step++) {
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, -300)));
+      await tester.pump();
+      final next = position.maxScrollExtent - position.minScrollExtent;
+      worst = math.max(worst, (next - range).abs() / range);
+      range = next;
+    }
+    expect(position.pixels, position.minScrollExtent, reason: 'the wheel reached the first row');
+    // The scrollbar thumb's length is the viewport's share of this range, so it changes with it.
+    expect(worst, lessThan(0.01), reason: 'no wheel step changed the scroll range by 1 % or more');
+  });
+
   testWidgets('a top-aligned transcript starts at the top, then follows its growth at the bottom', (tester) async {
     final items = _turns(0, 1);
     await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length), alignTop: true));
@@ -658,6 +686,46 @@ void main() {
       await tester.pumpWidget(_harness(SessionView(transcript: more, historyLength: more.length), turns: turns));
       expect(_markdown('Checking 3.'), findsOneWidget);
       expect(_markdown('Checking 2.'), findsNothing);
+    });
+
+    testWidgets('revealing an entry before the loaded history loads earlier pages until it arrives', (tester) async {
+      final turns = TurnExpansion();
+      // Each page ends in a long answer, so the reader is far from the top and no page loads on its own.
+      final pages = [
+        for (var n = 1; n <= 4; n++) [..._workedTurn(n), _user(n * 100000 + 50000), _answer(n * 100000 + 60000, _paragraphs(80))],
+      ];
+      var loaded = 1;
+      List<TranscriptItem> shown() => [for (final page in pages.skip(pages.length - loaded)) ...page];
+      final view = ValueNotifier(SessionView(transcript: shown(), historyLength: shown().length));
+      var loads = 0;
+      final actions = TranscriptActions(
+        onCopy: (_) {},
+        onOpenFile: (path, {line}) {},
+        onOpenSubagent: (_) {},
+        onLoadEarlier: () async {
+          loads++;
+          loaded++;
+          view.value = SessionView(transcript: shown(), historyLength: shown().length);
+        },
+      );
+      await tester.pumpWidget(
+        TranslationProvider(
+          child: MaterialApp(
+            home: Scaffold(
+              body: ValueListenableBuilder<SessionView>(
+                valueListenable: view,
+                builder: (context, value, _) => TranscriptView(view: value, actions: actions, turns: turns),
+              ),
+            ),
+          ),
+        ),
+      );
+      turns.reveal('r2');
+      for (var frame = 0; frame < 10; frame++) {
+        await tester.pump();
+      }
+      expect(loads, 2, reason: 'turn 2 is two pages back');
+      expect(turns.pendingReveal, isNull, reason: 'the turn holding r2 was opened');
     });
   });
 }

@@ -37,12 +37,15 @@ class ChatScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sessions = context.read<SessionsProvider>();
-    final actions = TranscriptActions(
+    final images = context.read<MachineImages?>()?.forSession(sessions, session);
+    // A large session opens with its latest part; the transcript asks for earlier pages as the reader scrolls up.
+    TranscriptActions actions(Future<void> Function()? loadEarlier) => TranscriptActions(
       onBranchFrom: (entryId) => unawaited(branchFrom(context, session, entryId)),
       onCopy: (text) => unawaited(_copy(context, text)),
       onOpenFile: (path, {line}) => context.read<DockController>().openFile(path, line: line),
       onOpenSubagent: (id) => context.read<DockController>().openSubagent(id),
-      images: context.read<MachineImages?>()?.forSession(sessions, session),
+      onLoadEarlier: loadEarlier,
+      images: images,
     );
     final turns = sessions.turnsOf(session);
     return NoticeHost(
@@ -58,7 +61,11 @@ class ChatScreen extends StatelessWidget {
             Expanded(
               child: SessionViewBuilder(
                 session: session,
-                builder: (context, view) => TranscriptView(view: view, actions: actions, turns: turns),
+                builder: (context, view) => TranscriptView(
+                  view: view,
+                  actions: actions(session.loadEarlier),
+                  turns: turns,
+                ),
               ),
             ),
             CommandOutputs(key: ObjectKey(session), session: session),

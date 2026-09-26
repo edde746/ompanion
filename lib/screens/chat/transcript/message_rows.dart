@@ -40,8 +40,11 @@ class TranscriptRowView extends StatelessWidget {
   Widget build(BuildContext context) {
     final (child, top) = switch (row) {
       ItemRow(:final item) => (_item(item), _gapBefore(item)),
-      // A later part continues the block: gpt_markdown's own gap between blocks (1.15 lines).
-      AssistantTextRow(:final text, :final part) => (TranscriptMarkdown(text) as Widget, part == 0 ? 6.0 : 16.0),
+      // A later part continues the block, spaced from the part above by its own first block.
+      AssistantTextRow(:final text, :final previous) => (
+        TranscriptMarkdown(text, previous: previous) as Widget,
+        previous == null ? 6.0 : 0.0,
+      ),
       final ThinkingRow row => (_ThinkingView(row, thought: thought), 6.0),
       AssistantImageRow(:final block) => (Align(alignment: Alignment.centerLeft, child: TranscriptImage(block)), 6.0),
       final ToolRow row => (ToolCard(data: ToolData(row: row, result: result, subagents: subagents)), 6.0),
@@ -198,7 +201,10 @@ class _UserMessageState extends State<_UserMessage> {
     final text = item.text;
     final lines = '\n'.allMatches(text).length + 1;
     final folds = lines > _foldLines || text.length > _foldChars;
-    final style = theme.textTheme.bodyMedium?.copyWith(color: agent ? scheme.onSurfaceVariant : scheme.onSurface);
+    final style = theme.textTheme.bodyMedium?.copyWith(
+      color: agent ? scheme.onSurfaceVariant : scheme.onSurface,
+      height: markdownLineHeight,
+    );
     final dim = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     final bubble = DecoratedBox(
       decoration: BoxDecoration(

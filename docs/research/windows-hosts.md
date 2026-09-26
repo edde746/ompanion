@@ -90,10 +90,10 @@ XDG only applies on Linux (dirs.ts:7-11,340-376).
 - ✓ Recommended [INFERENCE: untested sketch]:
   - Use WMI to create `cmd.exe /d /s /c "powershell -NoProfile -File feed.ps1 in.jsonl | "%LOCALAPPDATA%\omp\omp.exe" --mode rpc-ui -e companion.ts >> out.jsonl 2>> err.log"`. cmd redirection passes bytes through unchanged.
   - `feed.ps1` is a byte pump: `[IO.File]::Open(path,'OpenOrCreate','Read','ReadWrite')` → `[Console]::OpenStandardOutput()`, polling about every 50 ms. It exits when an `in.jsonl.stop` sentinel appears. omp then sees stdin EOF, disposes and exits gracefully.
-  - Client writes: append frames to in.jsonl over SFTP (`/C:/Users/<u>/…`), or keep a byte-appender exec channel open.
+  - Client writes: keep a byte-appender exec channel open. SFTP appends fail while `feed.ps1` reads: Win32-OpenSSH's sftp-server opens for writing with `FILE_SHARE_WRITE` only (`ERROR_SHARING_VIOLATION`, SFTP status 4; measured in CI, see m0-detached-sessions.md).
   - Client reads: tail out.jsonl over SFTP with stat plus offset reads. This is resumable after reconnect, starts from the `ready` frame, and avoids shell encodings entirely.
   - Fallback read path: a byte-pump tail over exec. `Get-Content -Wait -Tail 0 -Encoding UTF8` only works once console output is set to UTF-8, and has ~1 s latency.
-- **Still to spike:** file-sharing modes when cmd `>>` and sftp-server read and write the same file concurrently; the WMI environment and profile; SFTP APPEND semantics; OpenSSH versions on target machines.
+- **Still to spike:** OpenSSH versions on target machines other than 9.5p2. The sharing modes, the WMI environment and the appends were settled in CI (m0-detached-sessions.md, Windows).
 
 **Verdict.**
 - Attached rpc-ui over no-PTY exec: **feasible**. Use cmd-default launch strings, byte-transparency self-test, and marker-based stale cleanup.

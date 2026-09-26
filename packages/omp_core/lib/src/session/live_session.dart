@@ -45,6 +45,10 @@ abstract interface class LiveSession {
   /// companion; then every [companion] call would reach the model as a prompt, so never make one.
   CompanionHello? get companionHello;
 
+  /// Loads the history before the earliest entry of [view] into it; null while [view] holds the whole history. A
+  /// large session file opens with its latest part only.
+  Future<void> Function()? get loadEarlier;
+
   /// Closes request [id] in this device's view at once: after answering it here (every device also closes it
   /// when the answer reaches `in.jsonl`), or for one-shot requests (`EditorTextRequest`, `OpenUrlRequest`) and
   /// dialogs whose timeout passed.

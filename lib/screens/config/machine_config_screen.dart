@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/window_chrome.dart';
 import '../../config/config_target.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
@@ -67,7 +68,7 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
     context.watch<SessionsProvider>();
     final runtime = _target.runtime;
     final title = Text(t.config.title(machine: widget.machine.name));
-    Widget plain(Widget body) => Scaffold(appBar: AppBar(title: title), body: body);
+    Widget plain(Widget body) => Scaffold(appBar: windowAppBar(context, title: title), body: body);
     return StreamBuilder<MachineStatus>(
       stream: runtime.statuses,
       initialData: runtime.status,
@@ -136,6 +137,9 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
                       // _railWidth, the collapsed one across its width, which its longest label sets.
                       crossAxisAlignment: extended ? CrossAxisAlignment.start : CrossAxisAlignment.center,
                       children: [
+                        // On macOS the traffic lights sit over the rail's top; the back button goes below them.
+                        if (WindowChrome.trafficLights(context))
+                          const WindowDragArea(child: SizedBox(width: _railWidth, height: trafficLightsBottom - 8)),
                         const SizedBox(width: _railWidth, height: kToolbarHeight, child: Center(child: BackButton())),
                         Expanded(
                           child: NavigationRail(
@@ -158,7 +162,15 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      AppBar(automaticallyImplyLeading: false, centerTitle: false, title: title),
+                      AppBar(
+                        automaticallyImplyLeading: false,
+                        centerTitle: false,
+                        title: title,
+                        // In a column the bar's height is not bounded from outside: the area takes the toolbar's.
+                        flexibleSpace: const WindowDragArea(
+                          child: SizedBox(width: double.infinity, height: kToolbarHeight),
+                        ),
+                      ),
                       // The title bar took the top inset; without this, list pages would pad by it again.
                       Expanded(child: MediaQuery.removePadding(context: context, removeTop: true, child: page)),
                     ],
@@ -169,7 +181,7 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
           );
         }
         return Scaffold(
-          appBar: AppBar(title: title),
+          appBar: windowAppBar(context, title: title),
           body: Column(
             children: [
               ColoredBox(

@@ -7,6 +7,7 @@ import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
+import '../../app/window_chrome.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/session_name.dart';
@@ -65,29 +66,33 @@ class ChatHeader extends StatelessWidget {
           );
           final leading = this.leading;
           final trailing = this.trailing;
-          return SizedBox(
-            height: 52,
-            child: Row(
-              children: [
-                const SizedBox(width: 4),
-                ?leading,
-                const SizedBox(width: AppSizes.gap),
-                Expanded(child: title),
-                const SizedBox(width: AppSizes.gap),
-                if (closed)
-                  Text(t.chat.closedState, key: const ValueKey('closed-state'), style: muted)
-                else ...[
-                  if (data.running || data.paused) _PauseButton(session: session, paused: data.paused, iconOnly: compact),
-                  if (data.running) ...[
-                    const SizedBox(width: AppSizes.gap),
-                    _StopButton(session: session, iconOnly: compact),
+          // The header reaches the window's top edge: its empty parts and its title move the window on macOS.
+          return WindowDragArea(
+            child: SizedBox(
+              height: titleBarHeight,
+              child: Row(
+                children: [
+                  const SizedBox(width: 4),
+                  ?leading,
+                  const SizedBox(width: AppSizes.gap),
+                  Expanded(child: IgnorePointer(child: title)),
+                  const SizedBox(width: AppSizes.gap),
+                  if (closed)
+                    Text(t.chat.closedState, key: const ValueKey('closed-state'), style: muted)
+                  else ...[
+                    if (data.running || data.paused)
+                      _PauseButton(session: session, paused: data.paused, iconOnly: compact),
+                    if (data.running) ...[
+                      const SizedBox(width: AppSizes.gap),
+                      _StopButton(session: session, iconOnly: compact),
+                    ],
                   ],
+                  const SizedBox(width: 4),
+                  _SessionMenu(session: session),
+                  ?trailing,
+                  const SizedBox(width: 4),
                 ],
-                const SizedBox(width: 4),
-                _SessionMenu(session: session),
-                ?trailing,
-                const SizedBox(width: 4),
-              ],
+              ),
             ),
           );
         },

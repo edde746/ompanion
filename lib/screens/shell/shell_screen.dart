@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/window_chrome.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/dock_tab.dart';
 import '../../models/machine.dart';
@@ -53,12 +54,14 @@ class _ShellShortcuts extends StatefulWidget {
     this.onToggleSidebar,
     required this.onTogglePanels,
     required this.onShowPanelTab,
+    required this.onSearchSessions,
     required this.child,
   });
 
   final VoidCallback? onToggleSidebar;
   final VoidCallback onTogglePanels;
   final ValueChanged<DockTab> onShowPanelTab;
+  final VoidCallback onSearchSessions;
   final Widget child;
 
   @override
@@ -112,6 +115,7 @@ class _ShellShortcutsState extends State<_ShellShortcuts> {
             onInvoke: (intent) => widget.onShowPanelTab(intent.tab),
           ),
           AddMachineIntent: CallbackAction<AddMachineIntent>(onInvoke: (_) => showMachineEditor(context)),
+          SearchSessionsIntent: CallbackAction<SearchSessionsIntent>(onInvoke: (_) => widget.onSearchSessions()),
           OpenSettingsIntent: CallbackAction<OpenSettingsIntent>(
             onInvoke: (_) => context.read<ShellProvider>().select(const SettingsSelection()),
           ),
@@ -176,6 +180,7 @@ class _WideShell extends StatefulWidget {
 
 class _WideShellState extends State<_WideShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _sidebarKey = GlobalKey<SidebarState>();
   late final StreamSubscription<DockTab> _reveals;
 
   @override
@@ -193,6 +198,13 @@ class _WideShellState extends State<_WideShell> {
   void _toggleSidebar() {
     final settings = context.read<SettingsProvider>();
     settings.set(Prefs.sidebarOpen, !settings.get(Prefs.sidebarOpen));
+  }
+
+  /// Shows the sidebar if it is hidden, then focuses its search.
+  void _searchSessions() {
+    final settings = context.read<SettingsProvider>();
+    if (!settings.get(Prefs.sidebarOpen)) settings.set(Prefs.sidebarOpen, true);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _sidebarKey.currentState?.focusSearch());
   }
 
   void _togglePanels() {
@@ -221,13 +233,15 @@ class _WideShellState extends State<_WideShell> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
-    final sidebarOpen = settings.get(Prefs.sidebarOpen);
-    final dockOpen = widget.inlineDock && settings.get(Prefs.dockOpen);
+    // Selected, not watched: a project folder's collapsed state is a setting too, and must not rebuild the shell.
+    final sidebarOpen = context.select<SettingsProvider, bool>((settings) => settings.get(Prefs.sidebarOpen));
+    final dockOpen =
+        widget.inlineDock && context.select<SettingsProvider, bool>((settings) => settings.get(Prefs.dockOpen));
     return _ShellShortcuts(
       onToggleSidebar: _toggleSidebar,
       onTogglePanels: _togglePanels,
       onShowPanelTab: _showPanelTab,
+      onSearchSessions: _searchSessions,
       child: Scaffold(
         key: _scaffoldKey,
         endDrawer: widget.inlineDock ? null : const Drawer(width: 360, child: SafeArea(child: DockPanel())),
@@ -236,7 +250,7 @@ class _WideShellState extends State<_WideShell> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Panes are told apart by surface tone: sidebar and dock sit on surfaceContainerLow.
-              if (sidebarOpen) const SizedBox(width: 300, child: Sidebar(showHeader: true)),
+              if (sidebarOpen) SizedBox(width: 300, child: Sidebar(key: _sidebarKey)),
               Expanded(
                 child: _CenterPane(
                   sidebarOpen: sidebarOpen,
@@ -272,11 +286,23 @@ class _CenterPane extends StatelessWidget {
     final t = context.t;
     final selection = context.watch<ShellProvider>().selection;
     final machine = selectedMachine(context, selection);
-    final sidebarButton = IconButton(
+    final toggle = IconButton(
       tooltip: sidebarOpen ? t.shell.hideSidebar : t.shell.showSidebar,
       icon: Icon(sidebarOpen ? Icons.menu_open : Icons.menu),
       onPressed: onToggleSidebar,
     );
+    // Without the sidebar the traffic lights sit over this header; the button's glyph lines up after them as the
+    // sidebar's title does. The header rows start 4 px in and the button's ink 8 px before its glyph.
+    final lights = sidebarOpen ? 0.0 : WindowChrome.trafficLightsInset(context);
+    final sidebarButton = lights == 0
+        ? toggle
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(width: lights - 12),
+              toggle,
+            ],
+          );
     final panelsButton = IconButton(
       tooltip: panelsOpen ? t.shell.hidePanels : t.shell.showPanels,
       icon: Icon(panelsOpen ? Icons.view_sidebar : Icons.view_sidebar_outlined),
@@ -298,35 +324,40 @@ class _CenterPane extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: 52,
-          child: Row(
-            children: [
-              const SizedBox(width: 4),
-              sidebarButton,
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  selectionTitle(context, selection, machine),
-                  style: Theme.of(context).textTheme.titleMedium,
-                  overflow: TextOverflow.ellipsis,
+        WindowDragArea(
+          child: SizedBox(
+            height: titleBarHeight,
+            child: Row(
+              children: [
+                const SizedBox(width: 4),
+                sidebarButton,
+                const SizedBox(width: 8),
+                Expanded(
+                  // The title moves the window like the rest of the row.
+                  child: IgnorePointer(
+                    child: Text(
+                      selectionTitle(context, selection, machine),
+                      style: Theme.of(context).textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
-              ),
-              if (machine != null) ...[
-                TextButton.icon(
-                  icon: const Icon(Icons.add_comment_outlined),
-                  label: Text(t.sessions.newSession),
-                  onPressed: () => unawaited(showNewSessionDialog(context, machine)),
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.tune),
-                  label: Text(t.sessions.configure),
-                  onPressed: () => unawaited(openMachineConfig(context, machine)),
-                ),
+                if (machine != null) ...[
+                  TextButton.icon(
+                    icon: const Icon(Icons.add_comment_outlined),
+                    label: Text(t.sessions.newSession),
+                    onPressed: () => unawaited(showNewSessionDialog(context, machine)),
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.tune),
+                    label: Text(t.sessions.configure),
+                    onPressed: () => unawaited(openMachineConfig(context, machine)),
+                  ),
+                ],
+                panelsButton,
+                const SizedBox(width: 4),
               ],
-              panelsButton,
-              const SizedBox(width: 4),
-            ],
+            ),
           ),
         ),
         const SizedBox(height: 4),
@@ -347,6 +378,7 @@ class _NarrowShellState extends State<_NarrowShell> {
   static const _homeKey = ValueKey('home');
   static const _panelsKey = ValueKey('panels');
   final _navigatorKey = GlobalKey<NavigatorState>();
+  final _sidebarKey = GlobalKey<SidebarState>();
   late final StreamSubscription<DockTab> _reveals;
 
   @override
@@ -366,6 +398,14 @@ class _NarrowShellState extends State<_NarrowShell> {
     context.read<ShellProvider>().setPanelsPageOpen(true);
   }
 
+  /// Back to the machines page, then focuses its search.
+  void _searchSessions() {
+    final shell = context.read<ShellProvider>();
+    shell.select(const HomeSelection());
+    shell.setPanelsPageOpen(false);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _sidebarKey.currentState?.focusSearch());
+  }
+
   @override
   Widget build(BuildContext context) {
     final shell = context.watch<ShellProvider>();
@@ -374,12 +414,16 @@ class _NarrowShellState extends State<_NarrowShell> {
     return _ShellShortcuts(
       onTogglePanels: () => shell.setPanelsPageOpen(!shell.panelsPageOpen),
       onShowPanelTab: _showPanelTab,
+      onSearchSessions: _searchSessions,
       child: NavigatorPopHandler<Object?>(
         onPopWithResult: (_) => _navigatorKey.currentState!.maybePop(),
         child: Navigator(
           key: _navigatorKey,
           pages: [
-            const MaterialPage<void>(key: _homeKey, child: _NarrowHomePage()),
+            MaterialPage<void>(
+              key: _homeKey,
+              child: _NarrowHomePage(sidebarKey: _sidebarKey),
+            ),
             if (session != null)
               MaterialPage<void>(key: ObjectKey(session), child: _NarrowChatPage(session))
             else if (selection is! HomeSelection)
@@ -400,24 +444,23 @@ class _NarrowShellState extends State<_NarrowShell> {
 }
 
 class _NarrowHomePage extends StatelessWidget {
-  const _NarrowHomePage();
+  const _NarrowHomePage({required this.sidebarKey});
+
+  final GlobalKey<SidebarState> sidebarKey;
 
   @override
   Widget build(BuildContext context) {
-    final t = context.t;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t.sidebar.machines),
-        actions: [
-          const SidebarActions(),
-          IconButton(
-            tooltip: t.shell.showPanels,
+      body: SafeArea(
+        child: Sidebar(
+          key: sidebarKey,
+          trailing: IconButton(
+            tooltip: context.t.shell.showPanels,
             icon: const Icon(Icons.view_sidebar_outlined),
             onPressed: () => context.read<ShellProvider>().setPanelsPageOpen(true),
           ),
-        ],
+        ),
       ),
-      body: const SafeArea(child: Sidebar(showHeader: false)),
     );
   }
 }
@@ -430,12 +473,20 @@ class _NarrowChatPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final lights = WindowChrome.trafficLightsInset(context);
     return Scaffold(
       body: SafeArea(
         child: ChatScreen(
           session: session,
           compact: true,
-          leading: const BackButton(),
+          // After the traffic lights on macOS, as the other pages' back buttons.
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (lights > 0) SizedBox(width: lights - 12),
+              const BackButton(),
+            ],
+          ),
           trailing: IconButton(
             tooltip: t.shell.showPanels,
             icon: const Icon(Icons.view_sidebar_outlined),
@@ -456,7 +507,7 @@ class _NarrowSelectionPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final machine = selectedMachine(context, selection);
     return Scaffold(
-      appBar: AppBar(title: Text(selectionTitle(context, selection, machine))),
+      appBar: windowAppBar(context, title: Text(selectionTitle(context, selection, machine))),
       body: SafeArea(child: selectionBody(selection, machine)),
     );
   }
@@ -468,7 +519,7 @@ class _NarrowPanelsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.t.shell.panels)),
+      appBar: windowAppBar(context, title: Text(context.t.shell.panels)),
       body: const SafeArea(child: DockPanel()),
     );
   }

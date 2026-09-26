@@ -27,6 +27,9 @@ final class FakeRun {
   /// The append history `get_entries` serves.
   final entries = <Map<String, Object?>>[];
 
+  /// The leaf `get_entries` reports; the last entry when null.
+  String? leafId;
+
   /// Commands the fake does not answer itself; the test answers them with [respond] and [emit].
   void Function(Map<String, Object?> command)? onCommand;
 
@@ -134,7 +137,7 @@ final class FakeRun {
         final since = command['since'];
         final at = since == null ? -1 : entries.indexWhere((entry) => entry['id'] == since);
         if (since != null && at < 0) return reject(command, 'unknown entry', code: 'unknown_since');
-        respond(command, {'entries': entries.sublist(at + 1), 'leafId': entries.lastOrNull?['id']});
+        respond(command, {'entries': entries.sublist(at + 1), 'leafId': leafId ?? entries.lastOrNull?['id']});
       case 'get_subagents':
         respond(command, {'subagents': <Object?>[]});
       case 'get_available_commands':
@@ -297,4 +300,19 @@ final class FakeAccess implements RunAccess {
 
   @override
   Future<String> errorLog() async => 'fake stderr';
+
+  /// The session files the machine has, by path.
+  final files = <String, Uint8List>{};
+  final fileReads = <String>[];
+
+  @override
+  Future<int> sessionFileSize(String sessionPath) async =>
+      (files[sessionPath] ?? (throw HostLinkException('no such file: $sessionPath'))).length;
+
+  @override
+  Future<Uint8List> readSessionFile(String sessionPath, {int offset = 0, int? length}) async {
+    fileReads.add(sessionPath);
+    final file = files[sessionPath] ?? (throw HostLinkException('no such file: $sessionPath'));
+    return Uint8List.sublistView(file, offset, length == null ? null : offset + length);
+  }
 }

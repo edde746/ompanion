@@ -8,6 +8,9 @@ tags:
   ffmpeg:
     description: Runs this computer's ffmpeg (PATH or Homebrew's directories); CI installs it for the integration job.
     skip: "integration test; run with -P integration or -t ffmpeg"
+  windows:
+    description: Runs on Windows against this computer's own Win32-OpenSSH server, set up as CI's Windows host job does.
+    skip: "Windows host test; run on a prepared Windows machine with -P windows"
 
 presets:
   integration:
@@ -17,4 +20,8 @@ presets:
       docker:
         skip: false
       ffmpeg:
+        skip: false
+  windows:
+    tags:
+      windows:
         skip: false

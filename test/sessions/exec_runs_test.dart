@@ -46,6 +46,9 @@ final class _Omp implements LineChannel {
 }
 
 final class _Session implements LiveSession {
+
+  @override
+  Future<void> Function()? get loadEarlier => null;
   _Session(this._view);
 
   SessionView _view;

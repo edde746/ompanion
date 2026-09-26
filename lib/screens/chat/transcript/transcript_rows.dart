@@ -34,7 +34,7 @@ final class ItemRow extends TranscriptRow {
 /// A text block of an assistant message, or one part of a long one: a long text is split into rows at markdown
 /// segment boundaries, so a streaming reply rebuilds, lays out and repaints only its last part.
 final class AssistantTextRow extends TranscriptRow {
-  const AssistantTextRow(this.item, this.index, this.text, {this.part = 0});
+  const AssistantTextRow(this.item, this.index, this.text, {this.part = 0, this.previous});
 
   final AssistantItem item;
   final int index;
@@ -44,6 +44,10 @@ final class AssistantTextRow extends TranscriptRow {
 
   /// 0 for the first part of the block.
   final int part;
+
+  /// Markdown of the part before this one, null for the first part: the space above this part depends on how that
+  /// one ends.
+  final String? previous;
 
   @override
   String get key => part == 0 ? '${item.key}#$index' : '${item.key}#$index.$part';
@@ -556,7 +560,7 @@ List<TranscriptRow> _assistantRows(AssistantItem item) {
       case final TextBlock block when block.text.trim().isNotEmpty:
         final parts = textParts(block.text);
         for (var part = 0; part < parts.length; part++) {
-          rows.add(AssistantTextRow(item, index, parts[part], part: part));
+          rows.add(AssistantTextRow(item, index, parts[part], part: part, previous: part == 0 ? null : parts[part - 1]));
         }
       case final ThinkingBlock block when block.thinking.trim().isNotEmpty || (item.streaming && last):
         rows.add(ThinkingRow(item, index, block, live: item.streaming && last));

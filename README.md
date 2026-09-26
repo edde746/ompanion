@@ -44,6 +44,7 @@ There is no release yet. Build the app from source: see [Building from Source](#
 
 ### <img src="assets/readme_icons/sessions.svg" height="20" alt="" align="center" /> Sessions & branching
 - Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread; a project stays collapsed across restarts and shows on its row when a session in it waits for input or works
+- Search the listed sessions of every machine by title or project path from the sidebar (Cmd/Ctrl+F)
 - Resume any session on the machine, including ones started in omp's terminal UI
 - Session tree: search, filters, labels, branch into a new session, and navigate with an optional summary
 - Compactions show as dividers with their summary and file lists
@@ -88,13 +89,14 @@ There is no release yet. Build the app from source: see [Building from Source](#
 ### <img src="assets/readme_icons/platform.svg" height="20" alt="" align="center" /> Platform & design
 - One Flutter codebase for macOS, Windows, Linux, iOS and Android
 - Wide windows show machines, chat and dock side by side; narrow ones show one screen at a time
+- On macOS the app draws the whole window: no title bar, the window buttons sit in the sidebar's header
 - Monochrome, flat design with an OLED-black dark theme and a light theme
 - Keyboard shortcuts (Cmd on Apple platforms, Ctrl elsewhere)
 - English UI
 
 [^desktop]: Desktop only.
 [^agent]: Desktop only; reads `~/.ssh/config` through the `ssh` command (`ssh -G`). On Windows only identity files work: the OpenSSH agent's named pipe is not supported. Apple's Keychain passphrases (`UseKeychain`) are not read.
-[^windows]: Implemented, like this computer on Windows, but not yet tested on Windows.
+[^windows]: Tested in CI against Windows Server 2025's OpenSSH server with cmd.exe or PowerShell as the default shell. This computer on Windows is implemented but not yet tested on Windows.
 
 ## Building from Source
 

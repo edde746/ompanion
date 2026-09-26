@@ -13,6 +13,7 @@ void main() {
     expect(mac, contains((t.settings.shortcutPanelTab, '⌘1–⌘5')));
     expect(mac, contains((t.settings.shortcutAddMachine, '⇧⌘M')));
     expect(mac, contains((t.settings.shortcutAbort, 'Esc')));
+    expect(mac, contains((t.settings.shortcutSearchSessions, '⌘F')));
     expect(mac.map((row) => row.$1).toSet(), hasLength(mac.length));
     expect(mac, hasLength(appShortcuts(TargetPlatform.macOS).length - 4));
 

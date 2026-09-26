@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../host/scripts.dart';
 import '../transport/host_link.dart';
 import '../transport/line_channel.dart';
 
@@ -330,5 +331,72 @@ final class RunInbox {
 
   void close() {
     if (!_events.isClosed) unawaited(_events.close());
+  }
+}
+
+/// A long-running script on the machine that appends each line of its stdin to `in.jsonl` and acknowledges it,
+/// in order, with one `<status> <in.jsonl size right after the append>` line. It exits when its stdin closes.
+final class RunAppender {
+  RunAppender(this.process, this._dir, this._onEnd) {
+    _err = process.stderr.listen((chunk) {
+      if (_errBytes.length < 16384) _errBytes.add(chunk);
+    });
+    _out = decodeLines(process.stdout).listen(
+      _onAck,
+      onDone: () {
+        if (!_done.isCompleted) _done.complete();
+        _end(utf8.decode(_errBytes.toBytes(), allowMalformed: true).trim());
+      },
+    );
+  }
+
+  final HostProcess process;
+  final String _dir;
+  final void Function() _onEnd;
+  late final StreamSubscription<String> _out;
+  late final StreamSubscription<Uint8List> _err;
+  final _errBytes = BytesBuilder();
+  final _acks = Queue<Completer<int>>();
+  final _done = Completer<void>();
+
+  /// Whether the script exited; it takes no more lines then.
+  bool ended = false;
+
+  /// Hands [line] (its bytes, newline included) to the script. Completes with `in.jsonl`'s size right after the
+  /// append.
+  Future<int> append(List<int> line) {
+    if (ended) throw HostLinkException('the appender for $_dir ended');
+    final ack = Completer<int>();
+    _acks.add(ack);
+    process.write(line);
+    return ack.future;
+  }
+
+  void _onAck(String reply) {
+    final ack = _acks.removeFirst();
+    final fields = reply.trim().split(RegExp(r'\s+'));
+    final size = fields.length == 2 && fields[0] == '0' ? int.tryParse(fields[1]) : null;
+    if (size == null) {
+      ack.completeError(HostLinkException('appending to $_dir/in.jsonl failed: "$reply"'));
+    } else {
+      ack.complete(size);
+    }
+  }
+
+  void _end(String reason) {
+    if (!ended) {
+      ended = true;
+      _onEnd();
+    }
+    while (_acks.isNotEmpty) {
+      _acks.removeFirst().completeError(HostLinkException('the appender for $_dir ended: $reason'));
+    }
+  }
+
+  /// Closes stdin: the script appends what it already received, acknowledges it and exits.
+  Future<void> finish() async {
+    await finishProcess(process, _done.future);
+    await Future.wait([_out.cancel(), _err.cancel()]);
+    _end('channel closed');
   }
 }

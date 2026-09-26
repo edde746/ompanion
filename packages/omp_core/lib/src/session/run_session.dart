@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 
 import '../channel/run_log.dart';
 import '../companion/companion_client.dart';
@@ -44,6 +46,12 @@ abstract interface class RunAccess {
 
   /// omp's stderr, for an omp that exited before it was ready.
   Future<String> errorLog();
+
+  /// The size of the session file at [sessionPath] on the machine.
+  Future<int> sessionFileSize(String sessionPath);
+
+  /// [length] bytes (to the end when null) of the session file at [sessionPath] from [offset].
+  Future<Uint8List> readSessionFile(String sessionPath, {int offset = 0, int? length});
 }
 
 /// omp exited before it was ready: no usable model, a bad flag, an unreadable session file. [stderr] is omp's
@@ -106,6 +114,9 @@ final _random = Random();
 
 typedef _Position = ({int generation, int offset, int inboxOffset});
 
+/// Entries of the session file from [from], a line start, to a later line start or the end.
+typedef _FilePage = ({List<Map<String, Object?>> entries, int from});
+
 /// A [LiveSession] over a [RunAccess]: attaches, builds the view from the replayed log plus RPC state, applies every
 /// frame and every answer any device appends, keeps the view fresh (`stateStale`, `resyncReason`), records session
 /// switches in `meta.json`, rotates a large log once settled, and reconnects after link loss.
@@ -118,6 +129,8 @@ final class RunSession implements LiveSession {
     String? recordedPath,
     this._backoff = reconnectDelay,
     this.openTimeout = const Duration(seconds: 90),
+    this.pagedHistoryFrom = 16 << 20,
+    this.historyPageBytes = 2 << 20,
   }) : _recorded = recordedPath,
        _sessionPath = recordedPath;
 
@@ -131,6 +144,12 @@ final class RunSession implements LiveSession {
 
   /// Limit for the first attach; [start] fails after it.
   final Duration openTimeout;
+
+  /// A session file larger than this opens with its last [historyPageBytes] only; [loadEarlier] reads the pages
+  /// before. Read whole, a 400 MB file took 6.5 s to open on this computer and grew the app to 2.2 GB; its last 2 MB
+  /// open in 1.5 s (omp's own start) with the app at 240 MB.
+  final int pagedHistoryFrom;
+  final int historyPageBytes;
 
   /// Called once, when the session reaches [LinkClosed].
   void Function()? onClosed;
@@ -160,8 +179,15 @@ final class RunSession implements LiveSession {
   final _frameBuffer = <RpcFrame>[];
   final _answerBuffer = <Map<String, Object?>>[];
 
-  /// The session's append history (`get_entries`), extended after each settled run so live rows get entry ids.
+  /// The session's append history (`get_entries`), extended after each settled run so live rows get entry ids. When
+  /// [_historyFrom] is not 0, only the part of the session file from that offset on.
   final _entries = <Map<String, Object?>>[];
+
+  /// Offset in [_historyFile] where the loaded history starts, at a line start; 0 once the whole history is loaded.
+  int _historyFrom = 0;
+  String? _historyFile;
+  String? _leafId;
+  bool _loadingEarlier = false;
 
   bool _refreshing = false;
   bool _refreshAgain = false;
@@ -195,6 +221,9 @@ final class RunSession implements LiveSession {
 
   @override
   CompanionHello? get companionHello => _hello;
+
+  @override
+  Future<void> Function()? get loadEarlier => _historyFrom > 0 && !_closed ? _loadEarlier : null;
 
   /// The first attach. Throws [OmpStartFailed], [RunEnded], [RunGone], [OmpUnavailable], a transport error, or a
   /// [TimeoutException] after [openTimeout]; the session is closed then.
@@ -253,6 +282,9 @@ final class RunSession implements LiveSession {
 
   Future<_Attachment> _attach(_Mode mode) async {
     final resume = mode == _Mode.resume ? _resume : null;
+    final path = _sessionPath;
+    // Read while omp starts; see [_entriesAfter].
+    final fileEntries = mode == _Mode.fresh && path != null ? (_readEntries(path)..ignore()) : null;
     final channel = await _access.attach(
       generation: resume?.generation,
       offset: resume?.offset ?? 0,
@@ -279,7 +311,7 @@ final class RunSession implements LiveSession {
       } else {
         await rpc.attach();
       }
-      if (seed) await _seed(attachment, fresh: mode == _Mode.fresh);
+      if (seed) await _seed(attachment, fresh: mode == _Mode.fresh, fileEntries: fileEntries);
       if (_closed) throw StateError('session $runId closed while attaching');
     } on Object {
       // Frames applied straight to the view were read for good; buffered ones are read again by the next attach.
@@ -307,20 +339,31 @@ final class RunSession implements LiveSession {
   /// (the first on a process or device) replays them onto an empty view, minus their toasts: the log was read from
   /// the start of its generation. It also reads the commands, subscribes to subagent progress and looks for the
   /// companion. Any other seed (a resync, a rotation gap) keeps what RPC cannot list again: open dialogs, statuses,
-  /// widgets, toasts, the goal and the commands. Frames after the response apply on top.
-  Future<void> _seed(_Attachment attachment, {required bool fresh}) async {
+  /// widgets, toasts, the goal and the commands. Frames after the response apply on top. With [fileEntries], the
+  /// history starts from the session file ([_entriesAfter]).
+  Future<void> _seed(
+    _Attachment attachment, {
+    required bool fresh,
+    Future<_FilePage?>? fileEntries,
+  }) async {
     _seeding = true;
     final rpc = attachment.rpc;
     final companion = attachment.companion;
+    // Asked first: omp answers in order, so the companion calls wait for this answer, not for the history (measured: a
+    // 7.6 MB history answered first held them back 590 ms).
+    final commandsReply = fresh ? rpc.request('get_available_commands') : null;
     final stateId = rpc.nextId();
     final state = rpc.request('get_state', const {}, stateId)..ignore();
-    final entries = rpc.getEntries()..ignore();
+    final path = _sessionPath;
+    if (fileEntries == null || path == null) _historyFrom = 0;
+    final entries = (fileEntries == null || path == null ? rpc.getEntries() : _entriesAfter(rpc, path, fileEntries))
+      ..ignore();
     final subagents = rpc.getSubagents()..ignore();
     final subscribed = fresh ? (rpc.setSubagentSubscription(SubagentSubscription.progress)..ignore()) : null;
     Object? commands;
     var withCompanion = _hello != null;
-    if (fresh) {
-      commands = await rpc.request('get_available_commands');
+    if (commandsReply != null) {
+      commands = await commandsReply;
       // An unknown slash command reaches the model as a prompt, so the companion is only called once registered.
       withCompanion = asJsonObject(commands, 'get_available_commands result')
           .objects('commands')
@@ -392,6 +435,7 @@ final class RunSession implements LiveSession {
     _entries
       ..clear()
       ..addAll(history.entries);
+    _leafId = history.leafId;
     _seeding = false;
     _setView(view);
     _noteState(stateJson);
@@ -403,6 +447,90 @@ final class RunSession implements LiveSession {
       return (await call, null);
     } on CompanionException catch (error) {
       return (null, error);
+    }
+  }
+
+  /// The history at the end of the session file at [path]: all of it, or the last [historyPageBytes] of a file over
+  /// [pagedHistoryFrom]. Null when the file cannot be used.
+  Future<_FilePage?> _readEntries(String path) async {
+    try {
+      final size = await _access.sessionFileSize(path);
+      return await _readPage(path, size > pagedHistoryFrom ? size - historyPageBytes : 0, size);
+    } on Object {
+      // Missing (omp writes it with the first message) or unreadable: get_entries lists the history instead.
+      return null;
+    }
+  }
+
+  /// The entries on the complete lines between [from] and [to] of the session file, parsed on another isolate. The
+  /// line [from] falls inside of is left to the page before, and the page grows until it holds a line start.
+  Future<_FilePage?> _readPage(String path, int from, int to) async {
+    var start = from;
+    for (;;) {
+      final bytes = await _access.readSessionFile(path, offset: start, length: to - start);
+      final skip = start == 0 ? 0 : bytes.indexOf(0x0A) + 1;
+      if (start > 0 && skip == 0) {
+        start = max(0, start - (to - start));
+        continue;
+      }
+      final entries = await Isolate.run(() => sessionFileEntries(Uint8List.sublistView(bytes, skip)));
+      return entries == null ? null : (entries: entries, from: start + skip);
+    }
+  }
+
+  /// [file]'s entries plus what omp appended after the last of them (`get_entries` since it), read back far enough to
+  /// hold the leaf; everything from `get_entries` when the file could not be used or omp does not know that entry
+  /// (`unknown_since`: the run holds another session than the file meta.json names).
+  ///
+  /// omp answers `get_entries` with the whole history in `rpc_chunk`s, 10.2 MB for a 7.6 MB session file: omp spent
+  /// about 400 ms producing it, the app 230 ms decoding it, and every later attach replayed it from `out.jsonl`.
+  Future<RpcEntries> _entriesAfter(RpcClient rpc, String path, Future<_FilePage?> file) async {
+    final page = await file;
+    final last = page?.entries.lastOrNull?['id'];
+    if (page == null || last is! String) {
+      _historyFrom = 0;
+      return rpc.getEntries();
+    }
+    final RpcEntries after;
+    try {
+      after = await rpc.getEntries(since: last);
+    } on RpcCommandException catch (error) {
+      if (error.code != 'unknown_since') rethrow;
+      _historyFrom = 0;
+      return rpc.getEntries();
+    }
+    var entries = [...page.entries, ...after.entries];
+    var from = page.from;
+    // The reader navigated back to an older branch: its leaf is further up the file.
+    while (from > 0 && after.leafId != null && !entries.any((entry) => entry['id'] == after.leafId)) {
+      final earlier = await _readPage(path, max(0, from - historyPageBytes), from);
+      if (earlier == null) {
+        _historyFrom = 0;
+        return rpc.getEntries();
+      }
+      entries = [...earlier.entries, ...entries];
+      from = earlier.from;
+    }
+    _historyFrom = from;
+    _historyFile = path;
+    return (entries: entries, leafId: after.leafId);
+  }
+
+  Future<void> _loadEarlier() async {
+    final path = _historyFile;
+    if (_loadingEarlier || path == null || _historyFrom == 0) return;
+    _loadingEarlier = true;
+    try {
+      final page = await _readPage(path, max(0, _historyFrom - historyPageBytes), _historyFrom);
+      if (page == null) throw FormatException('a line of $path is not JSON');
+      if (_closed || _seeding || _historyFile != path) return;
+      _historyFrom = page.from;
+      _entries.insertAll(0, page.entries);
+      _setView(_safely(_view, 'session file', (view) => withEntries(view, _entries, leafId: _leafId)));
+    } on Object catch (error) {
+      _warn('Loading earlier messages failed: $error');
+    } finally {
+      _loadingEarlier = false;
     }
   }
 
@@ -584,6 +712,7 @@ final class RunSession implements LiveSession {
         if (_closed || _seeding || !identical(attachment, _attached)) return;
         if (result.entries.isEmpty) continue;
         _entries.addAll(result.entries);
+        _leafId = result.leafId;
         _setView(_safely(_view, 'get_entries', (view) => withEntries(view, _entries, leafId: result.leafId)));
       } while (_catchUpAgain);
     } on RpcCommandException catch (error) {
@@ -838,3 +967,38 @@ final class _TrackedChannel implements LineChannel {
     return match != null && int.parse(match[1]!) == int.parse(match[2]!) - 1;
   }
 }
+
+/// The entries of a session file as `get_entries` lists them: its lines with a `parentId`, which leaves out the title
+/// slot and the session header. Only complete lines count: the last may be one omp is still writing. Null when a line
+/// is not JSON.
+List<Map<String, Object?>>? sessionFileEntries(Uint8List bytes) {
+  final end = bytes.lastIndexOf(0x0A) + 1;
+  // The lines as one JSON array, decoded from bytes in one pass: 90–140 ms for a 7.6 MB file, line by line 180–200 ms.
+  final array = Uint8List(end + 2)..[0] = 0x5B;
+  var length = 1;
+  var blank = true;
+  for (var i = 0; i < end; i++) {
+    final byte = bytes[i];
+    if (byte == 0x0A) {
+      if (!blank) array[length++] = 0x2C;
+      blank = true;
+    } else {
+      array[length++] = byte;
+      blank = false;
+    }
+  }
+  if (array[length - 1] == 0x2C) length--;
+  array[length++] = 0x5D;
+  final Object? lines;
+  try {
+    lines = _utf8Json.convert(Uint8List.sublistView(array, 0, length));
+  } on FormatException {
+    return null;
+  }
+  return [
+    for (final line in lines as List<Object?>)
+      if (line is Map<String, Object?> && line.containsKey('parentId')) line,
+  ];
+}
+
+final Converter<List<int>, Object?> _utf8Json = utf8.decoder.fuse(json.decoder);

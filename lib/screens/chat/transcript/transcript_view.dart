@@ -8,6 +8,7 @@ import 'package:omp_core/store.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/turn_expansion.dart';
 import 'message_rows.dart';
+import 'row_extents.dart';
 import 'transcript_actions.dart';
 import 'transcript_rows.dart';
 
@@ -197,6 +198,7 @@ class _TranscriptViewState extends State<TranscriptView> {
   final _atBottom = ValueNotifier<bool>(true);
   final _thinking = _ThinkingClock();
   final _widgets = <String, _CachedRow>{};
+  final _extents = RowExtents();
 
   List<TranscriptItem>? _transcript;
   late TranscriptRowModel _model;
@@ -277,7 +279,8 @@ class _TranscriptViewState extends State<TranscriptView> {
     setState(() => _splitRow = _model.rowOf(_split(_transcript ?? const [])));
   }
 
-  /// Opens the turn of the entry [TurnExpansion.reveal] asked for, once the transcript holds it.
+  /// Opens the turn of the entry [TurnExpansion.reveal] asked for, once the transcript holds it. An entry before the
+  /// loaded history loads earlier pages until it arrives.
   void _reveal() {
     final entryId = _turns.pendingReveal;
     final transcript = _transcript;
@@ -289,6 +292,7 @@ class _TranscriptViewState extends State<TranscriptView> {
         return;
       }
     }
+    _loadEarlier(retry: true);
   }
 
   /// Index in [transcript] of the first item of the center sliver.
@@ -350,6 +354,7 @@ class _TranscriptViewState extends State<TranscriptView> {
     if (_widgets.length > rows.length + 64) {
       final keys = {for (final row in rows) row.key};
       _widgets.removeWhere((key, _) => !keys.contains(key));
+      _extents.retain(keys);
     }
     if (!initial &&
         newest is UserItem &&
@@ -447,13 +452,17 @@ class _TranscriptViewState extends State<TranscriptView> {
         cached.thought == thought) {
       return cached.widget;
     }
-    final built = TranscriptRowView(
+    final built = MeasuredRow(
       key: ValueKey<String>(row.key),
-      row: row,
-      result: result,
-      subagents: subagents,
-      thought: thought,
-      onToggle: row is TurnSummaryRow ? (box) => _toggleTurn(row.key, box) : null,
+      rowKey: row.key,
+      onLayout: _extents.measured,
+      child: TranscriptRowView(
+        row: row,
+        result: result,
+        subagents: subagents,
+        thought: thought,
+        onToggle: row is TurnSummaryRow ? (box) => _toggleTurn(row.key, box) : null,
+      ),
     );
     _widgets[row.key] = _CachedRow(row.content, result, subagents, thought, built);
     return built;
@@ -487,10 +496,11 @@ class _TranscriptViewState extends State<TranscriptView> {
                         ),
                       const SliverToBoxAdapter(child: SizedBox(height: 8)),
                       SliverList(
-                        delegate: SliverChildBuilderDelegate(
+                        delegate: _EstimatedDelegate(
                           (context, index) => _row(rows[split - 1 - index]),
                           childCount: split,
                           findChildIndexCallback: (key) => _childIndex(key, upper: true),
+                          extentOf: (index) => _extents.of(rows[split - 1 - index]),
                         ),
                       ),
                       SliverPadding(
@@ -501,10 +511,11 @@ class _TranscriptViewState extends State<TranscriptView> {
                           // list would lay its rows out from the offsets their indexes had before, and correct the
                           // scroll offset once they do not add up, moving the toggled row.
                           key: ValueKey(_firstLiveItem),
-                          delegate: SliverChildBuilderDelegate(
+                          delegate: _EstimatedDelegate(
                             (context, index) => _row(rows[split + index]),
                             childCount: rows.length - split,
                             findChildIndexCallback: (key) => _childIndex(key, upper: false),
+                            extentOf: (index) => _extents.of(rows[split + index]),
                           ),
                         ),
                       ),
@@ -544,6 +555,28 @@ class _TranscriptViewState extends State<TranscriptView> {
         ),
       ),
     );
+  }
+}
+
+/// Estimates the extent of the rows not laid out yet row by row ([RowExtents]), instead of from the average of the
+/// rows laid out.
+final class _EstimatedDelegate extends SliverChildBuilderDelegate {
+  const _EstimatedDelegate(
+    super.builder, {
+    required int super.childCount,
+    super.findChildIndexCallback,
+    required this.extentOf,
+  });
+
+  final double Function(int index) extentOf;
+
+  @override
+  double? estimateMaxScrollOffset(int firstIndex, int lastIndex, double leadingScrollOffset, double trailingScrollOffset) {
+    var extent = trailingScrollOffset;
+    for (var index = lastIndex + 1; index < childCount!; index++) {
+      extent += extentOf(index);
+    }
+    return extent;
   }
 }
 

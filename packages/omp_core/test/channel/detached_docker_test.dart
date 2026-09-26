@@ -154,28 +154,6 @@ void main() {
     expect((await listRuns(link, probe)).where((r) => !r.live), isEmpty);
   });
 
-  test('the SFTP channel (the Windows transport) appends under an SFTP lock against a real sftp-server', () async {
-    final run = (await openRun(link, probe, spec())).run;
-    final a = await SftpRunChannel.attach(link, run.dir, poll: const Duration(milliseconds: 50));
-    final other = await connect();
-    addTearDown(other.close);
-    final b = await SftpRunChannel.attach(other, run.dir, poll: const Duration(milliseconds: 50));
-    final aFrames = Frames(a.lines);
-    final bFrames = Frames(b.lines);
-    await aFrames.next((f) => f['type'] == 'ready');
-    await Future.wait([
-      for (var i = 0; i < 10; i++) a.send(getState('sa:$i')),
-      for (var i = 0; i < 10; i++) b.send(getState('sb:$i')),
-    ]);
-    for (var i = 0; i < 10; i++) {
-      await aFrames.response('sa:$i');
-      await bFrames.response('sb:$i');
-    }
-    await a.close();
-    await b.close();
-    expect(await stopRun(link, probe, run), 0);
-  });
-
   // The omp upload streams the whole release binary through dartssh2's SFTP: 278 MB for linux-x64 took close to
   // 5 minutes on a GitHub-hosted runner, 231 MB for linux-arm64 about 2 minutes on an Apple silicon Mac with colima.
   test('companion and omp uploads over SFTP land intact', () async {

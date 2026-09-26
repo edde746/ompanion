@@ -1,7 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:gpt_markdown/custom_widgets/unordered_ordered_list.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
+// gpt_markdown's own line tests, so blocks are cut where its parser starts them.
+import 'package:gpt_markdown/plusparse/scanner.dart'
+    show checkboxMarker, indentWidth, isBlank, isHeading, isHr, orderedMarker, radioMarker, unorderedMarker;
 
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
@@ -232,6 +236,8 @@ final List<MarkdownBlockComponent> _blockComponents = [
   const MarkdownBlockComponent(syntax: TaskList.plus, builder: _tasks),
 ];
 
+final _blockRegistry = MarkdownBlockRegistry([for (final component in _blockComponents) component.syntax]);
+
 Widget _fence(BuildContext context, MdCustomBlock node, GptMarkdownConfig config) {
   final info = node.data as String? ?? '';
   final name = info.split(RegExp(r'\s+')).first;
@@ -334,6 +340,7 @@ Widget _tasks(BuildContext context, MdCustomBlock node, GptMarkdownConfig config
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
+    spacing: _itemGap,
     children: [
       for (final (checked, text) in node.data! as List<(bool, String)>)
         _task(context, style, checked, _inline(context, text, config)),
@@ -367,6 +374,47 @@ Widget _task(BuildContext context, TextStyle style, bool checked, Widget label) 
     ),
   );
 }
+
+/// A bullet list item as gpt_markdown draws it by default, set off like any nested item ([_nested]).
+Widget _bullet(BuildContext context, Widget child, GptMarkdownConfig config) {
+  final style = config.style ?? DefaultTextStyle.of(context).style;
+  return _nested(
+    config,
+    UnorderedListView(
+      scalesItsOwnText: config.blocksRenderDirectly,
+      bulletColor: style.color,
+      padding: 7,
+      spacing: 10,
+      bulletSize: 0.3 * (style.fontSize ?? kDefaultFontSize),
+      textDirection: config.textDirection,
+      child: child,
+    ),
+  );
+}
+
+/// A numbered list item as gpt_markdown draws it by default, set off like any nested item ([_nested]).
+Widget _numbered(BuildContext context, String no, Widget child, GptMarkdownConfig config) => _nested(
+  config,
+  OrderedListView(
+    scalesItsOwnText: config.blocksRenderDirectly,
+    no: '$no.',
+    textDirection: config.textDirection,
+    style: (config.style ?? const TextStyle()).copyWith(fontWeight: FontWeight.w100),
+    padding: 6,
+    spacing: 6,
+    child: child,
+  ),
+);
+
+/// A nested list item sits on its own line of its parent item's paragraph, which has no gap between lines: its own
+/// padding tucks the list under the parent's line and spaces the items. A top-level item is a block of its own,
+/// spaced by [TranscriptMarkdown].
+Widget _nested(GptMarkdownConfig config, Widget item) => config.blocksRenderDirectly
+    ? item
+    : Padding(
+        padding: const EdgeInsets.only(top: _nestedAbove, bottom: _itemGap - _nestedAbove),
+        child: item,
+      );
 
 /// A quote as a flat block of dimmed text.
 Widget _quote(BuildContext context, Widget content, BlockQuoteStyle style) => Container(
@@ -680,14 +728,126 @@ String _decoded(String target) {
   }
 }
 
+/// The transcript's vertical rhythm (docs/design.md, "Markdown"): GitHub's markdown spacing scaled to the 14 px body.
+/// Logical pixels at a text scale of 1.
+const markdownLineHeight = 1.5;
+const _blockGap = 12.0;
+const _itemGap = 6.0;
+const _headingAbove = 20.0;
+const _headingBelow = 8.0;
+const _nestedAbove = 4.0;
+
+/// A top-level block of markdown: its source, whether it is a heading, and for a list item the list it belongs to
+/// (its marker kind and indentation).
+typedef _Block = ({String text, bool heading, String? list});
+
+/// [source] cut into its top-level blocks where gpt_markdown's block parser starts one, each list item a block of its
+/// own. gpt_markdown stacks the blocks of one blank-line segment with no space between them, and blank-line segments
+/// 1.15 lines apart, so the rhythm is laid out here from these blocks instead.
+List<_Block> _markdownBlocks(String source) {
+  final blocks = <_Block>[];
+  for (final segment in splitStreamSegments(source, blockRegistry: _blockRegistry)) {
+    final lines = segment.split('\n');
+    var i = 0;
+    while (i < lines.length) {
+      final start = i;
+      final trimmed = lines[i].trimLeft();
+      var heading = false;
+      String? list;
+      final custom = _blockRegistry.match(lines, i);
+      if (custom != null) {
+        i = custom.endLine;
+      } else if (trimmed.startsWith('```')) {
+        // A fence the CommonMark rule rejects still runs to the next ``` line in gpt_markdown's parser.
+        i++;
+        while (i < lines.length && !lines[i].trimLeft().startsWith('```')) {
+          i++;
+        }
+        i = math.min(i + 1, lines.length);
+      } else if (trimmed.startsWith(r'\[')) {
+        i = _mathEnd(lines, i);
+      } else if (isHeading(trimmed) != null) {
+        heading = true;
+        i++;
+      } else if (isHr(trimmed) || checkboxMarker(trimmed) != null || radioMarker(trimmed) != null) {
+        i++;
+      } else if (trimmed.startsWith('>')) {
+        // A quote runs to the next blank line, lazy continuation lines included.
+        while (i < lines.length && !isBlank(lines[i])) {
+          i++;
+        }
+      } else if (unorderedMarker(trimmed) != null || orderedMarker(trimmed) != null) {
+        final indent = indentWidth(lines[i]);
+        list = '${orderedMarker(trimmed) == null ? '-' : '1'}$indent';
+        // The item's own lines are indented past its marker.
+        i++;
+        while (i < lines.length && (isBlank(lines[i]) || indentWidth(lines[i]) > indent)) {
+          i++;
+        }
+      } else {
+        i++;
+        while (i < lines.length &&
+            !isBlank(lines[i]) &&
+            !_startsBlock(lines[i].trimLeft()) &&
+            _blockRegistry.match(lines, i) == null) {
+          i++;
+        }
+      }
+      blocks.add((text: lines.sublist(start, i).join('\n'), heading: heading, list: list));
+    }
+  }
+  return blocks;
+}
+
+/// Whether a line inside a segment ends a paragraph, as in gpt_markdown's block parser.
+bool _startsBlock(String trimmed) =>
+    trimmed.startsWith('```') ||
+    trimmed.startsWith(r'\[') ||
+    isHeading(trimmed) != null ||
+    isHr(trimmed) ||
+    trimmed.startsWith('>') ||
+    checkboxMarker(trimmed) != null ||
+    radioMarker(trimmed) != null ||
+    unorderedMarker(trimmed) != null ||
+    orderedMarker(trimmed) != null;
+
+/// The line after the block maths opened at [start], or the end while its `\]` has not arrived.
+int _mathEnd(List<String> lines, int start) {
+  var first = lines[start].trimLeft();
+  while (first.startsWith(r'\[')) {
+    first = first.substring(2);
+  }
+  if (first.contains(r'\]')) return start + 1;
+  var i = start + 1;
+  while (i < lines.length && !lines[i].contains(r'\]')) {
+    i++;
+  }
+  return math.min(i + 1, lines.length);
+}
+
+/// The space between two blocks: headings stand apart from what comes before them and hold on to what follows, items
+/// of one list stay close, and every other block keeps the block gap.
+double _gap(_Block above, _Block below) => below.heading
+    ? _headingAbove
+    : above.heading
+    ? _headingBelow
+    : above.list != null && above.list == below.list
+    ? _itemGap
+    : _blockGap;
+
 /// Markdown text of the transcript: gpt_markdown with the CommonMark fence rule, highlighted code blocks, LaTeX and
-/// links. gpt_markdown splits the text into segments, keeps the settled ones and parses only the changed tail, so a
-/// streaming message costs its growing tail per update; that cache lives in this widget's element.
+/// links, in the transcript's vertical rhythm: one gpt_markdown per top-level block, spaced by [_gap]. A streaming
+/// message only grows its last block, and every block before it keeps its widget, so Flutter skips them.
 class TranscriptMarkdown extends StatefulWidget {
-  const TranscriptMarkdown(this.text, {super.key, this.style});
+  const TranscriptMarkdown(this.text, {super.key, this.style, this.previous});
 
   final String text;
   final TextStyle? style;
+
+  /// The markdown this text continues, when a long text is cut into parts (`textParts` cuts between segments): the
+  /// first block keeps the gap it has below the last block of [previous] in one piece, so a cut that moves while the
+  /// text streams moves nothing.
+  final String? previous;
 
   @override
   State<TranscriptMarkdown> createState() => _TranscriptMarkdownState();
@@ -695,8 +855,15 @@ class TranscriptMarkdown extends StatefulWidget {
 
 class _TranscriptMarkdownState extends State<TranscriptMarkdown> {
   String? _source;
-  String _prepared = '';
+  List<_Block> _blocks = const [];
   Map<String, String> _alts = const {};
+  String? _previous;
+  _Block? _previousBlock;
+
+  /// Each block's widget by its source, for the [_style] and [_theme] they were built with.
+  var _widgets = <String, Widget>{};
+  TextStyle? _style;
+  ThemeData? _theme;
 
   // gpt_markdown keeps the spans of settled segments, taps included, across builds: the handler resolves the link
   // through this state's context when tapped rather than capturing anything from one build.
@@ -705,28 +872,62 @@ class _TranscriptMarkdownState extends State<TranscriptMarkdown> {
   Widget _buildImage(BuildContext context, String url, double? width, double? height) =>
       _image(context, url, _alts[url] ?? '', width, height);
 
+  Widget _block(String text, TextStyle style, ThemeData theme) => GptMarkdown(
+    text,
+    style: style,
+    blockComponents: _blockComponents,
+    codeBuilder: _builtInFence,
+    imageBuilder: _buildImage,
+    checkboxBuilder: _checkbox,
+    orderedListBuilder: _numbered,
+    unOrderedListBuilder: _bullet,
+    blockQuoteBuilder: _quote,
+    hrBuilder: _rule,
+    onLinkTap: _onLinkTap,
+    styleSheet: _styleSheet(theme.colorScheme),
+  );
+
   @override
   Widget build(BuildContext context) {
     if (!identical(widget.text, _source)) {
       _source = widget.text;
-      _prepared = rewriteDollarMath(widget.text);
-      _alts = markdownImageAlts(_prepared);
+      final prepared = rewriteDollarMath(widget.text);
+      _alts = markdownImageAlts(prepared);
+      _blocks = _markdownBlocks(prepared);
+    }
+    final previous = widget.previous;
+    if (!identical(previous, _previous)) {
+      _previous = previous;
+      _previousBlock = previous == null ? null : _markdownBlocks(rewriteDollarMath(previous)).last;
     }
     final theme = Theme.of(context);
+    final style = (widget.style ?? theme.textTheme.bodyMedium ?? const TextStyle()).copyWith(
+      height: markdownLineHeight,
+    );
+    if (style != _style || !identical(theme, _theme)) {
+      _widgets = {};
+      _style = style;
+      _theme = theme;
+    }
+    final built = _widgets;
+    final widgets = <String, Widget>{};
+    final scaler = MediaQuery.textScalerOf(context);
+    final children = [
+      for (final (index, block) in _blocks.indexed)
+        Padding(
+          padding: EdgeInsets.only(
+            top: switch (index == 0 ? _previousBlock : _blocks[index - 1]) {
+              null => 0,
+              final above => scaler.scale(_gap(above, block)),
+            },
+          ),
+          child: widgets[block.text] ??= built[block.text] ?? _block(block.text, style, theme),
+        ),
+    ];
+    _widgets = widgets;
     return GptMarkdownTheme(
       gptThemeData: _markdownTheme(theme),
-      child: GptMarkdown(
-        _prepared,
-        style: widget.style ?? theme.textTheme.bodyMedium,
-        blockComponents: _blockComponents,
-        codeBuilder: _builtInFence,
-        imageBuilder: _buildImage,
-        checkboxBuilder: _checkbox,
-        blockQuoteBuilder: _quote,
-        hrBuilder: _rule,
-        onLinkTap: _onLinkTap,
-        styleSheet: _styleSheet(theme.colorScheme),
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children),
     );
   }
 }

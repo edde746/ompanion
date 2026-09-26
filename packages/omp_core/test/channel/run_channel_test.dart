@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:omp_core/channel.dart';
+import 'package:omp_core/host.dart';
 import 'package:omp_core/src/channel/detached_channel.dart' show inlineAppendLimit;
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
@@ -9,10 +10,12 @@ import 'package:test/test.dart';
 import 'support.dart';
 
 /// Both channel transports against a run directory whose "omp" is the test itself: POSIX exec (`tail -F`
-/// and the shell appender, as on macOS and Linux hosts) and SFTP polling (as on Windows hosts).
+/// and the shell appender, as on macOS and Linux hosts) and SFTP polling with the PowerShell appender (as on
+/// Windows hosts), here run by PowerShell 7 standing in for `powershell.exe`. PowerShell 7 on POSIX takes no
+/// Windows share-mode lock, so the appenders' mutual exclusion is tested on Windows (test/windows/).
 void main() {
   for (final kind in ['exec', 'sftp']) {
-    group('$kind channel', () {
+    group('$kind channel', skip: kind == 'sftp' && pwsh == null ? 'pwsh is not installed' : null, () {
       late Directory root;
       late String dir;
       late LocalLink link;
@@ -34,7 +37,9 @@ void main() {
         for (final name in ['in.jsonl', 'out.jsonl']) {
           await File('$dir/$name').create();
         }
-        link = LocalLink(environment: {'HOME': root.path});
+        final bin = Directory('${root.path}/bin')..createSync();
+        if (kind == 'sftp') Link('${bin.path}/powershell.exe').createSync(pwsh!);
+        link = LocalLink(environment: {'HOME': root.path, 'PATH': '${bin.path}:${Platform.environment['PATH']}'});
       });
 
       tearDown(() async {
@@ -44,8 +49,15 @@ void main() {
 
       Future<RunChannel> attach({int? generation, int offset = 0, int? inboxOffset}) => kind == 'exec'
           ? DetachedChannel.attach(link, dir, generation: generation, offset: offset, inboxOffset: inboxOffset)
-          : SftpRunChannel.attach(link, dir, generation: generation, offset: offset, inboxOffset: inboxOffset,
-              poll: const Duration(milliseconds: 20));
+          : SftpRunChannel.attach(
+              link,
+              dir,
+              shell: CommandShell.posix,
+              generation: generation,
+              offset: offset,
+              inboxOffset: inboxOffset,
+              poll: const Duration(milliseconds: 20),
+            );
 
       Future<void> omp(String text) => File('$dir/out.jsonl').writeAsString(text, mode: FileMode.append, flush: true);
 
@@ -85,7 +97,7 @@ void main() {
         await channel.close();
       });
 
-      test('two channels append concurrently without interleaving and see each other in their inboxes', () async {
+      test('two channels append concurrently without interleaving and see each other in their inboxes', skip: kind == 'sftp' ? 'no share-mode lock off Windows' : null, () async {
         final a = await attach(inboxOffset: 0);
         final b = await attach(inboxOffset: 0);
         final seenByB = <InboxLine>[];

@@ -19,6 +19,12 @@ import '../sessions/machine_images.dart';
 import '../sessions/session_reads.dart';
 import '../sessions/sessions_provider.dart';
 import 'theme.dart';
+import 'window_chrome.dart';
+
+// Built once: a new ThemeData on each MaterialApp build compares unequal (its extensions have no ==), and MaterialApp
+// then animates the whole app from the old theme to the new one for 200 ms, rebuilding every widget that reads it.
+final _lightTheme = appTheme(Brightness.light);
+final _darkTheme = appTheme(Brightness.dark);
 
 /// Root widget. [settings] and [machines] are created in `main` because startup reads and seeds them;
 /// they live as long as the process.
@@ -88,11 +94,12 @@ class OmpanionApp extends StatelessWidget {
           builder: (context) => MaterialApp(
             title: context.t.app.title,
             debugShowCheckedModeBanner: false,
-            theme: appTheme(Brightness.light),
-            darkTheme: appTheme(Brightness.dark),
-            themeMode: context.watch<SettingsProvider>().get(Prefs.themeMode),
+            theme: _lightTheme,
+            darkTheme: _darkTheme,
+            themeMode: context.select<SettingsProvider, ThemeMode>((settings) => settings.get(Prefs.themeMode)),
             locale: TranslationProvider.of(context).flutterLocale,
             supportedLocales: AppLocaleUtils.supportedLocales,
+            builder: (context, child) => WindowChrome(child: child!),
             home: const ConnectPromptHost(child: ShellScreen()),
           ),
         ),

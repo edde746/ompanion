@@ -164,11 +164,15 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   `get_state.sessionFile` and records it in `meta.json` before `open` returns; every later switch inside
   the run (`new_session`, `switch_session`, `branch`, fork, `/clear`, tree navigation) is recorded the same
   way. A device opening that file attaches to the run instead of launching a second omp.
-- Attach: `tail -F` from saved offsets on both files. A device's first attach reads `out.jsonl` from the
-  start of its generation and `in.jsonl` from 0 (open dialogs and the answers that closed them), then seeds
-  the view from `get_state`, `get_entries`, `get_available_commands`, `get_subagents` and the companion's
-  `hello`, `state.snapshot` and `agents.list`. Every frame, and every `extension_ui_response` any device
-  appends, goes through the reducer.
+- Attach: `tail -F` from saved offsets on both files; what `out.jsonl` already holds goes out through a plain
+  `tail` first (BSD `tail -F` copies byte by byte). A device's first attach reads `out.jsonl` from the start of its generation and
+  `in.jsonl` from 0 (open dialogs and the answers that closed them), then seeds the view from `get_state`,
+  the session history, `get_available_commands`, `get_subagents` and the companion's `hello`,
+  `state.snapshot` and `agents.list`. The history is the session file `meta.json` names, read while omp
+  starts, plus `get_entries(since)` its last entry (a file over 16 MB: its last 2 MB, earlier 2 MB pages as the reader
+  scrolls up); plain `get_entries` when there is no file or omp does not
+  know that entry. Every frame, and every `extension_ui_response` any device appends, goes through the
+  reducer.
 - Send: one long-running appender per channel takes `in.lock` per line; lines over 64 KiB are uploaded
   first.
 - Link loss: a session reconnects with jittered backoff (1 s doubling to 30 s) and continues from the last
@@ -195,8 +199,9 @@ every model call (prompts other than `/ompx`, `btw` and `tree.navigate` calls, `
 
 ### Windows hosts (and this computer on Windows)
 
-Same run directory layout under `%USERPROFILE%\.ompanion\run\<runId>\`, implemented and not yet run on
-Windows. Differences, all from `research/windows-hosts.md`:
+Same run directory layout under `%USERPROFILE%\.ompanion\run\<runId>\`. CI's Windows host job runs it end to
+end against Win32-OpenSSH on `windows-latest` (`packages/omp_core/test/windows/`). Differences, from
+`research/windows-hosts.md`:
 
 - Launch: sshd puts the channel's first process in a job with `KILL_ON_JOB_CLOSE`, so children started
   with `Start-Process`, `start` or `&` die with the channel. omp is started through WMI
@@ -205,19 +210,23 @@ Windows. Differences, all from `research/windows-hosts.md`:
   <omp.exe> --mode rpc-ui --config <run>\overlay.yml -e <companion> [--session <path>] >> <run>\out.jsonl
   2>> <run>\err.log"`. cmd redirection passes bytes through unchanged; PowerShell 5.1 redirection does
   not.
-- Feed: `feed.ps1` is a byte pump from `in.jsonl` (opened with ReadWrite sharing) to stdout, polling
+- Feed: `feed.ps1` is a byte pump from `in.jsonl` (opened for reading with `ReadWrite, Delete` sharing) to stdout, polling
   every 50 ms, exiting when `in.jsonl.stop` appears. Its exit closes omp's stdin. Windows has no
   signals; closing stdin is omp's only graceful stop (`Stop-Process -Force` skips cleanup).
 - Scripts run as `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand
   <base64 UTF-16LE>`, which works under a cmd, PowerShell or bash default shell. cmd caps a line at
   8191 characters, so larger scripts are uploaded over SFTP and run with `-File`.
-- Attach: SFTP stat and offset reads on `out.jsonl` and `in.jsonl`. Appends and `meta.json` updates go
-  over SFTP under SFTP `mkdir` locks. `out.jsonl` is never rotated: cmd.exe's `>>` keeps its offset.
+- Attach: SFTP stat and offset reads on `out.jsonl` and `in.jsonl`; `meta.json` updates go over SFTP under
+  the launch lock. `out.jsonl` is never rotated: cmd.exe's `>>` keeps its offset.
+- Send: one long-running PowerShell appender per channel opens `in.jsonl` per line for writing with `Read,
+  Delete` sharing, so a second appender's open fails with a sharing violation and retries: the handle is the
+  append lock. SFTP cannot append while omp runs: Win32-OpenSSH's sftp-server opens for writing with
+  `FILE_SHARE_WRITE` only, which fails (`error:32`, SFTP status 4) against `feed.ps1`'s read handle.
 - Environment: a WMI child gets the provider's environment block, so `USERPROFILE`, `LOCALAPPDATA` and
-  `PATH` are set explicitly [INFERENCE: not run on Windows].
+  `PATH` are set explicitly.
 - Orphans: found by the overlay path in their command line through `Get-CimInstance Win32_Process`.
-- If the detached form fails on Windows: attached `omp.exe` on a no-PTY exec channel, where the turn dies
-  with the channel, until it works.
+- A Windows machine with Git Bash or another POSIX default shell runs the same scripts through `sh -c`; only
+  cmd.exe and PowerShell as the default shell run in CI.
 
 ### Per-launch config overlay
 

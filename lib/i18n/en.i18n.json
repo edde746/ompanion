@@ -295,7 +295,10 @@
     "keys": "SSH keys",
     "usage": "Usage",
     "settings": "Settings",
-    "noMachines": "No machines yet."
+    "noMachines": "No machines yet.",
+    "search": "Search sessions",
+    "searchHint": "Search",
+    "noMatches": "No matching sessions."
   },
   "machines": {
     "thisComputer": "This computer",
@@ -496,6 +499,7 @@
     "shortcutNewSession": "New session",
     "shortcutTogglePause": "Pause or resume the session",
     "shortcutPalette": "Command palette",
+    "shortcutSearchSessions": "Search sessions",
     "shortcutAbort": "Stop the running turn"
   },
   "time": {

@@ -34,6 +34,12 @@ something the rules do not cover extends this document first.
     page beside it.
 11. Equal tabs, centred icons. Icon-only tabs get equal slots with the icon centred in its slot and the
     selected pill filling the slot, so the pill is centred on the icon.
+12. On macOS the app draws the title bar. The window has no title text and no title bar tone; the top header
+    rows (`titleBarHeight`, 52 px) are the title bar. The traffic lights sit in the sidebar's header, centred on
+    it, and the header's content starts 12 px after the zoom button (92 px in on macOS 26); with the sidebar
+    hidden the page's header keeps that room instead, and in full screen nobody does. The empty parts of every
+    top header row move the window, and a double click does what System Settings says for title bars. Windows
+    and Linux keep their native frames.
 
 ## Tokens
 
@@ -77,6 +83,8 @@ something the rules do not cover extends this document first.
 | Drop target | while files from the OS hover over the chat pane, a `surfaceContainerHigh` layer at 92 % covers it 8 px inside its edges, with `cardRadius`, an attach icon and "Drop to attach" centred. A tone, never a stroke or dashed outline |
 | Sidebar session row | one mark in the icon column, under the project's folder icon: the status (working, needs input, failed, disconnected, open in omp on the machine), else the unread dot. Unread with a status shows through the bold title alone. The title starts in the project path's column; the relative time sits at the end |
 | Sidebar project row | the machine row's chevron (`expand_more`, `chevron_right` while collapsed) in the column before the folder icon, then the path. The chevron, a click on the row, Enter and Space toggle it; the collapsed state is an app setting per machine and folder. Collapsed, it hides its sessions and "Show more", and shows the session row's mark at the end for the first of needs input, working, open in omp on the machine that any of its sessions has |
+| Sidebar list | one flat list of rows with known heights: machine, project, session and "Show more" rows are `rowHeight` (`rowHeightTouch` on phones), a notice 44 px (52 on phones) with its text cut to two lines and the whole of it in a tooltip, a 4 px gap after each machine. The scroll extent is their sum, so the scrollbar's thumb keeps its size |
+| Sidebar search | a search icon before the header's add button; it opens an `AppSearchField` over the header's title and actions, focused. Cmd/Ctrl+F opens it from anywhere, showing a hidden sidebar. It keeps the listed sessions whose title or project path holds the text (case-insensitive), every one of them, under their project and machine rows, open whatever their collapsed state, with the match on an `onSurface` 22 % tone. Machines and projects without a match, notices and "Show more" go. Esc, or leaving the emptied field, closes it; the tree comes back with its collapse states as they were |
 | Token count or context window | `formatTokens` (`lib/utils/token_count.dart`): `950`, `12.3K`, `128K`, `1.5M`, one decimal unless whole. A model's context window reads `128K context` |
 | Modal dialog | `surfaceContainer` with `sheetRadius`, over a black scrim (80 % dark, 50 % light), so a dialog opened from a dialog stands apart from it. Not `surfaceContainerHigh`: the fields, selects and tonal buttons inside have that tone |
 | Monospace text (ids, paths, keys, scripts) | `codeTextStyle`, the code blocks' font; the generic `monospace` family does not resolve on macOS |
@@ -86,3 +94,26 @@ something the rules do not cover extends this document first.
 | Turn summary (a settled turn's folded work in the chat) | one flat line directly under the turn's user message, left-aligned: `bodySmall` in `onSurfaceVariant`, the facts the transcript holds joined by `  ·  ` (`Worked for 1m 12s  ·  8 tool calls  ·  2 files edited`), then a 16 px `expand_more` chevron, `expand_less` while open. No card, border or leading icon. The line is an `InkWell` (radius 6) that hugs its text and toggles on click, tap, Enter and Space; the turn's rows open below it in transcript order and the line stays where it is |
 | File mention in a user message (`@path`, `@"path"`, `@'path'` by omp's rules, `local://…`) and in a queued message | an inline chip in the text: `surfaceContainerHighest`, radius 6, a 14 px file, folder or pasted-text (`notes`) icon in `onSurfaceVariant` and the base name in the message's style; the full path in a tooltip. A click opens the path in Files; a `local://` chip shows its tooltip instead. Copy message copies the text omp received |
 | Long user message (over 12 lines or 1200 characters) | its first 6 lines, at most 600 characters (`…` where a line is cut), then a flat toggle inside the bubble like the turn summary line: `Show all (N lines)` with `expand_more`, `Show less` with `expand_less`. The open state lives with the row |
+
+## Markdown
+
+Assistant replies, thinking blocks, summaries and extension messages render markdown in one vertical rhythm:
+GitHub's markdown spacing scaled to the 14 px body. Code: `TranscriptMarkdown` in
+`lib/screens/chat/transcript/markdown.dart`. Gaps are between line boxes, in logical pixels at text scale 1, and
+grow with the text scale.
+
+| Between | Gap |
+|---|---|
+| Two blocks (paragraphs, lists, code blocks, tables, quotes, rules, maths) | 12 |
+| Any block and a heading below it | 20 |
+| A heading and the block below it | 8 |
+| Two items of one list, single- or multi-line, tight or loose | 6 |
+| A list item's first line and its nested list | 4 |
+| Two nested items; the last nested item and its parent's next item | 6; 8 |
+
+Body text of markdown and of user messages has line height 1.5 (21 px lines); headings 1.3. The rhythm does not come
+from gpt_markdown, which stacks the blocks of one blank-line segment without space and separates segments by 1.15
+lines: `TranscriptMarkdown` cuts the text into top-level blocks (every list item one) where gpt_markdown's parser
+starts them, renders each with its own `GptMarkdown` and spaces them itself. A long text split into several rows keeps
+the gap its blocks have in one piece: each part after the first is spaced from the last block of the part above it
+(`TranscriptMarkdown.previous`).

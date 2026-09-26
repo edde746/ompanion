@@ -56,6 +56,9 @@ final class _Omp implements LineChannel {
 }
 
 final class _Session implements LiveSession {
+
+  @override
+  Future<void> Function()? get loadEarlier => null;
   _Session(Map<String, Object?> popped, {this.steering = 'queued message'}) : omp = _Omp(popped);
 
   /// The queued steering message.

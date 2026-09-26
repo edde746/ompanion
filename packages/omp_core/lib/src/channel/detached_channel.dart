@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import '../host/scripts.dart';
 import '../transport/host_link.dart';
-import '../transport/line_channel.dart';
 import 'run_log.dart';
 
 /// Lines up to this size are appended through the appender's stdin. `sh`'s `read` takes one byte per system
@@ -46,9 +44,8 @@ final class DetachedChannel implements RunChannel {
   _Follower? _inboxFollow;
   late final _inbox = RunInbox(onListen: _startInbox);
 
-  Future<_Appender>? _appender;
+  Future<RunAppender>? _appender;
   Future<void> _writes = Future.value();
-  final _acks = Queue<Completer<int>>();
 
   @override
   int get offset => _output.offset;
@@ -118,8 +115,8 @@ final class DetachedChannel implements RunChannel {
     }
   }
 
-  /// Hands [line] to the appender. Writes are chained, so lines reach `in.jsonl` in [send] order even when
-  /// one of them is uploaded first.
+  /// Hands [line] to the appender and [ack] its acknowledgement. Writes are chained, so lines reach `in.jsonl` in
+  /// [send] order even when one of them is uploaded first.
   Future<void> _write(String line, Completer<int> ack) async {
     final appender = await (_appender ??= _startAppender());
     final bytes = utf8.encode(line);
@@ -128,8 +125,7 @@ final class DetachedChannel implements RunChannel {
       ..[bytes.length] = 0x0A;
     // The appender reads a leading `@` as the name of an uploaded file.
     if (bytes.length <= inlineAppendLimit && !line.startsWith('@')) {
-      _acks.add(ack);
-      appender.process.write(framed);
+      ack.complete(appender.append(framed));
       return;
     }
     final name = 'up-${newMarker()}.part';
@@ -139,31 +135,11 @@ final class DetachedChannel implements RunChannel {
     } finally {
       await files.close();
     }
-    _acks.add(ack);
-    appender.process.write(utf8.encode('@$name\n'));
+    ack.complete(appender.append(utf8.encode('@$name\n')));
   }
 
-  Future<_Appender> _startAppender() async =>
-      _Appender(await startPosixScript(_link, _appenderScript(dir)), _onAck, _onAppenderEnd);
-
-  /// `<status> <in.jsonl size after the append>`.
-  void _onAck(String reply) {
-    final fields = reply.trim().split(RegExp(r'\s+'));
-    final ack = _acks.removeFirst();
-    final size = fields.length == 2 && fields[0] == '0' ? int.tryParse(fields[1]) : null;
-    if (size == null) {
-      ack.completeError(HostLinkException('appending to $dir/in.jsonl failed: "$reply"'));
-    } else {
-      ack.complete(size);
-    }
-  }
-
-  void _onAppenderEnd(String stderr) {
-    _appender = null;
-    while (_acks.isNotEmpty) {
-      _acks.removeFirst().completeError(HostLinkException('the appender for $dir ended: $stderr'));
-    }
-  }
+  Future<RunAppender> _startAppender() async =>
+      RunAppender(await startPosixScript(_link, _appenderScript(dir)), dir, () => _appender = null);
 
   @override
   Future<void> close() async {
@@ -172,7 +148,6 @@ final class DetachedChannel implements RunChannel {
     await _writes;
     final appender = _appender;
     if (appender != null) await (await appender).finish();
-    _onAppenderEnd('channel closed');
     await Future.wait([_follow.stop(), if (_inboxFollow case final follow?) follow.stop()]);
     _output.finish();
     _inbox.close();
@@ -271,36 +246,10 @@ final class _Follower {
   }
 }
 
-/// The long-running `in.jsonl` appender: one acknowledgement line per appended line.
-final class _Appender {
-  _Appender(this.process, void Function(String) onAck, void Function(String stderr) onEnd) {
-    _err = process.stderr.listen((chunk) {
-      if (_errBytes.length < 16384) _errBytes.add(chunk);
-    });
-    _out = decodeLines(process.stdout).listen(
-      onAck,
-      onDone: () {
-        if (!_done.isCompleted) _done.complete();
-        onEnd(utf8.decode(_errBytes.toBytes(), allowMalformed: true).trim());
-      },
-    );
-  }
-
-  final HostProcess process;
-  late final StreamSubscription<String> _out;
-  late final StreamSubscription<Uint8List> _err;
-  final _errBytes = BytesBuilder();
-  final _done = Completer<void>();
-
-  /// Closes stdin: the appender appends what it already received, acknowledges it and exits.
-  Future<void> finish() async {
-    await finishProcess(process, _done.future);
-    await Future.wait([_out.cancel(), _err.cancel()]);
-  }
-}
-
 /// The exit file is read before the size, so a run that ended is never cut short: everything it wrote
-/// precedes its exit file.
+/// precedes its exit file. The bytes already written go out through a plain `tail` before `tail -F` follows: macOS's
+/// `tail -F` copies byte by byte (`getc`/`putchar`), about 15 MB/s, and took 1.4 s to replay a 10 MB log that a plain
+/// `tail` sends in 15 ms.
 String _outputScript(String dir, int? generation, int offset) =>
     'd=${shQuote(dir)}; g0=${generation ?? -1}; o0=$offset\n$posixTailPoll$_outputBody';
 
@@ -314,6 +263,7 @@ o=0
 if [ "$g" = "$g0" ] && [ "$o0" -le "$s" ]; then o=$o0; fi
 printf '%s %s %s %s\n' "$g" "$o" "$e" "$s"
 if [ "$e" != - ] && [ "$o" -ge "$s" ]; then exit 0; fi
+if [ "$s" -gt "$o" ]; then tail -c +$((o + 1)) "$d/out.jsonl" | head -c $((s - o)); o=$s; fi
 tail $tailpoll -c +$((o + 1)) -F "$d/out.jsonl" &
 t=$!
 cat > /dev/null

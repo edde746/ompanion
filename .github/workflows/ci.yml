@@ -18,7 +18,7 @@ env:
   FLUTTER_VERSION: "3.47.1"
   BUN_VERSION: "1.4.0"
 
-# Linux only: macOS minutes cost ten times as much on a private repository.
+# Linux, plus the Windows host job: macOS minutes cost ten times as much on a private repository, Windows twice.
 jobs:
   app:
     name: App
@@ -228,3 +228,76 @@ jobs:
       - name: Stop the SSH test machines
         if: always()
         run: testing/sshd/down.sh
+
+  # The Windows machine support end to end: this runner's own Win32-OpenSSH server, reached over dartssh2 with key
+  # authentication, runs the omp_core tests tagged windows (test/windows/) with the pinned omp and the fake provider.
+  windows-host:
+    name: Windows host (Win32-OpenSSH)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # The image ships Win32-OpenSSH's server stopped. The runner user is an administrator, so sshd reads its key from
+      # administrators_authorized_keys, which must be writable by Administrators and SYSTEM only.
+      - name: Start sshd with key authentication for the runner user
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ssh = "$env:SystemRoot\System32\OpenSSH"
+          if (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
+            Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 | Out-Null
+          }
+          $key = Join-Path $env:RUNNER_TEMP 'ompanion_key'
+          & "$ssh\ssh-keygen.exe" -q -t ed25519 -N '' -f $key
+          $auth = "$env:ProgramData\ssh\administrators_authorized_keys"
+          Get-Content "$key.pub" | Set-Content -Encoding ascii $auth
+          icacls.exe $auth /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F' | Out-Null
+          Start-Service sshd
+          $known = Join-Path $env:RUNNER_TEMP 'known_hosts'
+          & "$ssh\ssh-keyscan.exe" -t ed25519 localhost 2>$null | Set-Content -Encoding ascii $known
+          & "$ssh\sshd.exe" -V
+          "OMPANION_WINDOWS_SSH_KEY=$key" >> $env:GITHUB_ENV
+          "OMPANION_WINDOWS_KNOWN_HOSTS=$known" >> $env:GITHUB_ENV
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: false
+
+      - name: Fetch omp
+        run: scripts/fetch_omp.sh windows-x64
+
+      # The image test makes a preview with ffmpeg, which the image lacks; Chocolatey's shim directory is on the machine
+      # PATH that SSH sessions get.
+      - name: Install ffmpeg
+        run: choco install ffmpeg --no-progress -y
+
+      # The session tests upload companion/dist/ompx.js.
+      - name: Build the companion
+        run: scripts/build_companion.sh
+
+      - name: Install omp_core dependencies
+        working-directory: packages/omp_core
+        run: dart pub get --enforce-lockfile
+
+      # Git Bash puts Git for Windows' sh on PATH, which the tests use for testing/omp-home.sh.
+      - name: Windows host tests
+        working-directory: packages/omp_core
+        run: dart test -P windows -j 1 test/windows

@@ -4,19 +4,14 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:omp_core/host.dart';
+import 'package:omp_core/src/channel/windows_channel.dart' show windowsAppenderScript;
 import 'package:omp_core/src/channel/windows_run.dart';
 import 'package:omp_core/src/host/scripts.dart';
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
 
 import '../host/fixtures.dart';
-
-/// PowerShell 7, when installed, runs the Windows scripts that do not need Windows itself; Windows
-/// PowerShell 5.1, cmd.exe and WMI are not available here.
-final String? pwsh = () {
-  final result = Process.runSync('/bin/sh', ['-c', 'command -v pwsh']);
-  return result.exitCode == 0 ? (result.stdout as String).trim() : null;
-}();
+import 'support.dart';
 
 Future<ScriptResult> runPwsh(String script, Map<String, String> environment) async {
   final result = await Process.run(
@@ -67,6 +62,11 @@ void main() {
 
   test('the Windows probe fits on one cmd.exe line, so first contact needs no SFTP', () {
     expect(encodedPowerShellCommand(CommandShell.cmd, '$powershellPreamble${windowsProbeScript(newMarker())}'), isNotNull);
+  });
+
+  test('the in.jsonl appender fits on one cmd.exe line, so it can keep stdin for the lines', () {
+    final dir = '${r'C:\Users\'}${'é' * 200}${r'\.ompanion\run\20260926T121807-195ca655'}';
+    expect(encodedPowerShellCommand(CommandShell.cmd, '$powershellPreamble${windowsAppenderScript(dir)}'), isNotNull);
   });
 
   group('with PowerShell 7', skip: pwsh == null ? 'pwsh is not installed' : null, () {

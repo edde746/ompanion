@@ -34,6 +34,9 @@ final class _Silent implements LineChannel {
 
 /// A session whose omp cannot be stopped because the machine is unreachable.
 final class _Session implements LiveSession {
+
+  @override
+  Future<void> Function()? get loadEarlier => null;
   @override
   late final RpcClient rpc = RpcClient(_Silent(), deviceId: 'test');
   @override
@@ -118,6 +121,9 @@ final class _Omp implements LineChannel {
 
 /// A session whose run streams while paused, with messages queued.
 final class _PausedSession implements LiveSession {
+
+  @override
+  Future<void> Function()? get loadEarlier => null;
   _PausedSession(this.omp);
 
   final _Omp omp;

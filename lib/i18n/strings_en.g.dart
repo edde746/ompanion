@@ -409,6 +409,15 @@ class Translations$sidebar$en {
 
 	/// en: 'No machines yet.'
 	String get noMachines => 'No machines yet.';
+
+	/// en: 'Search sessions'
+	String get search => 'Search sessions';
+
+	/// en: 'Search'
+	String get searchHint => 'Search';
+
+	/// en: 'No matching sessions.'
+	String get noMatches => 'No matching sessions.';
 }
 
 // Path: machines
@@ -1039,6 +1048,9 @@ class Translations$settings$en {
 
 	/// en: 'Command palette'
 	String get shortcutPalette => 'Command palette';
+
+	/// en: 'Search sessions'
+	String get shortcutSearchSessions => 'Search sessions';
 
 	/// en: 'Stop the running turn'
 	String get shortcutAbort => 'Stop the running turn';
@@ -3629,6 +3641,9 @@ extension on Translations {
 			'sidebar.usage' => 'Usage',
 			'sidebar.settings' => 'Settings',
 			'sidebar.noMachines' => 'No machines yet.',
+			'sidebar.search' => 'Search sessions',
+			'sidebar.searchHint' => 'Search',
+			'sidebar.noMatches' => 'No matching sessions.',
 			'machines.thisComputer' => 'This computer',
 			'machines.tailscale' => 'Tailscale',
 			'machines.route' => 'Route',
@@ -3802,6 +3817,7 @@ extension on Translations {
 			'settings.shortcutNewSession' => 'New session',
 			'settings.shortcutTogglePause' => 'Pause or resume the session',
 			'settings.shortcutPalette' => 'Command palette',
+			'settings.shortcutSearchSessions' => 'Search sessions',
 			'settings.shortcutAbort' => 'Stop the running turn',
 			'time.now' => 'now',
 			'time.minutes' => ({required Object n}) => '${n}m',
@@ -3885,12 +3901,12 @@ extension on Translations {
 			'chat.abortFailed' => ({required Object error}) => 'Could not stop the run: ${error}',
 			'chat.noCompanion' => 'The companion is not loaded in this session, so pause, queue editing and shell or Python runs are unavailable.',
 			'chat.more' => 'More',
+			_ => null,
+		} ?? switch (path) {
 			'chat.copyPath' => 'Copy session file path',
 			'chat.detach' => 'Close on this device',
 			'chat.stopSession' => 'Stop the omp process',
 			'chat.stopSessionFailed' => ({required Object error}) => 'Could not stop the omp process: ${error}',
-			_ => null,
-		} ?? switch (path) {
 			'chat.reconnecting' => ({required Object attempt, required Object seconds}) => 'Connection lost. Reconnecting (attempt ${attempt}) in ${seconds} s.',
 			'chat.retryNow' => 'Retry now',
 			'chat.closed' => 'This session is closed.',

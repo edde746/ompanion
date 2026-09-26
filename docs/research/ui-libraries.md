@@ -151,7 +151,7 @@ On the UI side, turn the runs into `TextSpan`s:
 - flutter_chat_ui 2.12.0 uses reversed lists and fixes the drift with scrollview_observer 1.27.3 (MIT, 2026-09-14, 620★, 3 open). Its "generative" mode requires calling `standby(mode: ChatScrollObserverHandleMode.generative)` before every update.
 
 **Packages I would not use**
-- **super_sliver_list 0.4.1** (released 2024-03-26, last push 2024-07-24, MIT, 427★, 33 open). The maintainer wrote on 2025-12-12: "haven't had much time". Crash bugs are open in `getOffsetToReveal` and `addTrailingChild` (#67, #70). Nobody has reported build failures on 2025–26 Flutter versions, but nothing shows it tested on 3.47, so it is unverified. Only worth adding if we need exact jump-to-index across unbuilt items of varying height.
+- **super_sliver_list 0.4.1** (released 2024-03-26, last push 2024-07-24, MIT, 427★, 33 open; still the latest on pub.dev on 2026-09-26). The maintainer wrote on 2025-12-12: "haven't had much time". Crash bugs are open in `getOffsetToReveal` and `addTrailingChild` (#67, #70). Nobody has reported build failures on 2025–26 Flutter versions, but nothing shows it tested on 3.47, so it is unverified. Its per-item extent estimation is what the transcript needed for a steady scrollbar; Flutter's own `SliverChildDelegate.estimateMaxScrollOffset` hook gives the same without the package (see "Performance").
 - **scrollable_positioned_list 0.3.8** (2023-05-08). Its repository, google/flutter.widgets, is archived with 258 open issues.
 - **flutter_list_view 1.1.29** (2024-12-17, 62★). Stale.
 
@@ -367,6 +367,7 @@ the last turn folds inside the measured frames.
 | Incremental rows | 1.34 ms | 2.34 ms | 7.08 ms | 8.15 ms | 0 of 476 |
 | Incremental rows, measured again (median of 3 runs, alternating with the next row) | 0.93 ms | 2.15 ms | 6.64 ms | 8.90 ms | 0 of 469 |
 | Folded turns (median of 3 runs) | 0.94 ms | 2.27 ms | 6.40 ms | 8.96 ms | 0 of 468 |
+| Per-row scroll extents (2 runs each, alternating with the same code without them: 1.51/2.59/5.84/9.46 and 1.64/2.75/7.63/11.03 ms) | 0.97 / 1.24 ms | 1.85 / 2.23 ms | 5.83 / 4.94 ms | 9.30 / 5.29 ms | 0 of 465 / 473 |
 
 Raster with folded turns: p90 1.30 ms, max 2.96 ms (medians). Over 10 runs with folded turns and 8 without, no
 frame took more than 16.7 ms, and each build had one run with a single 12 ms frame. The build max comes from the
@@ -394,3 +395,78 @@ What changed:
   compares equal while its facts and open state do, so its widget is reused.
 - Coalescing is not needed in the app: `SessionViewBuilder` rebuilds through `setState`, so several views in
   one frame produce one build.
+
+### Opening a session
+
+Time from a click on a session in the sidebar to the first frame of its transcript, profile build on this Mac
+(M-series), sessions against the fake provider: "Small" is 36 items (229 KB file), "Big" 1,836 items with
+thinking, `bash` and `read` calls with 16 KB results, markdown with code and tables (7.6 MB file, a recorded session
+repeated). Cold: no run holds the session, so the click launches omp. Attach: a run holds it, and the device replays
+its `out.jsonl`, which holds one earlier open. SSH: the `testing/sshd` target container.
+
+| | Before | After |
+|---|---|---|
+| This computer, Small, cold / attach (median of 3) | 376 / 161 ms | 499 / 188 ms |
+| This computer, Big, cold / attach (median of 3) | 784 / 911 ms | 572 / 290 ms |
+| SSH, Small, cold / attach (before: single runs; after: median of 3) | 2,670 / 1,129 ms | 945 / 250 ms |
+| SSH, Big, cold / attach (before: single runs; after: median of 3) | 16,673 / 29,079 ms | 1,488 / 979 ms |
+
+The Small "after" medians are within the spread of both builds (414–699 ms and 373–415 ms cold); the machine ran
+other builds meanwhile. Where the time went, and what changed:
+- **SSH cipher.** dartssh2's AES-GCM, first in its default list, moves 0.8 MB/s; chacha20-poly1305 13.8 MB/s. The
+  link now prefers chacha20-poly1305 (`ssh_link.dart`). The Big history (10.2 MB of `rpc_chunk`s) took 15 s to
+  arrive before.
+- **History from the session file.** `get_entries` answered with the whole history: omp spent about 400 ms
+  producing 10.2 MB, the app 230 ms decoding it on the UI isolate, and every later attach replayed it from
+  `out.jsonl` (twice after two opens). The first attach now reads the file `meta.json` names while omp starts,
+  parses it on another isolate (90–140 ms for 7.6 MB) and asks omp only for `get_entries(since: <its last
+  entry>)`.
+- **Replaying `out.jsonl` on macOS.** BSD `tail -F` copies byte by byte, about 15 MB/s; the follower now sends what
+  the log holds with a plain `tail` (20 MB in 15 ms) before `tail -F` follows.
+- **Frames over 1 MiB decode on another isolate** (`RpcFrameDecoder.pushOffIsolate`); later lines wait, so frame
+  order holds. Decoding the 7.6 MB history took 90–110 ms on the UI isolate.
+- **`get_available_commands` goes first.** omp answers in order; the companion calls waited 590 ms for the history
+  answer queued ahead of it.
+
+What remains for a cold open: launching the run (130–340 ms, `openRun` with its run listing) and omp starting
+and loading the session (260–400 ms for these two, then `ready`). The row model for 1,836 items takes 1.4–2.5 ms
+and the first frame 10–40 ms.
+
+**Large sessions open with their latest page.** A session file over 16 MB opens with its last 2 MB (about 330 items
+here); scrolling up, the transcript reads the 2 MB before it (`LiveSession.loadEarlier`), and so on to the start. A
+leaf on an older branch reads back until its page is loaded, and revealing an entry from the tree loads pages until
+it arrives. Session files of the user's machine for scale: p50 0.9 MB, p90 3.0 MB, p99 9.6 MB, five over 50 MB, the
+largest 414 MB. Synthetic sessions of 24,030 items (100 MB) and 96,012 items (400 MB), two rounds each:
+
+| | Before: whole file | After: last 2 MB |
+|---|---|---|
+| This computer, 100 MB, cold / attach | 1,485 and 1,425 / 1,167 and 1,145 ms | 734 and 590 / 265 and 164 ms |
+| This computer, 400 MB, cold / attach | 6,825 and 6,509 / 5,727 and 5,521 ms | 1,628 and 1,485 / 176 and 184 ms |
+| SSH, 100 MB, cold / attach | 6,436 and 6,284 / 5,980 and 5,931 ms | 1,556 and 732 / 297 and 191 ms |
+| SSH, 400 MB, cold / attach | 26,352 and 25,877 / 25,052 and 24,981 ms | 3,673 and 1,754 / 202 and 273 ms |
+| Peak app memory (RSS), 100 MB / 400 MB, this computer | 748 MB / 2,256 MB | 237 MB / 238 MB |
+| Peak app memory (RSS), 100 MB / 400 MB, SSH | 663 MB / 1,890 MB | 241 MB / 244 MB |
+
+The rest of the 400 MB cold open is omp's start: attaching to the same run takes 180 ms.
+
+### Scrollbar
+
+A sliver list not laid out to its end estimates its extent as the average height of the rows it built (the
+dozen around the viewport) times the rows it did not. Scrolling from one-line answers into answers with code blocks
+changed that average, and with it the extent of every row not built: in the widget test in
+`transcript_view_test.dart`, one wheel step changed the scroll range by up to 65 %, and the thumb's length with it.
+The transcript's delegates now implement `estimateMaxScrollOffset`: the rows laid out plus, for each row not laid
+out, its height at its last layout or an estimate from its kind and text (`row_extents.dart`). A row taller than
+its estimate moves the total by its own error only; the same test stays under 1 % per step.
+
+In the app (profile build, wheel steps of 150 px from the bottom to the top, window 1280 × 800):
+
+| | Scroll range change per step, worst | Steps over 1 % | Thumb movement beyond the scroll, worst | Steps over 2 px |
+|---|---|---|---|---|
+| 1,836 items, before | 21.1 % | 34 of 693 | 30.3 px | 37 |
+| 1,836 items, after | 0.1 % | 0 of 688 | 0.3 px | 0 |
+| 36 items, before (thumb 117–142 px) | 12.5 % | 3 of 26 | 65.9 px | 3 |
+| 36 items, after (thumb 139–142 px) | 1.4 % | 1 of 22 | 5.3 px | 2 |
+
+In a paged session the range covers the loaded history only, so the thumb shrinks each time a page arrives: in the
+100 MB session, every 200 wheel steps (about 28,000 px) a 2 MB page loaded and the scroll never stalled.

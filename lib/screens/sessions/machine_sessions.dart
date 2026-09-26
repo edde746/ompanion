@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:omp_core/host.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
@@ -9,212 +8,16 @@ import 'package:provider/provider.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
-import '../../providers/settings_provider.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/session_name.dart';
 import '../../sessions/session_reads.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../config/machine_config_screen.dart';
-import '../machines/connect_dialogs.dart';
+import '../shell/sidebar_tree.dart';
 import 'install_omp_dialog.dart';
 import 'machine_status.dart';
 import 'new_session_dialog.dart';
-
-/// A session row: a file from the machine's listing, a session this device has open, or both.
-final class _Entry {
-  const _Entry({this.summary, this.session});
-
-  final SessionSummary? summary;
-  final LiveSession? session;
-
-  String get cwd => summary?.cwd ?? session?.cwd ?? '';
-
-  DateTime? get modified => summary?.modified;
-}
-
-/// One machine in the sidebar: its status and actions, then its projects (sessions grouped by working
-/// directory) and their sessions with running and waiting-for-input badges.
-class MachineSection extends StatefulWidget {
-  const MachineSection({super.key, required this.machine});
-
-  final Machine machine;
-
-  @override
-  State<MachineSection> createState() => _MachineSectionState();
-}
-
-class _MachineSectionState extends State<MachineSection> {
-  /// This computer starts expanded and connected; SSH machines connect when opened, so the app never dials
-  /// (and prompts for) machines the user did not ask for.
-  late bool _expanded = widget.machine is LocalMachine;
-  final Set<String> _opening = {};
-  final Set<String> _showAll = {};
-
-  @override
-  void initState() {
-    super.initState();
-    if (_expanded) WidgetsBinding.instance.addPostFrameCallback((_) => _loadIfNeeded());
-  }
-
-  void _loadIfNeeded() {
-    if (!mounted) return;
-    final sessions = context.read<SessionsProvider>();
-    final listing = sessions.listingOf(widget.machine);
-    if (listing.loadedAt == null && !listing.loading) unawaited(sessions.refresh(widget.machine));
-  }
-
-  void _toggle() {
-    setState(() => _expanded = !_expanded);
-    if (_expanded) _loadIfNeeded();
-  }
-
-  Future<void> _open(_Entry entry) async {
-    final sessions = context.read<SessionsProvider>();
-    final shell = context.read<ShellProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-    final t = context.t;
-    final open = entry.session;
-    if (open != null && open.linkState is! LinkClosed) {
-      sessions.select(open);
-      shell.select(const SessionSelection());
-      return;
-    }
-    final summary = entry.summary;
-    if (summary == null) return;
-    setState(() => _opening.add(summary.path));
-    try {
-      // Attaches to the live run holding the file, or launches one.
-      await sessions.open(widget.machine, ResumeSession(summary.path));
-      shell.select(const SessionSelection());
-    } on Object catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: describeConnectError(t, error)))));
-    } finally {
-      if (mounted) setState(() => _opening.remove(summary.path));
-    }
-  }
-
-  List<(String, List<_Entry>)> _projects(SessionsProvider sessions) {
-    final open = [
-      for (final session in sessions.openSessions)
-        if (sessions.machineOf(session)?.id == widget.machine.id) session,
-    ];
-    final matched = <LiveSession>{};
-    final entries = <_Entry>[];
-    for (final summary in sessions.listingOf(widget.machine).sessions) {
-      final session = open
-          .where((s) => s.sessionPath == summary.path || (summary.runId != null && s.runId == summary.runId))
-          .firstOrNull;
-      if (session != null) matched.add(session);
-      entries.add(_Entry(summary: summary, session: session));
-    }
-    // Open sessions the listing does not show yet come first: they are the newest.
-    entries.insertAll(0, [
-      for (final session in open)
-        if (!matched.contains(session)) _Entry(session: session),
-    ]);
-    final byCwd = <String, List<_Entry>>{};
-    for (final entry in entries) {
-      byCwd.putIfAbsent(entry.cwd, () => []).add(entry);
-    }
-    return [for (final MapEntry(:key, :value) in byCwd.entries) (key, value)];
-  }
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final theme = Theme.of(context);
-    final sessions = context.watch<SessionsProvider>();
-    final shell = context.watch<ShellProvider>();
-    final machine = widget.machine;
-    final runtime = sessions.runtimeFor(machine);
-    final listing = sessions.listingOf(machine);
-    return MachineStatusBuilder(
-      runtime: runtime,
-      builder: (context, status) {
-        final home = switch (status) {
-          MachineOnline(:final probe) || MachineNeedsOmp(:final probe) => probe.home,
-          _ => null,
-        };
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _MachineHeader(
-              machine: machine,
-              status: status,
-              expanded: _expanded,
-              loading: listing.loading,
-              selected: shell.selection == MachineSelection(machine.id),
-              onTap: () {
-                shell.select(MachineSelection(machine.id));
-                if (!_expanded) _toggle();
-              },
-              onToggle: _toggle,
-            ),
-            if (_expanded) ...[
-              // The header's dot and tooltip carry the status; these say what to do about it.
-              if (status is MachineNeedsOmp)
-                _Notice(
-                  icon: Icons.download_outlined,
-                  text: t.sessions.needsOmp(reason: status.reason),
-                  action: t.sessions.install,
-                  onAction: () => unawaited(showInstallOmpDialog(context, machine)),
-                ),
-              if (status is MachineFailed)
-                _Notice(
-                  icon: Icons.error_outline,
-                  text: describeConnectError(t, status.cause),
-                  action: t.common.retry,
-                  onAction: () => unawaited(sessions.refresh(machine)),
-                  error: true,
-                ),
-              if (status is MachineOffline && !listing.loading)
-                _Notice(
-                  icon: Icons.power_outlined,
-                  text: t.sessions.offline,
-                  action: t.sessions.connect,
-                  onAction: () => unawaited(sessions.refresh(machine)),
-                ),
-              if (listing.error != null && status is MachineOnline)
-                _Notice(
-                  icon: Icons.error_outline,
-                  text: t.sessions.listFailed(error: describeConnectError(t, listing.error!)),
-                  action: t.common.retry,
-                  onAction: () => unawaited(sessions.refresh(machine)),
-                  error: true,
-                ),
-              if (status is MachineOnline && listing.loadedAt != null && listing.sessions.isEmpty && !_hasOpen(sessions))
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(_sessionIndent + 8, 4, 16, 8),
-                  child: Text(
-                    t.sessions.none,
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              for (final (cwd, entries) in _projects(sessions))
-                _Project(
-                  machineId: machine.id,
-                  cwd: cwd,
-                  home: home,
-                  entries: entries,
-                  showAll: _showAll.contains(cwd),
-                  opening: _opening,
-                  onShowAll: () => setState(() => _showAll.add(cwd)),
-                  onOpen: (entry) => unawaited(_open(entry)),
-                  onNewSession: status is MachineOnline
-                      ? () => unawaited(showNewSessionDialog(context, machine, cwd: cwd))
-                      : null,
-                ),
-              const SizedBox(height: 4),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  bool _hasOpen(SessionsProvider sessions) =>
-      sessions.openSessions.any((session) => sessions.machineOf(session)?.id == widget.machine.id);
-}
 
 /// Left insets of the sidebar's levels, from the row's rounded tone: the icon column (a project's folder icon, a
 /// session's mark) and the text column (the project's path, the session titles).
@@ -223,7 +26,7 @@ const double _iconSize = 14;
 const double _sessionIndent = _projectIndent + _iconSize + 6;
 
 /// Phones and tablets have no hover: row actions stay visible there.
-bool _touch(BuildContext context) => switch (Theme.of(context).platform) {
+bool sidebarTouch(BuildContext context) => switch (Theme.of(context).platform) {
   TargetPlatform.android || TargetPlatform.iOS || TargetPlatform.fuchsia => true,
   TargetPlatform.linux || TargetPlatform.macOS || TargetPlatform.windows => false,
 };
@@ -248,7 +51,7 @@ class _SidebarRowState extends State<SidebarRow> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final touch = _touch(context);
+    final touch = sidebarTouch(context);
     const radius = BorderRadius.all(Radius.circular(AppSizes.radius));
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -307,8 +110,10 @@ class _Spinner extends StatelessWidget {
   );
 }
 
-class _MachineHeader extends StatefulWidget {
-  const _MachineHeader({
+/// A machine's row: its chevron, status dot and name, and on hover a new session button and its menu.
+class MachineHeader extends StatefulWidget {
+  const MachineHeader({
+    super.key,
     required this.machine,
     required this.status,
     required this.expanded,
@@ -324,13 +129,15 @@ class _MachineHeader extends StatefulWidget {
   final bool loading;
   final bool selected;
   final VoidCallback onTap;
-  final VoidCallback onToggle;
+
+  /// Null while searching: the search decides what shows.
+  final VoidCallback? onToggle;
 
   @override
-  State<_MachineHeader> createState() => _MachineHeaderState();
+  State<MachineHeader> createState() => _MachineHeaderState();
 }
 
-class _MachineHeaderState extends State<_MachineHeader> {
+class _MachineHeaderState extends State<MachineHeader> {
   /// The actions stay while their menu is open, though the pointer left the row for the menu.
   bool _menuOpen = false;
 
@@ -346,7 +153,7 @@ class _MachineHeaderState extends State<_MachineHeader> {
       SshMachine(:final tailscale) => tailscale ? Icons.lan_outlined : Icons.dns_outlined,
     };
     final busy = widget.loading || status is MachineConnecting;
-    final touch = _touch(context);
+    final touch = sidebarTouch(context);
     return SidebarRow(
       indent: 2,
       selected: widget.selected,
@@ -423,8 +230,19 @@ class _MachineHeaderState extends State<_MachineHeader> {
   }
 }
 
-class _Notice extends StatelessWidget {
-  const _Notice({required this.icon, required this.text, required this.action, required this.onAction, this.error = false});
+/// Why a machine lists no sessions and what to do about it, under the machine's row. [extent] tall: the text takes
+/// two lines at most, and the tooltip has all of it.
+class NoticeRow extends StatelessWidget {
+  const NoticeRow({
+    super.key,
+    required this.icon,
+    required this.text,
+    required this.action,
+    required this.onAction,
+    this.error = false,
+  });
+
+  static double extent({required bool touch}) => touch ? 52 : 44;
 
   final IconData icon;
   final String text;
@@ -437,17 +255,20 @@ class _Notice extends StatelessWidget {
     final theme = Theme.of(context);
     final color = error ? AppColors.of(context).error : theme.colorScheme.onSurfaceVariant;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(_projectIndent + 8, 2, 12, 2),
+      padding: const EdgeInsets.fromLTRB(_projectIndent + 8, 0, 12, 0),
       child: Row(
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bodySmall?.copyWith(color: color),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+            child: Tooltip(
+              message: text,
+              child: Text(
+                text,
+                style: theme.textTheme.bodySmall?.copyWith(color: color),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
           TextButton(onPressed: onAction, child: Text(action)),
@@ -457,104 +278,139 @@ class _Notice extends StatelessWidget {
   }
 }
 
-/// A project folder in the sidebar: its row, then its sessions unless the user collapsed it. The collapsed state is
-/// an app setting per machine and folder. A collapsed row carries the mark of the session that most needs a look,
-/// so a session waiting for input is not hidden silently.
-class _Project extends StatelessWidget {
-  const _Project({
-    required this.machineId,
+/// "No sessions yet." under an online machine without any.
+class EmptyRow extends StatelessWidget {
+  const EmptyRow({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: _sessionIndent + 8, right: 16),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          context.t.sessions.none,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ),
+    );
+  }
+}
+
+/// A project folder's row. The collapsed state is an app setting per machine and folder. A collapsed row carries the
+/// mark of the session that most needs a look, so a session waiting for input is not hidden silently.
+class ProjectRow extends StatelessWidget {
+  const ProjectRow({
+    super.key,
     required this.cwd,
     required this.home,
     required this.entries,
-    required this.showAll,
-    required this.opening,
-    required this.onShowAll,
-    required this.onOpen,
+    required this.collapsed,
+    required this.onToggle,
     required this.onNewSession,
+    this.match,
   });
 
-  /// Sessions listed before "Show more".
-  static const _shortListCount = 5;
-
-  final String machineId;
   final String cwd;
   final String? home;
-  final List<_Entry> entries;
-  final bool showAll;
-  final Set<String> opening;
-  final VoidCallback onShowAll;
-  final ValueChanged<_Entry> onOpen;
+  final List<SidebarEntry> entries;
+  final bool collapsed;
+
+  /// Null while searching: the search decides what shows.
+  final VoidCallback? onToggle;
   final VoidCallback? onNewSession;
+
+  /// The search match in the shown path.
+  final TextRange? match;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
-    final settings = context.watch<SettingsProvider>();
-    final collapsedPref = Prefs.projectCollapsed(machineId, cwd);
-    final collapsed = settings.get(collapsedPref);
-    void toggle() => unawaited(settings.set(collapsedPref, !collapsed));
-    // Sessions open here (the selected one, one waiting for an answer) stay listed past the short list.
-    final shown = showAll
-        ? entries
-        : [
-            for (final (index, entry) in entries.indexed)
-              if (index < _shortListCount || entry.session != null) entry,
-          ];
     final newSession = onNewSession;
     final muted = theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SidebarRow(
-          // The chevron fills the gap before the folder icon, in the machine chevron's column.
-          indent: _projectIndent - _RowButton.size,
-          onTap: toggle,
-          builder: (context, hovered) => Row(
-            children: [
-              _RowButton(
-                icon: collapsed ? Icons.chevron_right : Icons.expand_more,
-                tooltip: collapsed ? t.sessions.expand : t.sessions.collapse,
-                onPressed: toggle,
-              ),
-              Icon(Icons.folder_outlined, size: _iconSize, color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: _sessionIndent - _projectIndent - _iconSize),
-              Expanded(
-                child: Tooltip(
-                  message: cwd,
-                  child: Text(
-                    cwd.isEmpty ? t.sessions.unknownDirectory : shortPath(cwd, home),
-                    style: muted,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              if (collapsed) _ProjectMark(entries: entries),
-              if (hovered && newSession != null && cwd.isNotEmpty)
-                _RowButton(icon: Icons.add, tooltip: t.sessions.newSessionHere, onPressed: newSession),
-            ],
+    return SidebarRow(
+      // The chevron fills the gap before the folder icon, in the machine chevron's column.
+      indent: _projectIndent - _RowButton.size,
+      onTap: onToggle,
+      builder: (context, hovered) => Row(
+        children: [
+          _RowButton(
+            icon: collapsed ? Icons.chevron_right : Icons.expand_more,
+            tooltip: collapsed ? t.sessions.expand : t.sessions.collapse,
+            onPressed: onToggle,
           ),
-        ),
-        if (!collapsed) ...[
-          for (final entry in shown)
-            _SessionTile(
-              machineId: machineId,
-              entry: entry,
-              opening: entry.summary != null && opening.contains(entry.summary!.path),
-              onTap: () => onOpen(entry),
+          Icon(Icons.folder_outlined, size: _iconSize, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: _sessionIndent - _projectIndent - _iconSize),
+          Expanded(
+            child: Tooltip(
+              message: cwd,
+              child: _MatchText(cwd.isEmpty ? t.sessions.unknownDirectory : shortPath(cwd, home), match, style: muted),
             ),
-          if (shown.length < entries.length)
-            SidebarRow(
-              indent: _sessionIndent,
-              onTap: onShowAll,
-              builder: (context, _) => Align(
-                alignment: Alignment.centerLeft,
-                child: Text(t.sessions.showMore(n: entries.length - shown.length), style: muted),
-              ),
-            ),
+          ),
+          if (collapsed) _ProjectMark(entries: entries),
+          if (hovered && newSession != null && cwd.isNotEmpty)
+            _RowButton(icon: Icons.add, tooltip: t.sessions.newSessionHere, onPressed: newSession),
         ],
-      ],
+      ),
+    );
+  }
+}
+
+/// "Show N more" after a project's short list.
+class ShowMoreRow extends StatelessWidget {
+  const ShowMoreRow({super.key, required this.hidden, required this.onTap});
+
+  final int hidden;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SidebarRow(
+      indent: _sessionIndent,
+      onTap: onTap,
+      builder: (context, _) => Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          context.t.sessions.showMore(n: hidden),
+          style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ),
+    );
+  }
+}
+
+/// One line of [text] with the search [match] in it on a grey tone.
+class _MatchText extends StatelessWidget {
+  const _MatchText(this.text, this.match, {required this.style});
+
+  final String text;
+  final TextRange? match;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final match = this.match;
+    if (match == null || match.end > text.length) {
+      return Text(text, style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
+    }
+    final tone = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.22);
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: match.textBefore(text)),
+          TextSpan(
+            text: match.textInside(text),
+            style: TextStyle(backgroundColor: tone),
+          ),
+          TextSpan(text: match.textAfter(text)),
+        ],
+      ),
+      style: style,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -563,7 +419,7 @@ class _Project extends StatelessWidget {
 class _ProjectMark extends StatelessWidget {
   const _ProjectMark({required this.entries});
 
-  final List<_Entry> entries;
+  final List<SidebarEntry> entries;
 
   static const _order = [SessionStatus.needsInput, SessionStatus.working, SessionStatus.runningOnMachine];
 
@@ -588,7 +444,10 @@ class _ProjectMark extends StatelessWidget {
         padding: const EdgeInsets.only(left: 6, right: 4),
         child: SizedBox.square(
           dimension: _iconSize,
-          child: Tooltip(message: words, child: Center(child: mark)),
+          child: Tooltip(
+            message: words,
+            child: Center(child: mark),
+          ),
         ),
       );
     }
@@ -636,13 +495,32 @@ SessionStatus _liveStatus(SessionView view) {
 /// What a session row says about its session, beside unread.
 enum SessionStatus { none, opening, working, needsInput, failed, disconnected, runningOnMachine }
 
-class _SessionTile extends StatelessWidget {
-  const _SessionTile({required this.machineId, required this.entry, required this.opening, required this.onTap});
+/// The title of [entry]'s row: the open session's live name, else its file's.
+String sidebarEntryTitle(Translations t, SidebarEntry entry) {
+  final session = entry.session;
+  final summary = entry.summary;
+  if (session != null) return liveSessionName(t, session.view, summary);
+  return sessionName(t, title: summary?.title, firstMessage: summary?.firstMessage);
+}
+
+/// A session's row; an open session's follows its live title and status.
+class SessionTile extends StatelessWidget {
+  const SessionTile({
+    super.key,
+    required this.machineId,
+    required this.entry,
+    required this.opening,
+    required this.onTap,
+    this.match,
+  });
 
   final String machineId;
-  final _Entry entry;
+  final SidebarEntry entry;
   final bool opening;
   final VoidCallback onTap;
+
+  /// The search match in the title.
+  final TextRange? match;
 
   @override
   Widget build(BuildContext context) {
@@ -655,6 +533,7 @@ class _SessionTile extends StatelessWidget {
     final selected = session != null && identical(sessions.active, session) && shell.selection is SessionSelection;
     Widget tile(String title, SessionStatus status, bool unread) => SessionRow(
       title: title,
+      match: match,
       status: opening ? SessionStatus.opening : status,
       unread: unread && !selected,
       modified: entry.modified,
@@ -663,7 +542,7 @@ class _SessionTile extends StatelessWidget {
     );
     if (session == null) {
       return tile(
-        sessionName(t, title: summary?.title, firstMessage: summary?.firstMessage),
+        sidebarEntryTitle(t, entry),
         summary?.running ?? false ? SessionStatus.runningOnMachine : SessionStatus.none,
         summary != null && reads.isListedUnread(machineId, summary),
       );
@@ -693,6 +572,7 @@ class SessionRow extends StatelessWidget {
     required this.modified,
     required this.selected,
     required this.onTap,
+    this.match,
   });
 
   final String title;
@@ -701,6 +581,9 @@ class SessionRow extends StatelessWidget {
   final DateTime? modified;
   final bool selected;
   final VoidCallback? onTap;
+
+  /// The search match in [title], on a grey tone.
+  final TextRange? match;
 
   @override
   Widget build(BuildContext context) {
@@ -726,18 +609,20 @@ class SessionRow extends StatelessWidget {
               dimension: _iconSize,
               child: mark == null
                   ? null
-                  : Tooltip(message: states.join(' · '), child: Center(child: mark)),
+                  : Tooltip(
+                      message: states.join(' · '),
+                      child: Center(child: mark),
+                    ),
             ),
             const SizedBox(width: _sessionIndent - _projectIndent - _iconSize),
             Expanded(
-              child: Text(
+              child: _MatchText(
                 title,
+                match,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: unread ? FontWeight.w700 : FontWeight.w400,
                   color: unread || selected ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.85),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (time != null)

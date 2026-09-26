@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:omp_core/session.dart';
@@ -93,6 +94,114 @@ void main() {
     expect(live.sessionPath, run.sessionFile);
     await live.detach();
     expect(live.linkState, isA<LinkClosed>());
+  });
+
+  test('a first attach takes the history from the session file and asks omp only for the entries after it', () async {
+    final e1 = entry('e1', null, user('hi', 1));
+    final e2 = entry('e2', 'e1', assistant(2, [text('hello')]));
+    final e3 = entry('e3', 'e2', user('more', 3));
+    run.entries.addAll([e1, e2, e3]);
+    // The file lags omp by one entry, and ends in a line omp is still writing.
+    access.files[run.sessionFile!] = utf8.encode(
+      '${jsonEncode({'type': 'title', 'v': 1, 'title': ''})}\n'
+      '${jsonEncode({'type': 'session', 'version': 3, 'id': 's1', 'cwd': '/work'})}\n'
+      '${jsonEncode(e1)}\n${jsonEncode(e2)}\n{"type":"message","id":"e3","par',
+    );
+    final live = session(recordedPath: run.sessionFile);
+    await live.start();
+
+    expect(access.fileReads, [run.sessionFile]);
+    expect(texts(live.view), ['user: hi', 'assistant: hello', 'user: more']);
+    expect([for (final item in live.view.transcript) item.entryId], ['e1', 'e2', 'e3']);
+    expect(
+      [for (final command in run.received) if (command['type'] == 'get_entries') command['since']],
+      ['e2'],
+      reason: 'omp lists only what the file lacks',
+    );
+    await live.detach();
+  });
+
+  group('a session file over the paging threshold', () {
+    // 30 question/answer turns, one entry per line, about 190 bytes each.
+    List<Map<String, Object?>> chain() => [
+      for (var n = 0; n < 60; n++)
+        entry('e$n', n == 0 ? null : 'e${n - 1}', n.isEven ? user('question $n', n) : assistant(n, [text('answer $n')])),
+    ];
+    RunSession paged() {
+      final live = RunSession(
+        runId: 'r1',
+        cwd: '/work',
+        access: access,
+        deviceId: 'dev-a',
+        recordedPath: run.sessionFile,
+        backoff: (_) => Duration.zero,
+        pagedHistoryFrom: 2000,
+        historyPageBytes: 1500,
+      );
+      return live;
+    }
+
+    test('opens with its last page, and earlier pages load until the view holds the whole history', () async {
+      final entries = chain();
+      run.entries.addAll(entries);
+      access.files[run.sessionFile!] = utf8.encode('${entries.map(jsonEncode).join('\n')}\n');
+      final live = paged();
+      await live.start();
+
+      final first = texts(live.view);
+      expect(first.length, inInclusiveRange(2, 12), reason: 'only the last 1,500 bytes');
+      expect(first.last, 'assistant: answer 59');
+      expect(live.loadEarlier, isNotNull);
+      var pages = 0;
+      for (var load = live.loadEarlier; load != null; load = live.loadEarlier) {
+        final before = live.view.transcript.length;
+        await load();
+        expect(live.view.transcript.length, greaterThan(before), reason: 'each page adds earlier rows');
+        pages++;
+      }
+      expect(pages, greaterThan(3));
+      expect(texts(live.view), [for (var n = 0; n < 60; n++) n.isEven ? 'user: question $n' : 'assistant: answer $n']);
+      expect([for (final item in live.view.transcript) item.entryId], [for (var n = 0; n < 60; n++) 'e$n']);
+      await live.detach();
+    });
+
+    test('a leaf on an older branch is read back to, and the view shows its branch', () async {
+      final entries = chain();
+      // A second branch off e3, written after the first: the reader went back to it.
+      final branch = [
+        entry('b0', 'e3', user('other question', 100)),
+        entry('b1', 'b0', assistant(101, [text('other answer')])),
+      ];
+      run.entries.addAll([...entries.take(4), ...branch, ...entries.skip(4)]);
+      run.leafId = 'b1';
+      access.files[run.sessionFile!] = utf8.encode('${run.entries.map(jsonEncode).join('\n')}\n');
+      final live = paged();
+      await live.start();
+      expect(texts(live.view).skip(texts(live.view).length - 2), ['user: other question', 'assistant: other answer']);
+      for (var load = live.loadEarlier; load != null; load = live.loadEarlier) {
+        await load();
+      }
+      expect(texts(live.view), ['user: question 0', 'assistant: answer 1', 'user: question 2', 'assistant: answer 3',
+        'user: other question', 'assistant: other answer']);
+      await live.detach();
+    });
+  });
+
+  test('a session file that omp does not know, or a malformed one, leaves the history to get_entries', () async {
+    for (final file in [
+      '${jsonEncode(entry('x1', null, user('another session', 1)))}\n',
+      'not json\n${jsonEncode(entry('e1', null, user('hi', 1)))}\n',
+    ]) {
+      run = FakeRun();
+      access = FakeAccess(run);
+      run.entries.addAll([entry('e1', null, user('hi', 1)), entry('e2', 'e1', assistant(2, [text('hello')]))]);
+      access.files[run.sessionFile!] = utf8.encode(file);
+      final live = session(recordedPath: run.sessionFile);
+      await live.start();
+      expect(texts(live.view), ['user: hi', 'assistant: hello'], reason: file);
+      expect(run.received.where((command) => command['type'] == 'get_entries').last['since'], isNull, reason: file);
+      await live.detach();
+    }
   });
 
   test('a dialog answered on any device closes on this one', () async {

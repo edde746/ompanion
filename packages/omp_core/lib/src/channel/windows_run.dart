@@ -31,7 +31,8 @@ const windowsRunCmd =
 
 /// `feed.ps1`: copies bytes appended to `in.jsonl` to stdout, polling every 50 ms, and exits once
 /// `in.jsonl.stop` exists and everything before it was copied. Its exit closes omp's stdin, omp's only
-/// graceful stop on Windows. `ReadWrite, Delete` sharing lets sftp-server append while it reads.
+/// graceful stop on Windows. `ReadWrite, Delete` sharing lets the appenders (`windowsAppenderScript`) write
+/// while it reads.
 const windowsFeedScript = r'''
 $ErrorActionPreference = 'Stop'
 $run = $env:OMPANION_RUN
@@ -233,11 +234,19 @@ Future<({DetachedRun run, bool launched})> openWindowsRun(HostLink link, HostPro
 
 Future<RunChannel> attachWindowsRun(
   HostLink link,
+  HostProbe probe,
   DetachedRun run, {
   int? generation,
   int offset = 0,
   int? inboxOffset,
-}) => SftpRunChannel.attach(link, toSftpPath(run.dir), generation: generation, offset: offset, inboxOffset: inboxOffset);
+}) => SftpRunChannel.attach(
+  link,
+  toSftpPath(run.dir),
+  shell: probe.commandShell,
+  generation: generation,
+  offset: offset,
+  inboxOffset: inboxOffset,
+);
 
 /// Graceful: create `in.jsonl.stop`, so `feed.ps1` exits and omp sees the end of its stdin. Force:
 /// terminate omp (it gets no signal on Windows and skips its cleanup), then stop the feed as well.

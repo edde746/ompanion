@@ -143,6 +143,13 @@ void main() {
       expect(decoded.last.maxTokens, isNull);
     });
 
+    test('keep stream order: a frame after a chunked one arrives after it', () async {
+      final frames = client.frames.take(2).toList();
+      chunkLines({'type': 'big', 'text': 'x' * (2 << 20)}).forEach(channel.emitLine);
+      channel.emitLine('{"type":"agent_start"}');
+      expect([for (final frame in await frames) frame.raw['type']], ['big', 'agent_start']);
+    });
+
     test('fail with RpcProtocolException when the stream breaks the protocol, and the client stops', () async {
       final frames = client.frames.toList();
       final state = client.getState();

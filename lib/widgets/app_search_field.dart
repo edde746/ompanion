@@ -15,6 +15,7 @@ class AppSearchField extends StatefulWidget {
     this.debounce = const Duration(milliseconds: 250),
     this.onSubmitted,
     this.autofocus = false,
+    this.focusNode,
   });
 
   final ValueChanged<String> onChanged;
@@ -23,6 +24,7 @@ class AppSearchField extends StatefulWidget {
   final Duration debounce;
   final ValueChanged<String>? onSubmitted;
   final bool autofocus;
+  final FocusNode? focusNode;
 
   @override
   State<AppSearchField> createState() => _AppSearchFieldState();
@@ -55,6 +57,7 @@ class _AppSearchFieldState extends State<AppSearchField> {
   @override
   Widget build(BuildContext context) => TextField(
     controller: _controller,
+    focusNode: widget.focusNode,
     autofocus: widget.autofocus,
     textInputAction: TextInputAction.search,
     onChanged: _changed,

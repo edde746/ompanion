@@ -39,6 +39,11 @@ final class OpenPaletteIntent extends Intent {
   const OpenPaletteIntent();
 }
 
+/// Focus the sidebar's session search.
+final class SearchSessionsIntent extends Intent {
+  const SearchSessionsIntent();
+}
+
 /// Abort the shown session's run, as Esc does in the TUI.
 final class AbortRunIntent extends Intent {
   const AbortRunIntent();
@@ -66,6 +71,7 @@ Map<ShortcutActivator, Intent> appShortcuts(TargetPlatform platform) {
     primary(LogicalKeyboardKey.keyN): const NewSessionIntent(),
     primary(LogicalKeyboardKey.keyP, shift: true): const TogglePauseIntent(),
     primary(LogicalKeyboardKey.keyK): const OpenPaletteIntent(),
+    primary(LogicalKeyboardKey.keyF): const SearchSessionsIntent(),
     const SingleActivator(LogicalKeyboardKey.escape): const AbortRunIntent(),
   };
 }

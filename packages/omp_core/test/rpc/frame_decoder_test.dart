@@ -80,6 +80,29 @@ void main() {
       expect(decoder.push('{"type":"agent_start"}'), {'type': 'agent_start'});
     });
 
+    test('off the isolate, a completed sequence comes as a future of the same frame; other lines stay synchronous',
+        () async {
+      final decoder = _negotiated();
+      final frame = _bigFrame(2 * _mib);
+      final lines = chunkLines(frame);
+      for (final line in lines.take(lines.length - 1)) {
+        expect(decoder.pushOffIsolate(line), isNull);
+      }
+      final last = decoder.pushOffIsolate(lines.last);
+      expect(last, isA<Future<Map<String, Object?>?>>());
+      expect(await last, frame);
+      expect(decoder.pushOffIsolate('{"type":"agent_start"}'), {'type': 'agent_start'});
+    });
+
+    test('off the isolate, a sequence that is not JSON fails its future with a protocol error', () async {
+      final decoder = _negotiated();
+      final lines = chunkBytes(utf8.encode('{"type":"x","text":"${'a' * _mib}'));
+      for (final line in lines.take(lines.length - 1)) {
+        decoder.pushOffIsolate(line);
+      }
+      await expectLater(Future.value(decoder.pushOffIsolate(lines.last)), throwsA(isA<RpcProtocolException>()));
+    });
+
     test('decodes a multi-byte character split across two chunks', () {
       // "😀" is four UTF-8 bytes; place it so chunk 0 ends after its first byte.
       const prefix = '{"type":"notice","text":"';

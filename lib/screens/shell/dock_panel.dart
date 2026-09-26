@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
+import '../../app/window_chrome.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/dock_tab.dart';
 import '../../providers/machines_provider.dart';
@@ -69,27 +70,30 @@ class _DockPanelState extends State<DockPanel> with SingleTickerProviderStateMix
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-            // Five labelled tabs do not fit the dock's width; icons with the label as tooltip do. Each icon is
-            // centred in an equal slot without label padding, and the group is centred so its first tab stands
-            // clear of the chat header's dock toggle beside it.
-            child: Center(
-              child: SizedBox(
-                width: DockTab.values.length * _tabSlot,
-                child: TabBar(
-                  controller: _tabs,
-                  labelPadding: EdgeInsets.zero,
-                  tabs: [
-                    for (final tab in DockTab.values)
-                      Tab(
-                        height: AppSizes.control,
-                        child: Tooltip(
-                          message: dockTabLabel(t, tab),
-                          child: SizedBox.expand(child: Center(child: Icon(dockTabIcon(tab), size: 18))),
+          // The tabs' row reaches the window's top edge beside the chat header; its empty parts move the window too.
+          WindowDragArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+              // Five labelled tabs do not fit the dock's width; icons with the label as tooltip do. Each icon is
+              // centred in an equal slot without label padding, and the group is centred so its first tab stands
+              // clear of the chat header's dock toggle beside it.
+              child: Center(
+                child: SizedBox(
+                  width: DockTab.values.length * _tabSlot,
+                  child: TabBar(
+                    controller: _tabs,
+                    labelPadding: EdgeInsets.zero,
+                    tabs: [
+                      for (final tab in DockTab.values)
+                        Tab(
+                          height: AppSizes.control,
+                          child: Tooltip(
+                            message: dockTabLabel(t, tab),
+                            child: SizedBox.expand(child: Center(child: Icon(dockTabIcon(tab), size: 18))),
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -51,6 +51,9 @@ final class FakeOmp implements LineChannel {
 
 /// A live session over a [FakeOmp]. Call [attach] before using it.
 final class FakeSession implements LiveSession {
+
+  @override
+  Future<void> Function()? get loadEarlier => null;
   FakeSession({this.cwd = '/home/u', this.runId = 'control', CompanionReply? reply})
     : omp = FakeOmp(reply ?? (verb, _) => throw StateError('unexpected companion call $verb')) {
     rpc = RpcClient(omp, deviceId: 'test');

@@ -83,6 +83,9 @@ final class _Omp implements LineChannel {
 }
 
 final class _Session implements LiveSession {
+
+  @override
+  Future<void> Function()? get loadEarlier => null;
   _Session(this._view, {required this.withCompanion, List<Map<String, Object?>> tree = const []}) : omp = _Omp(tree);
 
   final SessionView _view;

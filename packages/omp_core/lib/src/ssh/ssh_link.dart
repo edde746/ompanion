@@ -670,6 +670,7 @@ final class _Dialer {
             },
       onUserauthBanner: _onBanner == null ? null : (banner) => _onBanner(hop, banner),
       keepAliveInterval: null,
+      algorithms: _algorithms,
     );
     deadline = _Deadline(timeout, () => unawaited(client.close()));
     auth.waits.deadline = deadline;
@@ -1039,3 +1040,16 @@ final class _SshSocket implements HostSocket {
   @override
   Future<void> close() async => _channel.sink.close();
 }
+
+/// dartssh2's defaults with chacha20-poly1305 first, as OpenSSH orders it. dartssh2's ciphers are pure Dart: its
+/// AES-GCM moves 0.8 MB/s, chacha20-poly1305 13.8 MB/s (a 4 MB `exec` to the SSH test machine on an M-series Mac), so
+/// a 7.6 MB session history took 16 s to open with GCM first.
+const _algorithms = SSHAlgorithms(
+  cipher: [
+    SSHCipherType.chacha20poly1305,
+    SSHCipherType.aes256gcm,
+    SSHCipherType.aes128gcm,
+    SSHCipherType.aes256ctr,
+    SSHCipherType.aes128ctr,
+  ],
+);

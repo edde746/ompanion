@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../channel/attached_channel.dart';
 import '../channel/detached_run.dart' hide listRuns;
@@ -564,6 +565,27 @@ final class _DetachedAccess implements RunAccess {
   }
 
   @override
+  Future<int> sessionFileSize(String sessionPath) async {
+    final files = await (await _machine._connected()).link.files();
+    try {
+      final stat = await files.stat(toSftpPath(sessionPath));
+      return stat?.size ?? (throw HostLinkException('no session file $sessionPath'));
+    } finally {
+      await files.close();
+    }
+  }
+
+  @override
+  Future<Uint8List> readSessionFile(String sessionPath, {int offset = 0, int? length}) async {
+    final files = await (await _machine._connected()).link.files();
+    try {
+      return await files.read(toSftpPath(sessionPath), offset: offset, length: length);
+    } finally {
+      await files.close();
+    }
+  }
+
+  @override
   Future<String> errorLog() async {
     final files = await (await _machine._connected()).link.files();
     try {
@@ -633,6 +655,14 @@ final class _ControlAccess implements RunAccess {
 
   @override
   Future<String> errorLog() async => _channel?.stderr ?? '';
+
+  @override
+  Future<int> sessionFileSize(String sessionPath) =>
+      throw StateError('the control session runs with --no-session and has no session file');
+
+  @override
+  Future<Uint8List> readSessionFile(String sessionPath, {int offset = 0, int? length}) =>
+      throw StateError('the control session runs with --no-session and has no session file');
 }
 
 /// An attached omp process as a [RunChannel]: its output starts at `ready` and cannot be resumed. With a [_bootstrap]

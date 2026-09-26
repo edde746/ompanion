@@ -9,6 +9,9 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
 final class _Session implements LiveSession {
+
+  @override
+  Future<void> Function()? get loadEarlier => null;
   _Session(this.sessionPath);
 
   @override

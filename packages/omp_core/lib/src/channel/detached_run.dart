@@ -185,7 +185,7 @@ Future<RunChannel> attachRun(
   int offset = 0,
   int? inboxOffset,
 }) => probe.isWindows
-    ? attachWindowsRun(link, run, generation: generation, offset: offset, inboxOffset: inboxOffset)
+    ? attachWindowsRun(link, probe, run, generation: generation, offset: offset, inboxOffset: inboxOffset)
     : DetachedChannel.attach(link, run.dir, generation: generation, offset: offset, inboxOffset: inboxOffset);
 
 /// Stops [run] and waits up to [timeout] for omp to exit. A graceful stop closes omp's stdin, after which

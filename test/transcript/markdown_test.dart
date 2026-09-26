@@ -1,8 +1,12 @@
+import 'dart:ui' show BoxHeightStyle;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/screens/chat/transcript/code_block.dart';
 import 'package:ompanion/screens/chat/transcript/markdown.dart';
 
 List<MdNode> parse(String markdown) => Plusparse.parse(
@@ -207,6 +211,98 @@ void main() {
       await pumpMarkdown(tester, '![chart](out/chart.png)');
       expect(find.text('out/chart.png'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
+    });
+  });
+
+  group('rhythm', () {
+    /// The line box of [needle]'s first character, or its last with [last], in the innermost paragraph holding it.
+    Rect line(WidgetTester tester, String needle, {bool last = false}) {
+      Rect? found;
+      void visit(RenderObject object) {
+        if (object is RenderParagraph) {
+          final at = object.text.toPlainText().indexOf(needle);
+          if (at >= 0) {
+            final offset = last ? at + needle.length - 1 : at;
+            final box = object.getBoxesForSelection(
+              TextSelection(baseOffset: offset, extentOffset: offset + 1),
+              boxHeightStyle: BoxHeightStyle.max,
+            );
+            found = MatrixUtils.transformRect(object.getTransformTo(null), box.first.toRect());
+          }
+        }
+        object.visitChildren(visit);
+      }
+
+      visit(tester.binding.renderViews.single);
+      return found ?? (throw StateError('no paragraph holds "$needle"'));
+    }
+
+    testWidgets('blocks, headings, list items and nested lists keep their gaps', (tester) async {
+      tester.view.physicalSize = const Size(420, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpMarkdown(tester, '''
+The download client is fine.
+
+Seeders count for nothing.
+
+### Fixes
+1. **Radarr:**
+   - Set minimum seeders to ten on public indexers and leave private trackers at one.
+   - Point the indexer at trans2.
+2. **4K profile:** put every 2160p quality into one group so releases compete on score.
+3. **Queue:** grab both.
+
+After those changes:
+```sh
+curl -s localhost:7878
+```
+
+That is all.''');
+      double gap(Rect above, Rect below) => below.top - above.bottom;
+      Rect end(String text) => line(tester, text, last: true);
+      Rect start(String text) => line(tester, text);
+      final code = tester.getRect(find.byType(CodeBlock));
+
+      // The multi-line cases really wrap.
+      expect(end('at one.').top, greaterThan(start('Set minimum').top));
+      expect(end('on score.').top, greaterThan(start('4K profile').top));
+      expect(start('Seeders count').height, closeTo(14 * markdownLineHeight, 0.5));
+
+      expect(gap(end('fine.'), start('Seeders count')), closeTo(12, 1), reason: 'paragraph to paragraph');
+      expect(gap(end('for nothing.'), start('Fixes')), closeTo(20, 1), reason: 'block to heading');
+      expect(gap(end('Fixes'), start('Radarr:')), closeTo(8, 1), reason: 'heading to its list');
+      expect(gap(end('Radarr:'), start('Set minimum')), closeTo(4, 1), reason: 'item to its nested list');
+      expect(gap(end('at one.'), start('Point the')), closeTo(6, 1), reason: 'nested item to nested item');
+      expect(gap(end('at trans2.'), start('4K profile')), closeTo(8, 1), reason: "nested list to its parent's next item");
+      expect(gap(end('on score.'), start('Queue:')), closeTo(6, 1), reason: 'multi-line item to the next item');
+      expect(gap(end('grab both.'), start('After those')), closeTo(12, 1), reason: 'list to paragraph');
+      expect(gap(end('changes:'), code), closeTo(12, 1), reason: 'paragraph to code');
+      expect(gap(code, start('That is all')), closeTo(12, 1), reason: 'code to paragraph');
+    });
+
+    testWidgets('a text cut into parts keeps the gaps it has in one piece', (tester) async {
+      // (above the cut, below it, the last text above, the first text below)
+      const cuts = [
+        ('Intro.\n\n### Fixes', 'First fix.', 'Fixes', 'First fix'),
+        ('Intro.', '## Next', 'Intro.', 'Next'),
+        ('1. one\n   - nested', '2. two', 'nested', 'two'),
+        ('1. one', '- a bullet', 'one', 'a bullet'),
+      ];
+      Future<double> gap(Widget body, String above, String below) async {
+        await tester.pumpWidget(TranslationProvider(child: MaterialApp(home: Scaffold(body: body))));
+        return line(tester, below).top - line(tester, above, last: true).bottom;
+      }
+
+      for (final (a, b, above, below) in cuts) {
+        final whole = await gap(TranscriptMarkdown('$a\n\n$b'), above, below);
+        final parts = await gap(
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [TranscriptMarkdown(a), TranscriptMarkdown(b, previous: a)]),
+          above,
+          below,
+        );
+        expect(parts, closeTo(whole, 0.01), reason: '"$a" | "$b"');
+      }
     });
   });
 
