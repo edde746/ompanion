@@ -1,0 +1,1 @@
+terminal,remote,server,shell,jump,host,vpn,mesh,session,diff,git,ai,self-hosted,mac,linux,windows

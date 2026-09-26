@@ -30,6 +30,9 @@ on:
         type: boolean
 
 env:
+  # Recorded before any bump: desktop_drop and pasteboard still apply the Kotlin Gradle Plugin, and Gradle warns
+  # that a future Flutter will refuse to build a project whose plugins do. Both are direct dependencies (drag and
+  # drop, the clipboard), so a Flutter upgrade needs that warning checked first.
   FLUTTER_VERSION: "3.47.1"
   BUN_VERSION: "1.4.0"
   # Flutter's Linux toolchain plus libsecret for flutter_secure_storage_linux; the other plugins need only GTK 3.
@@ -64,6 +67,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
           ALL_PLATFORMS: ${{ inputs.build_android && inputs.build_ios && inputs.build_macos && inputs.build_windows && inputs.build_linux }}
           MACOS_SIGNING: ${{ secrets.MACOS_CERTIFICATE_BASE64 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.KEYCHAIN_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
+          ANDROID_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && secrets.ANDROID_STORE_PASSWORD != '' && secrets.ANDROID_KEY_PASSWORD != '' && secrets.ANDROID_KEY_ALIAS != '' }}
           GH_TOKEN: ${{ github.token }}
         run: |
           fail() {
@@ -73,6 +77,7 @@ jobs:
           [ "$GITHUB_REF" = refs/heads/main ] || fail "Releases are built from main, not $GITHUB_REF."
           [ "$ALL_PLATFORMS" = true ] || fail "A release needs all five platforms: select every build input."
           [ "$MACOS_SIGNING" = true ] || fail "A release ships a signed, notarized DMG: set the six signing secrets (README, Releasing)."
+          [ "$ANDROID_SIGNING" = true ] || fail "A release ships an APK signed with the upload key: set the four Android secrets (README, Releasing)."
           version=$(sed -n 's/^version: *\([^+ ]*\).*/\1/p' pubspec.yaml)
           [ "$RELEASE_TAG" = "$version" ] || fail "The release tag $RELEASE_TAG is not pubspec.yaml's version $version."
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
@@ -134,10 +139,66 @@ jobs:
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
 
-      # No signing secrets: the release build type signs with the template's debug key
-      # (android/app/build.gradle.kts), so the APK installs for testing but is not a store build.
+      # All four or none: the upload key signs the APK and the Play bundle. A fork, or a checkout before the
+      # maintainer set the secrets, builds with the debug key (android/app/build.gradle.kts); half of them is a
+      # mistake worth failing on, because it silently produces an unshippable artifact.
+      - name: Check the signing secrets
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          missing=
+          present=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_STORE_PASSWORD ANDROID_KEY_PASSWORD ANDROID_KEY_ALIAS; do
+            if [ -n "${!name}" ]; then
+              present=$((present + 1))
+            else
+              missing="$missing $name"
+            fi
+          done
+
+          if [ "$present" -eq 4 ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$present" -eq 0 ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Debug-signed Android build::No Android signing secrets are set, so the APK and the Play bundle are signed with the debug key. They install for testing; the stores reject them."
+          else
+            echo "Signing is half set up, missing:$missing" >&2
+            echo "Set all four or none: the job signs with the upload key only when every secret is there." >&2
+            exit 1
+          fi
+
+      - name: Configure Android signing
+        if: steps.signing.outputs.signed == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          # storeFile is relative to android/app, which is where the release build type resolves it.
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          cat > android/key.properties << EOF
+          storePassword=$ANDROID_STORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
+
+      # The APK the GitHub release carries (no channel flag: that is the direct build) and the bundle the Play
+      # lane uploads (the play channel), both signed by the key above when it is there.
       - name: Build APK
         run: flutter build apk --release
+
+      - name: Build the Play bundle
+        run: flutter build appbundle --release --dart-define=OMPANION_CHANNEL=play
+
+      - name: Clean up the keystore
+        if: always()
+        run: rm -f android/app/upload-keystore.jks android/key.properties
 
       - name: Name the APK
         run: cp build/app/outputs/flutter-apk/app-release.apk ompanion-android.apk
@@ -147,6 +208,18 @@ jobs:
         with:
           name: ${{ env.ARTIFACT }}
           path: ompanion-android.apk
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Name the bundle
+        run: cp build/app/outputs/bundle/release/app-release.aab ompanion-android.aab
+
+      # A store artifact, not a release asset: the release job drops it before it counts the five files.
+      - name: Upload the bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ompanion-android-aab-${{ needs.name.outputs.sha }}
+          path: ompanion-android.aab
           if-no-files-found: error
           compression-level: 0
 
@@ -561,6 +634,11 @@ jobs:
           pattern: ompanion-*-${{ needs.name.outputs.sha }}
           path: release
           merge-multiple: true
+
+      # The Android job also uploads the Play bundle as ompanion-android-aab-<sha>. That one is a store artifact,
+      # not a release asset, so it goes before the count: the release holds the five downloads a user can use.
+      - name: Drop the Play bundle
+        run: rm -f release/*.aab
 
       # A draft holds no tag yet: publishing it creates the tag on the commit that was built.
       - name: Create the draft release

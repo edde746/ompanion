@@ -1051,6 +1051,36 @@ class Translations$settings$en {
 
 	/// en: 'Stop the running turn'
 	String get shortcutAbort => 'Stop the running turn';
+
+	/// en: 'About'
+	String get about => 'About';
+
+	/// en: 'Version $version'
+	String aboutVersion({required Object version}) => 'Version ${version}';
+
+	/// en: 'Version $version (build $build)'
+	String aboutVersionBuild({required Object version, required Object build}) => 'Version ${version} (build ${build})';
+
+	/// en: 'A client for omp, the oh-my-pi coding agent'
+	String get aboutClient => 'A client for omp, the oh-my-pi coding agent';
+
+	/// en: 'Privacy policy'
+	String get aboutPrivacy => 'Privacy policy';
+
+	/// en: 'Source code'
+	String get aboutSource => 'Source code';
+
+	/// en: 'Report an issue'
+	String get aboutIssues => 'Report an issue';
+
+	/// en: 'License'
+	String get aboutLicense => 'License';
+
+	/// en: 'GPL-3.0 with an app-store exception'
+	String get aboutLicenseValue => 'GPL-3.0 with an app-store exception';
+
+	/// en: 'Open-source licenses'
+	String get aboutLicenses => 'Open-source licenses';
 }
 
 // Path: time
@@ -3815,6 +3845,16 @@ extension on Translations {
 			'settings.shortcutPalette' => 'Command palette',
 			'settings.shortcutSearchSessions' => 'Search sessions',
 			'settings.shortcutAbort' => 'Stop the running turn',
+			'settings.about' => 'About',
+			'settings.aboutVersion' => ({required Object version}) => 'Version ${version}',
+			'settings.aboutVersionBuild' => ({required Object version, required Object build}) => 'Version ${version} (build ${build})',
+			'settings.aboutClient' => 'A client for omp, the oh-my-pi coding agent',
+			'settings.aboutPrivacy' => 'Privacy policy',
+			'settings.aboutSource' => 'Source code',
+			'settings.aboutIssues' => 'Report an issue',
+			'settings.aboutLicense' => 'License',
+			'settings.aboutLicenseValue' => 'GPL-3.0 with an app-store exception',
+			'settings.aboutLicenses' => 'Open-source licenses',
 			'time.now' => 'now',
 			'time.minutes' => ({required Object n}) => '${n}m',
 			'time.hours' => ({required Object n}) => '${n}h',
@@ -3888,6 +3928,8 @@ extension on Translations {
 			'chat.thinking' => ({required Object level}) => 'Thinking: ${level}',
 			'chat.noThinking' => 'This model has no thinking levels.',
 			'chat.thinkingFailed' => ({required Object error}) => 'Could not change the thinking level: ${error}',
+			_ => null,
+		} ?? switch (path) {
 			'chat.contextTooltip' => ({required Object tokens, required Object window, required Object percent, required Object cost}) => 'Context: ${tokens} of ${window} tokens (${percent}%) · cost ${cost}',
 			'chat.contextUnknown' => ({required Object cost}) => 'Context usage not known yet · cost ${cost}',
 			'chat.pause' => 'Pause',
@@ -3898,8 +3940,6 @@ extension on Translations {
 			'chat.noCompanion' => 'The companion is not loaded in this session, so pause, queue editing and shell or Python runs are unavailable.',
 			'chat.more' => 'More',
 			'chat.copyPath' => 'Copy session file path',
-			_ => null,
-		} ?? switch (path) {
 			'chat.detach' => 'Close on this device',
 			'chat.stopSession' => 'Stop the omp process',
 			'chat.stopSessionFailed' => ({required Object error}) => 'Could not stop the omp process: ${error}',

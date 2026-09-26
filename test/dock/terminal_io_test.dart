@@ -3,13 +3,15 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ompanion/terminal/frame_writer.dart';
 import 'package:ompanion/terminal/shell_launch.dart';
 import 'package:ompanion/terminal/terminal_deck.dart';
 import 'package:ompanion/terminal/terminal_session.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/transport.dart';
-import 'package:xterm3/xterm.dart';
+import 'package:xterm2/xterm.dart';
 
 void main() {
   group('input', () {
@@ -314,6 +316,152 @@ void main() {
       expect(backend.closed, isTrue);
     });
   });
+
+  group('frame writer', () {
+    testWidgets('a chunk written to an idle writer is parsed at once and asks for no frame', (tester) async {
+      final terminal = Terminal();
+      addTearDown(terminal.dispose);
+      final writer = TerminalFrameWriter(terminal.write);
+      writer.write('one');
+      // A keystroke's echo reaches the buffer inside the frame it was typed in: no queue, no frame of latency.
+      expect(terminal.buffer.getText().trim(), 'one');
+      expect(SchedulerBinding.instance.transientCallbackCount, 0, reason: 'nothing is pending');
+      writer.write(' two');
+      expect(terminal.buffer.getText().trim(), 'one two');
+    });
+
+    testWidgets('a burst inside one frame stops at the budget and is carried over later frames, in order', (
+      tester,
+    ) async {
+      final written = StringBuffer();
+      final writer = TerminalFrameWriter(written.write);
+      addTearDown(writer.dispose);
+      final first = 'a' * 40000;
+      final second = 'b' * 40000;
+      writer
+        ..write(first)
+        ..write(second)
+        ..write('end');
+      // Three chunks in one frame: the frame carries one budget and the tail of the second chunk waits its turn.
+      expect(written.length, TerminalFrameWriter.charBudget);
+      expect(written.toString(), '$first${'b' * (TerminalFrameWriter.charBudget - first.length)}');
+      for (var frame = 0; frame < 8 && written.length < 80003; frame++) {
+        final before = written.length;
+        await tester.pump();
+        expect(written.length - before, lessThanOrEqualTo(TerminalFrameWriter.charBudget), reason: 'frame $frame');
+      }
+      expect(written.toString(), '$first$second${'end'}');
+      expect(SchedulerBinding.instance.transientCallbackCount, 0, reason: 'a drained writer stops asking for frames');
+    });
+
+    testWidgets('a 1 MiB burst is spread over frames, at most the budget in each', (tester) async {
+      final terminal = Terminal(maxLines: 20000);
+      addTearDown(terminal.dispose);
+      final slices = <int>[];
+      final writer = TerminalFrameWriter((text) {
+        slices.add(text.length);
+        terminal.write(text);
+      });
+      addTearDown(writer.dispose);
+      final burst = 'x' * (1024 * 1024);
+      writer.write(burst);
+      expect(slices, [TerminalFrameWriter.charBudget], reason: 'one frame takes the budget, not the burst');
+      await _pumpFrames(tester, () => slices.fold(0, (sum, length) => sum + length) == burst.length);
+      expect(slices.length, greaterThanOrEqualTo(16), reason: 'a MiB does not fit in fewer than 16 frames of 64 Ki');
+      expect(slices, everyElement(lessThanOrEqualTo(TerminalFrameWriter.charBudget)));
+      expect(SchedulerBinding.instance.transientCallbackCount, 0);
+      expect(terminal.buffer.getText().trim(), burst, reason: 'every frame landed, in order, and none twice');
+    });
+
+    testWidgets('a surrogate pair on the budget boundary is not cut in half', (tester) async {
+      final terminal = Terminal();
+      addTearDown(terminal.dispose);
+      final slices = <String>[];
+      final writer = TerminalFrameWriter((text) {
+        slices.add(text);
+        terminal.write(text);
+      });
+      addTearDown(writer.dispose);
+      // The pair starts at index charBudget - 1, so the frame that writes its whole budget would cut it.
+      final head = 'a' * (TerminalFrameWriter.charBudget - 1);
+      final burst = '$head🙂b';
+      writer.write(burst);
+      // xterm2's parser decodes a code point only within one chunk of input, so a chunk that ends between the two
+      // code units reaches the buffer as two lone surrogates rather than one character.
+      expect(_hasLoneSurrogate(slices.single), isFalse);
+      expect(slices, [head], reason: 'the frame gives up one code unit instead of half of the pair');
+      await _pumpFrames(tester, () => slices.length == 2);
+      expect(slices, [head, '🙂b'], reason: 'the pair leads the next frame whole');
+      expect(slices.join(), burst);
+    });
+
+    testWidgets('dispose drops what is pending and leaves no frame scheduled', (tester) async {
+      final written = StringBuffer();
+      final writer = TerminalFrameWriter(written.write);
+      writer.write('q' * (TerminalFrameWriter.charBudget + 4));
+      expect(written.length, TerminalFrameWriter.charBudget);
+      expect(SchedulerBinding.instance.transientCallbackCount, 1, reason: 'the frame that carries the rest');
+      writer.dispose();
+      expect(SchedulerBinding.instance.transientCallbackCount, 0, reason: 'the frame is unregistered, not left to run');
+      await tester.pump();
+      await tester.pump();
+      expect(written.length, TerminalFrameWriter.charBudget, reason: 'the four queued code units are dropped');
+    });
+
+    testWidgets('flush writes the queue now, without waiting for a frame', (tester) async {
+      final terminal = Terminal();
+      addTearDown(terminal.dispose);
+      final writer = TerminalFrameWriter(terminal.write);
+      final burst = 'z' * (TerminalFrameWriter.charBudget + 10);
+      writer.write(burst);
+      expect(SchedulerBinding.instance.transientCallbackCount, 1);
+      writer.flush();
+      expect(terminal.buffer.getText().trim(), burst);
+      expect(SchedulerBinding.instance.transientCallbackCount, 0);
+      await tester.pump();
+      expect(terminal.buffer.getText().trim(), burst, reason: 'the cancelled frame does not write the tail again');
+    });
+
+    testWidgets("a later frame restores the budget without a callback of the writer's own", (tester) async {
+      final written = StringBuffer();
+      final writer = TerminalFrameWriter(written.write);
+      addTearDown(writer.dispose);
+      writer.write('x' * TerminalFrameWriter.charBudget);
+      expect(written.length, TerminalFrameWriter.charBudget, reason: 'the burst fills the frame and queues nothing');
+      // A frame the writer did not ask for: the engine draws it for something else, and the stamp moves on.
+      SchedulerBinding.instance.scheduleFrame();
+      await tester.pump(const Duration(milliseconds: 16));
+      writer.write('echo');
+      expect(
+        written.length,
+        TerminalFrameWriter.charBudget + 4,
+        reason: 'the echo is not charged to the frame the burst filled',
+      );
+    });
+  });
+}
+
+/// Pumps one frame at a time until [done], up to 300 of them.
+Future<void> _pumpFrames(WidgetTester tester, bool Function() done) async {
+  for (var frame = 0; frame < 300 && !done(); frame++) {
+    await tester.pump();
+  }
+}
+
+/// Whether [text] holds a surrogate code unit without its partner: what a slice cut through a pair would carry.
+bool _hasLoneSurrogate(String text) {
+  for (var i = 0; i < text.length; i++) {
+    final unit = text.codeUnitAt(i);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      if (i + 1 >= text.length) return true;
+      final low = text.codeUnitAt(i + 1);
+      if (low < 0xdc00 || low > 0xdfff) return true;
+      i++;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /// A link whose one PTY process is driven by the test.

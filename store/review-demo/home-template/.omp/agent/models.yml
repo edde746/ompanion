@@ -1,0 +1,25 @@
+# The review demo's only model provider. It is testing/fake-provider/server.ts in --demo mode, running on
+# the compose network as `provider`: no API key leaves the stack, no request costs anything, and any
+# prompt gets a canned reply.
+#
+# The names are neutral on purpose ("Fast", "Reasoning"): the reviewer sees them in the app's model
+# picker, and no vendor's model is implied. `reasoning: true` is what makes the reasoning scenario show a
+# thinking block.
+providers:
+  demo:
+    baseUrl: http://provider:8787/v1
+    apiKey: demo
+    api: openai-completions
+    models:
+      - id: fast
+        name: Fast
+        reasoning: false
+        input: [text]
+        contextWindow: 128000
+        maxTokens: 8192
+      - id: reasoning
+        name: Reasoning
+        reasoning: true
+        input: [text]
+        contextWindow: 128000
+        maxTokens: 8192

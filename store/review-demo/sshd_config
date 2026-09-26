@@ -1,0 +1,48 @@
+# sshd config for the review demo's host container. It is installed as a drop-in
+# (/etc/ssh/sshd_config.d/00-review.conf); sshd keeps the first value it reads for each keyword, and
+# Ubuntu's sshd_config includes that directory at the top.
+#
+# sshd runs as the unprivileged `review` user, so it cannot bind port 22: docker-compose.yml publishes
+# 2222 as the stack's SSH port.
+Port 2222
+ListenAddress 0.0.0.0
+
+# Host keys are generated on the first start into the /data volume. A rebuild or a reset does not change
+# them, so the app never reports a changed host key.
+HostKey /data/ssh/ssh_host_ed25519_key
+HostKey /data/ssh/ssh_host_rsa_key
+# /run is root-owned in the container and sshd runs as `review`; /tmp is the tmpfs it may write to.
+PidFile /tmp/sshd.pid
+
+# One account, password only. The hash is in /etc/passwd (Dockerfile.host): an unprivileged sshd can
+# verify it without reading /etc/shadow, and no PAM session is needed.
+PermitRootLogin no
+AllowUsers review
+PasswordAuthentication yes
+PubkeyAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+UsePAM no
+
+# Rate limits and timeouts for an internet-facing port: three password tries per connection, at most
+# three unauthenticated connections at once (50% dropped above that, ten hard maximum), 30 s to
+# authenticate.
+MaxAuthTries 3
+MaxSessions 8
+MaxStartups 3:50:10
+LoginGraceTime 30
+ClientAliveInterval 30
+ClientAliveCountMax 3
+
+# The app forwards a port from the machine for an OAuth callback on desktop; nothing else is forwarded.
+AllowTcpForwarding yes
+AllowAgentForwarding no
+X11Forwarding no
+PermitTunnel no
+PermitUserEnvironment no
+GatewayPorts no
+
+Subsystem sftp internal-sftp
+PrintMotd no
+LogLevel VERBOSE
+AcceptEnv LANG LC_*

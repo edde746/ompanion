@@ -57,4 +57,10 @@ companion/dist/
 # Built by scripts/build_companion.sh
 /assets/companion/ompx.js
 
+# Fastlane. .env holds the App Store Connect and Play credentials. The report and the README are written by
+# every run; the metadata and the screenshots next to them are committed on purpose.
+.env
+**/fastlane/report.xml
+**/fastlane/README.md
+
 .DS_Store

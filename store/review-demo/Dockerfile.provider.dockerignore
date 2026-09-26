@@ -1,0 +1,7 @@
+# The provider image needs the three fake-provider sources and nothing else from the repository.
+*
+!testing
+testing/**
+!testing/json.ts
+!testing/fake-provider
+!testing/fake-provider/**

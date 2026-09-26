@@ -8,6 +8,7 @@ import '../../i18n/strings.g.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/app_segmented.dart';
 import '../shell/shortcuts.dart';
+import 'about_section.dart';
 
 class SettingsPane extends StatelessWidget {
   const SettingsPane({super.key});
@@ -72,6 +73,8 @@ class SettingsPane extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 24),
+        const AboutSection(),
       ],
     );
   }

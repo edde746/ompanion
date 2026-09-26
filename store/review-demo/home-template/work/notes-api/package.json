@@ -1,0 +1,11 @@
+{
+  "name": "notes-api",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "An in-memory notes service; the sample project of the ompanion review demo",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "check": "tsc --noEmit"
+  }
+}

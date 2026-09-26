@@ -499,7 +499,17 @@
     "shortcutTogglePause": "Pause or resume the session",
     "shortcutPalette": "Command palette",
     "shortcutSearchSessions": "Search sessions",
-    "shortcutAbort": "Stop the running turn"
+    "shortcutAbort": "Stop the running turn",
+    "about": "About",
+    "aboutVersion": "Version $version",
+    "aboutVersionBuild": "Version $version (build $build)",
+    "aboutClient": "A client for omp, the oh-my-pi coding agent",
+    "aboutPrivacy": "Privacy policy",
+    "aboutSource": "Source code",
+    "aboutIssues": "Report an issue",
+    "aboutLicense": "License",
+    "aboutLicenseValue": "GPL-3.0 with an app-store exception",
+    "aboutLicenses": "Open-source licenses"
   },
   "time": {
     "now": "now",

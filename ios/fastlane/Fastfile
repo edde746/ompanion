@@ -1,0 +1,88 @@
+require 'dotenv/load'
+require 'shellwords'
+
+PROJECT_ROOT = File.expand_path("../..", __dir__)
+PROJECT_ROOT_ARG = Shellwords.escape(PROJECT_ROOT)
+
+Dotenv.load(File.join(PROJECT_ROOT, ".env"))
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Build the App Store IPA and upload it with its metadata and screenshots; never submits for review"
+  lane :deploy_appstore do |options|
+    # An App Store Connect API key is the credential to prefer. Without one, fastlane uses FASTLANE_USER with
+    # FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD, or asks for an Apple ID interactively. Both live in .env
+    # (store/README.md). Half a key is a mistake worth failing on, as in CI.
+    api_key_names = [
+      "APP_STORE_CONNECT_API_KEY_KEY_ID",
+      "APP_STORE_CONNECT_API_KEY_ISSUER_ID",
+      "APP_STORE_CONNECT_API_KEY_KEY_FILEPATH"
+    ]
+    missing = api_key_names.reject { |name| !ENV[name].to_s.empty? }
+    api_key =
+      if missing.empty?
+        app_store_connect_api_key(
+          key_id: ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"],
+          issuer_id: ENV["APP_STORE_CONNECT_API_KEY_ISSUER_ID"],
+          key_filepath: ENV["APP_STORE_CONNECT_API_KEY_KEY_FILEPATH"]
+        )
+      elsif missing.length < api_key_names.length
+        UI.user_error!("Half an App Store Connect API key in .env: also set #{missing.join(', ')} (store/README.md).")
+      end
+    if api_key.nil? && ENV["FASTLANE_USER"].to_s.empty?
+      UI.user_error!(
+        "No App Store Connect credentials. Put APP_STORE_CONNECT_API_KEY_KEY_ID, " \
+        "APP_STORE_CONNECT_API_KEY_ISSUER_ID and APP_STORE_CONNECT_API_KEY_KEY_FILEPATH in .env, or " \
+        "FASTLANE_USER and FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD (store/README.md)."
+      )
+    end
+
+    # Everything cheap is checked before the archive, so a missing directory fails in seconds rather than after
+    # a build. A lane option arrives as the string "true" from the command line, so compare as one.
+    metadata_path = File.join(PROJECT_ROOT, "ios/fastlane/metadata")
+    screenshots_path = File.join(PROJECT_ROOT, "ios/fastlane/screenshots")
+    skip_screenshots = options.fetch(:skip_screenshots, false).to_s == "true"
+    UI.user_error!("No App Store metadata in #{metadata_path} (store/README.md).") unless Dir.exist?(metadata_path)
+    # The review contact, the demo password and the demo host's address are left as FILL lines and <HOST> /
+    # <PASSWORD> tokens in the repository (store/README.md); uploading one would put it in front of App Review.
+    unfilled = Dir[File.join(metadata_path, "**/*.txt")].select do |path|
+      File.read(path).match?(/\AFILL|<HOST>|<PASSWORD>/)
+    end
+    unless unfilled.empty?
+      names = unfilled.map { |path| path.delete_prefix("#{metadata_path}/") }.sort
+      UI.user_error!("Fill these in first (store/README.md): #{names.join(', ')}")
+    end
+    if !skip_screenshots && Dir[File.join(screenshots_path, "**/*.png")].empty?
+      UI.user_error!(
+        "No screenshots in #{screenshots_path}: run the capture tooling in store/screenshots first, " \
+        "or pass skip_screenshots:true to upload the metadata alone."
+      )
+    end
+
+    # Signed with the Xcode account's Apple Distribution certificate through automatic signing
+    # (ios/Runner.xcodeproj). The channel flag keeps a store build off what only the direct builds have
+    # (lib/app/build_channel.dart).
+    sh("cd #{PROJECT_ROOT_ARG} && flutter build ipa --release --dart-define=OMPANION_CHANNEL=appstore")
+
+    # The Runner target's PRODUCT_NAME is $(TARGET_NAME), so the file is Runner.ipa today. Take whatever the
+    # build left behind instead of pinning a name the project could change.
+    ipa = Dir[File.join(PROJECT_ROOT, "build/ios/ipa/*.ipa")].max_by { |path| File.mtime(path) }
+    UI.user_error!("flutter build ipa left no .ipa in build/ios/ipa.") if ipa.nil?
+
+    upload_to_app_store(
+      ipa: ipa,
+      api_key: api_key,
+      metadata_path: metadata_path,
+      screenshots_path: screenshots_path,
+      # The repository's screenshot set is the store's screenshot set: replace, never merge with an older run.
+      overwrite_screenshots: true,
+      # fastlane's screenshot check only knows the sizes it has been taught; the App Store accepts more, so a
+      # rejected size must not stop the metadata upload: `fastlane deploy_appstore skip_screenshots:true`
+      # uploads everything else and leaves the screenshots to App Store Connect by hand.
+      skip_screenshots: skip_screenshots,
+      force: true,
+      submit_for_review: false
+    )
+  end
+end

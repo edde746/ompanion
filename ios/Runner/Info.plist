@@ -26,6 +26,13 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- SSH to a machine on the same network triggers iOS local network privacy (Apple TN3179). -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>ompanion connects over SSH to the computers on your own network that run the omp coding agent. It reaches only the machines you add.</string>
+	<!-- file_picker_darwin, which the app links, references PHPhotoLibrary and PHPickerViewController, so App
+	     Store validation requires this string (ITMS-90683). The app reads only the items the picker returns. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ompanion can attach photos and videos you pick to a message for the omp coding agent on your own machines. It reads only the items you select.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

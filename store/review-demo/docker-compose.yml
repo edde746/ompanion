@@ -1,0 +1,83 @@
+# The ompanion review demo: a throwaway SSH host that runs omp 18.3.1 against a fake model provider, so
+# App Review and Google Play review can use the app end to end with no AI account, no API key and no
+# cost. Run it on a throwaway VPS; store/review-demo/README.md has the whole procedure.
+#
+# Two services on one private network: `host` (OpenSSH + omp, the machine the reviewer adds) and
+# `provider` (testing/fake-provider in --demo mode). Only the host publishes a port.
+name: ompanion-review
+
+services:
+  host:
+    build:
+      context: ../..
+      dockerfile: store/review-demo/Dockerfile.host
+      args:
+        # setup.sh writes it into .env. The image keeps only the password's hash; the build fails when
+        # the argument is empty, so the stack can never come up with a guessable password.
+        REVIEW_PASSWORD: ${REVIEW_PASSWORD:-}
+    image: ompanion-review-host
+    restart: unless-stopped
+    ports:
+      # The one port that leaves the stack. Move it with REVIEW_SSH_PORT in .env; restrict the VPS
+      # firewall to it.
+      - "${REVIEW_SSH_PORT:-22222}:2222"
+    environment:
+      # Only to write the published port into the home's README for the reviewer's own reference.
+      REVIEW_SSH_PORT: "${REVIEW_SSH_PORT:-22222}"
+    volumes:
+      # The reviewer's home, its sessions, the uploaded companion and the host keys. The stack's only
+      # volume, and the only writable path: the image itself is mounted read-only.
+      - review-data:/data
+    networks: [review]
+    # Unprivileged: no root (the image's user is `review`), no capabilities, no privilege escalation,
+    # no host mount, and hard limits so a reviewer cannot exhaust the VPS by accident.
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    mem_limit: 768m
+    pids_limit: 512
+    cpus: 1.0
+    depends_on:
+      provider:
+        condition: service_healthy
+
+  provider:
+    build:
+      context: ../..
+      dockerfile: store/review-demo/Dockerfile.provider
+    image: ompanion-review-provider
+    restart: unless-stopped
+    # No `ports`: the fake provider answers only inside this network, so nothing but the host container
+    # can reach it, and only the canned demo turns leave it.
+    networks: [review]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 192m
+    pids_limit: 128
+    cpus: 0.5
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://127.0.0.1:8787/v1/models').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+networks:
+  # One private network for both containers. The provider publishes nothing, so only sshd is reachable from
+  # outside. `internal: true` would keep the host container off the internet, but Docker cannot publish a
+  # port for a container that has no route off its network; omp needs no internet at runtime anyway (the
+  # home's config turns off the release and marketplace checks).
+  review:
+
+volumes:
+  review-data:

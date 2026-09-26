@@ -1,0 +1,9 @@
+First release.
+
+- Chat with a streaming transcript, markdown, LaTeX math, collapsible thinking and images
+- Tool cards with word-level diffs; approvals, questions and extension dialogs answered inline
+- Session tree with search, filters, labels and branching; subagents in the Agent Hub; todos by phase
+- Files with an editor, git diffs and an SSH terminal on the machine
+- Machines over SSH, through chains of jump hosts, or on a private mesh VPN; omp installed on a machine that lacks it
+- Configuration for settings, model roles, providers, MCP servers, plugins, skills and usage limits
+- No accounts, no analytics, no tracking; free and open source (GPLv3)

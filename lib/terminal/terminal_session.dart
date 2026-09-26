@@ -4,9 +4,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_pty2/flutter_pty2.dart';
 import 'package:omp_core/transport.dart';
-import 'package:xterm3/xterm.dart';
+import 'package:xterm2/xterm.dart';
 
 import '../utils/app_logger.dart';
+import 'frame_writer.dart';
 import 'shell_launch.dart';
 
 /// The process a terminal shows: a shell on a PTY, over SSH or on this computer.
@@ -210,7 +211,7 @@ final class TerminalSession extends ChangeNotifier {
 
   final terminal = Terminal(maxLines: 10000, platform: _platform);
   final controller = TerminalController();
-  late final _writer = PacedTerminalWriter(terminal);
+  late final _writer = TerminalFrameWriter(terminal.write);
 
   String _title;
   TerminalPhase _phase = const TerminalStarting();
@@ -283,7 +284,8 @@ final class TerminalSession extends ChangeNotifier {
       _pendingInput.clear();
       _setPhase(const TerminalRunning());
       final code = await backend.exitCode;
-      _writer.flush();
+      // No flush here: a shell that exits behind a burst (a `cat` of a large file, then `exit`) leaves megabytes
+      // queued, and writing them in one go is the freeze the writer exists to avoid. The frames carry them still.
       _setPhase(TerminalExited(code));
     } on Object catch (error) {
       _setPhase(TerminalFailed(error));

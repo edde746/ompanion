@@ -1,0 +1,4 @@
+package_name("com.edde746.ompanion")
+
+# The Play service-account JSON key path comes from PLAY_JSON_KEY_PATH in .env, read by
+# android/fastlane/Fastfile; keep the key itself out of the repository (store/README.md).

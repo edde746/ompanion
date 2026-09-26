@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
-import 'package:xterm3/xterm.dart';
+import 'package:xterm2/xterm.dart';
 
 import '../../../app/dev_overrides.dart';
 import '../../../app/theme.dart';

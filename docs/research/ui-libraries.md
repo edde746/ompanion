@@ -203,19 +203,43 @@ Risks:
 - Fallback if this design fails: `reverse: true` plus scrollview_observer.
 
 ---
-## 4. Terminal: xterm3 6.3.4
-**xterm3 6.3.4** (2026-09-24, AGPL-3.0-or-later, Flutter >=3.19)
-- Repo klc/xterm3, created 2026-08-06, 1★, 0 open issues, one maintainer.
-- CI runs on the stable and master channels on macOS; it passed for 6.3.4.
+## 4. Terminal: xterm2 5.2.0
 
-**xterm2 5.2.0** (2026-07-25, MIT, 5★)
-- Its repo lists a 5.3.0 in the changelog that was never published.
-- The xterm3 README says the public API is unchanged from xterm2, so the two are interchangeable.
+**xterm2 5.2.0** (2026-07-25, MIT, 5★) is the terminal in every build, iOS and Android included.
+- Home repo SoFluffyOS/xterm2; the 5.2.0 changelog is the maintained fork's own (rename in 5.0.0, Unicode 17 widths
+  and Kitty keyboard modifiers in 5.1.0, bounded search and cheaper cell copies in 5.2.0).
+- Its repo lists a 5.3.0 in the changelog that was never published; 5.2.0 is the newest on pub.dev (checked
+  2026-09-26).
+- Pin it exactly if a 5.3.0 ever appears: the API is small but `TerminalView`'s widget API is where a fork can
+  drift.
 
-**Performance (numbers from the xterm3 README).** Setup: AOT build, M1 Pro, 170×50 grid, 32 MiB of output.
-- Plain ASCII: 113 MiB/s (xterm2 87, xterm 16).
-- Cyrillic: 90 MiB/s (xterm2 5.5).
-- Scrollback memory for 10k lines at 170 columns: 52.8 MiB (xterm2 79.3).
+**xterm3 6.3.4** (2026-09-24, AGPL-3.0-or-later) is the fork this project used until the store work, and it is out
+of every build. AGPL-3.0 code cannot be conveyed through the App Store at all: the project can grant itself an
+app-store exception under GPLv3 §7 for its own code, not for klc's. Two forks of the same 4.0.0 base, one licence
+apart, is not a trade worth carrying, so one terminal serves all builds.
+
+**What xterm3 has that xterm2 does not.** Compared library by library (its `core.dart`, `ui.dart` and `zmodem.dart`
+against xterm2's): `TerminalUrlDetection`, `RenderStats`, and `PacedTerminalWriter`. Every other difference is
+private: the public classes ompanion uses — `Terminal`, `TerminalView`, `TerminalController`, `TerminalTheme`,
+`TerminalStyle`, `TerminalTargetPlatform`, `SelectionMode`, `BufferRange`/`CellOffset` — have identical signatures.
+xterm3 also spells `Buffer.onLineEvicted`, `TerminalStyle.enableLigatures`, `Terminal.onUnknownSequence`,
+`TerminalView.predictionText` and a few scroll/prompt intents differently; ompanion uses none of them.
+- `TerminalUrlDetection`: unused. The view's own OSC 8 `onHyperlinkTap` exists in both, and that is what ompanion
+  opens links with.
+- `RenderStats`: unused (xterm3's own benchmark support).
+- `PacedTerminalWriter`: **used**, so ompanion has its own `lib/terminal/frame_writer.dart`: the same job (queue,
+  `flush`, `dispose`) under a character budget per frame instead of xterm3's time budget. It is ompanion's code under
+  ompanion's licence, not a copy of xterm3's version, which is AGPL-3.0 and could not ship either. Details below.
+
+**Performance (numbers from the xterm3 README; xterm2 is slower).** Setup: AOT build, M1 Pro, 170×50 grid, 32 MiB of
+output.
+- Plain ASCII: xterm3 113 MiB/s, xterm2 87, xterm 16.
+- Cyrillic: xterm3 90 MiB/s, xterm2 5.5.
+- Scrollback memory for 10k lines at 170 columns: xterm3 52.8 MiB, xterm2 79.3.
+
+The Cyrillic figure is xterm3's widest lead and the reason it was picked first; nothing in this project has
+measured a difference in the app, and the frame writer (which both forks lack in xterm2) is what keeps frames
+flowing under a burst.
 
 **API**
 - `Terminal(maxLines:, onOutput:, onResize: (w,h,pw,ph), onReply:, onTitleChange:, onBell:, inputHandler:)`.
@@ -229,9 +253,26 @@ Risks:
 
 **Selection, search, links**
 - Selection: `TerminalController.selection`, then `terminal.buffer.getText(sel)`.
-- Search: `Terminal.search`. OSC 8 hyperlinks are supported.
+- Search: `TerminalSearch`. OSC 8 hyperlinks are supported.
 
-**Optional `PacedTerminalWriter`:** parses at most 8 ms of output per frame, so a burst drains about 50% slower but the view stays at 75 fps.
+**`TerminalFrameWriter` is now ompanion's.** xterm2 has no equivalent, so `lib/terminal/frame_writer.dart` queues PTY
+output and hands at most 64 Ki UTF-16 code units to `Terminal.write` per frame, carrying the rest over frames
+scheduled with `SchedulerBinding.scheduleFrameCallback`: a transient callback runs at the start of a frame, before
+build and layout, so what it parses paints in that same frame, and it can be unregistered in `dispose`, which a
+post-frame callback cannot. The budget is characters, not milliseconds: xterm2's parser has no time slice to hand out,
+and a PTY delivers a burst as many chunks inside one frame, so the writer counts what the frame has carried. A frame
+boundary never falls between the two code units of a surrogate pair; an escape sequence cut by one is fine, because
+xterm2's `EscapeParser` keeps an unfinished sequence across `write` calls (`lib/src/core/escape/parser.dart`). Output
+arriving at an idle writer goes through at once, so typing echo pays no frame. `flush()` writes the queue for tests and
+teardown; `dispose()` unregisters the callback and drops what is queued. It is written here, not copied from xterm3
+(which is AGPL-3.0), and is covered by ompanion's own licence.
+
+Measured here (macOS 26.6.2, arm64, debug build, screen locked, a real local PTY in a private copy of the checkout,
+80×24 grid, `yes | head -c 20000000; seq 1 200000`): the writer delivered the whole burst with `200000` as its last
+line in 27.6 s while every frame answered — the frame loop stalled 45 ms at the median, 216 ms at worst, worst frame
+build 106 ms. The same chunks written straight into `Terminal.write` finished sooner (23.6 s) but starved the isolate
+723 ms at the median and 1543 ms at worst, which is the freeze this replaces. The drain is tied to the frame rate, so
+the writer is the slower of the two overall; that is the trade.
 
 ```dart
 const _utf8 = Utf8Decoder(allowMalformed: true); // the default decoder errors on bad bytes
@@ -262,22 +303,18 @@ terminal.onResize = (w, h, pw, ph) =>
     pty.resize(PtySize(columns: w, rows: h, pixelWidth: pw, pixelHeight: ph));
 // Teardown: pty.kill(); await pty.done; await pty.close();
 ```
-**License (not legal advice)**
-- **GPLv3 §13:** "you have permission to link or combine any covered work with a work licensed under version 3 of the GNU Affero General Public License … the special requirements of the GNU Affero General Public License, section 13, concerning interaction through a network will apply to the combination as such."
-- **AGPL §13:** that extra duty applies when someone modifies the program and users interact with it "remotely through a computer network". ompanion runs on the user's own device, so in practice only the normal GPLv3 duty to offer source applies.
-- **Keep xterm3's files:** `LICENSE`, `LICENSE.MIT` and `NOTICE`.
-
-**App Store risk (§9 plans iOS and Mac App Store builds)**
-- In 2010 the FSF held that App Store terms are "further restrictions" on the GPL, and GNU Go was pulled from the store. GPLv3 §10 has the same rule: "You may not impose any further restrictions".
-- The project can grant an App Store exception for its own code under GPLv3 §7. It cannot do that for klc's xterm3.
-- Options for the store builds:
-  - Build them with xterm2 5.2.0 (MIT, same API) behind a D16 build flag.
-  - Get written permission from xterm3's author.
-  - Leave the terminal out of store builds.
+**Licence (not legal advice).** xterm2 is MIT: the copyright notice and the licence text travel with the app, and
+nothing about it conflicts with an app store. That is the whole point of the switch — the previous AGPL-3.0
+terminal could not be conveyed through the App Store by anyone but its own copyright holder, and the project's GPLv3
+§7 exception covers ompanion's code, not a third party's. `docs/research/licenses.md` records the licence of every
+resolved package.
 
 **Other risks**
-- One maintainer, and the repo is seven weeks old; pin the exact version.
+- One maintainer on each fork; pin the exact version.
 - `write` takes decoded text, so every data source needs the tolerant decoder.
+- `paste()` replaces ESC and other control bytes with a space and converts `\n` to `\r`; when the program has asked
+  for bracketed paste (bash 5 on a remote host does), a paste that ends in a newline is inserted into the line
+  editor and does not run until Return is pressed. Both are the same in xterm3.
 
 ---
 ## 5. Code viewer/editor and diffs
@@ -341,7 +378,7 @@ DiffRow? parseOmpDiffLine(String s) {
 | Math | flutter_math_fork (via gpt_markdown) | 0.7.4, 2025-05-21 | Apache-2.0 |
 | Highlighting | re_highlight, run in an isolate | 0.0.3, 2024-02-05 | MIT |
 | Transcript list | Built-in `CustomScrollView` with center anchor and `StickToBottomPhysics`; fallback scrollview_observer | Fallback: 1.27.3, 2026-09-14 | MIT |
-| Terminal | xterm3; xterm2 in App Store builds | 6.3.4, 2026-09-24 / 5.2.0, 2026-07-25 | AGPL-3.0+ / MIT |
+| Terminal | xterm2, one build for every platform | 5.2.0, 2026-07-25 | MIT |
 | Local PTY | flutter_pty2 | 2.0.0, 2026-09-19 | MIT |
 | Editor | re_editor | 0.10.0, 2026-07-01 | MIT |
 | Word diff | dartdiff | 1.0.0, 2026-02-27 | MIT |

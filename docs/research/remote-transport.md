@@ -119,7 +119,7 @@ Alternatives:
 - `libssh_binding` (pub.dev) — not evaluated.
 - **Recommendation:** dartssh2 as the single transport on all five platforms. Desktop helpers: `ssh -G` resolution, agent via `SSHIdentity.custom`, ProxyCommand via Process-backed `SSHSocket`. Optional desktop "OpenSSH compat" transport (same channel abstraction over `ssh -T host cmd` processes) for FIDO/cert/GSSAPI hosts.
 
-Flutter companions (pub.dev API, 2026-09-25): `xterm` 4.0.0 (2024-02-27, stalled); maintained forks `xterm2` 5.2.0 (2026-07-25, MIT) and `xterm3` 6.3.4 (2026-09-24, AGPL-3.0 from 6.0); local PTY `flutter_pty` 0.4.2 (2025-01-06, ffiPlugin incl. Windows ConPTY [INFERENCE]).
+Flutter companions (pub.dev API, 2026-09-25): `xterm` 4.0.0 (2024-02-27, stalled); maintained forks `xterm2` 5.2.0 (2026-07-25, MIT, the one ompanion uses in every build) and `xterm3` 6.3.4 (2026-09-24, AGPL-3.0 from 6.0, unusable in an App Store build); local PTY `flutter_pty` 0.4.2 (2025-01-06, ffiPlugin incl. Windows ConPTY [INFERENCE]), superseded here by `flutter_pty2` 2.0.0 (MIT).
 
 ---
 ## 4. ~/.ssh/config in Dart
@@ -269,4 +269,4 @@ Operational rules:
 - Verified since: D2 survival across SSH channel close, on macOS and Linux (`research/m0-detached-sessions.md`).
 - Still [INFERENCE], need smoke tests: dartssh2 → Tailscale SSH none-auth and check-mode banner, `-R 9224` browser relay, Windows agent pipe, Android background service, TailscaleKit on Android.
 - omp cold start measured locally only: 1.7 s to `ready` plus four introspection commands; over SSH not measured.
-- Terminal widget: decided — `xterm3` (AGPL, usable under the GPLv3 project licence); `xterm2` (MIT) for App Store builds (PLAN.md D17).
+- Terminal widget: decided — `xterm2` 5.2.0 (MIT) in every build, iOS and Android included, so no third-party AGPL/GPL code ships anywhere; ompanion paces PTY output itself (`lib/terminal/frame_writer.dart`, one character budget per frame), the one piece xterm3 had that xterm2 lacks (PLAN.md D17, R11).

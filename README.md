@@ -244,6 +244,43 @@ The app-specific password comes from [appleid.apple.com](https://appleid.apple.c
 
 Without all six secrets the macOS job still builds and uploads an unsigned DMG, and the annotation says so; with only some of them it fails and names the missing ones. Only this repository's secrets work on a fork.
 
+The Android job signs the APK and the Play bundle with the upload key when four repository secrets are set, again the same names [Plezy](https://github.com/edde746/plezy) uses:
+
+| Secret | Value |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | the upload keystore as base64 |
+| `ANDROID_STORE_PASSWORD` | that keystore's password |
+| `ANDROID_KEY_PASSWORD` | the key's password |
+| `ANDROID_KEY_ALIAS` | the key's alias |
+
+```bash
+keytool -genkeypair -v -keystore upload-keystore.jks -alias ompanion -keyalg RSA -keysize 4096 -validity 10000
+base64 -i upload-keystore.jks | pbcopy      # ANDROID_KEYSTORE_BASE64
+```
+
+Keep the keystore and its passwords: with [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756) Google holds the app signing key, and losing the upload key means asking Google to reset it. Locally the same four values live in `android/key.properties` (gitignored, `storeFile` relative to `android/app`). Without all four secrets the job builds a debug-signed APK and bundle and warns; with only some of them it fails and names the missing ones. The job also builds `flutter build appbundle --release --dart-define=OMPANION_CHANNEL=play` and uploads it as `ompanion-android-aab-<sha>`, which no release carries: the store lanes below build their own bundle.
+
+### The stores
+
+The App Store and Google Play uploads run from this Mac, not from CI, through a fastlane lane next to each platform. `.env` in the repository root (gitignored) holds the credentials:
+
+| Key | Value |
+|---|---|
+| `APP_STORE_CONNECT_API_KEY_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH` | an App Store Connect API key: [Users and Access → Integrations → App Store Connect API](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api) → Team Keys → `+`, then the key ID, the issuer ID and the downloaded `.p8` |
+| `FASTLANE_USER`, `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD` | or, instead of the API key, the Apple ID and an app-specific password for it |
+| `PLAY_JSON_KEY_PATH` | the Play service account's JSON key: [create it](https://developers.google.com/android-publisher/getting_started) in Google Cloud and invite the account in Play Console → Users and permissions |
+
+```bash
+gem install fastlane
+(cd ios && fastlane deploy_appstore)                          # flutter build ipa, metadata and screenshots
+(cd android && fastlane release)                              # internal testing track, draft release
+(cd android && fastlane release track:production release_status:completed)
+```
+
+`ios/fastlane/metadata` and `ios/fastlane/screenshots` are the App Store listing; `android/fastlane/metadata/android` is the Play listing. A new Play app only accepts a draft release, so the default uploads to internal testing as a draft that is rolled out in Play Console; nothing reaches production until `track:production` is passed. The iOS lane never submits for review: it uploads the build, and the submission happens in App Store Connect with the notes and the demo machine from [store/README.md](store/README.md).
+
+`deploy_appstore` signs with the Apple Distribution certificate of the Xcode account that can reach `com.edde746.ompanion` (the Runner target signs automatically with team `G88U5B5783`). fastlane rejects screenshots whose pixel size its own list does not know, so `fastlane deploy_appstore skip_screenshots:true` uploads everything else and leaves the screenshots to App Store Connect by hand.
+
 </details>
 
 ## Contributing
@@ -252,13 +289,19 @@ See [AGENTS.md](AGENTS.md) for the conventions (writing, code and tests) and [do
 
 ## License
 
-ompanion is licensed under [GPL-3.0](LICENSE).
+ompanion is licensed under [GPL-3.0](LICENSE), with an additional permission under
+[section 7](LICENSE-EXCEPTION.md) that allows conveying it through app stores whose terms add restrictions the
+GPL does not allow (the Apple App Store, Google Play), as long as the source stays available under the GPLv3.
+Downstream distributors may drop that permission and use the plain GPLv3.
+
+No third-party GPL or AGPL code ships in any build: [docs/research/licenses.md](docs/research/licenses.md) records
+the scan of every resolved package.
 
 ## Acknowledgments
 
 - Built with [Flutter](https://flutter.dev)
 - Drives [omp (oh-my-pi)](https://github.com/can1357/oh-my-pi)
-- SSH by [dartssh2](https://pub.dev/packages/dartssh2); terminal by [xterm3](https://pub.dev/packages/xterm3) and [flutter_pty2](https://pub.dev/packages/flutter_pty2)
+- SSH by [dartssh2](https://pub.dev/packages/dartssh2); terminal by [xterm2](https://pub.dev/packages/xterm2) (MIT) and [flutter_pty2](https://pub.dev/packages/flutter_pty2)
 - Markdown by [gpt_markdown](https://pub.dev/packages/gpt_markdown); code viewing, editing and highlighting by [re_editor](https://pub.dev/packages/re_editor) and [re_highlight](https://pub.dev/packages/re_highlight)
 - Storage by [drift](https://pub.dev/packages/drift) and [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage); translations by [slang](https://pub.dev/packages/slang); state by [provider](https://pub.dev/packages/provider); desktop windows by [window_manager](https://pub.dev/packages/window_manager)
 - Section icons from [Material Icons](https://github.com/google/material-design-icons) (Apache-2.0)

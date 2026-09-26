@@ -1,0 +1,31 @@
+FILL BEFORE SUBMITTING: <HOST> (the demo VPS's public address) and <PASSWORD> (REVIEW_PASSWORD from store/review-demo/.env). Sign-in required is Yes, with user name `review` and the same password (demo_user.txt / demo_password.txt).
+
+ompanion is a client for omp, an AI coding agent that runs on the user's own machines. The app has no account of its own: to reach every screen, add the demo machine we run for this review.
+
+1. In the sidebar, tap Add machine. Choose Kind: SSH. Enter Host: <HOST>, Port: 22222, User: review, Authentication: Password, Password: <PASSWORD>. Tap Save.
+2. The machine's page opens. Under System, tap Connect. The app asks "Trust this host?" the first time; tap Trust. The demo machine is a container we run only during this review and destroy afterwards; it holds no personal data.
+3. The System section then shows omp version 18.3.1 and Companion: Uploaded.
+4. Go back to the list of machines, tap the ⋮ on the machine's row and choose New session. Set Working directory to ~/work/notes-api and tap Start.
+5. Type any message in the composer and send it. The demo machine's model is an offline demo model that answers with canned replies (markdown, a shell command, a file read and edit, a todo list, reasoning, a question, then a long streamed answer). It makes no request to any AI provider and costs nothing.
+
+Everything else works on the same machine: the Files panel edits files and shows git diffs, the Terminal opens a shell, and Configure browses omp's settings, model roles, MCP servers, plugins and skills. Usage has no limits to show on the demo machine. No account, purchase or external service is needed to reach any of it. App Review may also connect to its own machine with omp 18.3.1 installed.
+
+Why the app needs a server (guidelines 2.1 and 4.2)
+
+ompanion is a client for a machine that the user owns and controls. There is nothing to do in it without a machine to connect to, exactly like an SSH client or a remote-desktop app. That is why we supply a demo host with a pre-installed agent and a canned model: the full feature set can be tested without owning a server or paying for AI usage. If the demo host is unreachable during review, send us a note and we will bring it back up within a day.
+
+About guideline 2.5.2
+
+The app does not download or execute code on the device. What it can install is omp, an open-source binary, on the user's own remote machine over SSH, at the user's explicit request, exactly as an SSH client can run commands on a server. The only file the app itself fetches when the user asks for that is the omp release asset for the target machine's OS and architecture from github.com; it is written to the remote host, never run on the device, and a dialog shows the download and upload progress. The app also uploads a small JavaScript extension (about 60 KB, built from the same public repository) to ~/.ompanion/companion/ on that machine, where the user's own omp loads it, so omp exposes the events this client needs; it runs on the user's machine, in the user's agent, not on the device or on any server of ours.
+
+About guideline 5.1.2(i)
+
+The app shares user data with no third party chosen by us, and with no AI provider chosen by us. Prompts are sent to omp on the user's own machine over SSH; omp there calls whatever AI provider the user has configured in omp, using the user's own credentials, and the app never sees those credentials, those keys, or the provider's endpoints. The app has no analytics, no crash reporting, no advertising and no tracking of any kind. Provider sign-in pages for OAuth logins open in the user's browser; the app forwards the loopback callback port over SSH to the user's machine and never receives the token.
+
+About AI-generated content
+
+The chat shows replies produced by the user's own agent and providers. The app adds no moderation of its own, because it is a remote control, not a publisher, and nothing in the chat is shared with other users or with us. The app contains no feed, no public profiles and no messaging between users; several of the user's own devices can watch one live session of their own agent, and that is the whole scope of it.
+
+About source and licence
+
+The app is free and open source (GPLv3); the complete source is at github.com/edde746/ompanion, which is also the marketing and support URL. The terminal library is MIT-licensed. No part of the app requires a purchase or a subscription. Settings → About shows the version, this privacy policy, the source, the issue tracker, the licence ("GPL-3.0 with an app-store exception") and Flutter's bundled-package licence list.

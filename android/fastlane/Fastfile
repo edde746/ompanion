@@ -1,0 +1,50 @@
+require 'dotenv/load'
+require 'shellwords'
+
+PROJECT_ROOT = File.expand_path("../..", __dir__)
+PROJECT_ROOT_ARG = Shellwords.escape(PROJECT_ROOT)
+
+Dotenv.load(File.join(PROJECT_ROOT, ".env"))
+
+default_platform(:android)
+
+platform :android do
+  desc "Build the Play AAB and upload it with its metadata; internal track, draft release, unless told otherwise"
+  lane :release do |options|
+    # A brand-new Play app only accepts a draft release: the Play API answers anything else with "Only releases
+    # with status draft may be created on draft app". So the default uploads to internal testing as a draft
+    # that nobody receives until it is rolled out in Play Console. Once the app is live:
+    #   fastlane release release_status:completed          # internal testing, live on upload
+    #   fastlane release track:production release_status:completed
+    # (https://support.google.com/googleplay/android-developer/answer/9859348)
+    track = options[:track] || "internal"
+    release_status = options[:release_status] || "draft"
+
+    json_key = ENV["PLAY_JSON_KEY_PATH"].to_s
+    UI.user_error!("Set PLAY_JSON_KEY_PATH in .env to the Play service-account JSON key (store/README.md).") if json_key.empty?
+    UI.user_error!("PLAY_JSON_KEY_PATH points at no file: #{json_key}") unless File.exist?(File.expand_path(json_key))
+
+    metadata_path = File.join(PROJECT_ROOT, "android/fastlane/metadata/android")
+    UI.user_error!("No Play metadata in #{metadata_path} (store/README.md).") unless Dir.exist?(metadata_path)
+
+    match = File.read(File.join(PROJECT_ROOT, "pubspec.yaml")).match(/version:\s*(.+)\+(\d+)/)
+    UI.user_error!("Could not read version and versionCode from pubspec.yaml") if match.nil?
+    version_name = match[1].strip
+    version_code = match[2].to_i
+    UI.message("Uploading #{version_name}+#{version_code} to the #{track} track as a #{release_status} release")
+
+    sh("cd #{PROJECT_ROOT_ARG} && flutter build appbundle --release --dart-define=OMPANION_CHANNEL=play")
+
+    aab = File.join(PROJECT_ROOT, "build/app/outputs/bundle/release/app-release.aab")
+    UI.user_error!("flutter build appbundle left no #{aab}.") unless File.exist?(aab)
+
+    upload_to_play_store(
+      aab: aab,
+      json_key: json_key,
+      metadata_path: metadata_path,
+      track: track,
+      release_status: release_status,
+      version_code: version_code
+    )
+  end
+end

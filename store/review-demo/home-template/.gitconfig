@@ -1,0 +1,9 @@
+[user]
+	name = ompanion demo
+	email = demo@example.com
+[init]
+	defaultBranch = main
+[core]
+	editor = vi
+[advice]
+	detachedHead = false
