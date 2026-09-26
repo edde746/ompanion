@@ -85,7 +85,7 @@ String describeConnectError(Translations t, Object error) => switch (error) {
   _ => '$error',
 };
 
-/// Which keys [host] refused: `air.local did not accept the key 'MacBook' (ED25519 SHA256:…).`
+/// Which keys [host] refused: `host.example.com did not accept the key 'id_work' (ED25519 SHA256:…).`
 String describeRefusal(Translations t, String host, SshKeyOffer offer) {
   final keys = offer.keys;
   if (keys.length == 1) return t.connectError.keyRefused(host: host, key: _keyLabel(t, keys.single));

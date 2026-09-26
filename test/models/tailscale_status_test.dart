@@ -71,13 +71,13 @@ void main() {
     final zeta = parseTailscaleStatus(status).peers[1];
     final now = DateTime.utc(2026, 9, 25);
 
-    final draft = draftFromTailscalePeer(zeta, user: 'edde', now: now);
+    final draft = draftFromTailscalePeer(zeta, user: 'me', now: now);
 
     expect(draft.name, 'zeta');
     expect(draft.tailscale, isTrue);
     expect(
       (draft.target.host, draft.target.port, draft.target.user, draft.target.auth),
-      ('zeta.tail1234.ts.net', 22, 'edde', AuthMethod.none),
+      ('zeta.tail1234.ts.net', 22, 'me', AuthMethod.none),
     );
     expect(
       [for (final row in draft.hostKeys) (row.host, row.port, row.keyType, row.fingerprint)],

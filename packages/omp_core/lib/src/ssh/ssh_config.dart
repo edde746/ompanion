@@ -123,7 +123,7 @@ final class SshOfferedKey {
   /// The ssh-agent signs with it.
   final bool agent;
 
-  /// `'MacBook' (ED25519 SHA256:…)`, `~/.ssh/id_rsa (RSA SHA256:…)` or `agent key me@laptop (ED25519 SHA256:…)`.
+  /// `'id_work' (ED25519 SHA256:…)`, `~/.ssh/id_rsa (RSA SHA256:…)` or `agent key me@laptop (ED25519 SHA256:…)`.
   String describe() {
     final label = switch (this) {
       SshOfferedKey(:final name?) => "'$name'",

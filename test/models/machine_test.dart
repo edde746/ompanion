@@ -94,7 +94,7 @@ void main() {
           name: 'm',
           createdAt: created,
           updatedAt: updated,
-          target: const SshEndpoint(id: 'm', host: 'air.local', user: 'edde', auth: AuthMethod.agent),
+          target: const SshEndpoint(id: 'm', host: 'build.example.com', user: 'me', auth: AuthMethod.agent),
           jumps: const [SshEndpoint(id: 'j', host: 'gate', user: 'me', auth: AuthMethod.agent)],
           sshConfigAlias: alias,
         ),
@@ -104,7 +104,7 @@ void main() {
       );
       String? alias(SshHop hop) => (hop.auth as SshConfigAuth).alias;
 
-      expect([for (final hop in plan('air').hops) alias(hop)], [null, 'air']);
+      expect([for (final hop in plan('imported').hops) alias(hop)], [null, 'imported']);
       expect(alias(plan(null).target), isNull);
     });
 
