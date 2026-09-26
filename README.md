@@ -122,9 +122,10 @@ Without it `pubspec.yaml` names a missing asset and the build fails; a build tha
 <details>
 <summary>Dev machine</summary>
 
-Run the app against an isolated omp home and the fake provider, never your real `~/.omp`. It needs the omp 18.3.1 [release binary](https://github.com/can1357/oh-my-pi/releases/tag/v18.3.1) for your platform in `.tools/omp/18.3.1/`, checked against the release's `SHA256SUMS.txt`.
+Run the app against an isolated omp home and the fake provider, never your real `~/.omp`. It needs the omp 18.3.1 [release binary](https://github.com/can1357/oh-my-pi/releases/tag/v18.3.1) for your platform in `.tools/omp/18.3.1/`; `scripts/fetch_omp.sh` downloads it there and checks it against the release's `SHA256SUMS.txt`.
 
 ```bash
+scripts/fetch_omp.sh darwin-arm64                          # or linux-x64, linux-arm64
 bun testing/fake-provider/server.ts --port 18999 --demo    # keep it running
 testing/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
 flutter run -d macos --dart-define=OMPANION_LOCAL_HOME=/tmp/omp-dev-home \
@@ -174,7 +175,17 @@ flutter test
 (cd companion && bun run typecheck && bun test)
 ```
 
-In `packages/omp_core`, tests that start omp or need Docker are tagged and skipped by default; `dart test -P integration` runs them (the Docker ones need `testing/sshd/up.sh`). In `companion/`, `bun run test:e2e` runs the tests that start omp.
+In `packages/omp_core`, tests that start omp or need Docker are tagged and skipped by default; `dart test -P integration` runs them. In `companion/`, `bun run test:e2e` runs the tests that start omp. These, and `flutter test`'s `test/sessions/sessions_provider_omp_test.dart`, need this computer's omp in `.tools/`; the Docker tests also need the SSH test machines with the Linux omp for Docker's architecture:
+
+```bash
+scripts/fetch_omp.sh darwin-arm64 linux-arm64       # this Mac and colima; linux-x64 on an x64 Linux host
+testing/sshd/up.sh
+(cd packages/omp_core && dart test -P integration -j 1)
+(cd companion && bun run test:e2e)
+testing/sshd/down.sh
+```
+
+`-j 1` runs one test file at a time: two Docker test files share the target's run directory. [.github/workflows/ci.yml](.github/workflows/ci.yml) runs all of these on Linux for every push and pull request to `main`; [build.yml](.github/workflows/build.yml) builds each platform on demand.
 
 </details>
 

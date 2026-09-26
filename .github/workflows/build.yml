@@ -1,0 +1,341 @@
+name: Build
+run-name: Build ${{ github.sha }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_android:
+        description: Build Android
+        default: true
+        type: boolean
+      build_ios:
+        description: Build iOS
+        default: true
+        type: boolean
+      build_macos:
+        description: Build macOS
+        default: true
+        type: boolean
+      build_windows:
+        description: Build Windows
+        default: true
+        type: boolean
+      build_linux:
+        description: Build Linux
+        default: true
+        type: boolean
+
+env:
+  FLUTTER_VERSION: "3.47.1"
+  BUN_VERSION: "1.4.0"
+  # Flutter's Linux toolchain plus libsecret for flutter_secure_storage_linux; the other plugins need only GTK 3.
+  LINUX_APT_PACKAGES: clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev
+
+jobs:
+  name:
+    name: Name artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      sha: ${{ steps.sha.outputs.short }}
+    steps:
+      - name: Short commit
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+  build-android:
+    name: Build Android
+    needs: name
+    if: ${{ inputs.build_android }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      ARTIFACT: ompanion-android-${{ needs.name.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: false
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Cache Gradle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      - name: Build the companion
+        run: scripts/build_companion.sh
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      # No signing secrets: the release build type signs with the template's debug key
+      # (android/app/build.gradle.kts), so the APK installs for testing but is not a store build.
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ env.ARTIFACT }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  build-ios:
+    name: Build iOS
+    needs: name
+    if: ${{ inputs.build_ios }}
+    # Xcode 26 or newer: the app icons are Icon Composer .icon bundles.
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      ARTIFACT: ompanion-ios-${{ needs.name.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: false
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Build the companion
+        run: scripts/build_companion.sh
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      # ditto keeps the bundle's symlinks and permissions, which the artifact zip would drop.
+      - name: Zip Runner.app
+        run: ditto -c -k --keepParent build/ios/iphoneos/Runner.app "$ARTIFACT.zip"
+
+      - name: Upload Runner.app
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ env.ARTIFACT }}
+          path: ${{ env.ARTIFACT }}.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  build-macos:
+    name: Build macOS
+    needs: name
+    if: ${{ inputs.build_macos }}
+    # Xcode 26 or newer: the app icons are Icon Composer .icon bundles.
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      ARTIFACT: ompanion-macos-${{ needs.name.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: false
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Build the companion
+        run: scripts/build_companion.sh
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build macOS
+        run: flutter build macos --release
+
+      # ditto keeps the bundle's symlinks and permissions, which the artifact zip would drop.
+      - name: Zip ompanion.app
+        run: ditto -c -k --keepParent build/macos/Build/Products/Release/ompanion.app "$ARTIFACT.zip"
+
+      - name: Upload ompanion.app
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ env.ARTIFACT }}
+          path: ${{ env.ARTIFACT }}.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  build-windows:
+    name: Build Windows
+    needs: name
+    if: ${{ inputs.build_windows }}
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      ARTIFACT: ompanion-windows-${{ needs.name.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: false
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~\AppData\Local\Pub\Cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Build the companion
+        shell: bash
+        run: scripts/build_companion.sh
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      - name: Upload the Release folder
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ env.ARTIFACT }}
+          path: build/windows/x64/runner/Release/
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux
+    needs: name
+    if: ${{ inputs.build_linux }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      ARTIFACT: ompanion-linux-${{ needs.name.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          # shellcheck disable=SC2086 # one package per word
+          sudo apt-get install -y --no-install-recommends $LINUX_APT_PACKAGES
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: false
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Build the companion
+        run: scripts/build_companion.sh
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build Linux
+        run: flutter build linux --release
+
+      # zip keeps the executable bits, which the artifact zip would drop.
+      - name: Zip the bundle
+        working-directory: build/linux/x64/release/bundle
+        run: zip -qr "$GITHUB_WORKSPACE/$ARTIFACT.zip" .
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ env.ARTIFACT }}
+          path: ${{ env.ARTIFACT }}.zip
+          if-no-files-found: error
+          compression-level: 0

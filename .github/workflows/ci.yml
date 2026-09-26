@@ -1,0 +1,210 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  # Keep untrusted code on the read-only pull_request event. Never use pull_request_target here.
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.1"
+  BUN_VERSION: "1.4.0"
+
+# Linux only: macOS minutes cost ten times as much on a private repository.
+jobs:
+  app:
+    name: App
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: false
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      # The app bundles the companion; without assets/companion/ompx.js no Flutter build or test runs.
+      - name: Build the companion
+        run: scripts/build_companion.sh
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Verify generated files are committed
+        run: |
+          dart run slang
+          dart run build_runner build --delete-conflicting-outputs
+          git diff --exit-code
+          untracked=$(git ls-files --others --exclude-standard)
+          if [ -n "$untracked" ]; then
+            printf 'Generated files not committed:\n%s\n' "$untracked" >&2
+            exit 1
+          fi
+
+      - name: Analyze
+        run: flutter analyze
+
+      # flutter test includes test/sessions/sessions_provider_omp_test.dart, which starts this computer's omp.
+      - name: Fetch omp
+        run: scripts/fetch_omp.sh linux-x64
+
+      - name: Test
+        run: flutter test
+
+  core:
+    name: omp_core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: packages/omp_core
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: false
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Install dependencies
+        run: dart pub get --enforce-lockfile
+
+      - name: Analyze
+        run: dart analyze
+
+      # Tests tagged omp or docker stay skipped here (dart_test.yaml); the integration job runs them.
+      - name: Test
+        run: dart test
+
+  companion:
+    name: Companion
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: companion
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+
+  integration:
+    name: Integration (omp and Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: false
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      # The runner and Docker's server are both x64: one binary serves the host and the SSH test machines.
+      - name: Fetch omp
+        run: scripts/fetch_omp.sh linux-x64
+
+      # The session tests upload companion/dist/ompx.js.
+      - name: Build the companion
+        run: scripts/build_companion.sh
+
+      - name: Start the SSH test machines
+        run: testing/sshd/up.sh
+
+      - name: Install omp_core dependencies
+        working-directory: packages/omp_core
+        run: dart pub get --enforce-lockfile
+
+      # One file at a time: two Docker test files race on the target's shared run directory.
+      - name: omp_core integration tests
+        working-directory: packages/omp_core
+        run: dart test -P integration -j 1
+
+      - name: Companion end-to-end tests
+        working-directory: companion
+        run: bun run test:e2e
+
+      - name: Stop the SSH test machines
+        if: always()
+        run: testing/sshd/down.sh
