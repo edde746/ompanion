@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/chat/slash_palette.dart';
+import 'package:ompanion/screens/chat/slash_palette.dart';
 import 'package:omp_core/store.dart';
 
 const _commands = [

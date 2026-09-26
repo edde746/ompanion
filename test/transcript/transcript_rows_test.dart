@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/chat/transcript/transcript_rows.dart';
+import 'package:ompanion/screens/chat/transcript/transcript_rows.dart';
 import 'package:omp_core/store.dart';
 
 UserItem user(int timestamp, String text) => UserItem(timestamp: timestamp, content: [TextBlock(text)]);

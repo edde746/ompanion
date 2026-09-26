@@ -80,8 +80,8 @@ class Translations$app$en {
 
 	// Translations
 
-	/// en: 'omp-app'
-	String get title => 'omp-app';
+	/// en: 'ompanion'
+	String get title => 'ompanion';
 }
 
 // Path: common
@@ -3194,7 +3194,7 @@ class Translations$config$accounts$overridden$en {
 extension on Translations {
 	dynamic _flatMapFunction(String path) {
 		return switch (path) {
-			'app.title' => 'omp-app',
+			'app.title' => 'ompanion',
 			'common.cancel' => 'Cancel',
 			'common.close' => 'Close',
 			'common.save' => 'Save',

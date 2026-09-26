@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/screens/chat/status_strip.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/screens/chat/status_strip.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';

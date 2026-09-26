@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/sessions/exec_runs.dart';
+import 'package:ompanion/sessions/exec_runs.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';

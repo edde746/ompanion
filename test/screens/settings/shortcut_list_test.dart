@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/screens/settings/settings_pane.dart';
-import 'package:omp_app/screens/shell/shortcuts.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/screens/settings/settings_pane.dart';
+import 'package:ompanion/screens/shell/shortcuts.dart';
 
 void main() {
   final t = AppLocale.en.buildSync();

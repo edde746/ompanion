@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/chat/transcript/summary_files.dart';
+import 'package:ompanion/screens/chat/transcript/summary_files.dart';
 
 void main() {
   test("omp's <files> block becomes paths under their directory headings, out of the prose", () {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/screens/sessions/machine_sessions.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/screens/sessions/machine_sessions.dart';
 
 const _title = 'Fix the build';
 

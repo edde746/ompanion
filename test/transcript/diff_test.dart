@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/chat/transcript/diff.dart';
+import 'package:ompanion/screens/chat/transcript/diff.dart';
 
 void main() {
   group('parseOmpDiff', () {

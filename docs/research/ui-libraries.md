@@ -263,7 +263,7 @@ terminal.onResize = (w, h, pw, ph) =>
 ```
 **License (not legal advice)**
 - **GPLv3 §13:** "you have permission to link or combine any covered work with a work licensed under version 3 of the GNU Affero General Public License … the special requirements of the GNU Affero General Public License, section 13, concerning interaction through a network will apply to the combination as such."
-- **AGPL §13:** that extra duty applies when someone modifies the program and users interact with it "remotely through a computer network". omp-app runs on the user's own device, so in practice only the normal GPLv3 duty to offer source applies.
+- **AGPL §13:** that extra duty applies when someone modifies the program and users interact with it "remotely through a computer network". ompanion runs on the user's own device, so in practice only the normal GPLv3 duty to offer source applies.
 - **Keep xterm3's files:** `LICENSE`, `LICENSE.MIT` and `NOTICE`.
 
 **App Store risk (§9 plans iOS and Mac App Store builds)**

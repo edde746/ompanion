@@ -1,5 +1,5 @@
 name: omp_core
-description: Transport, SSH, host scripts, session channels, RPC and companion clients, and the session store for omp-app.
+description: Transport, SSH, host scripts, session channels, RPC and companion clients, and the session store for ompanion.
 publish_to: none
 version: 0.1.0
 

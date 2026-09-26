@@ -76,7 +76,7 @@ Uploading the 231 MB `omp-linux-arm64` over dartssh2 SFTP to the container took 
 
 All three detect truncation by size, so a file that grows past the reader's position before the next check
 is not seen as truncated (BusyBox checks once a second). Rotation therefore happens only while the session
-is settled, under the append lock, and writes `{"type":"omp_app_rotate","generation":G,"previousSize":S}` as
+is settled, under the append lock, and writes `{"type":"ompanion_rotate","generation":G,"previousSize":S}` as
 the first line of the new generation. A channel that had read exactly `S` bytes continues and counts offsets
 from the new file; otherwise its `lines` fail with `RunLogGap` and the device resyncs over RPC.
 
@@ -95,7 +95,7 @@ from the new file; otherwise its `lines` fail with `RunLogGap` and the device re
 4. **Follower scripts end on stdin EOF.** sshd does not signal a non-PTY command when its channel closes, so a
    bare `tail -F` would outlive the channel until its next write. Each follower runs
    `tail … & cat >/dev/null; kill $tail`.
-5. **In-band markers.** After omp exits, `run.sh` appends `\n{"type":"omp_app_exit","code":N}` to
+5. **In-band markers.** After omp exits, `run.sh` appends `\n{"type":"ompanion_exit","code":N}` to
    `out.jsonl` (the leading newline closes a line omp left unfinished), then writes `exit`. Channels end
    their `lines` there; RPC clients never see the markers.
 6. **One appender per channel.** A long-running script appends each line under `mkdir in.lock` (a lock older
@@ -139,7 +139,7 @@ Not verified, because no Windows machine is available:
   sftp-server appends.
 - Win32-OpenSSH's SFTP append (each append is checked by comparing sizes and fails loudly).
 - `run.cmd` taking omp's exit code from `%ERRORLEVEL%` after the pipe, and `chcp`-independent paths (they
-  reach cmd.exe only through `OMPAPP_*` environment variables).
+  reach cmd.exe only through `OMPANION_*` environment variables).
 - Windows PowerShell 5.1 differences from PowerShell 7; the WMI orphan discovery by command line.
 
 ## Risks left open

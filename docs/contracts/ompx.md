@@ -32,10 +32,10 @@ resolves with the whole response frame; the main session is
 ## Secret files
 
 Calls travel through `in.jsonl` on the host, so a secret travels as a file: the app uploads it over SFTP as a
-new file `<home>/.omp-app/tmp/OMPAPP_<16 lowercase hex digits>.secret` with mode 0600 and names it in the call
+new file `<home>/.ompanion/tmp/OMPANION_<16 lowercase hex digits>.secret` with mode 0600 and names it in the call
 (`settings.set` `valueFile`, `accounts.setKey` `keyFile`). The companion accepts only an absolute path of a
 regular file, not a symbolic link, with that name, whose real path lies directly in the real path of
-`<home>/.omp-app/tmp` (`<home>` is omp's home directory), and, except on Windows, whose mode is exactly 0600.
+`<home>/.ompanion/tmp` (`<home>` is omp's home directory), and, except on Windows, whose mode is exactly 0600.
 Anything else is `bad_request`, and that file is neither read nor deleted. A missing file is `not_found`. An
 accepted file is deleted once read, also when the call then fails. The app deletes its upload after every call,
 so a refused file does not stay behind.

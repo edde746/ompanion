@@ -381,9 +381,9 @@ describe("accounts", () => {
 	test("accounts.setKey refuses a keyFile the app did not upload, and neither reads nor deletes it", async () => {
 		const victim = path.join(omp.home, "id_ed25519");
 		await writeFile(victim, "private key\n", { mode: 0o600 });
-		const tmp = path.join(omp.home, ".omp-app", "tmp");
+		const tmp = path.join(omp.home, ".ompanion", "tmp");
 		await mkdir(tmp, { recursive: true, mode: 0o700 });
-		const link = path.join(tmp, "OMPAPP_0123456789abcdef.secret");
+		const link = path.join(tmp, "OMPANION_0123456789abcdef.secret");
 		await symlink(victim, link);
 		// A relative path would resolve against omp's cwd, the home directory in the machine's control process.
 		const relative = path.join(omp.cwd, "id_ed25519");

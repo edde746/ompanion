@@ -25,8 +25,8 @@ esac
 [ -x "$omp" ] || { echo "missing $omp" >&2; exit 1; }
 
 mkdir -p "$keys"
-[ -f "$keys/id_ed25519" ] || ssh-keygen -q -t ed25519 -N '' -C omp-app-test -f "$keys/id_ed25519"
-[ -f "$keys/id_rsa" ] || ssh-keygen -q -t rsa -b 3072 -N '' -C omp-app-test-rsa -f "$keys/id_rsa"
+[ -f "$keys/id_ed25519" ] || ssh-keygen -q -t ed25519 -N '' -C ompanion-test -f "$keys/id_ed25519"
+[ -f "$keys/id_rsa" ] || ssh-keygen -q -t rsa -b 3072 -N '' -C ompanion-test-rsa -f "$keys/id_rsa"
 for machine in bastion target; do
   dir="$keys/hostkeys/$machine"
   mkdir -p "$dir"

@@ -115,7 +115,7 @@ void main() {
         final channel = await attach();
         final frames = Frames(channel.lines);
         // Windows writes the marker with cmd.exe's echo: CRLF line ends.
-        await omp(kind == 'exec' ? '{"id":"1"}\n\n{"type":"omp_app_exit","code":0}\n' : '{"id":"1"}\r\n\r\n{"type":"omp_app_exit","code":0}\r\n');
+        await omp(kind == 'exec' ? '{"id":"1"}\n\n{"type":"ompanion_exit","code":0}\n' : '{"id":"1"}\r\n\r\n{"type":"ompanion_exit","code":0}\r\n');
         await File('$dir/exit').writeAsString('0\n');
         await frames.ended();
         expect(frames.raw, ['{"id":"1"}']);

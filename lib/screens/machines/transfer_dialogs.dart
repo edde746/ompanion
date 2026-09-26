@@ -52,7 +52,7 @@ class _ExportDialogState extends State<_ExportDialog> {
     final t = context.t;
     final saved = await FilePicker.saveFile(
       dialogTitle: t.transfer.exportTitle,
-      fileName: 'omp-app-machines.json',
+      fileName: 'ompanion-machines.json',
       bytes: utf8.encode(widget.json),
       mimeType: 'application/json',
     );

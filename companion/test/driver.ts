@@ -318,9 +318,9 @@ export class OmpDriver {
 
 	/** Writes `content` where and as the app's `ConfigTarget.uploadSecret` does; returns the file's path. */
 	async uploadSecret(content: string): Promise<string> {
-		const dir = path.join(this.home, ".omp-app", "tmp");
+		const dir = path.join(this.home, ".ompanion", "tmp");
 		await mkdir(dir, { recursive: true, mode: 0o700 });
-		const file = path.join(dir, `OMPAPP_${randomBytes(8).toString("hex")}.secret`);
+		const file = path.join(dir, `OMPANION_${randomBytes(8).toString("hex")}.secret`);
 		await writeFile(file, content, { mode: 0o600 });
 		return file;
 	}

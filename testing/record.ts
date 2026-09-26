@@ -239,7 +239,7 @@ const COMPANION = path.join(import.meta.dir, "..", "companion", "dist", "ompx.js
  */
 async function withCompanion({ home }: Context): Promise<string[]> {
 	if (!fs.existsSync(COMPANION)) throw new Error(`companion not built: run \`cd companion && bun run build\` (${COMPANION})`);
-	const target = path.join(home, ".omp-app", "companion", "18.3.1", "ompx.js");
+	const target = path.join(home, ".ompanion", "companion", "18.3.1", "ompx.js");
 	fs.mkdirSync(path.dirname(target), { recursive: true });
 	fs.copyFileSync(COMPANION, target);
 	return ["-e", target];

@@ -15,26 +15,26 @@ import 'windows_channel.dart';
 
 const _createBreakawayFromJob = 0x01000000;
 
-/// `run.cmd`, started by WMI. ASCII only: every path comes from the `OMPAPP_*` environment variables the
+/// `run.cmd`, started by WMI. ASCII only: every path comes from the `OMPANION_*` environment variables the
 /// launch sets, so no code page ever touches them, and cmd.exe expands a variable's value only once.
 /// `echo.` puts the exit marker on its own line even when omp died mid-line.
 const windowsRunCmd =
     '@echo off\r\n'
     '"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -NonInteractive '
-    '-ExecutionPolicy Bypass -File "%OMPAPP_RUN%\\feed.ps1" | "%OMPAPP_OMP%" %OMPAPP_ARGS% '
-    '>> "%OMPAPP_RUN%\\out.jsonl" 2>> "%OMPAPP_RUN%\\err.log"\r\n'
-    'set OMPAPP_CODE=%ERRORLEVEL%\r\n'
-    '>> "%OMPAPP_RUN%\\out.jsonl" echo.\r\n'
-    '>> "%OMPAPP_RUN%\\out.jsonl" echo {"type":"omp_app_exit","code":%OMPAPP_CODE%}\r\n'
-    '> "%OMPAPP_RUN%\\exit.tmp" echo %OMPAPP_CODE%\r\n'
-    'move /y "%OMPAPP_RUN%\\exit.tmp" "%OMPAPP_RUN%\\exit" > nul\r\n';
+    '-ExecutionPolicy Bypass -File "%OMPANION_RUN%\\feed.ps1" | "%OMPANION_OMP%" %OMPANION_ARGS% '
+    '>> "%OMPANION_RUN%\\out.jsonl" 2>> "%OMPANION_RUN%\\err.log"\r\n'
+    'set OMPANION_CODE=%ERRORLEVEL%\r\n'
+    '>> "%OMPANION_RUN%\\out.jsonl" echo.\r\n'
+    '>> "%OMPANION_RUN%\\out.jsonl" echo {"type":"ompanion_exit","code":%OMPANION_CODE%}\r\n'
+    '> "%OMPANION_RUN%\\exit.tmp" echo %OMPANION_CODE%\r\n'
+    'move /y "%OMPANION_RUN%\\exit.tmp" "%OMPANION_RUN%\\exit" > nul\r\n';
 
 /// `feed.ps1`: copies bytes appended to `in.jsonl` to stdout, polling every 50 ms, and exits once
 /// `in.jsonl.stop` exists and everything before it was copied. Its exit closes omp's stdin, omp's only
 /// graceful stop on Windows. `ReadWrite, Delete` sharing lets sftp-server append while it reads.
 const windowsFeedScript = r'''
 $ErrorActionPreference = 'Stop'
-$run = $env:OMPAPP_RUN
+$run = $env:OMPANION_RUN
 $stop = [System.IO.Path]::Combine($run, 'in.jsonl.stop')
 $in = [System.IO.File]::Open([System.IO.Path]::Combine($run, 'in.jsonl'), [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::Read, [System.IO.FileShare]'ReadWrite, Delete')
 $out = [Console]::OpenStandardOutput()
@@ -65,7 +65,7 @@ String windowsArg(String arg) {
 }
 
 /// The launch: `Win32_Process.Create` with job breakaway, the SSH session's environment plus the
-/// `OMPAPP_*` variables (a WMI child otherwise gets the WMI provider's environment), then a wait of up to
+/// `OMPANION_*` variables (a WMI child otherwise gets the WMI provider's environment), then a wait of up to
 /// ten seconds for omp to appear, identified by the overlay path in its command line.
 String windowsLaunchScript(String marker, {required String dir, required String cwd, required String omp, required List<String> args}) =>
     '''
@@ -75,10 +75,10 @@ String windowsLaunchScript(String marker, {required String dir, required String 
 $_windowsLaunchBody''';
 
 const _windowsLaunchBody = r'''
-$vars = @(Get-ChildItem Env: | Where-Object { -not $_.Name.StartsWith('OMPAPP_') } | ForEach-Object { $_.Name + '=' + $_.Value })
-$vars += 'OMPAPP_RUN=' + $run
-$vars += 'OMPAPP_OMP=' + $omp
-$vars += 'OMPAPP_ARGS=' + $argline
+$vars = @(Get-ChildItem Env: | Where-Object { -not $_.Name.StartsWith('OMPANION_') } | ForEach-Object { $_.Name + '=' + $_.Value })
+$vars += 'OMPANION_RUN=' + $run
+$vars += 'OMPANION_OMP=' + $omp
+$vars += 'OMPANION_ARGS=' + $argline
 $startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ CreateFlags = $flags; ShowWindow = [uint16]0; EnvironmentVariables = [string[]]$vars }
 $command = 'cmd.exe /d /v:off /s /c ""' + $run + '\run.cmd""'
 $result = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $command; CurrentDirectory = $cwd; ProcessStartupInformation = $startup }
@@ -99,7 +99,7 @@ if (-not $found) { throw "omp did not start; see $run\err.log" }
 String windowsListScript(String marker, String root) => '\$m = ${psQuote(marker)}; \$root = ${psQuote(root)}\n$_windowsListBody';
 
 const _windowsListBody = r'''
-$procs = @(Get-CimInstance -ClassName Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('\.omp-app\run\') })
+$procs = @(Get-CimInstance -ClassName Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('\.ompanion\run\') })
 $out = New-Object System.Text.StringBuilder
 if (Test-Path -LiteralPath $root -PathType Container) {
   foreach ($d in Get-ChildItem -LiteralPath $root -Directory | Where-Object { -not $_.Name.StartsWith('.') }) {

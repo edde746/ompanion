@@ -4,7 +4,7 @@
     <!-- A restored backup carries flutter_secure_storage values whose Keystore key did not travel with
          them, so they fail to decrypt ("Failed to unwrap key"). Private keys never leave the device. -->
     <application
-        android:label="omp-app"
+        android:label="ompanion"
         android:name="${applicationName}"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher">

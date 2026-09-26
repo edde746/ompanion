@@ -224,9 +224,9 @@ describe("settings", () => {
 	test("a valueFile the app did not upload is refused, and neither read nor deleted", async () => {
 		const victim = path.join(omp.home, "thesis.json");
 		await writeFile(victim, JSON.stringify("thesis"), { mode: 0o600 });
-		const tmp = path.join(omp.home, ".omp-app", "tmp");
+		const tmp = path.join(omp.home, ".ompanion", "tmp");
 		await mkdir(tmp, { recursive: true, mode: 0o700 });
-		const link = path.join(tmp, "OMPAPP_0123456789abcdef.secret");
+		const link = path.join(tmp, "OMPANION_0123456789abcdef.secret");
 		await symlink(victim, link);
 		for (const valueFile of [victim, link]) {
 			expect(

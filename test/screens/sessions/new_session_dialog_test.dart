@@ -7,16 +7,16 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/models/machine.dart';
-import 'package:omp_app/providers/machines_provider.dart';
-import 'package:omp_app/providers/shell_provider.dart';
-import 'package:omp_app/screens/sessions/new_session_dialog.dart';
-import 'package:omp_app/services/known_hosts_store.dart';
-import 'package:omp_app/services/machine_connector.dart';
-import 'package:omp_app/services/secret_store.dart';
-import 'package:omp_app/sessions/sessions_provider.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/models/machine.dart';
+import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/providers/shell_provider.dart';
+import 'package:ompanion/screens/sessions/new_session_dialog.dart';
+import 'package:ompanion/services/known_hosts_store.dart';
+import 'package:ompanion/services/machine_connector.dart';
+import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
@@ -110,7 +110,7 @@ final class _Connector extends MachineConnector {
 
 void main() {
   testWidgets('a directory picker closed while its SFTP channel opens closes the channel', (tester) async {
-    final home = Directory.systemTemp.createTempSync('omp-app-picker-');
+    final home = Directory.systemTemp.createTempSync('ompanion-picker-');
     addTearDown(() => home.deleteSync(recursive: true));
     final omp = File('${home.path}/.local/bin/omp')..createSync(recursive: true);
     omp.writeAsStringSync('#!/bin/sh\necho omp/18.3.1\n');

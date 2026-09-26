@@ -3,7 +3,7 @@ import 'package:crypto/crypto.dart';
 import '../transport/host_link.dart';
 import 'scripts.dart';
 
-/// Puts the companion extension at `~/.omp-app/companion/<ompVersion>/<sha256>.js` and returns its
+/// Puts the companion extension at `~/.ompanion/companion/<ompVersion>/<sha256>.js` and returns its
 /// host-native path, the value for omp's `-e`. The directory sits outside omp's extension discovery roots,
 /// so the user's TUI never loads it. A file already there with the same content is left alone; a partial or
 /// corrupt one is replaced. Uploads go to a temporary name first, so the final path only ever holds a

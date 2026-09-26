@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/config/cli_results.dart';
-import 'package:omp_app/screens/usage/usage_overview.dart';
+import 'package:ompanion/config/cli_results.dart';
+import 'package:ompanion/screens/usage/usage_overview.dart';
 
 // The fixtures are omp 18.3.1's own output; see cli_results_test.dart. omp's text output for the same homes is quoted
 // where a value must match it.

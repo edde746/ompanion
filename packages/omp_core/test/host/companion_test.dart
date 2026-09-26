@@ -23,7 +23,7 @@ void main() {
   test('the companion lands at a content-addressed path, is kept when intact and replaced when not', () async {
     final bytes = utf8.encode('export default function () {}\n');
     final path = await uploadCompanion(link, ompVersion: '18.3.1', bytes: bytes);
-    expect(path, '${temp.path}/.omp-app/companion/18.3.1/${sha256.convert(bytes)}.js');
+    expect(path, '${temp.path}/.ompanion/companion/18.3.1/${sha256.convert(bytes)}.js');
     expect(File(path).readAsBytesSync(), bytes);
 
     await Process.run('touch', ['-t', '202001010000', path]);

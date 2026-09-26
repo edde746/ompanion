@@ -36,9 +36,9 @@ void main() {
   });
 
   test('the payload is found between its markers, whatever the shell printed around it', () {
-    const result = ScriptResult('Last login: today\nOMPAPP_1:begin\n{"a":1}\nOMPAPP_1:end\nbye\n', '', HostExit(code: 0));
-    expect(result.payload('OMPAPP_1'), '{"a":1}');
-    expect(() => result.payload('OMPAPP_2'), throwsA(isA<HostLinkException>()));
+    const result = ScriptResult('Last login: today\nOMPANION_1:begin\n{"a":1}\nOMPANION_1:end\nbye\n', '', HostExit(code: 0));
+    expect(result.payload('OMPANION_1'), '{"a":1}');
+    expect(() => result.payload('OMPANION_2'), throwsA(isA<HostLinkException>()));
   });
 
   test('encodePowerShell is base64 of UTF-16LE, surrogate pairs included', () {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/config/config_target.dart';
-import 'package:omp_app/screens/config/login_dialogs.dart';
+import 'package:ompanion/config/config_target.dart';
+import 'package:ompanion/screens/config/login_dialogs.dart';
 
 import '../../config/fake_machine.dart';
 

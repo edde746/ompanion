@@ -752,7 +752,7 @@ final class RunSession implements LiveSession {
   void _warn(String message) => _setView(_notice(_view, NoticeLevel.warning, message));
 
   static SessionView _notice(SessionView view, NoticeLevel level, String message) {
-    final notices = [...view.notices, MessageNotice(view.nextSeq, level: level, message: message, source: 'omp-app')];
+    final notices = [...view.notices, MessageNotice(view.nextSeq, level: level, message: message, source: 'ompanion')];
     return view.copyWith(
       notices: UnmodifiableListView(
         notices.length <= SessionView.maxNotices ? notices : notices.sublist(notices.length - SessionView.maxNotices),

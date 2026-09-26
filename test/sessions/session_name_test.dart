@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/sessions/session_name.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/sessions/session_name.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/store.dart';
 

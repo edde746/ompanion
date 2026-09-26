@@ -37,5 +37,5 @@ Future<void> main() async {
     await settings.set(Prefs.localMachineSeeded, true);
   }
   if (settings.get(Prefs.deviceId).isEmpty) await settings.set(Prefs.deviceId, newId());
-  runApp(OmpApp(db: db, settings: settings, secrets: secrets, machines: machines));
+  runApp(OmpanionApp(db: db, settings: settings, secrets: secrets, machines: machines));
 }

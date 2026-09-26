@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/sessions/oauth_callback.dart';
+import 'package:ompanion/sessions/oauth_callback.dart';
 
 void main() {
   test('finds the loopback port of an encoded redirect_uri', () {

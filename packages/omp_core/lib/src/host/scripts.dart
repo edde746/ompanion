@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import '../transport/host_link.dart';
 
 /// Directory under the user's home that holds everything the app puts on a machine.
-const appDirName = '.omp-app';
+const appDirName = '.ompanion';
 
 /// How a machine's SSH exec parses a command string: a POSIX-style shell, `cmd.exe`, or PowerShell.
 /// Windows hosts with Git Bash or MSYS as the OpenSSH default shell are [posix].
@@ -19,7 +19,7 @@ final _random = Random.secure();
 
 /// A token that shell noise (banners, rc files, motd) cannot contain by accident.
 String newMarker() =>
-    'OMPAPP_${List.generate(8, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
+    'OMPANION_${List.generate(8, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
 
 /// Quotes [value] as one POSIX `sh` word.
 String shQuote(String value) {
@@ -172,7 +172,7 @@ Future<void> finishProcess(HostProcess process, Future<void> done, {Duration tim
 }
 
 /// Runs [script] with Windows PowerShell, after [powershellPreamble]. Scripts too long for a cmd.exe line
-/// are uploaded to `~/.omp-app/tmp` as UTF-8 with a BOM (Windows PowerShell reads BOM-less files as ANSI)
+/// are uploaded to `~/.ompanion/tmp` as UTF-8 with a BOM (Windows PowerShell reads BOM-less files as ANSI)
 /// and run with `-File`; under a POSIX default shell that command goes through `sh -s`, as [runPosixScript]
 /// explains.
 Future<ScriptResult> runPowerShell(HostLink link, CommandShell shell, String script) async {
@@ -218,7 +218,7 @@ String hostPath(String sftpPath) =>
 String toSftpPath(String hostPath) =>
     RegExp(r'^[A-Za-z]:').hasMatch(hostPath) ? '/${hostPath.replaceAll(r'\', '/')}' : hostPath;
 
-/// Creates `~/.omp-app` and the nested [subdirectories] (`a/b`) as needed, mode 0700; returns the innermost
+/// Creates `~/.ompanion` and the nested [subdirectories] (`a/b`) as needed, mode 0700; returns the innermost
 /// path in SFTP path space.
 Future<String> ensureAppDir(HostFiles files, String subdirectories) async {
   var path = '${await files.home()}/$appDirName';

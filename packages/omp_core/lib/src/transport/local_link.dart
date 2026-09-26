@@ -63,8 +63,8 @@ final class LocalLink implements HostLink {
 /// reads `/Users` as a switch, and through the environment, since cmd.exe expands `%` even inside quotes.
 @visibleForTesting
 ({String executable, List<String> arguments, Map<String, String> environment}) windowsMkdirStart(String path) {
-  final start = windowsShellStart('mkdir "%OMPAPP_DIR%"', flags: '/d /e:off /v:off');
-  return (executable: start.executable, arguments: start.arguments, environment: {'OMPAPP_DIR': path.replaceAll('/', r'\')});
+  final start = windowsShellStart('mkdir "%OMPANION_DIR%"', flags: '/d /e:off /v:off');
+  return (executable: start.executable, arguments: start.arguments, environment: {'OMPANION_DIR': path.replaceAll('/', r'\')});
 }
 
 final class _LocalProcess implements HostProcess {

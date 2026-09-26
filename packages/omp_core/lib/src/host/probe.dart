@@ -140,12 +140,12 @@ Future<HostProbe> _probeWindows(HostLink link, CommandShell shell, bool searchSy
 /// Polyglot: POSIX shells print `%OS%` literally and expand `$env` to nothing, cmd.exe expands only `%OS%`,
 /// PowerShell expands only `$env:OS`, and a POSIX shell on Windows (MSYS) also has `$OS` set. Dots separate
 /// the fields because PowerShell parses them the same with or without the surrounding quotes.
-const shellProbeCommand = r'echo "OMPAPP_SHELL.%OS%.$env:OS.$OS."';
+const shellProbeCommand = r'echo "OMPANION_SHELL.%OS%.$env:OS.$OS."';
 
 /// Classifies the output of [shellProbeCommand]. Shells that print nothing usable (csh) still run `sh -s`,
 /// so the fallback is [CommandShell.posix].
 CommandShell parseShellProbe(String output) {
-  const tag = 'OMPAPP_SHELL.';
+  const tag = 'OMPANION_SHELL.';
   for (final line in const LineSplitter().convert(output)) {
     final at = line.indexOf(tag);
     if (at < 0) continue;

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/dock/tree/session_tree.dart';
+import 'package:ompanion/screens/dock/tree/session_tree.dart';
 
 /// A `get_tree` node; [children] nest.
 Map<String, Object?> node(Map<String, Object?> entry, [List<Map<String, Object?>> children = const [], String? label]) =>

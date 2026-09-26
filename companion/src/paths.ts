@@ -11,7 +11,7 @@ import { VerbError } from "./protocol.ts";
  */
 
 /** The name `ConfigTarget.uploadSecret` gives a secret file: `newMarker()` plus `.secret`. */
-const SECRET_FILE_NAME = /^OMPAPP_[0-9a-f]{16}\.secret$/;
+const SECRET_FILE_NAME = /^OMPANION_[0-9a-f]{16}\.secret$/;
 
 /**
  * Reads a secret file the app uploaded over SFTP, then deletes it (docs/contracts/ompx.md, "Secret files").
@@ -20,7 +20,7 @@ const SECRET_FILE_NAME = /^OMPAPP_[0-9a-f]{16}\.secret$/;
 export async function takeSecretFile(file: string, home: string = homedir()): Promise<string> {
 	if (!path.isAbsolute(file)) throw new VerbError("bad_request", `${file} is not an absolute path`);
 	if (!SECRET_FILE_NAME.test(path.basename(file))) {
-		throw new VerbError("bad_request", `${file} is not named OMPAPP_<16 hex digits>.secret`);
+		throw new VerbError("bad_request", `${file} is not named OMPANION_<16 hex digits>.secret`);
 	}
 	let stats: Stats;
 	try {
@@ -32,7 +32,7 @@ export async function takeSecretFile(file: string, home: string = homedir()): Pr
 	if (!stats.isFile()) throw new VerbError("bad_request", `${file} is not a regular file`);
 	const real = await realpath(file);
 	// Real paths on both sides: SFTP reports the home directory with symlinks resolved, $HOME may keep them.
-	const tmp = path.join(home, ".omp-app", "tmp");
+	const tmp = path.join(home, ".ompanion", "tmp");
 	let realTmp: string;
 	try {
 		realTmp = await realpath(tmp);

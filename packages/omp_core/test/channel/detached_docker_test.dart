@@ -25,7 +25,7 @@ void main() {
     link = await connect();
     // omp refuses RPC mode without a model: give the machine's omp the fake-provider home the Mac tests use.
     final home = await File('$repoRoot/testing/omp-home.sh').readAsString();
-    final setup = await runPosixScript(link, 'rm -rf "\$HOME/.omp-app" "\$HOME/.omp"\nset -- "\$HOME" 9\n$home');
+    final setup = await runPosixScript(link, 'rm -rf "\$HOME/.ompanion" "\$HOME/.omp"\nset -- "\$HOME" 9\n$home');
     expect(setup.exit.code, 0, reason: setup.stderr);
     probe = await probeHost(link);
   });
@@ -34,7 +34,7 @@ void main() {
     for (final run in await listRuns(link, probe)) {
       if (run.live) await stopRun(link, probe, run, force: true, timeout: const Duration(seconds: 10));
     }
-    await runPosixScript(link, 'rm -rf "\$HOME/.omp-app" "\$HOME/.omp" "\$HOME/work" "\$HOME/upload"');
+    await runPosixScript(link, 'rm -rf "\$HOME/.ompanion" "\$HOME/.omp" "\$HOME/work" "\$HOME/upload"');
     await link.close();
   });
 
@@ -176,7 +176,7 @@ void main() {
   test('companion and omp uploads over SFTP land intact', () async {
     final companion = utf8.encode('export default function () {}\n');
     final path = await uploadCompanion(link, ompVersion: '18.3.1', bytes: companion);
-    expect(path, '${probe.home}/.omp-app/companion/18.3.1/${sha256.convert(companion)}.js');
+    expect(path, '${probe.home}/.ompanion/companion/18.3.1/${sha256.convert(companion)}.js');
     expect(await uploadCompanion(link, ompVersion: '18.3.1', bytes: companion), path);
 
     final asset = '$repoRoot/.tools/omp/18.3.1/omp-linux-arm64';

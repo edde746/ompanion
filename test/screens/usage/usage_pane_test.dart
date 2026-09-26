@@ -7,16 +7,16 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/app/theme.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/models/machine.dart';
-import 'package:omp_app/providers/machines_provider.dart';
-import 'package:omp_app/screens/usage/usage_pane.dart';
-import 'package:omp_app/services/known_hosts_store.dart';
-import 'package:omp_app/services/machine_connector.dart';
-import 'package:omp_app/services/secret_store.dart';
-import 'package:omp_app/sessions/sessions_provider.dart';
+import 'package:ompanion/app/theme.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/models/machine.dart';
+import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/screens/usage/usage_pane.dart';
+import 'package:ompanion/services/known_hosts_store.dart';
+import 'package:ompanion/services/machine_connector.dart';
+import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
@@ -116,7 +116,7 @@ final class _Process extends Fake implements HostProcess {
     });
     final answer = switch (script) {
       _ when marker != null => Future.value(('\n$marker:begin\n$probe\n$marker:end\n', '', 0)),
-      '' => Future.value(('OMPAPP_SHELL.%OS%..\n', '', 0)),
+      '' => Future.value(('OMPANION_SHELL.%OS%..\n', '', 0)),
       _ => () {
         link.commands.add(RegExp(r"'(usage|config)' '([a-z-]+)'").firstMatch(script)!.group(0)!.replaceAll("'", ''));
         return link.answer(script);

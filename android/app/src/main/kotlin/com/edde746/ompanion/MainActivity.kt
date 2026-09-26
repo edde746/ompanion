@@ -1,4 +1,4 @@
-package com.edde746.omp_app
+package com.edde746.ompanion
 
 import io.flutter.embedding.android.FlutterActivity
 

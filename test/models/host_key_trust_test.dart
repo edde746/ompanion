@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/models/host_key_trust.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/models/host_key_trust.dart';
 import 'package:omp_core/ssh.dart';
 
 void main() {

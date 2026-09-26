@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/app/theme.dart';
-import 'package:omp_app/widgets/app_search_field.dart';
+import 'package:ompanion/app/theme.dart';
+import 'package:ompanion/widgets/app_search_field.dart';
 
 void main() {
   Future<List<String>> pump(WidgetTester tester, {List<String>? submitted}) async {

@@ -489,7 +489,7 @@ String renderOverlay(Map<String, String> overlay) {
   return yaml.toString();
 }
 
-/// A detached run in `~/.omp-app/run/<id>/`.
+/// A detached run in `~/.ompanion/run/<id>/`.
 final class _DetachedAccess implements RunAccess {
   _DetachedAccess(this._machine, this._run, {required bool windows}) : rotateAt = windows ? null : rotateOutputAt;
 
@@ -590,7 +590,7 @@ final class _ControlAccess implements RunAccess {
       args: [
         '--no-session',
         // `--api-key` is a runtime override for the model's provider (`keys.setRuntime`), never persisted.
-        if (bootstrap) ...['--model', bootstrapModel, '--api-key', 'omp-app-bootstrap'],
+        if (bootstrap) ...['--model', bootstrapModel, '--api-key', 'ompanion-bootstrap'],
       ],
     );
     final channel = _channel = await AttachedChannel.start(ready.link, ready.probe, spec);

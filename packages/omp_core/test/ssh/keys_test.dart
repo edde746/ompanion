@@ -99,12 +99,12 @@ void main() {
     });
 
     test('generated key reads back with the same public key', () {
-      final generated = generateEd25519Key(comment: 'omp-app test');
+      final generated = generateEd25519Key(comment: 'ompanion test');
       final read = readPrivateKey(generated.privateKeyPem);
       expect(read.blob, generated.publicKey.blob);
-      expect(read.comment, 'omp-app test');
+      expect(read.comment, 'ompanion test');
       expect(generated.publicKey.authorizedKeysLine, startsWith('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5'));
-      expect(generated.publicKey.authorizedKeysLine, endsWith(' omp-app test'));
+      expect(generated.publicKey.authorizedKeysLine, endsWith(' ompanion test'));
     });
 
     test('generated key with a passphrase is encrypted', () {

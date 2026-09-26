@@ -135,8 +135,8 @@ Protocol sketch:
 - **Launch:** `omp --mode rpc-ui -e /abs/companion-<ver>.js [--no-session for control]`.
   - Don't use `--trusted-extension`: it is an exact allowlist that disables user extensions (`main.ts:1597-1621`) and can't be combined with `-e` (`args.ts:321-322`).
   - Don't use `--no-ui` (18.3.1): it suppresses the reply frames.
-- **Request:** `{"id":"r1","type":"prompt","message":"/omp-app {json incl corr}"}` returns a success response, then `prompt_result{agentInvoked:false}` (`rpc-mode.ts:235`).
-- **Reply:** `ctx.ui.setStatus("omp-app:<corr>", json)` or `notify(json)` arrives as `extension_ui_request`; the host filters the key prefix. Frames are ≤1 MiB on v1; negotiate v2 for bigger payloads.
+- **Request:** `{"id":"r1","type":"prompt","message":"/ompanion {json incl corr}"}` returns a success response, then `prompt_result{agentInvoked:false}` (`rpc-mode.ts:235`).
+- **Reply:** `ctx.ui.setStatus("ompanion:<corr>", json)` or `notify(json)` arrives as `extension_ui_request`; the host filters the key prefix. Frames are ≤1 MiB on v1; negotiate v2 for bigger payloads.
 - **Companion-initiated request:** `ctx.ui.input` / `editor` / `select` round-trips (e.g. to enter a secret).
 - **Push:** the companion subscribes to events (`credential_disabled`, `tool_approval_*`, `session_*`) and emits status frames.
 
@@ -145,7 +145,7 @@ Limits:
 - Manual `/compact` makes prompts wait until the compaction finishes (`agent-session.ts` `#prompt`).
 - It depends on internal APIs that change every release, so build and pin one companion per omp version and feature-detect at startup.
 - Upload it outside the auto-discovery roots (e.g. `~/.omp/app/`) so the user's TUI doesn't load it.
-- [INFERENCE] Whether `/omp-app` prompts land in prompt history: not checked.
+- [INFERENCE] Whether `/ompanion` prompts land in prompt history: not checked.
 
 ## 5. Upstream RPC additions that would close the gaps
 - Already on main (18.3.1): `open_session`, `set_event_filter`, `prompt_result` status, `session_settled`, `--no-ui`, settings `fs.watch`.

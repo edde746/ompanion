@@ -32,7 +32,7 @@ final class AttachedChannel implements LineChannel {
     );
   }
 
-  /// Writes [spec]'s overlay to `~/.omp-app/attached/<marker>.yml` (the marker also identifies the process)
+  /// Writes [spec]'s overlay to `~/.ompanion/attached/<marker>.yml` (the marker also identifies the process)
   /// and starts omp in [spec]'s directory. The overlay is removed when omp exits.
   static Future<AttachedChannel> start(
     HostLink link,

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-/// Where this build is distributed, from `--dart-define=OMP_APP_CHANNEL=<name>` (default `direct`).
+/// Where this build is distributed, from `--dart-define=OMPANION_CHANNEL=<name>` (default `direct`).
 ///
 /// The only place that reads the flag; features a store forbids are gated here (docs/PLAN.md §9).
 enum BuildChannel {
@@ -13,7 +13,7 @@ enum BuildChannel {
 
   /// Throws [ArgumentError] at startup for an unknown channel name.
   static final BuildChannel current = BuildChannel.values.byName(
-    const String.fromEnvironment('OMP_APP_CHANNEL', defaultValue: 'direct'),
+    const String.fromEnvironment('OMPANION_CHANNEL', defaultValue: 'direct'),
   );
 }
 

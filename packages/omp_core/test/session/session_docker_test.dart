@@ -39,7 +39,7 @@ void main() {
   setUpAll(() async {
     fake = await FakeProvider.start();
     // The target's omp home: omp-home.sh's files, pointed at the host gateway.
-    final local = await Directory.systemTemp.createTemp('omp-app-target-home-');
+    final local = await Directory.systemTemp.createTemp('ompanion-target-home-');
     try {
       final result = await Process.run('sh', ['$repoRoot/testing/omp-home.sh', local.path, '${fake.port}']);
       if (result.exitCode != 0) throw StateError('omp-home.sh failed: ${result.stderr}');

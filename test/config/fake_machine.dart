@@ -4,9 +4,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/models/machine.dart';
-import 'package:omp_app/sessions/sessions_provider.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/models/machine.dart';
+import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/companion.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
@@ -197,7 +197,7 @@ final class _ProbeProcess implements HostProcess {
       'agentDir': '/home/u/.omp/agent',
       'omps': <Object?>[],
     });
-    _stdout.add(utf8.encode(marker == null ? 'OMPAPP_SHELL.%OS%..\n' : '\n$marker:begin\n$probe\n$marker:end\n'));
+    _stdout.add(utf8.encode(marker == null ? 'OMPANION_SHELL.%OS%..\n' : '\n$marker:begin\n$probe\n$marker:end\n'));
     unawaited(_stdout.close());
     _exit.complete(const HostExit(code: 0));
   }

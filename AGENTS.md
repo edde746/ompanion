@@ -1,4 +1,4 @@
-# omp-app agent guide
+# ompanion agent guide
 
 Flutter client for omp. Architecture, decisions and milestones: `docs/PLAN.md`. Feature routes:
 `docs/parity.md`. Wire contracts: `docs/contracts/`.
@@ -7,7 +7,7 @@ Flutter client for omp. Architecture, decisions and milestones: `docs/PLAN.md`. 
 
 | Path | Contents |
 |---|---|
-| `lib/`, `test/`, platform dirs | Flutter app (`omp_app`) |
+| `lib/`, `test/`, platform dirs | Flutter app (`ompanion`) |
 | `packages/omp_core/` | pure Dart: transport (`HostLink`), SSH, host scripts, session channels, RPC client, companion client, session store |
 | `companion/` | TypeScript companion extension loaded into omp with `-e` |
 | `testing/` | fake OpenAI-compatible provider, isolated omp homes, recorded fixtures, SSH test containers |

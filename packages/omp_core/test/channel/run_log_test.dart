@@ -39,17 +39,17 @@ void main() {
 
     test('follows a rotation it read up to, counting offsets from the new generation', () async {
       const first = '{"n":1}\n{"n":2}\n';
-      output.add(bytes('$first{"type":"omp_app_rotate","generation":2,"previousSize":${first.length}}\n{"n":3}\n'));
+      output.add(bytes('$first{"type":"ompanion_rotate","generation":2,"previousSize":${first.length}}\n{"n":3}\n'));
       await pumpEventQueue();
       expect(lines, ['{"n":1}', '{"n":2}', '{"n":3}']);
       expect(output.generation, 2);
-      const marker = '{"type":"omp_app_rotate","generation":2,"previousSize":16}\n';
+      const marker = '{"type":"ompanion_rotate","generation":2,"previousSize":16}\n';
       expect(output.offset, marker.length + 8);
       expect(output.readPosition, marker.length + 8);
     });
 
     test('fails with a gap when the rotation cut off lines it had not read', () async {
-      output.add(bytes('{"n":1}\n{"type":"omp_app_rotate","generation":2,"previousSize":40}\n{"n":3}\n'));
+      output.add(bytes('{"n":1}\n{"type":"ompanion_rotate","generation":2,"previousSize":40}\n{"n":3}\n'));
       await done;
       expect(lines, ['{"n":1}']);
       expect(error, isA<RunLogGap>().having((e) => e.generation, 'generation', 2));
@@ -60,7 +60,7 @@ void main() {
       final received = <String>[];
       Object? failure;
       fresh.lines.listen(received.add, onError: (Object e) => failure = e);
-      const marker = '{"type":"omp_app_rotate","generation":2,"previousSize":4096}\n';
+      const marker = '{"type":"ompanion_rotate","generation":2,"previousSize":4096}\n';
       fresh.add(bytes('$marker{"n":3}\n'));
       await pumpEventQueue();
       expect(failure, isNull);
@@ -70,7 +70,7 @@ void main() {
     });
 
     test('ends at the exit marker with the exit code, ignoring anything after it', () async {
-      output.add(bytes('{"n":1}\n{"broken\n{"type":"omp_app_exit","code":143}\n{"n":2}\n'));
+      output.add(bytes('{"n":1}\n{"broken\n{"type":"ompanion_exit","code":143}\n{"n":2}\n'));
       await done;
       expect(lines, ['{"n":1}', '{"broken']);
       expect(output.exitCode, 143);

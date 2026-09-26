@@ -1,7 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/models/machine.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/models/machine.dart';
 
 void main() {
   late AppDatabase db;

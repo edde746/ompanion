@@ -83,7 +83,7 @@ void main() {
       final feed = await Process.start(
         pwsh!,
         ['-NoProfile', '-NonInteractive', '-File', '$run/feed.ps1'],
-        environment: {'OMPAPP_RUN': run},
+        environment: {'OMPANION_RUN': run},
       );
       final out = BytesBuilder();
       final copied = feed.stdout.forEach(out.add);
@@ -101,7 +101,7 @@ void main() {
     test('the session listing script finds what the POSIX one finds', () async {
       final home = '${temp.path}/home';
       await writeSessionFixtures(home, temp.path);
-      const marker = 'OMPAPP_test';
+      const marker = 'OMPANION_test';
       final result = await runPwsh(windowsSessionListScript(marker, ['${temp.path}/session dir']), {
         'USERPROFILE': home,
         'PI_CODING_AGENT_DIR': '${temp.path}/custom agent',
@@ -118,7 +118,7 @@ void main() {
       await omp.parent.create(recursive: true);
       await omp.writeAsString('#!/bin/sh\necho "omp/18.3.1"\n');
       await Process.run('chmod', ['755', omp.path]);
-      const marker = 'OMPAPP_test';
+      const marker = 'OMPANION_test';
       final result = await runPwsh(windowsProbeScript(marker), {
         'USERPROFILE': profile,
         'LOCALAPPDATA': local,
@@ -175,7 +175,7 @@ void main() {
       final result = await runPowerShell(link, CommandShell.posix, script);
       expect(result.exit.code, 0, reason: result.stderr);
       expect(result.stdout, 'ran');
-      expect(Directory('${home.path}/.omp-app/tmp').listSync(), isEmpty, reason: 'the uploaded script is removed');
+      expect(Directory('${home.path}/.ompanion/tmp').listSync(), isEmpty, reason: 'the uploaded script is removed');
     });
   });
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/app/theme.dart';
-import 'package:omp_app/widgets/app_select.dart';
+import 'package:ompanion/app/theme.dart';
+import 'package:ompanion/widgets/app_select.dart';
 
 void main() {
   testWidgets('shows the current label and reports the chosen option', (tester) async {

@@ -9,10 +9,10 @@ import 'package:test/test.dart';
 void main() {
   group('shell probe', () {
     test('tells cmd.exe, PowerShell and POSIX shells apart, including a POSIX shell on Windows', () {
-      expect(parseShellProbe('"OMPAPP_SHELL.Windows_NT.\$env:OS.\$OS."\r\n'), CommandShell.cmd);
-      expect(parseShellProbe('OMPAPP_SHELL.%OS%.Windows_NT..\r\n'), CommandShell.powershell);
-      expect(parseShellProbe('motd\nOMPAPP_SHELL.%OS%.:OS..\n'), CommandShell.posix);
-      expect(parseShellProbe('OMPAPP_SHELL.%OS%.:OS.Windows_NT.\n'), CommandShell.posix);
+      expect(parseShellProbe('"OMPANION_SHELL.Windows_NT.\$env:OS.\$OS."\r\n'), CommandShell.cmd);
+      expect(parseShellProbe('OMPANION_SHELL.%OS%.Windows_NT..\r\n'), CommandShell.powershell);
+      expect(parseShellProbe('motd\nOMPANION_SHELL.%OS%.:OS..\n'), CommandShell.posix);
+      expect(parseShellProbe('OMPANION_SHELL.%OS%.:OS.Windows_NT.\n'), CommandShell.posix);
       expect(parseShellProbe(''), CommandShell.posix, reason: 'csh fails on the unset variable and prints nothing');
     });
 
@@ -165,7 +165,7 @@ void main() {
     tearDown(() => temp.delete(recursive: true));
 
     Future<HostProbe> probe({required String path, bool searchSystemPaths = true}) async {
-      const marker = 'OMPAPP_test';
+      const marker = 'OMPANION_test';
       final profile = '${temp.path}/Users/me';
       final script = '$powershellPreamble${windowsProbeScript(marker, searchSystemPaths: searchSystemPaths)}';
       final result = await Process.run(_pwsh!, ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodePowerShell(script)],

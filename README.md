@@ -1,4 +1,4 @@
-# omp-app
+# ompanion
 
 Flutter client for [omp](https://github.com/can1357/oh-my-pi). Plan and decisions: `docs/PLAN.md`; agent
 guide: `AGENTS.md`.
@@ -19,8 +19,8 @@ reports every machine as failed with "This build has no companion".
 ## Development
 
 Run the app against an isolated omp home and the fake provider, never your real `~/.omp`: see
-`testing/README.md`, section "Dev machine", for the demo server and the `OMP_APP_LOCAL_HOME`,
-`OMP_APP_DATA_DIR` and `OMP_APP_SECRET_PREFIX` defines (`lib/app/dev_overrides.dart`).
+`testing/README.md`, section "Dev machine", for the demo server and the `OMPANION_LOCAL_HOME`,
+`OMPANION_DATA_DIR` and `OMPANION_SECRET_PREFIX` defines (`lib/app/dev_overrides.dart`).
 
 The chat transcript has a streaming benchmark, a profile-mode target (2,000-item session, a 12 KB reply streamed at
 50 updates per second). It prints frame build and raster percentiles and writes them to

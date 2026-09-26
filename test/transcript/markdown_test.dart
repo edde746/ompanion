@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/screens/chat/transcript/markdown.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/screens/chat/transcript/markdown.dart';
 
 List<MdNode> parse(String markdown) => Plusparse.parse(
   markdown,

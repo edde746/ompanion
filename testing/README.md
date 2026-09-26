@@ -122,13 +122,13 @@ pinned omp.
 ```sh
 bun testing/fake-provider/server.ts --port 18999 --demo    # keep it running
 testing/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
-flutter run -d macos --dart-define=OMP_APP_LOCAL_HOME=/tmp/omp-dev-home \
-  --dart-define=OMP_APP_DATA_DIR=/tmp/omp-app-data --dart-define=OMP_APP_SECRET_PREFIX=dev
+flutter run -d macos --dart-define=OMPANION_LOCAL_HOME=/tmp/omp-dev-home \
+  --dart-define=OMPANION_DATA_DIR=/tmp/ompanion-data --dart-define=OMPANION_SECRET_PREFIX=dev
 ```
 
-The app reads the three defines in `lib/app/dev_overrides.dart`: `OMP_APP_LOCAL_HOME` is the `HOME` of
-"this computer", `OMP_APP_DATA_DIR` holds the app's database and files instead of the platform's
-application support directory, and `OMP_APP_SECRET_PREFIX` prefixes every keychain key. App instances
+The app reads the three defines in `lib/app/dev_overrides.dart`: `OMPANION_LOCAL_HOME` is the `HOME` of
+"this computer", `OMPANION_DATA_DIR` holds the app's database and files instead of the platform's
+application support directory, and `OMPANION_SECRET_PREFIX` prefixes every keychain key. App instances
 running at the same time each need their own server port, home, data directory and prefix; one demo
 server shares its cycle among all its sessions.
 
@@ -150,7 +150,7 @@ shared by all sessions:
 |---|---|---|
 | 1 | `markdown` | streams headings, nested and numbered lists, a task list, a table, a ```` ```dart ```` and a `~~~sh` fence, inline code, a link, `$…$` and `$$…$$` math |
 | 2 | `bash` | runs `ls -la`, then answers |
-| 3 | `read` | reads `README.md`, then `edit`s its first non-empty line of at most 200 characters, adding or removing " (edited by the omp-app demo)", then answers |
+| 3 | `read` | reads `README.md`, then `edit`s its first non-empty line of at most 200 characters, adding or removing " (edited by the ompanion demo)", then answers |
 | 4 | `todo` | creates three tasks in phase "Demo", then asks whether to start |
 | 5 | `thinking` | streams three `reasoning_content` chunks, then the answer; on `fake/fake-think` omp shows a thinking block |
 | 6 | `ask` | calls `ask` with one question and the options Option A and Option B, then repeats the answer |
@@ -188,7 +188,7 @@ ports, durations and `auto_retry_start.delayMs` change between recordings; the f
 not.
 
 `companion-*` scenarios need the built companion (`cd companion && bun run build`). The recorder copies
-`companion/dist/ompx.js` to `<home>/.omp-app/companion/18.3.1/ompx.js`, where the app uploads it on a
+`companion/dist/ompx.js` to `<home>/.ompanion/companion/18.3.1/ompx.js`, where the app uploads it on a
 host, and starts omp with `-e` on that copy. `available_commands_update` then also lists `ompx`
 (`source: "extension"`). Companion calls are prompts `/ompx {"callId":"recorder:<id>",…}` with RPC id
 `<id>`; each gets its `response`, the `ompx` `reply` and a `prompt_result` with `agentInvoked: false`.
@@ -201,7 +201,7 @@ Frames are specified in `docs/contracts/ompx.md`.
 | `tool-bash` | text plus a `bash` call `echo hi`; `tool_execution_start`, 2 `tool_execution_update`, `tool_execution_end` (`hi`); answer "The command printed \`hi\`." |
 | `tool-read-edit` | `read notes.md` (tag `850C`), a hashline `edit` replacing line 4 (`beta` → `gamma`), answer; 3 assistant and 2 toolResult messages |
 | `approval` | `tools.approvalMode: always-ask`; `bash echo approved` waits on `select` "Allow tool: bash…" [Approve, Deny] between `tool_execution_start` and its updates; answered Approve |
-| `ask` | omp without the companion (with `-e companion/dist/ompx.js` the companion's `askDialog` sends an `ompx` `request` instead; see `docs/contracts/ompx.md`): `ask` with two questions: `select` [Red, Blue (Recommended), Other (type your own)] → Blue; `select` → Other; `editor` → "omp-app"; result `color: Blue`, `text: "omp-app"` |
+| `ask` | omp without the companion (with `-e companion/dist/ompx.js` the companion's `askDialog` sends an `ompx` `request` instead; see `docs/contracts/ompx.md`): `ask` with two questions: `select` [Red, Blue (Recommended), Other (type your own)] → Blue; `select` → Other; `editor` → "ompanion"; result `color: Blue`, `text: "ompanion"` |
 | `todo` | `todo` init (one phase, two tasks) and two `done` calls over three tool turns; then `get_state` with `todoPhases` |
 | `subagent` | subscription `events`; `task` starts background subagent `Echo`; parent `agent_end` `isTerminal: false` and `prompt_result` `sessionSettled: false`; `get_subagents` while Echo runs; `subagent_lifecycle`/`subagent_progress`/`subagent_event`; Echo calls `yield`; a second parent run on the `custom` async-result message; `session_settled`; `get_subagent_messages` |
 | `abort` | the answer hangs after one delta; `abort`; assistant `stopReason: "aborted"`, `prompt_result` `status: "aborted"`; a second prompt completes |

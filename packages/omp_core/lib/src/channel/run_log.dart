@@ -49,13 +49,13 @@ final class RunLogGap extends HostLinkException {
   final int generation;
 }
 
-/// The lines the app itself writes into `out.jsonl`. omp never emits a `type` starting with `omp_app_`.
+/// The lines the app itself writes into `out.jsonl`. omp never emits a `type` starting with `ompanion_`.
 sealed class RunMarker {
   const RunMarker();
 
   /// The marker in [line], or null when [line] is anything else.
   static RunMarker? parse(String line) {
-    if (!line.startsWith('{"type":"omp_app_')) return null;
+    if (!line.startsWith('{"type":"ompanion_')) return null;
     final Object? value;
     try {
       value = jsonDecode(line);
@@ -64,8 +64,8 @@ sealed class RunMarker {
     }
     if (value is! Map<String, Object?>) return null;
     return switch (value) {
-      {'type': 'omp_app_exit', 'code': final int code} => RunExited(code),
-      {'type': 'omp_app_rotate', 'generation': final int generation, 'previousSize': final int size} =>
+      {'type': 'ompanion_exit', 'code': final int code} => RunExited(code),
+      {'type': 'ompanion_rotate', 'generation': final int generation, 'previousSize': final int size} =>
         RunRotated(generation, size),
       _ => null,
     };

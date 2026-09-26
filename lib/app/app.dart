@@ -20,8 +20,14 @@ import 'theme.dart';
 
 /// Root widget. [settings] and [machines] are created in `main` because startup reads and seeds them;
 /// they live as long as the process.
-class OmpApp extends StatelessWidget {
-  const OmpApp({super.key, required this.db, required this.settings, required this.secrets, required this.machines});
+class OmpanionApp extends StatelessWidget {
+  const OmpanionApp({
+    super.key,
+    required this.db,
+    required this.settings,
+    required this.secrets,
+    required this.machines,
+  });
 
   final AppDatabase db;
   final SettingsProvider settings;

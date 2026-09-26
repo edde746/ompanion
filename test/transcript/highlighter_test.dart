@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/chat/transcript/highlighter.dart';
+import 'package:ompanion/screens/chat/transcript/highlighter.dart';
 
 void main() {
   testWidgets('code is highlighted on the worker, then served from the cache', (tester) async {

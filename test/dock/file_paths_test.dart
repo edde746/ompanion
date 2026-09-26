@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/files/file_document.dart';
-import 'package:omp_app/files/file_language.dart';
-import 'package:omp_app/files/file_paths.dart';
-import 'package:omp_app/files/git_status.dart';
+import 'package:ompanion/files/file_document.dart';
+import 'package:ompanion/files/file_language.dart';
+import 'package:ompanion/files/file_paths.dart';
+import 'package:ompanion/files/git_status.dart';
 
 void main() {
   group('paths', () {

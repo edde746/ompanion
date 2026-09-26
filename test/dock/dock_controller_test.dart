@@ -5,12 +5,12 @@ import 'dart:typed_data';
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/models/machine.dart';
-import 'package:omp_app/providers/machines_provider.dart';
-import 'package:omp_app/screens/dock/dock_controller.dart';
-import 'package:omp_app/services/secret_store.dart';
-import 'package:omp_app/terminal/terminal_session.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/models/machine.dart';
+import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/screens/dock/dock_controller.dart';
+import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/terminal/terminal_session.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/transport.dart';
 

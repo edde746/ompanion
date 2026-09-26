@@ -4,9 +4,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/terminal/shell_launch.dart';
-import 'package:omp_app/terminal/terminal_deck.dart';
-import 'package:omp_app/terminal/terminal_session.dart';
+import 'package:ompanion/terminal/shell_launch.dart';
+import 'package:ompanion/terminal/terminal_deck.dart';
+import 'package:ompanion/terminal/terminal_session.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/transport.dart';
 import 'package:xterm3/xterm.dart';
@@ -77,17 +77,17 @@ void main() {
 
     test('the ready line is taken out of the output, even split across chunks', () {
       final filter = TerminalReadyFilter();
-      expect(filter.add(ascii.encode('motd\r\nOMPAPP_TERMINAL')), isEmpty);
+      expect(filter.add(ascii.encode('motd\r\nOMPANION_TERMINAL')), isEmpty);
       expect(filter.add(ascii.encode('_READY')), isEmpty);
       expect(filter.ready, isFalse);
       expect(ascii.decode(filter.add(ascii.encode('\n\$ '))), 'motd\r\n\$ ');
       expect(filter.ready, isTrue);
-      expect(ascii.decode(filter.add(ascii.encode('OMPAPP_TERMINAL_READY\n'))), 'OMPAPP_TERMINAL_READY\n');
+      expect(ascii.decode(filter.add(ascii.encode('OMPANION_TERMINAL_READY\n'))), 'OMPANION_TERMINAL_READY\n');
 
       // A shell tracing the command prints the marker mid-line first; only the line itself counts.
       final traced = TerminalReadyFilter();
-      expect(traced.add(ascii.encode("+ echo OMPAPP_TERMINAL_READY; IFS= read\r\nOMPAPP_TERMINAL_READY\r")), isEmpty);
-      expect(ascii.decode(traced.add(ascii.encode('\nok'))), '+ echo OMPAPP_TERMINAL_READY; IFS= read\r\nok');
+      expect(traced.add(ascii.encode("+ echo OMPANION_TERMINAL_READY; IFS= read\r\nOMPANION_TERMINAL_READY\r")), isEmpty);
+      expect(ascii.decode(traced.add(ascii.encode('\nok'))), '+ echo OMPANION_TERMINAL_READY; IFS= read\r\nok');
 
       final failed = TerminalReadyFilter();
       expect(failed.add(ascii.encode('sh: not found\r\n')), isEmpty);
@@ -112,7 +112,7 @@ void main() {
       await pumpEventQueue();
       expect(process.written, isEmpty);
 
-      process.emit('OMPAPP_TERMINAL_READY\n');
+      process.emit('OMPANION_TERMINAL_READY\n');
       await pumpEventQueue();
       expect(process.written, ['/srv/app\n', 'ls\r']);
       backend.write(encodeTerminalInput('pwd\r'));

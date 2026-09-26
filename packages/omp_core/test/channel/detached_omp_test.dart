@@ -130,7 +130,7 @@ void main() {
     await frames.response('r:2');
     expect(channel.generation, 2);
     final log = await File('${run.dir}/out.jsonl').readAsString();
-    expect(log, startsWith('{"type":"omp_app_rotate","generation":2,'));
+    expect(log, startsWith('{"type":"ompanion_rotate","generation":2,'));
     expect(channel.offset, utf8.encode(log).length, reason: 'offsets count from the start of the new generation');
     await channel.close();
   });

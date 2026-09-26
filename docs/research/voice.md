@@ -77,7 +77,7 @@ Note: docs/tools/tts.md still mentions `providers.tts`. settings.md:406 says tha
 1. **Dictation.**
    - On-device STT (platform recognizers or on-device Whisper/sherpa-onnx [INFERENCE]). Put the text into the composer, then send RPC `prompt` (or `steer` / `follow_up` while streaming).
    - Reproduce the `stt.submitTrigger` semantics client-side (stt-controller.ts:498-505).
-   - Optional host engine: record a 16 kHz mono WAV, upload it over SFTP, then send the companion command `/omp-app-stt <path> <reqId>`. The companion resolves `modelRoles.dictation` and returns the text via `ctx.ui.setEditorText` (an RPC `set_editor_text` frame, rpc-mode.ts:953) or via `setStatus`.
+   - Optional host engine: record a 16 kHz mono WAV, upload it over SFTP, then send the companion command `/ompanion-stt <path> <reqId>`. The companion resolves `modelRoles.dictation` and returns the text via `ctx.ui.setEditorText` (an RPC `set_editor_text` frame, rpc-mode.ts:953) or via `setStatus`.
 2. **Reply TTS.**
    - On-device TTS driven by RPC events, mirroring `speech.mode`:
      - `assistant`: speak `text_delta`.

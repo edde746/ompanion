@@ -16,10 +16,10 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
-  /// The app's database file in the platform's application support directory, or in `OMP_APP_DATA_DIR`.
+  /// The app's database file in the platform's application support directory, or in `OMPANION_DATA_DIR`.
   factory AppDatabase.open() => AppDatabase(
     driftDatabase(
-      name: 'omp_app',
+      name: 'ompanion',
       native: DriftNativeOptions(databaseDirectory: _databaseDirectory),
     ),
   );

@@ -21,7 +21,7 @@ describe("takeSecretFile", () => {
 
 	beforeEach(async () => {
 		home = await mkdtemp(path.join(tmpdir(), "ompx-paths-"));
-		tmp = path.join(home, ".omp-app", "tmp");
+		tmp = path.join(home, ".ompanion", "tmp");
 		await mkdir(tmp, { recursive: true, mode: 0o700 });
 	});
 
@@ -35,8 +35,8 @@ describe("takeSecretFile", () => {
 		return file;
 	}
 
-	test("reads and deletes a 0600 OMPAPP_<16 hex>.secret directly in ~/.omp-app/tmp", async () => {
-		const file = await secret(path.join(tmp, "OMPAPP_0123456789abcdef.secret"), "sk-1\n");
+	test("reads and deletes a 0600 OMPANION_<16 hex>.secret directly in ~/.ompanion/tmp", async () => {
+		const file = await secret(path.join(tmp, "OMPANION_0123456789abcdef.secret"), "sk-1\n");
 		expect(await takeSecretFile(file, home)).toBe("sk-1\n");
 		expect(await Bun.file(file).exists()).toBe(false);
 	});
@@ -45,9 +45,9 @@ describe("takeSecretFile", () => {
 		const alias = `${home}-alias`;
 		await symlink(home, alias);
 		try {
-			const viaAlias = await secret(path.join(alias, ".omp-app", "tmp", "OMPAPP_0123456789abcdef.secret"), "a");
+			const viaAlias = await secret(path.join(alias, ".ompanion", "tmp", "OMPANION_0123456789abcdef.secret"), "a");
 			expect(await takeSecretFile(viaAlias, home)).toBe("a");
-			const direct = await secret(path.join(tmp, "OMPAPP_fedcba9876543210.secret"), "b");
+			const direct = await secret(path.join(tmp, "OMPANION_fedcba9876543210.secret"), "b");
 			expect(await takeSecretFile(direct, alias)).toBe("b");
 		} finally {
 			await rm(alias);
@@ -55,23 +55,23 @@ describe("takeSecretFile", () => {
 	});
 
 	test("refuses anything else without reading or deleting it", async () => {
-		const outside = await secret(path.join(home, "OMPAPP_0123456789abcdef.secret"), "thesis");
+		const outside = await secret(path.join(home, "OMPANION_0123456789abcdef.secret"), "thesis");
 		await mkdir(path.join(tmp, "sub"));
 		const refused = [
 			outside,
-			`${tmp}/../../OMPAPP_0123456789abcdef.secret`,
-			await secret(path.join(tmp, "sub", "OMPAPP_0123456789abcdef.secret"), "nested"),
-			await secret(path.join(tmp, "OMPAPP_0123456789abcdef.key"), "wrong suffix"),
-			await secret(path.join(tmp, "OMPAPP_0123456789ABCDEF.secret"), "upper case"),
-			await secret(path.join(tmp, "OMPAPP_0123456789abcde.secret"), "15 digits"),
-			await secret(path.join(tmp, "OMPAPP_1111111111111111.secret"), "group readable", 0o640),
-			await secret(path.join(tmp, "OMPAPP_2222222222222222.secret"), "read only", 0o400),
+			`${tmp}/../../OMPANION_0123456789abcdef.secret`,
+			await secret(path.join(tmp, "sub", "OMPANION_0123456789abcdef.secret"), "nested"),
+			await secret(path.join(tmp, "OMPANION_0123456789abcdef.key"), "wrong suffix"),
+			await secret(path.join(tmp, "OMPANION_0123456789ABCDEF.secret"), "upper case"),
+			await secret(path.join(tmp, "OMPANION_0123456789abcde.secret"), "15 digits"),
+			await secret(path.join(tmp, "OMPANION_1111111111111111.secret"), "group readable", 0o640),
+			await secret(path.join(tmp, "OMPANION_2222222222222222.secret"), "read only", 0o400),
 		];
-		const link = path.join(tmp, "OMPAPP_3333333333333333.secret");
+		const link = path.join(tmp, "OMPANION_3333333333333333.secret");
 		await symlink(outside, link);
-		const dir = path.join(tmp, "OMPAPP_4444444444444444.secret");
+		const dir = path.join(tmp, "OMPANION_4444444444444444.secret");
 		await mkdir(dir);
-		for (const file of [...refused, link, dir, "OMPAPP_5555555555555555.secret"]) {
+		for (const file of [...refused, link, dir, "OMPANION_5555555555555555.secret"]) {
 			const error = await refusal(file, home);
 			expect([file, error.code]).toEqual([file, "bad_request"]);
 		}
@@ -81,15 +81,15 @@ describe("takeSecretFile", () => {
 		expect((await lstat(dir)).isDirectory()).toBe(true);
 	});
 
-	test("refuses a file named like a secret when ~/.omp-app/tmp does not exist", async () => {
+	test("refuses a file named like a secret when ~/.ompanion/tmp does not exist", async () => {
 		await rm(tmp, { recursive: true });
-		const file = await secret(path.join(home, "OMPAPP_0123456789abcdef.secret"), "x");
+		const file = await secret(path.join(home, "OMPANION_0123456789abcdef.secret"), "x");
 		expect((await refusal(file, home)).code).toBe("bad_request");
 		expect(await Bun.file(file).exists()).toBe(true);
 	});
 
 	test("a missing file is not_found", async () => {
-		expect((await refusal(path.join(tmp, "OMPAPP_0123456789abcdef.secret"), home)).code).toBe("not_found");
+		expect((await refusal(path.join(tmp, "OMPANION_0123456789abcdef.secret"), home)).code).toBe("not_found");
 	});
 });
 

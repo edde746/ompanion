@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:omp_core/host.dart';
 
 /// The line [posixTerminalCommand] prints once the terminal neither echoes nor edits input.
-const terminalReadyMarker = 'OMPAPP_TERMINAL_READY';
+const terminalReadyMarker = 'OMPANION_TERMINAL_READY';
 
 /// What an SSH channel with a PTY runs on a POSIX machine. The machine's login shell (fish, csh, …) parses it, so
 /// it holds no value: sh saves the terminal modes, switches to raw mode without echo, prints [terminalReadyMarker],

@@ -61,7 +61,7 @@ final class FakeRun {
   /// omp exits: the exit marker ends every channel.
   void exit(int code) {
     exitCode = code;
-    _write(utf8.encode('\n{"type":"omp_app_exit","code":$code}\n'));
+    _write(utf8.encode('\n{"type":"ompanion_exit","code":$code}\n'));
   }
 
   /// `rotateRunOutput`: the next generation starts with its marker; channels that had read everything follow.
@@ -69,7 +69,7 @@ final class FakeRun {
     final previous = _out.length;
     _out.clear();
     generation++;
-    _write(utf8.encode('{"type":"omp_app_rotate","generation":$generation,"previousSize":$previous}\n'));
+    _write(utf8.encode('{"type":"ompanion_rotate","generation":$generation,"previousSize":$previous}\n'));
   }
 
   /// The link to every attached channel drops.
@@ -140,7 +140,7 @@ final class FakeRun {
       case 'get_available_commands':
         respond(command, {
           'commands': [
-            if (companion) {'name': 'ompx', 'description': 'omp-app companion', 'source': 'extension'},
+            if (companion) {'name': 'ompx', 'description': 'ompanion companion', 'source': 'extension'},
           ],
         });
       case 'set_subagent_subscription':

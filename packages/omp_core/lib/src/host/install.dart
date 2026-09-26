@@ -104,7 +104,7 @@ $_windowsDownloadBody$_windowsPlaceBody}
 final _abandonedInstalls = <String>{};
 
 /// Installs omp [version] from a release asset the app already downloaded ([asset], the bytes of
-/// [HostProbe.releaseAsset]). Under a `mkdir` lock at `~/.omp-app/install.lock` it uploads the bytes next
+/// [HostProbe.releaseAsset]). Under a `mkdir` lock at `~/.ompanion/install.lock` it uploads the bytes next
 /// to the target over SFTP, checks their SHA-256 on the host against [ompReleases], marks the file
 /// executable, runs `--version`, and moves it over the target, so running omp processes keep their old
 /// binary. A failed upload removes its partial file, and one left behind by an install that lost its link

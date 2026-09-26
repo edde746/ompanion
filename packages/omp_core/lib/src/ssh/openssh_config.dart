@@ -69,7 +69,7 @@ final class SshResolvedHost {
   /// Jump hosts in dial order. Each may itself be an alias; resolve it with [resolveSshAlias].
   final List<SshJumpSpec> proxyJump;
 
-  /// A `ProxyCommand` omp-app cannot follow, reported so the UI can say so.
+  /// A `ProxyCommand` ompanion cannot follow, reported so the UI can say so.
   final String? proxyCommand;
   final String? identityAgent;
   final List<String> userKnownHostsFiles;

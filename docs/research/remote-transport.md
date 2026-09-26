@@ -163,7 +163,7 @@ Flutter companions (pub.dev API, 2026-09-25): `xterm` 4.0.0 (2024-02-27, stalled
 ### D1 — Attached RPC over SSH exec (baseline; also local desktop)
 - One dartssh2 connection per host (pooled; §8); per open session: exec **without PTY** `"$SHELL" -lc 'exec omp --mode rpc-ui --session <path> --cwd <dir> [-e <ext>]'` [INFERENCE: login shell for env parity]; skip non-JSON stdout until `ready`; negotiate v2; stderr separate.
 - One-shots: exec `omp <cmd> --json`. Terminal: PTY `shell()` (tmux `new -A` if present, survives drops). Files: SFTP. Local desktop: `Process.start` with identical framing.
-- Record `$$` to `~/.omp-app/run/<sid>.pid` before `exec omp`; on reconnect SIGTERM a live stale pid, relaunch, rebuild via `get_state` + `get_messages_page`.
+- Record `$$` to `~/.ompanion/run/<sid>.pid` before `exec omp`; on reconnect SIGTERM a live stale pid, relaunch, rebuild via `get_state` + `get_messages_page`.
 - Pros: zero host footprint beyond omp; SSH is the only auth; per-session isolation; works on Windows hosts; simplest.
 - Cons: disconnect/suspension aborts the running turn; half-open orphans; one client per session process; omp cold start per session and per one-shot; no fan-out.
 
@@ -175,7 +175,7 @@ Verified on macOS with omp 18.3.0 (`/tmp` probes, 2026-09-25):
 
 Recipe (sent via stdin to `sh -s -- <sid> <cwd> <sessionPath>`):
 ```sh
-D="$HOME/.omp-app/run/$1"; mkdir -p "$D"; cd "$2" || exit 1
+D="$HOME/.ompanion/run/$1"; mkdir -p "$D"; cd "$2" || exit 1
 : >> "$D/in.jsonl"
 nohup sh -c 'tail -c +1 -f "$0/in.jsonl" & echo $! > "$0/tail.pid"; wait' "$D" 2>/dev/null </dev/null \
   | nohup sh -c 'omp --mode rpc-ui --session "$1"; echo $? > "$0/exit"' "$D" "$3" >> "$D/out.jsonl" 2>> "$D/err.log" &
@@ -252,7 +252,7 @@ Operational rules:
 - **Liveness:** dartssh2 keepalive never declares death → wrap `client.ping()` in a timeout (~3×15 s like T3's ServerAliveInterval=15/CountMax=3); probe on app resume and network change; backoff with jitter; pause on auth failure (T3 connection-runtime rules). iOS offers no general background execution for sockets (https://developer.apple.com/documentation/uikit/extending-your-app-s-background-execution-time, https://developer.apple.com/forums/thread/685525) → mobile relies on D2 reattach.
 - **Host keys:** implement known_hosts (desktop: read `~/.ssh/known_hosts` incl. hashed `|1|` entries; mobile: app store) + TOFU UI; pre-trust tailnet peers from `sshHostKeys`.
 - **Env/PATH:** non-interactive shells often lack `~/.local/bin` → store the absolute omp path from install/probe; `sshd` usually rejects `env` requests beyond `AcceptEnv` [INFERENCE] → pass env on the command line; macOS GUI apps need the same shell-env resolution for local omp [INFERENCE].
-- **Bootstrap:** probe script via stdin to `sh -l -s` returns JSON {uname -s/-m, arm64 sysctl, musl, $SHELL, $HOME, `command -v omp`, `omp --version`, curl/wget, sha256 tool, sftp availability}; install = official script (`… | sh -s -- --binary --ref vX`) or app-pinned binary + sha256 + mkdir lock + `--version` smoke; SFTP push from client cache for air-gapped hosts (~200 MB; avoid on cellular); Windows via install.ps1; manual mode shows commands. Companion extension: SFTP to `~/.omp-app/ext/<sha>.ts`, launch with `-e`.
+- **Bootstrap:** probe script via stdin to `sh -l -s` returns JSON {uname -s/-m, arm64 sysctl, musl, $SHELL, $HOME, `command -v omp`, `omp --version`, curl/wget, sha256 tool, sftp availability}; install = official script (`… | sh -s -- --binary --ref vX`) or app-pinned binary + sha256 + mkdir lock + `--version` smoke; SFTP push from client cache for air-gapped hosts (~200 MB; avoid on cellular); Windows via install.ps1; manual mode shows commands. Companion extension: SFTP to `~/.ompanion/ext/<sha>.ts`, launch with `-e`.
 - **Session listing (TUI + GUI):** one exec script emitting `{path,size,mtime,header}` JSONL for `~/.omp/agent/sessions/*/*.jsonl` (1 round trip) instead of N SFTP opens; honor `--profile`/`--session-dir`.
 - **Bandwidth:** no SSH compression in dartssh2 and O(n²) `message_update` payloads → prefer v2 frames, coalesce rendering; upstream delta-only option (§9).
 

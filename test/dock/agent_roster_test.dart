@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/dock/agents/agent_roster.dart';
+import 'package:ompanion/screens/dock/agents/agent_roster.dart';
 import 'package:omp_core/store.dart';
 
 AgentRow row(

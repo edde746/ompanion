@@ -25,7 +25,7 @@ export interface DemoReply {
 type Message = Record<string, unknown>;
 
 /** Toggled on the first short line of the README the demo reads, so the file never grows. */
-const EDIT_MARK = " (edited by the omp-app demo)";
+const EDIT_MARK = " (edited by the ompanion demo)";
 
 const MARKDOWN = [
 	"# Renderer demo",

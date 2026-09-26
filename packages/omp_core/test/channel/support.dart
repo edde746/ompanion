@@ -19,7 +19,7 @@ final class TestHost {
   TestHost._(this.root);
 
   static Future<TestHost> create() async {
-    final root = await Directory.systemTemp.createTemp('omp-app-host-');
+    final root = await Directory.systemTemp.createTemp('ompanion-host-');
     final host = TestHost._(root);
     await Directory(host.home).create();
     await Directory(host.work).create();

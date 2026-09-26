@@ -85,11 +85,11 @@ void main() {
         CommandShell.cmd,
         r'C:\Users\Jo Doe\demo',
         r'C:\Users\Jo Doe\AppData\Local\omp\omp.exe',
-        ['--mode', 'rpc-ui', '-e', r'C:\Users\Jo Doe\.omp-app\companion\18.3.1\x.js', '--thinking', 'high'],
-        r'C:\Users\Jo Doe\.omp-app\attached\OMPAPP_1.yml',
+        ['--mode', 'rpc-ui', '-e', r'C:\Users\Jo Doe\.ompanion\companion\18.3.1\x.js', '--thinking', 'high'],
+        r'C:\Users\Jo Doe\.ompanion\attached\OMPANION_1.yml',
       ),
-      powershellCommand(CommandShell.cmd, r'-File "C:\Users\Jo Doe\.omp-app\tmp\OMPAPP_2.ps1"'),
-      'echo "OMPAPP_SHELL.%OS%.\$env:OS.\$OS."',
+      powershellCommand(CommandShell.cmd, r'-File "C:\Users\Jo Doe\.ompanion\tmp\OMPANION_2.ps1"'),
+      'echo "OMPANION_SHELL.%OS%.\$env:OS.\$OS."',
       r'dir C:\',
       'echo ok',
     ];
@@ -99,11 +99,11 @@ void main() {
   });
 
   test('cmd.exe on Windows makes the directory at the backslashed path and no missing parents', () {
-    final start = windowsMkdirStart('C:/Users/Jo Doe/100%OS%/.omp-app');
+    final start = windowsMkdirStart('C:/Users/Jo Doe/100%OS%/.ompanion');
     final cmd = cmdExe(dartWindowsCommandLine((executable: start.executable, arguments: start.arguments)));
     expect(cmd.switches, contains('/e:off'), reason: 'command extensions make mkdir create parents');
     final expanded = cmd.command.replaceAllMapped(RegExp('%([^%]+)%'), (m) => start.environment[m[1]] ?? m[0]!);
-    expect(expanded, r'mkdir "C:\Users\Jo Doe\100%OS%\.omp-app"', reason: 'cmd.exe expands a variable once');
+    expect(expanded, r'mkdir "C:\Users\Jo Doe\100%OS%\.ompanion"', reason: 'cmd.exe expands a variable once');
   });
 
   test('concurrent mkdir admits exactly one locker', () async {

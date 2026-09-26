@@ -6,7 +6,7 @@ import '../database/app_database.dart';
 import 'machine.dart';
 
 /// Marks a machine export file; anything else is rejected on import.
-const machineExportFormat = 'omp-app/machines';
+const machineExportFormat = 'ompanion/machines';
 const machineExportVersion = 1;
 
 /// One hop of an exported machine. A key travels as its fingerprint only; the importing device links its own
@@ -130,7 +130,7 @@ String encodeMachineExport(MachineExport export) {
 /// Throws [FormatException] for anything that is not a version-1 machine export.
 MachineExport decodeMachineExport(String text) {
   final root = _object(jsonDecode(text), 'export');
-  if (root['format'] != machineExportFormat) throw const FormatException('not an omp-app machine export');
+  if (root['format'] != machineExportFormat) throw const FormatException('not an ompanion machine export');
   if (root['version'] != machineExportVersion) {
     throw FormatException('unsupported machine export version ${root['version']}');
   }

@@ -109,7 +109,7 @@ final class DevMachine {
   DevMachine._(this.root);
 
   static Future<DevMachine> create(int port) async {
-    final root = await Directory.systemTemp.createTemp('omp-app-session-');
+    final root = await Directory.systemTemp.createTemp('ompanion-session-');
     final machine = DevMachine._(root);
     final result = await Process.run('sh', ['$repoRoot/testing/dev-machine.sh', machine.home, '$port']);
     if (result.exitCode != 0) throw StateError('dev-machine.sh failed: ${result.stderr}');

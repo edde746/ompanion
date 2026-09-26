@@ -2,15 +2,15 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/providers/keys_provider.dart';
-import 'package:omp_app/providers/machines_provider.dart';
-import 'package:omp_app/providers/shell_provider.dart';
-import 'package:omp_app/screens/machines/machine_editor.dart';
-import 'package:omp_app/services/secret_store.dart';
-import 'package:omp_app/widgets/app_select.dart';
-import 'package:omp_app/widgets/labeled_field.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/providers/keys_provider.dart';
+import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/providers/shell_provider.dart';
+import 'package:ompanion/screens/machines/machine_editor.dart';
+import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/widgets/app_select.dart';
+import 'package:ompanion/widgets/labeled_field.dart';
 import 'package:provider/provider.dart';
 
 void main() {

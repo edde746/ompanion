@@ -28,12 +28,12 @@ void main() {
       throwsA(isA<HostLinkException>().having((e) => e.message, 'message', contains('SHA-256 mismatch'))),
     );
     expect(Directory(dir).listSync(), isEmpty);
-    expect(Directory('${temp.path}/.omp-app/install.lock').existsSync(), isFalse);
+    expect(Directory('${temp.path}/.ompanion/install.lock').existsSync(), isFalse);
   });
 
   test('an interrupted upload leaves no partial file, and a retry takes over the lock a dropped link left', () async {
     final dir = '${temp.path}/bin';
-    final lock = '${temp.path}/.omp-app/install.lock';
+    final lock = '${temp.path}/.ompanion/install.lock';
     Stream<List<int>> cut(void Function() fail) async* {
       yield Uint8List(5 << 20);
       fail();

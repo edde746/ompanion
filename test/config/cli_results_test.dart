@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/config/cli_results.dart';
-import 'package:omp_app/config/mcp_config.dart';
-import 'package:omp_app/config/omp_cli.dart';
+import 'package:ompanion/config/cli_results.dart';
+import 'package:ompanion/config/mcp_config.dart';
+import 'package:ompanion/config/omp_cli.dart';
 import 'package:omp_core/rpc.dart';
 
 // Outputs of `.tools/omp/18.3.1/omp-darwin-arm64` in an isolated HOME against the fake provider: a linked

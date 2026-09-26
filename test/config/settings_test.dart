@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/config/config_yaml.dart';
-import 'package:omp_app/config/settings_schema.dart';
-import 'package:omp_app/config/settings_view.dart';
+import 'package:ompanion/config/config_yaml.dart';
+import 'package:ompanion/config/settings_schema.dart';
+import 'package:ompanion/config/settings_view.dart';
 
 // Real `settings.schema` / `settings.get` replies of omp 18.3.1 with the companion (a subset of the 512
 // settings), captured from a `--no-session` rpc-ui process in an isolated home.

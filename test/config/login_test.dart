@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/config/accounts.dart';
-import 'package:omp_app/config/login.dart';
-import 'package:omp_app/config/settings_schema.dart';
-import 'package:omp_app/i18n/strings.g.dart';
-import 'package:omp_app/screens/config/accounts_page.dart';
+import 'package:ompanion/config/accounts.dart';
+import 'package:ompanion/config/login.dart';
+import 'package:ompanion/config/settings_schema.dart';
+import 'package:ompanion/i18n/strings.g.dart';
+import 'package:ompanion/screens/config/accounts_page.dart';
 import 'package:omp_core/rpc.dart';
 
 void main() {

@@ -5,13 +5,13 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/models/machine.dart';
-import 'package:omp_app/providers/machines_provider.dart';
-import 'package:omp_app/services/known_hosts_store.dart';
-import 'package:omp_app/services/machine_connector.dart';
-import 'package:omp_app/services/secret_store.dart';
-import 'package:omp_app/sessions/sessions_provider.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/models/machine.dart';
+import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/services/known_hosts_store.dart';
+import 'package:ompanion/services/machine_connector.dart';
+import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
@@ -85,7 +85,7 @@ void main() {
 
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
-    home = Directory.systemTemp.createTempSync('omp-app-sessions-');
+    home = Directory.systemTemp.createTempSync('ompanion-sessions-');
     db = AppDatabase(NativeDatabase.memory());
     final secrets = SecretStore();
     machines = MachinesProvider(db, secrets);

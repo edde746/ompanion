@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/models/host_key_trust.dart';
-import 'package:omp_app/models/machine.dart';
-import 'package:omp_app/models/machine_export.dart';
-import 'package:omp_app/providers/machines_provider.dart';
-import 'package:omp_app/services/secret_store.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/models/host_key_trust.dart';
+import 'package:ompanion/models/machine.dart';
+import 'package:ompanion/models/machine_export.dart';
+import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/services/secret_store.dart';
 import 'package:omp_core/ssh.dart';
 
 void main() {

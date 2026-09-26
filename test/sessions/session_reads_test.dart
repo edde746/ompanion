@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/sessions/session_reads.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/sessions/session_reads.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';

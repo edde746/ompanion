@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/chat/composer_intent.dart';
+import 'package:ompanion/screens/chat/composer_intent.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/store.dart';
 

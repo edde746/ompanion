@@ -76,6 +76,6 @@ void main() {
     expect(statuses, [isA<MachineOnline>()], reason: 'the link stayed up, so no connecting or offline in between');
     expect(identical(runtime.link, link), isTrue);
     expect((await runtime.connectAndProbe()).ompVersion, '18.3.1');
-    expect(Directory('${home.path}/.omp-app/companion/18.3.1').listSync(), hasLength(1), reason: 'the companion was uploaded');
+    expect(Directory('${home.path}/.ompanion/companion/18.3.1').listSync(), hasLength(1), reason: 'the companion was uploaded');
   });
 }

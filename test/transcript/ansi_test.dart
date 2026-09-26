@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/chat/transcript/ansi.dart';
+import 'package:ompanion/screens/chat/transcript/ansi.dart';
 
 void main() {
   const plain = AnsiStyle.plain;

@@ -96,7 +96,7 @@ final class ConfigTarget {
     }
   }
 
-  /// Puts [secret] into a new 0600 file under `~/.omp-app/tmp` and returns its host-native path, for
+  /// Puts [secret] into a new 0600 file under `~/.ompanion/tmp` and returns its host-native path, for
   /// companion verbs that take a file instead of a value (`accounts.setKey`, `settings.set valueFile`):
   /// `in.jsonl` and `out.jsonl` must never carry secrets. The companion deletes the file.
   Future<String> uploadSecret(String secret) async {

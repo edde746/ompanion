@@ -1,4 +1,4 @@
-# omp-app — plan
+# ompanion — plan
 
 Flutter client for [omp](https://github.com/can1357/oh-my-pi) with TUI parity, driving omp on many
 machines without a host daemon. Reference product: [T3 Code](https://github.com/pingdotgg/t3code),
@@ -143,19 +143,19 @@ itself. Measurements and the reason for each step: `research/m0-detached-session
 
 ### Detached runs (macOS and Linux hosts, and this computer on macOS/Linux)
 
-Run directory `~/.omp-app/run/<runId>/`, mode 0700:
+Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 
 | File | Purpose |
 |---|---|
 | `in.jsonl` | every command from every device, one JSON line each |
-| `out.jsonl` | omp's stdout, plus the app's markers: `omp_app_exit` after omp exits, `omp_app_rotate` first in a rotated generation |
+| `out.jsonl` | omp's stdout, plus the app's markers: `ompanion_exit` after omp exits, `ompanion_rotate` first in a rotated generation |
 | `err.log` | omp's stderr |
 | `meta.json` | session file, cwd, omp, companion, launch args, `out.jsonl` generation |
 | `run.sh`, `omp.pid`, `tail.pid`, `exit` | the pipeline, liveness, exit code |
 | `overlay.yml` | the `--config` overlay; its path in omp's command line identifies the process |
 | `in.lock/` | `mkdir` lock held for one append, a rotation or a `meta.json` update |
 
-- Launch (`openRun`, under `~/.omp-app/run/.launch.lock`): a running run whose `meta.json` names the
+- Launch (`openRun`, under `~/.ompanion/run/.launch.lock`): a running run whose `meta.json` names the
   session is reused. Otherwise `run.sh` starts in a new session (`setsid`, Perl's on macOS):
   `tail -f in.jsonl | omp --mode rpc-ui --config overlay.yml --cwd <cwd> -e <companion> [--session <file>]
   [--model …] [--thinking …] >> out.jsonl 2>> err.log`, then records omp's exit code.
@@ -188,14 +188,14 @@ Run directory `~/.omp-app/run/<runId>/`, mode 0700:
 Settings, roles, accounts, login and model lists need no session. One `omp --mode rpc-ui --no-session -e
 <companion>` per machine runs on an exec channel of the link, started on first use and again after it
 exits. omp refuses rpc mode on a machine with no usable model ("No models available"); the control then runs
-in bootstrap mode: `--model minimax/MiniMax-M2 --api-key omp-app-bootstrap`. The model is bundled in omp's
+in bootstrap mode: `--model minimax/MiniMax-M2 --api-key ompanion-bootstrap`. The model is bundled in omp's
 catalog and has no discovery. `--api-key` is a runtime override that is never persisted. The channel refuses
 every model call (prompts other than `/ompx`, `btw` and `tree.navigate` calls, `compact`, `handoff`). After
 `accounts.setKey` or a successful `login`, the next `control()` starts a normal process.
 
 ### Windows hosts (and this computer on Windows)
 
-Same run directory layout under `%USERPROFILE%\.omp-app\run\<runId>\`, implemented and not yet run on
+Same run directory layout under `%USERPROFILE%\.ompanion\run\<runId>\`, implemented and not yet run on
 Windows. Differences, all from `research/windows-hosts.md`:
 
 - Launch: sshd puts the channel's first process in a job with `KILL_ON_JOB_CLOSE`, so children started
@@ -226,7 +226,7 @@ with `speech.enabled: false` forced (otherwise the `ask` tool speaks on the host
 
 ## 6. Companion extension
 
-A TypeScript extension in `companion/`, uploaded to `~/.omp-app/companion/<omp-version>/` (outside omp's
+A TypeScript extension in `companion/`, uploaded to `~/.ompanion/companion/<omp-version>/` (outside omp's
 auto-discovery roots, so the user's TUI never loads it) and passed with `-e`. It imports only exported
 subpaths of `@oh-my-pi/pi-coding-agent`, which the compiled omp serves from its own bundle.
 
@@ -364,10 +364,9 @@ All product decisions are answered: platforms, no daemon, install, tunneling, Ta
 TUI sessions, notifications (later), session lifetime (detached everywhere), gap route (companion
 only), omp versions (18.3.1 onward), host OSes, license (GPLv3), distribution (build flags), multi-device
 (any device sends), phone discovery (import and Tailscale API), terminal-bound features (voice, on-device
-loop), look (Material 3), modes (goal, loop and pause in; plan and vibe out).
+loop), look (Material 3), modes (goal, loop and pause in; plan and vibe out), name (ompanion).
 
-Left to spikes, not to the user: markdown renderer (M3), every [INFERENCE] above. Working name:
-omp-app.
+Left to spikes, not to the user: markdown renderer (M3), every [INFERENCE] above.
 
 ## 13. Evidence
 

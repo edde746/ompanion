@@ -79,7 +79,7 @@ async function dispatch(call: CallRequest, pi: ExtensionAPI, ctx: ExtensionComma
 export default function ompx(pi: ExtensionAPI): void {
 	pi.on("session_start", (_event, ctx) => bindMain(pi, ctx));
 	pi.registerCommand("ompx", {
-		description: "omp-app companion channel (docs/contracts/ompx.md)",
+		description: "ompanion companion channel (docs/contracts/ompx.md)",
 		handler: async (args, ctx) => {
 			// Unbound (omp without an RPC UI) leaves no way to reply: `channel()` throws, omp reports
 			// it as `extension_error`.

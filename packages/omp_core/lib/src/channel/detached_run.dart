@@ -127,7 +127,7 @@ enum RunState {
   dead,
 }
 
-/// A run directory `~/.omp-app/run/<id>/` and the state of its processes.
+/// A run directory `~/.ompanion/run/<id>/` and the state of its processes.
 final class DetachedRun {
   const DetachedRun({
     required this.id,
@@ -162,7 +162,7 @@ final class DetachedRun {
 
 /// Host-native directory holding the run directories.
 String runRoot(HostProbe probe) =>
-    probe.isWindows ? '${probe.home}\\.omp-app\\run' : '${probe.home}/.omp-app/run';
+    probe.isWindows ? '${probe.home}\\.ompanion\\run' : '${probe.home}/.ompanion/run';
 
 /// Finds the live run of [spec]'s session, or launches one. A launch lock on the machine makes this atomic
 /// across devices: two devices opening the same session get the same run. Runs without a session path
@@ -375,7 +375,7 @@ const _runTail = r'''
   while [ ! -s "$d/tail.pid" ] && [ $i -lt 100 ]; do sleep 0.01 2>/dev/null || sleep 1; i=$((i + 1)); done
   t=$(cat "$d/tail.pid" 2>/dev/null)
   if running "$t" "$d/in.jsonl"; then kill "$t"; fi
-  printf '\n{"type":"omp_app_exit","code":%d}\n' "$code" >> "$d/out.jsonl"
+  printf '\n{"type":"ompanion_exit","code":%d}\n' "$code" >> "$d/out.jsonl"
   printf '%d\n' "$code" > "$d/exit.tmp" && mv -f "$d/exit.tmp" "$d/exit"
 ''';
 
@@ -557,7 +557,7 @@ fi
 n=$((g + 1))
 sed "s/\"generation\":$g/\"generation\":$n/" "$d/meta.json" > "$d/meta.json.tmp" && mv -f "$d/meta.json.tmp" "$d/meta.json" || exit 1
 : > "$d/out.jsonl"
-printf '{"type":"omp_app_rotate","generation":%d,"previousSize":%d}\n' "$n" "$s" >> "$d/out.jsonl"
+printf '{"type":"ompanion_rotate","generation":%d,"previousSize":%d}\n' "$n" "$s" >> "$d/out.jsonl"
 printf '%s:begin\n%s %s\n%s:end\n' "$m" "$n" "$s" "$m"
 ''';
 

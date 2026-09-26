@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/screens/dock/agents/agent_transcript.dart';
+import 'package:ompanion/screens/dock/agents/agent_transcript.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';

@@ -39,7 +39,7 @@ if [ ! -f "$home/demo-project/README.md" ]; then
 	cat >"$home/demo-project/README.md" <<'EOF'
 # Demo project
 
-Scratch directory for omp-app's dev machine. The fake provider's `--demo` rotation reads this file and
+Scratch directory for ompanion's dev machine. The fake provider's `--demo` rotation reads this file and
 toggles a marker on its first line.
 EOF
 fi

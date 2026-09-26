@@ -3,10 +3,10 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/files/file_document.dart';
-import 'package:omp_app/files/file_workspace.dart';
-import 'package:omp_app/files/git_status.dart';
-import 'package:omp_app/screens/dock/agents/agent_transcript.dart';
+import 'package:ompanion/files/file_document.dart';
+import 'package:ompanion/files/file_workspace.dart';
+import 'package:ompanion/files/git_status.dart';
+import 'package:ompanion/screens/dock/agents/agent_transcript.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/transport.dart';
 

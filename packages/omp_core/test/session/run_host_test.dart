@@ -15,7 +15,7 @@ void main() {
   late DetachedRun run;
 
   setUp(() async {
-    home = await Directory.systemTemp.createTemp('omp-app-run-host-');
+    home = await Directory.systemTemp.createTemp('ompanion-run-host-');
     link = LocalLink(environment: {'HOME': home.path});
     probe = HostProbe(
       commandShell: CommandShell.posix,
@@ -74,7 +74,7 @@ void main() {
     expect(out.lengthSync(), size);
     expect(await rotateRunOutput(link, probe, run, settledAt: (generation: 2, size: size)), 1);
     expect(await rotateRunOutput(link, probe, run, settledAt: (generation: 1, size: size)), 2);
-    expect(out.readAsStringSync(), '{"type":"omp_app_rotate","generation":2,"previousSize":$size}\n');
+    expect(out.readAsStringSync(), '{"type":"ompanion_rotate","generation":2,"previousSize":$size}\n');
   });
 }
 

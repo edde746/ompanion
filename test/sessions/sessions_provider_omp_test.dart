@@ -8,13 +8,13 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/models/machine.dart';
-import 'package:omp_app/providers/machines_provider.dart';
-import 'package:omp_app/services/known_hosts_store.dart';
-import 'package:omp_app/services/machine_connector.dart';
-import 'package:omp_app/services/secret_store.dart';
-import 'package:omp_app/sessions/sessions_provider.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/models/machine.dart';
+import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/services/known_hosts_store.dart';
+import 'package:ompanion/services/machine_connector.dart';
+import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/channel.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/session.dart';
@@ -71,7 +71,7 @@ void main() {
       if (match != null && !port.isCompleted) port.complete(int.parse(match.group(1)!));
     });
     unawaited(provider.stderr.drain<void>());
-    root = await Directory.systemTemp.createTemp('omp-app-sessions-omp-');
+    root = await Directory.systemTemp.createTemp('ompanion-sessions-omp-');
     final home = '${root.path}/home';
     final result = await Process.run('sh', [
       '$_root/testing/dev-machine.sh',

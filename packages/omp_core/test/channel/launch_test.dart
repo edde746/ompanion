@@ -14,7 +14,7 @@ void main() {
   late HostProbe probe;
 
   setUp(() async {
-    root = await Directory.systemTemp.createTemp('omp-app-launch-');
+    root = await Directory.systemTemp.createTemp('ompanion-launch-');
     link = LocalLink(environment: {'HOME': root.path});
     probe = HostProbe(
       commandShell: CommandShell.posix,

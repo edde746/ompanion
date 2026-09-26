@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/config/config_target.dart';
-import 'package:omp_app/screens/config/roles_page.dart';
+import 'package:ompanion/config/config_target.dart';
+import 'package:ompanion/screens/config/roles_page.dart';
 import 'package:omp_core/session.dart';
 
 import '../../config/fake_machine.dart';

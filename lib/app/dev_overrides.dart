@@ -1,9 +1,9 @@
 /// Development and test overrides, set with `--dart-define`. All unset in normal builds.
 library;
 
-/// `OMP_APP_LOCAL_HOME=<dir>`: "this computer" runs every command with `HOME=<dir>`, so development builds
+/// `OMPANION_LOCAL_HOME=<dir>`: "this computer" runs every command with `HOME=<dir>`, so development builds
 /// and UI tests drive an isolated omp home (`testing/dev-machine.sh`) and never the user's real `~/.omp`.
-String? get devLocalHome => _nonEmpty(const String.fromEnvironment('OMP_APP_LOCAL_HOME'));
+String? get devLocalHome => _nonEmpty(const String.fromEnvironment('OMPANION_LOCAL_HOME'));
 
 /// The environment of every process "this computer" starts while [devLocalHome] is set, else null. `PATH` holds
 /// only the system directories, and `MachineConnector.searchSystemPaths` keeps the probe to the home directory, so it
@@ -25,12 +25,12 @@ Map<String, String>? get devLocalEnvironment {
   };
 }
 
-/// `OMP_APP_DATA_DIR=<dir>`: the database and other app files live in `<dir>` instead of the platform's
+/// `OMPANION_DATA_DIR=<dir>`: the database and other app files live in `<dir>` instead of the platform's
 /// application support directory, so several app instances (or a test run) do not share state.
-String? get devDataDir => _nonEmpty(const String.fromEnvironment('OMP_APP_DATA_DIR'));
+String? get devDataDir => _nonEmpty(const String.fromEnvironment('OMPANION_DATA_DIR'));
 
-/// `OMP_APP_SECRET_PREFIX=<prefix>`: prepended to every secure-storage key, so the keychain entries of
+/// `OMPANION_SECRET_PREFIX=<prefix>`: prepended to every secure-storage key, so the keychain entries of
 /// such instances do not collide either. Empty when unset.
-String get devSecretPrefix => const String.fromEnvironment('OMP_APP_SECRET_PREFIX');
+String get devSecretPrefix => const String.fromEnvironment('OMPANION_SECRET_PREFIX');
 
 String? _nonEmpty(String value) => value.isEmpty ? null : value;

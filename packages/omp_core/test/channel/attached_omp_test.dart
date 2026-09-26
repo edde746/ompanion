@@ -31,7 +31,7 @@ void main() {
     await channel.send(getState('x:1'));
     final state = await frames.response('x:1');
     expect(state['success'], isTrue);
-    final overlays = Directory('${host.home}/.omp-app/attached');
+    final overlays = Directory('${host.home}/.ompanion/attached');
     expect(overlays.listSync(), hasLength(1));
 
     await channel.close();

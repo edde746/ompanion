@@ -1,11 +1,11 @@
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omp_app/database/app_database.dart';
-import 'package:omp_app/models/machine.dart';
-import 'package:omp_app/services/known_hosts_store.dart';
-import 'package:omp_app/services/machine_connector.dart';
-import 'package:omp_app/services/secret_store.dart';
+import 'package:ompanion/database/app_database.dart';
+import 'package:ompanion/models/machine.dart';
+import 'package:ompanion/services/known_hosts_store.dart';
+import 'package:ompanion/services/machine_connector.dart';
+import 'package:ompanion/services/secret_store.dart';
 import 'package:omp_core/session.dart' show PermanentConnectFailure;
 
 SshMachine _machine(AuthMethod auth, {String? keyId}) => SshMachine(
