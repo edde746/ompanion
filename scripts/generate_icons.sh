@@ -125,8 +125,11 @@ echo "windows/runner/resources/app_icon.ico (16, 20, 24, 32, 40, 48, 64, 256)"
 # Linux window icon, installed into the bundle's data directory by linux/CMakeLists.txt.
 render_rounded 256 linux/ompanion.png
 
-# README header logo.
-render_rounded 512 assets/ompanion.png
+# README header logo: the π alone on a transparent background, trimmed to its bounds so it lines up
+# with the heading text. Rendered large, then scaled down, for smooth edges at the 24 px display size.
+rsvg-convert -w 2048 -h 2048 "$glyph_svg" -o "$tmp/glyph.png"
+"$im" "$tmp/glyph.png" -trim +repage -resize x256 -strip "PNG32:assets/ompanion.png"
+echo "assets/ompanion.png (glyph, 256 px tall)"
 
 # The Icon Composer bundles' single layer (icon.json sets fill, glass and shadow).
 for bundle in macos/ompanion.icon ios/ompanion.icon; do
