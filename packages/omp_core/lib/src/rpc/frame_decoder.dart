@@ -232,8 +232,9 @@ Map<String, Object?> _decodeReassembled(_Reassembled frame) {
   } on FormatException catch (error) {
     throw RpcProtocolException('rpc_chunk sequence ${frame.chunkId} is not UTF-8 JSON: ${error.message}');
   }
-  if (value is! Map<String, Object?>)
+  if (value is! Map<String, Object?>) {
     throw RpcProtocolException('rpc_chunk sequence ${frame.chunkId} is not a JSON object');
+  }
   return value;
 }
 

@@ -384,8 +384,9 @@ class _AgentDetailState extends State<_AgentDetail> {
     final text = _steer.text.trim();
     if (text.isEmpty) return;
     final t = context.t.dock.hub;
-    if (await _call('subagent.steer', {'id': widget.agent.id, 'text': text}, done: t.steered) && mounted)
+    if (await _call('subagent.steer', {'id': widget.agent.id, 'text': text}, done: t.steered) && mounted) {
       _steer.clear();
+    }
   }
 
   Future<void> _kill() async {

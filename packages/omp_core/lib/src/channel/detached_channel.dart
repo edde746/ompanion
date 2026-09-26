@@ -88,8 +88,9 @@ final class DetachedChannel implements RunChannel {
       onHeader: (header) => _inbox.start(int.parse(header)),
       onData: _inbox.add,
       onEnd: (error) {
-        if (!_closed)
+        if (!_closed) {
           _inbox.fail(HostLinkException('following $dir/in.jsonl ended: ${_inboxFollow!.stderr}', cause: error));
+        }
       },
     );
     try {

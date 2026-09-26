@@ -23,8 +23,9 @@ final class SshPublicKey {
       throw FormatException('public key is not base64', line);
     }
     final key = SshPublicKey(blob, comment: fields.skip(2).join(' '));
-    if (key.type != fields[0])
+    if (key.type != fields[0]) {
       throw FormatException('key type ${fields[0]} does not match the key (${key.type})', line);
+    }
     return key;
   }
 

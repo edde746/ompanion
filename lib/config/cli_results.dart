@@ -612,8 +612,9 @@ String statsFolderPath(String folder, {required String home, Map<String, String>
   if (folder == '-tmp') return r'$TMPDIR';
   if (folder.startsWith('-tmp-')) return '\$TMPDIR/${folder.substring(5)}';
   if (folder.startsWith('-')) return '~/${folder.substring(1)}';
-  if (folder.length > 1 && folder.startsWith('/') && folder.endsWith('/'))
+  if (folder.length > 1 && folder.startsWith('/') && folder.endsWith('/')) {
     return folder.substring(0, folder.length - 1);
+  }
   return folder;
 }
 

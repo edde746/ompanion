@@ -754,8 +754,9 @@ final class RunSession implements LiveSession {
         current = latest;
       }
     } on Object catch (error) {
-      if (!_closed && _linkState is! LinkReconnecting)
+      if (!_closed && _linkState is! LinkReconnecting) {
         _warn('Recording the session file on the machine failed: $error');
+      }
     } finally {
       _recording = null;
     }

@@ -434,8 +434,9 @@ class _TranscriptViewState extends State<TranscriptView> {
           .animateTo(position.maxScrollExtent, duration: const Duration(milliseconds: 250), curve: Curves.easeOut)
           .then((_) {
             // The reply may have grown while the animation ran.
-            if (_scroll.hasClients && position.pixels < position.maxScrollExtent)
+            if (_scroll.hasClients && position.pixels < position.maxScrollExtent) {
               position.jumpTo(position.maxScrollExtent);
+            }
           }),
     );
   }
