@@ -8,8 +8,7 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:omp_core/transport.dart';
 
-/// Repository root; tests run from packages/omp_core.
-final String repoRoot = Directory.current.parent.parent.path;
+import '../omp_binary.dart';
 
 /// The companion build the app ships (`cd companion && bun run build`).
 Future<List<int>> companionBytes(String ompVersion) async {
@@ -18,12 +17,18 @@ Future<List<int>> companionBytes(String ompVersion) async {
   return file.readAsBytes();
 }
 
-/// `testing/fake-provider/server.ts` on a free port: scripted turns only, never a paid model.
+/// `testing/fake-provider/server.ts` on a free port of [host]: scripted turns only, never a paid model.
 final class FakeProvider {
-  FakeProvider._(this._process, this.port);
+  FakeProvider._(this._process, this.host, this.port);
 
-  static Future<FakeProvider> start() async {
-    final process = await Process.start('bun', ['$repoRoot/testing/fake-provider/server.ts', '--port', '0']);
+  static Future<FakeProvider> start({String host = '127.0.0.1'}) async {
+    final process = await Process.start('bun', [
+      '$repoRoot/testing/fake-provider/server.ts',
+      '--host',
+      host,
+      '--port',
+      '0',
+    ]);
     final listening = Completer<int>();
     process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
       final port = RegExp(r'^listening (\d+)$').firstMatch(line)?.group(1);
@@ -36,10 +41,11 @@ final class FakeProvider {
         if (!listening.isCompleted) listening.completeError(StateError('fake provider exited $code: $errors'));
       }),
     );
-    return FakeProvider._(process, await listening.future.timeout(const Duration(seconds: 30)));
+    return FakeProvider._(process, host, await listening.future.timeout(const Duration(seconds: 30)));
   }
 
   final Process _process;
+  final String host;
   final int port;
 
   /// Appends turns; each answers one model request, in order (testing/README.md).
@@ -54,7 +60,7 @@ final class FakeProvider {
   Future<Object?> _call(String method, String path, [Object? body]) async {
     final client = HttpClient();
     try {
-      final request = await client.openUrl(method, Uri.parse('http://127.0.0.1:$port$path'));
+      final request = await client.openUrl(method, Uri.parse('http://$host:$port$path'));
       if (body != null) {
         request.headers.contentType = ContentType.json;
         request.write(jsonEncode(body));

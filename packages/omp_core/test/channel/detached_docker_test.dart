@@ -10,6 +10,7 @@ import 'package:omp_core/host.dart';
 import 'package:omp_core/ssh.dart';
 import 'package:test/test.dart';
 
+import '../omp_binary.dart';
 import '../ssh/docker_env.dart';
 import 'support.dart';
 
@@ -18,6 +19,7 @@ import 'support.dart';
 void main() {
   late SshLink link;
   late HostProbe probe;
+  late String arch;
 
   Future<SshLink> connect() => SshLink.open(SshTarget(target: targetHop()), verifyHostKey: trustTestHosts);
 
@@ -28,6 +30,7 @@ void main() {
     final setup = await runPosixScript(link, 'rm -rf "\$HOME/.ompanion" "\$HOME/.omp"\nset -- "\$HOME" 9\n$home');
     expect(setup.exit.code, 0, reason: setup.stderr);
     probe = await probeHost(link);
+    arch = await dockerArch();
   });
 
   tearDownAll(() async {
@@ -56,11 +59,11 @@ void main() {
 
   test('the probe describes the Linux machine and finds omp outside PATH', () {
     expect(probe.os, HostOs.linux);
-    expect(probe.arch, 'arm64');
+    expect(probe.arch, arch);
     expect(probe.libc, 'glibc');
     expect(probe.ompPath, '${probe.home}/.local/bin/omp');
     expect(probe.ompVersion, '18.3.1');
-    expect(probe.releaseAsset, 'omp-linux-arm64');
+    expect(probe.releaseAsset, 'omp-linux-$arch');
   });
 
   test('a run survives the SSH connection that launched it and is resumed from another', () async {
@@ -179,7 +182,7 @@ void main() {
     expect(path, '${probe.home}/.ompanion/companion/18.3.1/${sha256.convert(companion)}.js');
     expect(await uploadCompanion(link, ompVersion: '18.3.1', bytes: companion), path);
 
-    final asset = '$repoRoot/.tools/omp/18.3.1/omp-linux-arm64';
+    final asset = ompAsset('omp-linux-$arch');
     final installed = await uploadOmp(link, probe, '18.3.1', asset: File(asset).openRead(), installDir: '${probe.home}/upload');
     final version = await runPosixScript(link, '${shQuote(installed)} --version');
     expect(version.stdout.trim(), 'omp/18.3.1');

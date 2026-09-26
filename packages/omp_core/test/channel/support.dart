@@ -6,11 +6,7 @@ import 'package:omp_core/channel.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/transport.dart';
 
-/// Repository root; tests run from packages/omp_core.
-final String repoRoot = Directory.current.parent.parent.path;
-
-/// The omp 18.3.1 release binary for this Mac.
-String get ompBinary => '$repoRoot/.tools/omp/18.3.1/omp-darwin-arm64';
+import '../omp_binary.dart';
 
 /// A temporary machine for tests on this computer: `home/` is an isolated omp home (testing/omp-home.sh,
 /// fake provider on a port nothing listens on, so no model turn can run) with the release binary linked at

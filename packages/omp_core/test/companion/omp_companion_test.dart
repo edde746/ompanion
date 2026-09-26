@@ -7,6 +7,7 @@ import 'package:omp_core/companion.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:test/test.dart';
 
+import '../omp_binary.dart';
 import '../rpc/omp_process.dart';
 
 /// The companion build omp loads with `-e`; `bun run build` in companion/ writes it.

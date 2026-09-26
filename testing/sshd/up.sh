@@ -4,6 +4,8 @@
 #   target   127.0.0.1:22221, and target:22 from the bastion; omp 18.3.1 at /home/omp/.local/bin/omp
 # Users: omp (key), pw (password), kbd (password as a keyboard-interactive prompt), nopw (`none` auth).
 # Password for pw and kbd: omp-test-password.
+# Both resolve host.docker.internal to Docker's host gateway: this computer's loopback under colima, the
+# default bridge's address on Linux.
 #
 # Everything a test needs is in .tools/ssh-test/ (gitignored), created once and reused:
 #   id_ed25519, id_rsa        client keys, authorized for omp on both machines
@@ -45,6 +47,7 @@ for spec in bastion:22220 target:22221; do
   port=${spec##*:}
   docker create --name "omp-sshd-$name" --label omp-sshd=1 --hostname "$name" \
     --network "$network" --network-alias "$name" -p "127.0.0.1:$port:22" \
+    --add-host host.docker.internal:host-gateway \
     -e AUTHORIZED_KEYS="$authorized" "$image" >/dev/null
   docker cp "$keys/hostkeys/$name/." "omp-sshd-$name:/etc/ssh/"
   docker start "omp-sshd-$name" >/dev/null

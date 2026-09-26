@@ -9,6 +9,7 @@ import 'package:omp_core/host.dart';
 import 'package:omp_core/src/channel/detached_run.dart' show newRunId, posixLaunchScript;
 import 'package:test/test.dart';
 
+import '../omp_binary.dart';
 import 'support.dart';
 
 void main() {
@@ -31,8 +32,7 @@ void main() {
   );
 
   test('the probe finds the isolated omp and nothing of the user', () {
-    expect(probe.os, HostOs.macos);
-    expect(probe.arch, 'arm64');
+    expect(probe.releaseAsset, thisComputer.releaseAsset);
     expect(probe.ompPath, '${host.home}/.local/bin/omp');
     expect(probe.ompVersion, '18.3.1');
     expect(probe.agentDir, '${host.home}/.omp/agent');

@@ -7,11 +7,11 @@ import 'package:omp_core/host.dart';
 import 'package:omp_core/ssh.dart';
 import 'package:test/test.dart';
 
-import '../channel/support.dart';
+import '../omp_binary.dart';
 import '../ssh/docker_env.dart';
 
 /// The download install route on the Linux test machine, as user `pw`, whose home has no omp. The machine
-/// fetches release assets from a server on this Mac, which containers reach at `host.docker.internal`.
+/// fetches release assets from a server on this computer, which containers reach at `host.docker.internal`.
 void main() {
   late SshLink link;
   late HostProbe probe;
@@ -19,11 +19,11 @@ void main() {
   final requests = <(String, String)>[];
 
   setUpAll(() async {
-    server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server = await HttpServer.bind(await hostGatewayAddress(), 0);
     server.listen((request) async {
       requests.add((request.uri.path, request.headers.value(HttpHeaders.userAgentHeader) ?? ''));
       final response = request.response;
-      final asset = File('$repoRoot/.tools/omp/18.3.1/${request.uri.pathSegments.last}');
+      final asset = File(ompAsset(request.uri.pathSegments.last));
       if (request.uri.pathSegments.first == 'tampered') {
         // The expected version and a trace: only the digest check keeps it from running and being installed.
         response.write('#!/bin/sh\ntouch "\$HOME/tampered-ran"\necho omp/18.3.1\n');

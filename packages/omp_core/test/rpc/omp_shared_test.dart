@@ -8,6 +8,7 @@ import 'package:omp_core/rpc.dart';
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
 
+import '../omp_binary.dart';
 import 'omp_process.dart';
 
 /// PLAN.md §5's detached launch in miniature: omp reads `in.jsonl` through `tail -f` and appends to

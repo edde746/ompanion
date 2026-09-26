@@ -1,23 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:omp_core/transport.dart';
 
-/// Repository root; tests run from packages/omp_core.
-final String repoRoot = Directory.current.parent.parent.path;
-
-/// The omp 18.3.1 release binary for this machine.
-String get ompBinary {
-  final name = switch ((Platform.operatingSystem, Abi.current())) {
-    ('macos', Abi.macosArm64) => 'omp-darwin-arm64',
-    ('linux', Abi.linuxArm64) => 'omp-linux-arm64',
-    ('linux', Abi.linuxX64) => 'omp-linux-x64',
-    (final os, final abi) => throw UnsupportedError('no omp 18.3.1 binary in .tools for $os $abi'),
-  };
-  return '$repoRoot/.tools/omp/18.3.1/$name';
-}
+import '../omp_binary.dart';
 
 String shellQuote(String value) => "'${value.replaceAll("'", r"'\''")}'";
 

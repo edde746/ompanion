@@ -11,12 +11,13 @@ import 'package:omp_core/ssh.dart';
 import 'package:omp_core/store.dart';
 import 'package:test/test.dart';
 
+import '../omp_binary.dart';
 import '../ssh/docker_env.dart';
 import 'support.dart';
 
 /// MachineRuntime over SSH: the Linux target reached through the bastion (`testing/sshd/up.sh`). The target's omp
-/// talks to the fake provider on this Mac through colima's host gateway: containers reach the Mac's loopback at
-/// `host.docker.internal` (192.168.5.2), so model traffic does not depend on the SSH link a test drops.
+/// talks to the fake provider on this computer at `host.docker.internal`, Docker's host gateway, so model traffic does
+/// not depend on the SSH link a test drops.
 void main() {
   late FakeProvider fake;
   const project = '/home/omp/session-project';
@@ -37,7 +38,7 @@ void main() {
   }
 
   setUpAll(() async {
-    fake = await FakeProvider.start();
+    fake = await FakeProvider.start(host: await hostGatewayAddress());
     // The target's omp home: omp-home.sh's files, pointed at the host gateway.
     final local = await Directory.systemTemp.createTemp('ompanion-target-home-');
     try {

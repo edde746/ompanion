@@ -2,7 +2,10 @@
  * OpenAI-compatible chat-completions server that answers from scripted turns, so a real omp can run
  * agent turns without a paid provider.
  *
- *   bun testing/fake-provider/server.ts --port <port> [--demo]     (port 0 picks a free port)
+ *   bun testing/fake-provider/server.ts --port <port> [--host <address>] [--demo]
+ *
+ * Port 0 picks a free port. The host defaults to 127.0.0.1; Docker test machines on Linux need the
+ * address of Docker's host gateway instead.
  *
  * The first stdout line is `listening <port>`. Model API: `POST /v1/chat/completions` (SSE when
  * `stream: true`), `GET /v1/models`. Control API: `POST /control/enqueue`, `POST /control/reset`,
@@ -347,8 +350,8 @@ export interface FakeProviderServer {
 	port: number;
 }
 
-/** Starts the server on 127.0.0.1. Queue, request log and demo rotation live in this closure. */
-export function startServer(port: number, options: { demo?: boolean } = {}): FakeProviderServer {
+/** Starts the server on `hostname`, 127.0.0.1 by default. Queue, request log and demo rotation live in this closure. */
+export function startServer(port: number, options: { demo?: boolean; hostname?: string } = {}): FakeProviderServer {
 	let queue: Turn[] = [];
 	let requests: RecordedRequest[] = [];
 	let requestSeq = 0;
@@ -416,7 +419,7 @@ export function startServer(port: number, options: { demo?: boolean } = {}): Fak
 	};
 
 	const server = Bun.serve({
-		hostname: "127.0.0.1",
+		hostname: options.hostname ?? "127.0.0.1",
 		port,
 		async fetch(req, server) {
 			const route = `${req.method} ${new URL(req.url).pathname}`;
@@ -449,11 +452,15 @@ export function startServer(port: number, options: { demo?: boolean } = {}): Fak
 
 if (import.meta.main) {
 	const argv = Bun.argv.slice(2);
+	const usage = "usage: bun testing/fake-provider/server.ts --port <0-65535> [--host <address>] [--demo]";
 	const flag = argv.indexOf("--port");
 	const raw = flag === -1 ? "0" : argv[flag + 1];
 	const port = Number(raw);
 	if (raw === undefined || !Number.isInteger(port) || port < 0 || port > 65535) {
-		throw new Error(`usage: bun testing/fake-provider/server.ts --port <0-65535> [--demo], got ${raw}`);
+		throw new Error(`${usage}, got ${raw}`);
 	}
-	console.log(`listening ${startServer(port, { demo: argv.includes("--demo") }).port}`);
+	const hostFlag = argv.indexOf("--host");
+	const hostname = hostFlag === -1 ? "127.0.0.1" : argv[hostFlag + 1];
+	if (hostname === undefined) throw new Error(`${usage}, got --host without an address`);
+	console.log(`listening ${startServer(port, { demo: argv.includes("--demo"), hostname }).port}`);
 }

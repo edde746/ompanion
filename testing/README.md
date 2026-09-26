@@ -23,6 +23,9 @@ bun testing/fake-provider/server.ts --port 0           # first stdout line: list
 bun testing/fake-provider/server.ts --port 0 --demo    # unscripted requests get the demo rotation
 ```
 
+It listens on 127.0.0.1; `--host <address>` picks another address. The Docker session tests on Linux
+pass the host gateway's, where the SSH test machines reach this computer as `host.docker.internal`.
+
 | Route | Purpose |
 |---|---|
 | `POST /v1/chat/completions` | answers with the next eligible queued turn; SSE when `stream: true`, JSON otherwise |
@@ -172,11 +175,12 @@ shared by all sessions:
 bun testing/record.ts <scenario|all> testing/fixtures
 ```
 
-Needs `.tools/omp/18.3.1/omp-<platform>-<arch>`. Each scenario gets its own fake provider, home and
-working directory in the system temp directory. The recorder fails, and keeps that directory with
-`out.jsonl`, `in.jsonl` and `requests.json`, when a model request got the default reply, a scripted
-turn went unused, a command failed, or omp exited non-zero. After writing it re-reads the pair: every
-line decodes (protocol v2 chunks reassembled) and every command id has exactly one `response`.
+Needs `.tools/omp/18.3.1/omp-<platform>-<arch>` (`scripts/fetch_omp.sh`). Each scenario gets its own
+fake provider, home and working directory in the system temp directory. The recorder fails, and keeps
+that directory with `out.jsonl`, `in.jsonl` and `requests.json`, when a model request got the default
+reply, a scripted turn went unused, a command failed, or omp exited non-zero. After writing it re-reads
+the pair: every line decodes (protocol v2 chunks reassembled) and every command id has exactly one
+`response`.
 
 Every fixture starts at omp's `ready` line. The first line sent is
 `{"id":"negotiate","type":"negotiate_protocol","protocolVersion":2}`, the last, after the session

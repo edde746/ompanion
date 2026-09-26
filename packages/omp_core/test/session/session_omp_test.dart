@@ -10,7 +10,7 @@ import 'package:test/test.dart';
 import 'support.dart';
 
 /// MachineRuntime and LiveSession against omp 18.3.1 on this computer: an isolated dev machine, the fake provider,
-/// the built companion. Needs `bun`, `.tools/omp/18.3.1/omp-darwin-arm64` and `companion/dist/ompx.js`.
+/// the built companion. Needs `bun`, this computer's omp in `.tools/omp/18.3.1/` and `companion/dist/ompx.js`.
 void main() {
   late FakeProvider fake;
   late DevMachine machine;

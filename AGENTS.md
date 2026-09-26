@@ -19,8 +19,11 @@ barrel file re-exporting everything.
 
 ## Running omp in tests
 
-- Binaries: `.tools/omp/18.3.1/omp-darwin-arm64` (this Mac), `omp-linux-arm64`, `omp-linux-x64`.
-  SHA-256 checked against the release's `SHA256SUMS.txt`.
+- Binaries: `.tools/omp/18.3.1/omp-<os>-<arch>`, fetched by `scripts/fetch_omp.sh <os>-<arch>...` (e.g.
+  `darwin-arm64 linux-arm64` on this Mac: the host and the colima test machines) and SHA-256 checked
+  against the release's `SHA256SUMS.txt`. Dart tests pick them through `packages/omp_core/test/omp_binary.dart`
+  (this computer's, and Docker's architecture for the SSH test machines); Bun tests by `process.platform`
+  and `process.arch`.
 - Always run omp with an isolated `HOME` (a temp dir). Never touch the real `~/.omp`: it holds the
   user's sessions, credentials and a running omp 18.3.0 whose natives cache a newer omp would delete.
 - omp refuses to start RPC mode without a model. The isolated home gets a `models.yml` pointing at the
