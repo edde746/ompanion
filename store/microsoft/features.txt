@@ -3,6 +3,7 @@ Tool cards with word-level diffs and test output, and tool approvals answered in
 Steer the running turn or queue follow-ups; pause, resume or stop every agent of a session
 Every session on every machine, grouped by project and searchable, including ones from omp's terminal UI
 Session tree with search, labels and branching from any of your messages
+Notifications when a session asks a question, finishes or fails
 Runs omp on this PC, or on any SSH host, including hosts behind a chain of jump hosts
 Imports hosts from ~/.ssh/config and Tailscale peers
 Installs omp on a machine that lacks it, with a checksum check

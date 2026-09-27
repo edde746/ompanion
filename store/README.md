@@ -215,11 +215,11 @@ ok   Play short description      70 chars limit 80
 ok   Play full description     3864 chars limit 4000
 ok   Play changelog 1           312 chars limit 500
 ok   App Review notes          3829 bytes limit 4000
-ok   MS Store description      3989 chars limit 10000
+ok   MS Store description      4098 chars limit 10000
 ok   MS Store what's new        332 chars limit 1500
 ok   MS Store short descr.       85 chars limit 1000
 ok   MS Store copyright          19 chars limit 200
-ok   MS Store features           16       limit 20
+ok   MS Store features           17       limit 20
 ok   MS Store longest feature   104       limit 200
 ok   MS Store search terms        7       limit 7
 ok   MS Store longest term       19       limit 30

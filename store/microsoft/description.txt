@@ -24,6 +24,7 @@ Sessions
 - Resume any session on the machine, including ones from omp's terminal UI (read-only while that omp still has it open)
 - Session tree with search, filters, labels, branching and an optional model-written summary
 - Several of your devices on one live session: each sees what the others send, and the first answer settles the dialog everywhere
+- Windows notifications when a session asks a question, finishes or fails, for the sessions the app has open
 
 Machines
 - This computer: omp and terminals run directly on this PC
