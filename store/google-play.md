@@ -71,33 +71,17 @@ the app ([Requirements for providing sign in details](https://support.google.com
 
 - **Select: "All or some functionality is restricted."** The app has no account of its own, but it is useless
   without an SSH machine, so the reviewer needs credentials.
-- **Instructions**: use the canonical text in `store/review-demo/README.md`, section "Console answers" →
-  "Google Play Console → App access", which is written against the verified server. Fill `<PASSWORD>`
-  (`REVIEW_PASSWORD` in `store/review-demo/.env`); the host is `217.160.119.181`, the port 22, the user
-  `root`, and the session directory `/root/work/notes-api`.
-- The equivalent short form, if you prefer to paste it here:
+- **Sign-in details**: one set, named `Demo server`: username `root`, password `REVIEW_PASSWORD` from
+  `store/review-demo/.env`.
+- **Any other information** (Play allows 500 characters; this is 483): paste as it is. The username and the
+  password are in their own fields, so the text points at them.
 
 ```
-ompanion has no sign-in of its own, but it is a client: it needs a machine to connect to. We run a Linux
-demo server for review, which is destroyed after the review and holds no personal data.
-
-1. Open the app and tap Add machine. Name: Demo. Host: 217.160.119.181. Port: 22. User: root.
-   Authentication: Password. Password: <PASSWORD>. Tap Save.
-2. The machine's page opens. Under System, tap Connect. The first connection asks about a host key it has
-   never seen: "Trust this host?" → Trust.
-3. The same System section then shows the OS, the architecture, Home, omp at /usr/local/bin/omp,
-   omp version 18.3.1 and Companion: Uploaded.
-4. Go back to the list of machines and on the machine's row tap ⋮ (More) → New session. Working directory
-   ~/work/notes-api (that is /root/work/notes-api); leave Model empty. Tap Start.
-5. Type a message in the composer and send it, for example "What does this project do?". The agent
-   answers with GLM 5.3 Flash, a real AI model we pay for through OpenRouter, and can read and edit the
-   project's files and run commands on the server.
-
-Everything else works on the same machine: Files edits files and shows git diffs, Terminal opens a shell,
-and Configure browses omp's settings, model roles, MCP servers, plugins and skills. Usage has no limits to
-show on the demo server. The access details work from any location and stay valid while the app is under
-review.
+ompanion is a client for omp, an AI coding agent, and needs a machine to connect to; this demo server exists only for the review. Tap Add machine: Name Demo, Host 217.160.119.181, Port 22, User root, Authentication Password, the password above, Save. Under System tap Connect, then Trust. Back in the machine list, tap ⋮ on the machine > New session, Working directory ~/work/notes-api, Start. Send any message: a real AI model we pay for answers and can edit files and run commands.
 ```
+
+The full walk-through, with what each screen shows, is the App Store notes in `store/review-demo/README.md`,
+section "Console answers".
 
 ## 5. Target audience and content
 

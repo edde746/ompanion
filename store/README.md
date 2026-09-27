@@ -48,9 +48,9 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
        only**, ads **No**, news app **No**, government/financial/health **No**, Advertising ID **No**.
 6. [ ] Content rating questionnaire: category "Utility, Productivity, Communication, or Other"; the answers
        in `store/google-play.md` §6.
-7. [ ] Sign-in details: choose **"All or some functionality is restricted"** and paste the text from
-       `store/review-demo/README.md` §"Console answers" (or `store/google-play.md` §4) with the demo password
-       filled in.
+7. [ ] Sign-in details: choose **"All or some functionality is restricted"**, one set named `Demo server`
+       with username `root` and the demo password, and in "Any other information" (500 characters at most)
+       the text in `store/google-play.md` §4.
 8. [ ] Upload the first AAB by hand. Build it with `flutter build appbundle --release
        --dart-define=OMPANION_CHANNEL=play` (with `android/key.properties` in place, or the bundle is signed with
        the debug key) and upload `build/app/outputs/bundle/release/app-release.aab` in Play Console → Testing →

@@ -199,8 +199,8 @@ written. If the server changes, replace `217.160.119.181` everywhere `git grep 2
 ### Google Play Console → App access
 
 Choose **All or some functionality is restricted** and add one set of sign-in details: user name `root`,
-password `<PASSWORD>`, and as instructions the App Store notes above. `store/google-play.md` §4 has a
-version with Play's wording.
+password `<PASSWORD>`. Play's "Any other information" field takes 500 characters, so the notes above do not
+fit: paste the 483-character text in `store/google-play.md` §4.
 
 ### Partner Center → Submission options → Notes for certification
 
