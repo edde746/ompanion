@@ -464,11 +464,11 @@ void main() {
     });
 
     test('a prompt the UI sends waits until the run\'s first message or its end, not for another prompt\'s result', () {
-      final sent = SessionView().copyWith(promptPending: true);
+      final sent = SessionView().copyWith(pendingPrompt: const PendingPrompt());
       final started = reduce(sent, running);
-      expect(started.promptPending, isTrue, reason: 'the prompt is not in the transcript yet');
-      expect(reduce(started, messageStart(user('Hi', 100), 'msg-1')).promptPending, isFalse);
-      expect(reduce(started, agentEnd(const [])).promptPending, isFalse);
+      expect(started.pendingPrompt, isNotNull, reason: 'the prompt is not in the transcript yet');
+      expect(reduce(started, messageStart(user('Hi', 100), 'msg-1')).pendingPrompt, isNull);
+      expect(reduce(started, agentEnd(const [])).pendingPrompt, isNull);
 
       // A companion call (`/ompx`, e.g. `session.localRoot` before an upload) is a prompt with a result of its own.
       final companion = reduce(sent, {
@@ -478,8 +478,8 @@ void main() {
         'status': 'completed',
         'sessionSettled': true,
       });
-      expect(companion.promptPending, isTrue);
-      expect(reduce(sent, {'type': 'session_settled'}).promptPending, isTrue);
+      expect(companion.pendingPrompt, isNotNull);
+      expect(reduce(sent, {'type': 'session_settled'}).pendingPrompt, isNotNull);
     });
 
     test('an agent_end compacted over 1 MiB takes the outcome from the reply it already streamed', () {

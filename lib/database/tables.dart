@@ -103,3 +103,22 @@ class ReadMarkers extends Table {
   @override
   Set<Column<Object>> get primaryKey => {machineId, path};
 }
+
+/// Sessions pinned above the machines in the sidebar, in the order they were pinned. Keyed by omp's session id, which
+/// a `/move` keeps; the other columns are what the machine's listing last said, so the row shows and opens while the
+/// machine is not listed.
+@DataClassName('PinnedSessionRow')
+class PinnedSessions extends Table {
+  TextColumn get machineId => text().references(Machines, #id, onDelete: KeyAction.cascade)();
+  TextColumn get sessionId => text()();
+
+  /// Host-native path of the session file.
+  TextColumn get path => text()();
+  TextColumn get cwd => text()();
+  TextColumn get title => text().nullable()();
+  TextColumn get firstMessage => text().nullable()();
+  DateTimeColumn get pinnedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {machineId, sessionId};
+}

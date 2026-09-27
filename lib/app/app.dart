@@ -16,6 +16,7 @@ import '../services/machine_connector.dart';
 import '../services/secret_store.dart';
 import '../sessions/companion_asset.dart';
 import '../sessions/machine_images.dart';
+import '../sessions/session_pins.dart';
 import '../sessions/session_reads.dart';
 import '../sessions/sessions_provider.dart';
 import 'theme.dart';
@@ -84,6 +85,10 @@ class OmpanionApp extends StatelessWidget {
           ),
           // Not lazy: it tracks sessions whether or not the sidebar is built yet.
           lazy: false,
+        ),
+        ChangeNotifierProvider(
+          create: (context) =>
+              SessionPins.following(db, sessions: context.read<SessionsProvider>(), machines: machines),
         ),
         ChangeNotifierProvider(create: (_) => DockController(machines)),
         Provider.value(value: images),

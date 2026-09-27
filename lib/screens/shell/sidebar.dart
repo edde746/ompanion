@@ -12,6 +12,7 @@ import '../../models/machine.dart';
 import '../../providers/machines_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/shell_provider.dart';
+import '../../sessions/session_pins.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../widgets/app_search_field.dart';
 import '../machines/connect_dialogs.dart';
@@ -22,8 +23,8 @@ import '../sessions/machine_sessions.dart';
 import '../sessions/new_session_dialog.dart';
 import 'sidebar_tree.dart';
 
-/// The header (title, search and machine actions), then per machine its projects and sessions as one list of rows
-/// ([sidebarRows]); SSH keys, usage and settings at the bottom.
+/// The header (title, search and machine actions), then the pinned sessions and per machine its projects and sessions
+/// as one list of rows ([sidebarRows]); SSH keys, usage and settings at the bottom.
 class Sidebar extends StatefulWidget {
   const Sidebar({super.key, this.trailing});
 
@@ -139,18 +140,38 @@ class SidebarState extends State<Sidebar> {
       shell.select(const SessionSelection());
       return;
     }
-    final summary = entry.summary;
-    if (summary == null) return;
-    setState(() => _opening.add(summary.path));
+    final path = entry.path;
+    if (path == null) return;
+    setState(() => _opening.add(path));
     try {
       // Attaches to the live run holding the file, or launches one.
-      await sessions.open(machine, ResumeSession(summary.path));
+      await sessions.open(machine, ResumeSession(path));
       shell.select(const SessionSelection());
     } on Object catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: describeConnectError(t, error)))));
     } finally {
-      if (mounted) setState(() => _opening.remove(summary.path));
+      if (mounted) setState(() => _opening.remove(path));
     }
+  }
+
+  /// A session row's context menu: pin or unpin it.
+  Future<void> _sessionMenu(Machine machine, SidebarEntry entry, Offset position) async {
+    final t = context.t;
+    final pins = context.read<SessionPins>();
+    final pin = pinOf(machine.id, entry, DateTime.now());
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final toggle = await showMenu<bool>(
+      context: context,
+      position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
+      items: [
+        PopupMenuItem(
+          value: true,
+          enabled: pin != null,
+          child: Text(pin != null && pins.isPinned(pin.machineId, pin.sessionId) ? t.sessions.unpin : t.sessions.pin),
+        ),
+      ],
+    );
+    if (toggle == true && pin != null) await pins.toggle(pin);
   }
 
   @override
@@ -160,6 +181,7 @@ class SidebarState extends State<Sidebar> {
     final machines = context.watch<MachinesProvider>();
     final sessions = context.watch<SessionsProvider>();
     final settings = context.watch<SettingsProvider>();
+    final pins = context.watch<SessionPins>();
     final selection = context.watch<ShellProvider>().selection;
     _followStatuses(sessions, machines.machines);
     for (final machine in machines.machines) {
@@ -182,6 +204,7 @@ class SidebarState extends State<Sidebar> {
             expanded: _isExpanded(machine),
           ),
       ],
+      pins: pins.pins,
       collapsed: (machineId, cwd) => settings.get(Prefs.projectCollapsed(machineId, cwd)),
       showAll: (machineId, cwd) => _showAll.contains((machineId, cwd)),
       title: (entry) => sidebarEntryTitle(t, entry),
@@ -302,16 +325,15 @@ class SidebarState extends State<Sidebar> {
     final t = context.t;
     final sessions = context.read<SessionsProvider>();
     return switch (row) {
+      PinnedHeaderRowData() => const PinnedHeader(),
+      PinnedRowData(:final machine, :final entry, :final match) => _sessionTile(machine, entry, match, pinned: true),
       MachineRowData(:final machine, :final expanded) => MachineHeader(
         machine: machine.machine,
         status: machine.status,
         expanded: expanded,
         loading: machine.listing.loading,
         selected: selection == MachineSelection(machine.machine.id),
-        onTap: () {
-          context.read<ShellProvider>().select(MachineSelection(machine.machine.id));
-          if (!searching && !expanded) _toggleMachine(machine.machine);
-        },
+        onOpen: () => context.read<ShellProvider>().select(MachineSelection(machine.machine.id)),
         onToggle: searching ? null : () => _toggleMachine(machine.machine),
       ),
       NoticeRowData(:final machine, :final notice) => switch (notice) {
@@ -357,19 +379,27 @@ class SidebarState extends State<Sidebar> {
             ? () => unawaited(showNewSessionDialog(context, machine.machine, cwd: cwd))
             : null,
       ),
-      SessionRowData(:final machine, :final entry, :final match) => SessionTile(
-        machineId: machine.machine.id,
-        entry: entry,
-        match: match,
-        opening: entry.summary != null && _opening.contains(entry.summary!.path),
-        onTap: () => unawaited(_open(machine.machine, entry)),
-      ),
+      SessionRowData(:final machine, :final entry, :final match) => _sessionTile(machine, entry, match, pinned: false),
       ShowMoreRowData(:final machine, :final cwd, :final hidden) => ShowMoreRow(
         hidden: hidden,
         onTap: () => setState(() => _showAll.add((machine.machine.id, cwd))),
       ),
       GapRowData() => const SizedBox.shrink(),
     };
+  }
+
+  /// A session's row, under its project or, [pinned], on top with its machine's name.
+  Widget _sessionTile(SidebarMachine machine, SidebarEntry entry, TextRange? match, {required bool pinned}) {
+    final path = entry.path;
+    return SessionTile(
+      machineId: machine.machine.id,
+      entry: entry,
+      match: match,
+      place: pinned ? machine.machine.name : null,
+      opening: path != null && _opening.contains(path),
+      onTap: () => unawaited(_open(machine.machine, entry)),
+      onMenu: (position) => unawaited(_sessionMenu(machine.machine, entry, position)),
+    );
   }
 }
 

@@ -254,9 +254,9 @@ final class RunSession implements LiveSession {
   void dismissRequest(String id) => _setView(store.dismissRequest(_view, id));
 
   @override
-  void setPromptPending(bool pending) {
-    if (_view.promptPending == pending) return;
-    _setView(_view.copyWith(promptPending: pending));
+  void setPendingPrompt(PendingPrompt? prompt) {
+    if (identical(_view.pendingPrompt, prompt)) return;
+    _setView(_view.copyWith(pendingPrompt: prompt));
   }
 
   @override

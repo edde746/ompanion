@@ -33,7 +33,8 @@ AssistantItem _reply(int n, {List<ContentBlock> content = const [TextBlock('Answ
 ToolResultItem _tool(ToolState state) => ToolResultItem(toolCallId: 'c1', toolName: 'bash', state: state);
 
 /// A prompt this device just sent, before omp said anything about it.
-SessionView _sent(List<TranscriptItem> transcript) => SessionView(promptPending: true, transcript: transcript);
+SessionView _sent(List<TranscriptItem> transcript) =>
+    SessionView(pendingPrompt: const PendingPrompt(), transcript: transcript);
 
 /// The same session once omp took the prompt up (`agent_start`).
 SessionView _running(List<TranscriptItem> transcript) =>
@@ -227,6 +228,47 @@ void main() {
       model.showAwaiting(2);
       model.refold();
       expect(model.rows.last, isA<AwaitingReplyRow>());
+    });
+
+    test('a prompt on its way shows as its user message before the row, until omp\'s own replaces it', () {
+      final model = TranscriptRowModel();
+      // What the transcript tells the model of each view.
+      void show(SessionView view) {
+        model.update(view.transcript, live: view.run.running);
+        model.showPending(view.pendingPrompt?.message);
+        model.showAwaiting(awaitingReply(view) ? 0 : null);
+      }
+
+      List<Type> kinds() => [for (final row in model.rows) row.runtimeType];
+
+      final message = UserItem(timestamp: 3, content: const [TextBlock('Question 3')], attribution: 'user');
+      var view = SessionView(
+        transcript: [_user(1), _reply(2)],
+        pendingPrompt: PendingPrompt(message: message),
+      );
+      show(view);
+      expect(kinds(), [ItemRow, AssistantTextRow, PendingPromptRow, AwaitingReplyRow]);
+      expect((model.rows[2] as PendingPromptRow).message, same(message));
+
+      view = reduce(view, const {'type': 'agent_start'});
+      show(view);
+      expect(kinds(), [ItemRow, AssistantTextRow, PendingPromptRow, AwaitingReplyRow], reason: 'omp has not echoed it');
+
+      view = reduce(view, const {
+        'type': 'message_start',
+        'message': {
+          'role': 'user',
+          'content': [
+            {'type': 'text', 'text': 'Question 3'},
+          ],
+          'attribution': 'user',
+          'timestamp': 4,
+        },
+        'messageId': 'msg-1',
+      });
+      show(view);
+      expect(kinds(), [ItemRow, AssistantTextRow, ItemRow, AwaitingReplyRow]);
+      expect(((model.rows[2] as ItemRow).item as UserItem).text, 'Question 3');
     });
 
     testWidgets('the transcript shows it where the reply lands, and the reply replaces it', (tester) async {

@@ -12,7 +12,7 @@ export 'tables.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Machines, MachineJumps, SshKeys, KnownHosts, Settings, ReadMarkers])
+@DriftDatabase(tables: [Machines, MachineJumps, SshKeys, KnownHosts, Settings, ReadMarkers, PinnedSessions])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
@@ -31,12 +31,15 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
-    onUpgrade: stepByStep(from1To2: (m, schema) => m.createTable(schema.readMarkers)),
+    onUpgrade: stepByStep(
+      from1To2: (m, schema) => m.createTable(schema.readMarkers),
+      from2To3: (m, schema) => m.createTable(schema.pinnedSessions),
+    ),
     // SQLite leaves foreign keys off per connection; jump cascades and key set-null depend on them.
     beforeOpen: (details) => customStatement('PRAGMA foreign_keys = ON'),
   );

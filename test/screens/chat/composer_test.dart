@@ -136,11 +136,11 @@ final class _Session implements LiveSession {
   @override
   void dismissRequest(String id) {}
 
-  /// What the composer last said about its prompt's wait ([LiveSession.setPromptPending]).
-  bool promptPending = false;
+  /// The prompt the composer last said it is sending ([LiveSession.setPendingPrompt]).
+  PendingPrompt? pendingPrompt;
 
   @override
-  void setPromptPending(bool pending) => promptPending = pending;
+  void setPendingPrompt(PendingPrompt? prompt) => pendingPrompt = prompt;
 
   @override
   void dismissNotice(int seq) {}
@@ -482,8 +482,10 @@ void main() {
     }
 
     // An extension command: omp acknowledges it without saying whether a run starts, runs it, and reports its result.
+    // omp does not keep it as typed, so the transcript shows no message for it.
     await send('/review');
-    expect(session.promptPending, isTrue);
+    expect(session.pendingPrompt, isNotNull);
+    expect(session.pendingPrompt!.message, isNull);
     session.omp.emit({
       'type': 'prompt_result',
       'id': session.omp.prompts.last['id'],
@@ -492,13 +494,13 @@ void main() {
       'sessionSettled': true,
     });
     await tester.pump();
-    expect(session.promptPending, isFalse);
+    expect(session.pendingPrompt, isNull);
 
     await send('hello');
-    expect(session.promptPending, isTrue);
+    expect(session.pendingPrompt!.message!.text, 'hello');
     await session.omp.close();
     await tester.pump();
-    expect(session.promptPending, isFalse, reason: 'the next connection shows a run the prompt started by itself');
+    expect(session.pendingPrompt, isNull, reason: 'the next connection shows a run the prompt started by itself');
 
     await tearDownProviders(tester);
   });

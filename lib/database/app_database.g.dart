@@ -2541,6 +2541,482 @@ class ReadMarkersCompanion extends UpdateCompanion<ReadMarkerRow> {
   }
 }
 
+class $PinnedSessionsTable extends PinnedSessions
+    with TableInfo<$PinnedSessionsTable, PinnedSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PinnedSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _machineIdMeta = const VerificationMeta(
+    'machineId',
+  );
+  @override
+  late final GeneratedColumn<String> machineId = GeneratedColumn<String>(
+    'machine_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES machines (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cwdMeta = const VerificationMeta('cwd');
+  @override
+  late final GeneratedColumn<String> cwd = GeneratedColumn<String>(
+    'cwd',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _firstMessageMeta = const VerificationMeta(
+    'firstMessage',
+  );
+  @override
+  late final GeneratedColumn<String> firstMessage = GeneratedColumn<String>(
+    'first_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pinnedAtMeta = const VerificationMeta(
+    'pinnedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> pinnedAt = GeneratedColumn<DateTime>(
+    'pinned_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    machineId,
+    sessionId,
+    path,
+    cwd,
+    title,
+    firstMessage,
+    pinnedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pinned_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PinnedSessionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('machine_id')) {
+      context.handle(
+        _machineIdMeta,
+        machineId.isAcceptableOrUnknown(data['machine_id']!, _machineIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_machineIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('cwd')) {
+      context.handle(
+        _cwdMeta,
+        cwd.isAcceptableOrUnknown(data['cwd']!, _cwdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cwdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('first_message')) {
+      context.handle(
+        _firstMessageMeta,
+        firstMessage.isAcceptableOrUnknown(
+          data['first_message']!,
+          _firstMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pinned_at')) {
+      context.handle(
+        _pinnedAtMeta,
+        pinnedAt.isAcceptableOrUnknown(data['pinned_at']!, _pinnedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pinnedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {machineId, sessionId};
+  @override
+  PinnedSessionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PinnedSessionRow(
+      machineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}machine_id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      cwd: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cwd'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      firstMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}first_message'],
+      ),
+      pinnedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}pinned_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PinnedSessionsTable createAlias(String alias) {
+    return $PinnedSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class PinnedSessionRow extends DataClass
+    implements Insertable<PinnedSessionRow> {
+  final String machineId;
+  final String sessionId;
+
+  /// Host-native path of the session file.
+  final String path;
+  final String cwd;
+  final String? title;
+  final String? firstMessage;
+  final DateTime pinnedAt;
+  const PinnedSessionRow({
+    required this.machineId,
+    required this.sessionId,
+    required this.path,
+    required this.cwd,
+    this.title,
+    this.firstMessage,
+    required this.pinnedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['machine_id'] = Variable<String>(machineId);
+    map['session_id'] = Variable<String>(sessionId);
+    map['path'] = Variable<String>(path);
+    map['cwd'] = Variable<String>(cwd);
+    if (!nullToAbsent || title != null) {
+      map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || firstMessage != null) {
+      map['first_message'] = Variable<String>(firstMessage);
+    }
+    map['pinned_at'] = Variable<DateTime>(pinnedAt);
+    return map;
+  }
+
+  PinnedSessionsCompanion toCompanion(bool nullToAbsent) {
+    return PinnedSessionsCompanion(
+      machineId: Value(machineId),
+      sessionId: Value(sessionId),
+      path: Value(path),
+      cwd: Value(cwd),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
+      firstMessage: firstMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(firstMessage),
+      pinnedAt: Value(pinnedAt),
+    );
+  }
+
+  factory PinnedSessionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PinnedSessionRow(
+      machineId: serializer.fromJson<String>(json['machineId']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      path: serializer.fromJson<String>(json['path']),
+      cwd: serializer.fromJson<String>(json['cwd']),
+      title: serializer.fromJson<String?>(json['title']),
+      firstMessage: serializer.fromJson<String?>(json['firstMessage']),
+      pinnedAt: serializer.fromJson<DateTime>(json['pinnedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'machineId': serializer.toJson<String>(machineId),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'path': serializer.toJson<String>(path),
+      'cwd': serializer.toJson<String>(cwd),
+      'title': serializer.toJson<String?>(title),
+      'firstMessage': serializer.toJson<String?>(firstMessage),
+      'pinnedAt': serializer.toJson<DateTime>(pinnedAt),
+    };
+  }
+
+  PinnedSessionRow copyWith({
+    String? machineId,
+    String? sessionId,
+    String? path,
+    String? cwd,
+    Value<String?> title = const Value.absent(),
+    Value<String?> firstMessage = const Value.absent(),
+    DateTime? pinnedAt,
+  }) => PinnedSessionRow(
+    machineId: machineId ?? this.machineId,
+    sessionId: sessionId ?? this.sessionId,
+    path: path ?? this.path,
+    cwd: cwd ?? this.cwd,
+    title: title.present ? title.value : this.title,
+    firstMessage: firstMessage.present ? firstMessage.value : this.firstMessage,
+    pinnedAt: pinnedAt ?? this.pinnedAt,
+  );
+  PinnedSessionRow copyWithCompanion(PinnedSessionsCompanion data) {
+    return PinnedSessionRow(
+      machineId: data.machineId.present ? data.machineId.value : this.machineId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      path: data.path.present ? data.path.value : this.path,
+      cwd: data.cwd.present ? data.cwd.value : this.cwd,
+      title: data.title.present ? data.title.value : this.title,
+      firstMessage: data.firstMessage.present
+          ? data.firstMessage.value
+          : this.firstMessage,
+      pinnedAt: data.pinnedAt.present ? data.pinnedAt.value : this.pinnedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PinnedSessionRow(')
+          ..write('machineId: $machineId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('path: $path, ')
+          ..write('cwd: $cwd, ')
+          ..write('title: $title, ')
+          ..write('firstMessage: $firstMessage, ')
+          ..write('pinnedAt: $pinnedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    machineId,
+    sessionId,
+    path,
+    cwd,
+    title,
+    firstMessage,
+    pinnedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PinnedSessionRow &&
+          other.machineId == this.machineId &&
+          other.sessionId == this.sessionId &&
+          other.path == this.path &&
+          other.cwd == this.cwd &&
+          other.title == this.title &&
+          other.firstMessage == this.firstMessage &&
+          other.pinnedAt == this.pinnedAt);
+}
+
+class PinnedSessionsCompanion extends UpdateCompanion<PinnedSessionRow> {
+  final Value<String> machineId;
+  final Value<String> sessionId;
+  final Value<String> path;
+  final Value<String> cwd;
+  final Value<String?> title;
+  final Value<String?> firstMessage;
+  final Value<DateTime> pinnedAt;
+  final Value<int> rowid;
+  const PinnedSessionsCompanion({
+    this.machineId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.path = const Value.absent(),
+    this.cwd = const Value.absent(),
+    this.title = const Value.absent(),
+    this.firstMessage = const Value.absent(),
+    this.pinnedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PinnedSessionsCompanion.insert({
+    required String machineId,
+    required String sessionId,
+    required String path,
+    required String cwd,
+    this.title = const Value.absent(),
+    this.firstMessage = const Value.absent(),
+    required DateTime pinnedAt,
+    this.rowid = const Value.absent(),
+  }) : machineId = Value(machineId),
+       sessionId = Value(sessionId),
+       path = Value(path),
+       cwd = Value(cwd),
+       pinnedAt = Value(pinnedAt);
+  static Insertable<PinnedSessionRow> custom({
+    Expression<String>? machineId,
+    Expression<String>? sessionId,
+    Expression<String>? path,
+    Expression<String>? cwd,
+    Expression<String>? title,
+    Expression<String>? firstMessage,
+    Expression<DateTime>? pinnedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (machineId != null) 'machine_id': machineId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (path != null) 'path': path,
+      if (cwd != null) 'cwd': cwd,
+      if (title != null) 'title': title,
+      if (firstMessage != null) 'first_message': firstMessage,
+      if (pinnedAt != null) 'pinned_at': pinnedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PinnedSessionsCompanion copyWith({
+    Value<String>? machineId,
+    Value<String>? sessionId,
+    Value<String>? path,
+    Value<String>? cwd,
+    Value<String?>? title,
+    Value<String?>? firstMessage,
+    Value<DateTime>? pinnedAt,
+    Value<int>? rowid,
+  }) {
+    return PinnedSessionsCompanion(
+      machineId: machineId ?? this.machineId,
+      sessionId: sessionId ?? this.sessionId,
+      path: path ?? this.path,
+      cwd: cwd ?? this.cwd,
+      title: title ?? this.title,
+      firstMessage: firstMessage ?? this.firstMessage,
+      pinnedAt: pinnedAt ?? this.pinnedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (machineId.present) {
+      map['machine_id'] = Variable<String>(machineId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (cwd.present) {
+      map['cwd'] = Variable<String>(cwd.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (firstMessage.present) {
+      map['first_message'] = Variable<String>(firstMessage.value);
+    }
+    if (pinnedAt.present) {
+      map['pinned_at'] = Variable<DateTime>(pinnedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PinnedSessionsCompanion(')
+          ..write('machineId: $machineId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('path: $path, ')
+          ..write('cwd: $cwd, ')
+          ..write('title: $title, ')
+          ..write('firstMessage: $firstMessage, ')
+          ..write('pinnedAt: $pinnedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2550,6 +3026,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $KnownHostsTable knownHosts = $KnownHostsTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
   late final $ReadMarkersTable readMarkers = $ReadMarkersTable(this);
+  late final $PinnedSessionsTable pinnedSessions = $PinnedSessionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2561,6 +3038,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     knownHosts,
     settings,
     readMarkers,
+    pinnedSessions,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2591,6 +3069,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('read_markers', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'machines',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('pinned_sessions', kind: UpdateKind.delete)],
     ),
   ]);
   @override
@@ -3100,6 +3585,24 @@ final class $$MachinesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$PinnedSessionsTable, List<PinnedSessionRow>>
+  _pinnedSessionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.pinnedSessions,
+    aliasName: 'machines__id__pinned_sessions__machine_id',
+  );
+
+  $$PinnedSessionsTableProcessedTableManager get pinnedSessionsRefs {
+    final manager = $$PinnedSessionsTableTableManager(
+      $_db,
+      $_db.pinnedSessions,
+    ).filter((f) => f.machineId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_pinnedSessionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$MachinesTableFilterComposer
@@ -3232,6 +3735,31 @@ class $$MachinesTableFilterComposer
           }) => $$ReadMarkersTableFilterComposer(
             $db: $db,
             $table: $db.readMarkers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> pinnedSessionsRefs(
+    Expression<bool> Function($$PinnedSessionsTableFilterComposer f) f,
+  ) {
+    final $$PinnedSessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pinnedSessions,
+      getReferencedColumn: (t) => t.machineId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PinnedSessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.pinnedSessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3446,6 +3974,31 @@ class $$MachinesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> pinnedSessionsRefs<T extends Object>(
+    Expression<T> Function($$PinnedSessionsTableAnnotationComposer a) f,
+  ) {
+    final $$PinnedSessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pinnedSessions,
+      getReferencedColumn: (t) => t.machineId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PinnedSessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.pinnedSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$MachinesTableTableManager
@@ -3465,6 +4018,7 @@ class $$MachinesTableTableManager
             bool keyId,
             bool machineJumpsRefs,
             bool readMarkersRefs,
+            bool pinnedSessionsRefs,
           })
         > {
   $$MachinesTableTableManager(_$AppDatabase db, $MachinesTable table)
@@ -3551,12 +4105,14 @@ class $$MachinesTableTableManager
                 keyId = false,
                 machineJumpsRefs = false,
                 readMarkersRefs = false,
+                pinnedSessionsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (machineJumpsRefs) db.machineJumps,
                     if (readMarkersRefs) db.readMarkers,
+                    if (pinnedSessionsRefs) db.pinnedSessions,
                   ],
                   addJoins:
                       <
@@ -3632,6 +4188,27 @@ class $$MachinesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (pinnedSessionsRefs)
+                        await $_getPrefetchedData<
+                          MachineRow,
+                          $MachinesTable,
+                          PinnedSessionRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MachinesTableReferences
+                              ._pinnedSessionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MachinesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pinnedSessionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.machineId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -3656,6 +4233,7 @@ typedef $$MachinesTableProcessedTableManager =
         bool keyId,
         bool machineJumpsRefs,
         bool readMarkersRefs,
+        bool pinnedSessionsRefs,
       })
     >;
 typedef $$MachineJumpsTableCreateCompanionBuilder =
@@ -4759,6 +5337,368 @@ typedef $$ReadMarkersTableProcessedTableManager =
       ReadMarkerRow,
       PrefetchHooks Function({bool machineId})
     >;
+typedef $$PinnedSessionsTableCreateCompanionBuilder =
+    PinnedSessionsCompanion Function({
+      required String machineId,
+      required String sessionId,
+      required String path,
+      required String cwd,
+      Value<String?> title,
+      Value<String?> firstMessage,
+      required DateTime pinnedAt,
+      Value<int> rowid,
+    });
+typedef $$PinnedSessionsTableUpdateCompanionBuilder =
+    PinnedSessionsCompanion Function({
+      Value<String> machineId,
+      Value<String> sessionId,
+      Value<String> path,
+      Value<String> cwd,
+      Value<String?> title,
+      Value<String?> firstMessage,
+      Value<DateTime> pinnedAt,
+      Value<int> rowid,
+    });
+
+final class $$PinnedSessionsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $PinnedSessionsTable, PinnedSessionRow> {
+  $$PinnedSessionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MachinesTable _machineIdTable(_$AppDatabase db) =>
+      db.machines.createAlias('pinned_sessions__machine_id__machines__id');
+
+  $$MachinesTableProcessedTableManager get machineId {
+    final $_column = $_itemColumn<String>('machine_id')!;
+
+    final manager = $$MachinesTableTableManager(
+      $_db,
+      $_db.machines,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_machineIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PinnedSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $PinnedSessionsTable> {
+  $$PinnedSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cwd => $composableBuilder(
+    column: $table.cwd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get firstMessage => $composableBuilder(
+    column: $table.firstMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get pinnedAt => $composableBuilder(
+    column: $table.pinnedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$MachinesTableFilterComposer get machineId {
+    final $$MachinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.machineId,
+      referencedTable: $db.machines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MachinesTableFilterComposer(
+            $db: $db,
+            $table: $db.machines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PinnedSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PinnedSessionsTable> {
+  $$PinnedSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cwd => $composableBuilder(
+    column: $table.cwd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get firstMessage => $composableBuilder(
+    column: $table.firstMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get pinnedAt => $composableBuilder(
+    column: $table.pinnedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MachinesTableOrderingComposer get machineId {
+    final $$MachinesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.machineId,
+      referencedTable: $db.machines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MachinesTableOrderingComposer(
+            $db: $db,
+            $table: $db.machines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PinnedSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PinnedSessionsTable> {
+  $$PinnedSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<String> get cwd =>
+      $composableBuilder(column: $table.cwd, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get firstMessage => $composableBuilder(
+    column: $table.firstMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get pinnedAt =>
+      $composableBuilder(column: $table.pinnedAt, builder: (column) => column);
+
+  $$MachinesTableAnnotationComposer get machineId {
+    final $$MachinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.machineId,
+      referencedTable: $db.machines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MachinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.machines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PinnedSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PinnedSessionsTable,
+          PinnedSessionRow,
+          $$PinnedSessionsTableFilterComposer,
+          $$PinnedSessionsTableOrderingComposer,
+          $$PinnedSessionsTableAnnotationComposer,
+          $$PinnedSessionsTableCreateCompanionBuilder,
+          $$PinnedSessionsTableUpdateCompanionBuilder,
+          (PinnedSessionRow, $$PinnedSessionsTableReferences),
+          PinnedSessionRow,
+          PrefetchHooks Function({bool machineId})
+        > {
+  $$PinnedSessionsTableTableManager(
+    _$AppDatabase db,
+    $PinnedSessionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PinnedSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PinnedSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PinnedSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> machineId = const Value.absent(),
+                Value<String> sessionId = const Value.absent(),
+                Value<String> path = const Value.absent(),
+                Value<String> cwd = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<String?> firstMessage = const Value.absent(),
+                Value<DateTime> pinnedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PinnedSessionsCompanion(
+                machineId: machineId,
+                sessionId: sessionId,
+                path: path,
+                cwd: cwd,
+                title: title,
+                firstMessage: firstMessage,
+                pinnedAt: pinnedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String machineId,
+                required String sessionId,
+                required String path,
+                required String cwd,
+                Value<String?> title = const Value.absent(),
+                Value<String?> firstMessage = const Value.absent(),
+                required DateTime pinnedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PinnedSessionsCompanion.insert(
+                machineId: machineId,
+                sessionId: sessionId,
+                path: path,
+                cwd: cwd,
+                title: title,
+                firstMessage: firstMessage,
+                pinnedAt: pinnedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PinnedSessionsTable, PinnedSessionRow>(table),
+                  $$PinnedSessionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({machineId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (machineId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.machineId,
+                        referencedTable: $$PinnedSessionsTableReferences
+                            ._machineIdTable(db),
+                        referencedColumn: $$PinnedSessionsTableReferences
+                            ._machineIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PinnedSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PinnedSessionsTable,
+      PinnedSessionRow,
+      $$PinnedSessionsTableFilterComposer,
+      $$PinnedSessionsTableOrderingComposer,
+      $$PinnedSessionsTableAnnotationComposer,
+      $$PinnedSessionsTableCreateCompanionBuilder,
+      $$PinnedSessionsTableUpdateCompanionBuilder,
+      (PinnedSessionRow, $$PinnedSessionsTableReferences),
+      PinnedSessionRow,
+      PrefetchHooks Function({bool machineId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4775,4 +5715,6 @@ class $AppDatabaseManager {
       $$SettingsTableTableManager(_db, _db.settings);
   $$ReadMarkersTableTableManager get readMarkers =>
       $$ReadMarkersTableTableManager(_db, _db.readMarkers);
+  $$PinnedSessionsTableTableManager get pinnedSessions =>
+      $$PinnedSessionsTableTableManager(_db, _db.pinnedSessions);
 }

@@ -2,6 +2,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/session.dart';
+import 'package:ompanion/database/app_database.dart' show PinnedSessionRow;
 import 'package:ompanion/models/machine.dart';
 import 'package:ompanion/screens/shell/sidebar_tree.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
@@ -36,15 +37,30 @@ SidebarMachine _machine(String id, List<(String, String)> sessions, {bool expand
 const _app = '/home/me/app';
 const _lib = '/home/me/lib';
 
-/// The rows as short strings: `machine:<id>`, `project:<cwd>`, `session:<title>`, `more:<n>`, notices by name.
+/// A pin of the session [title] (its id in [_summary]) on [machine], stored with [title] as its first message.
+PinnedSessionRow _pin(String machine, String title) => PinnedSessionRow(
+  machineId: machine,
+  sessionId: title,
+  path: '/home/me/.omp/sessions/$machine-$title.jsonl',
+  cwd: _lib,
+  firstMessage: title,
+  pinnedAt: DateTime(2026, 9),
+);
+
+String _title(SidebarEntry entry) => entry.summary?.firstMessage ?? entry.pin!.firstMessage!;
+
+/// The rows as short strings: `machine:<id>`, `project:<cwd>`, `session:<title>`, `more:<n>`, notices by name,
+/// `pinned` and `pinned:<title>`.
 List<String> _describe(List<SidebarRowData> rows) => [
   for (final row in rows)
     switch (row) {
+      PinnedHeaderRowData() => 'pinned',
+      PinnedRowData(:final entry) => 'pinned:${_title(entry)}',
       MachineRowData(:final machine) => 'machine:${machine.machine.id}',
       NoticeRowData(:final notice) => 'notice:${notice.name}',
       EmptyRowData() => 'empty',
       ProjectRowData(:final cwd, :final collapsed) => 'project:$cwd${collapsed ? ' (collapsed)' : ''}',
-      SessionRowData(:final entry) => 'session:${entry.summary!.firstMessage}',
+      SessionRowData(:final entry) => 'session:${_title(entry)}',
       ShowMoreRowData(:final hidden) => 'more:$hidden',
       GapRowData() => 'gap',
     },
@@ -52,13 +68,15 @@ List<String> _describe(List<SidebarRowData> rows) => [
 
 List<SidebarRowData> _rows(
   List<SidebarMachine> machines, {
+  List<PinnedSessionRow> pins = const [],
   Set<(String, String)> collapsed = const {},
   String query = '',
 }) => sidebarRows(
   machines,
+  pins: pins,
   collapsed: (machineId, cwd) => collapsed.contains((machineId, cwd)),
   showAll: (_, _) => false,
-  title: (entry) => entry.summary!.firstMessage!,
+  title: _title,
   query: query,
 );
 
@@ -129,5 +147,53 @@ void main() {
       'session:Speed up the parser',
       'gap',
     ]);
+  });
+
+  test('pinned sessions come first in pin order and leave their projects; unlisted pins show what they stored', () {
+    final pins = [
+      _pin('laptop', 'Write the docs'),
+      _pin('build', 'Speed up the parser'),
+      _pin('build', 'Gone from the listing'),
+      _pin('deleted', 'On a deleted machine'),
+    ];
+    final rows = _rows([build, laptop], pins: pins);
+    expect(_describe(rows), [
+      'pinned',
+      'pinned:Write the docs',
+      'pinned:Speed up the parser',
+      'pinned:Gone from the listing',
+      'gap',
+      'machine:build',
+      // Project lib had only the pinned session.
+      'project:$_app',
+      'session:Fix the build',
+      'session:Chore 1',
+      'session:Chore 2',
+      'session:Chore 3',
+      'session:Chore 4',
+      'more:4',
+      'gap',
+      'machine:laptop',
+    ]);
+    // A listed pin opens and shows as its listing says, even on a collapsed machine.
+    expect([for (final row in rows.whereType<PinnedRowData>()) row.entry.summary != null], [true, true, false]);
+  });
+
+  test('a query keeps the pinned sessions whose title holds it, and the machines leave them out', () {
+    final rows = _rows(
+      [build, laptop],
+      pins: [_pin('laptop', 'Write the docs'), _pin('build', 'Fix the build')],
+      query: 'docs',
+    );
+    expect(_describe(rows), [
+      'pinned',
+      'pinned:Write the docs',
+      'gap',
+      'machine:build',
+      'project:$_app',
+      'session:Build docs',
+      'gap',
+    ]);
+    expect(rows.whereType<PinnedRowData>().single.match!.textInside('Write the docs'), 'docs');
   });
 }

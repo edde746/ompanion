@@ -19,6 +19,7 @@ import 'package:ompanion/screens/shell/sidebar.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/session_pins.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
@@ -89,7 +90,7 @@ final class _Session implements LiveSession {
   void dismissRequest(String id) {}
 
   @override
-  void setPromptPending(bool pending) {}
+  void setPendingPrompt(PendingPrompt? prompt) {}
 
   @override
   void dismissNotice(int seq) {}
@@ -140,6 +141,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => KeysProvider(db, secrets)),
           ChangeNotifierProvider.value(value: shell),
           ChangeNotifierProvider<SessionsProvider>.value(value: sessions),
+          ChangeNotifierProvider(create: (_) => SessionPins(db)),
           ChangeNotifierProvider(create: (_) => DockController(machines)),
           Provider<AttachmentSource>.value(value: const SystemAttachmentSource()),
         ],
@@ -201,6 +203,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => KeysProvider(db, secrets)),
           ChangeNotifierProvider.value(value: shell),
           ChangeNotifierProvider<SessionsProvider>.value(value: sessions),
+          ChangeNotifierProvider(create: (_) => SessionPins(db)),
           ChangeNotifierProvider(create: (_) => DockController(machines)),
           Provider<AttachmentSource>.value(value: const SystemAttachmentSource()),
         ],

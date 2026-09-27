@@ -2,23 +2,52 @@ import 'package:flutter/painting.dart' show TextRange;
 import 'package:omp_core/host.dart';
 import 'package:omp_core/session.dart';
 
+import '../../database/app_database.dart' show PinnedSessionRow;
 import '../../models/machine.dart';
+import '../../sessions/session_name.dart';
 import '../../sessions/sessions_provider.dart';
 import '../sessions/machine_sessions.dart' show shortPath;
 
 /// The sidebar's machines, projects and sessions as one flat list of rows with known heights, so the list lays out
 /// only the rows on screen and its scroll extent is exact. [sidebarRows] builds it; search filters it.
 
-/// A session row: a file from the machine's listing, a session this device has open, or both.
+/// A session row: a file from the machine's listing, a session this device has open, a pin, or several of these.
 final class SidebarEntry {
-  const SidebarEntry({this.summary, this.session});
+  const SidebarEntry({this.summary, this.session, this.pin});
 
   final SessionSummary? summary;
   final LiveSession? session;
 
-  String get cwd => summary?.cwd ?? session?.cwd ?? '';
+  /// A pinned session's pin, whose stored path, directory and title stand in while the listing lacks the session.
+  final PinnedSessionRow? pin;
+
+  String get cwd => summary?.cwd ?? session?.cwd ?? pin?.cwd ?? '';
 
   DateTime? get modified => summary?.modified;
+
+  /// omp's session id; null for an open session whose state has not said it yet.
+  String? get sessionId => summary?.id ?? session?.view.config.sessionId ?? pin?.sessionId;
+
+  /// The session file; null for an open session omp has not named a file for yet.
+  String? get path => summary?.path ?? session?.sessionPath ?? pin?.path;
+}
+
+/// What pinning [entry] on machine [machineId] stores; null while the session has no id or file yet.
+PinnedSessionRow? pinOf(String machineId, SidebarEntry entry, DateTime now) {
+  final sessionId = entry.sessionId;
+  final path = entry.path;
+  if (sessionId == null || path == null) return null;
+  final summary = entry.summary;
+  final view = entry.session?.view;
+  return PinnedSessionRow(
+    machineId: machineId,
+    sessionId: sessionId,
+    path: path,
+    cwd: entry.cwd,
+    title: summary?.title ?? view?.config.sessionName ?? entry.pin?.title,
+    firstMessage: summary?.firstMessage ?? (view == null ? null : firstUserMessage(view)) ?? entry.pin?.firstMessage,
+    pinnedAt: now,
+  );
 }
 
 /// One machine as the sidebar shows it.
@@ -71,6 +100,28 @@ sealed class SidebarRowData {
 
   /// Identifies the row across rebuilds, so a row keeps its state (hover, an open menu) when rows above it come or go.
   String get key;
+}
+
+/// "Pinned", above the pinned sessions.
+final class PinnedHeaderRowData extends SidebarRowData {
+  const PinnedHeaderRowData();
+
+  @override
+  String get key => 'pinned';
+}
+
+/// A pinned session, on top of every machine.
+final class PinnedRowData extends SidebarRowData {
+  const PinnedRowData(this.machine, this.entry, {this.match});
+
+  final SidebarMachine machine;
+  final SidebarEntry entry;
+
+  /// The search match in the session's title.
+  final TextRange? match;
+
+  @override
+  String get key => 'pinned:${machine.machine.id}:${entry.pin!.sessionId}';
 }
 
 final class MachineRowData extends SidebarRowData {
@@ -146,7 +197,7 @@ final class ShowMoreRowData extends SidebarRowData {
   String get key => 'more:${machine.machine.id}:$cwd';
 }
 
-/// Space after a machine's rows.
+/// Space after the pinned sessions and after each machine's rows.
 final class GapRowData extends SidebarRowData {
   const GapRowData(this.machineId);
 
@@ -159,17 +210,22 @@ final class GapRowData extends SidebarRowData {
 /// Sessions listed per project before "Show more".
 const shortListCount = 5;
 
-/// The rows of [machines] in order.
+/// The rows of [pins] and [machines] in order.
 ///
-/// Without a [query]: each machine's row, then while it is expanded its notices and its projects (sessions grouped by
-/// working directory, in order of their newest session); a project's sessions follow unless [collapsed] says so, the
-/// first [shortListCount] and every open one unless [showAll] has the project, then "Show more".
+/// First the sessions of [pins] (oldest pin first) whose machine is in [machines], under "Pinned": each one's listed
+/// file and open session when its machine has them, its stored pin otherwise. They are left out of their machine's
+/// projects.
+///
+/// Then without a [query]: each machine's row, then while it is expanded its notices and its projects (sessions
+/// grouped by working directory, in order of their newest session); a project's sessions follow unless [collapsed]
+/// says so, the first [shortListCount] and every open one unless [showAll] has the project, then "Show more".
 ///
 /// With a [query] (case-insensitive, trimmed): only sessions whose [title] or project path holds it, every one of
 /// them, under their project and machine rows whatever their collapsed state; machines and projects without one are
-/// left out, and so are notices.
+/// left out, and so are notices. Pinned sessions stay when their title holds it.
 List<SidebarRowData> sidebarRows(
   List<SidebarMachine> machines, {
+  List<PinnedSessionRow> pins = const [],
   required bool Function(String machineId, String cwd) collapsed,
   required bool Function(String machineId, String cwd) showAll,
   required String Function(SidebarEntry entry) title,
@@ -177,10 +233,32 @@ List<SidebarRowData> sidebarRows(
 }) {
   final needle = query.trim().toLowerCase();
   final rows = <SidebarRowData>[];
+  final byId = {for (final machine in machines) machine.machine.id: machine};
+  final pinned = <(String, String)>{};
+  final pinnedRows = <SidebarRowData>[];
+  for (final pin in pins) {
+    final machine = byId[pin.machineId];
+    if (machine == null) continue;
+    pinned.add((pin.machineId, pin.sessionId));
+    final listed = machine.entries.where((entry) => entry.sessionId == pin.sessionId).firstOrNull;
+    final entry = SidebarEntry(summary: listed?.summary, session: listed?.session, pin: pin);
+    if (needle.isEmpty) {
+      pinnedRows.add(PinnedRowData(machine, entry));
+    } else if (_find(title(entry), needle) case final match?) {
+      pinnedRows.add(PinnedRowData(machine, entry, match: match));
+    }
+  }
+  if (pinnedRows.isNotEmpty) {
+    rows
+      ..add(const PinnedHeaderRowData())
+      ..addAll(pinnedRows)
+      ..add(const GapRowData('#pinned'));
+  }
   for (final machine in machines) {
     final id = machine.machine.id;
     final byCwd = <String, List<SidebarEntry>>{};
     for (final entry in machine.entries) {
+      if (pinned.contains((id, entry.sessionId))) continue;
       byCwd.putIfAbsent(entry.cwd, () => []).add(entry);
     }
     if (needle.isNotEmpty) {

@@ -65,6 +65,7 @@ List<String> shown(List<TranscriptRow> rows) => [
       ToolRow(:final callId) => 'tool $callId',
       AssistantFooterRow(:final item, :final retryFailed) =>
         'footer ${item.stopReason.name}${retryFailed ? ' retry failed' : ''}',
+      PendingPromptRow(message: UserItem(:final text)) => 'sending $text',
       AwaitingReplyRow() => 'awaiting',
       TurnSummaryRow(:final open) => open ? 'summary open' : 'summary',
     },

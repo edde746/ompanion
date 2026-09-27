@@ -29,7 +29,7 @@ signs on install.
 
 ### <img src="assets/readme_icons/chat.svg" height="20" alt="" align="center" /> Chat & transcript
 - Streaming transcript with markdown, LaTeX math, highlighted code, collapsible thinking and images
-- A quiet "Waiting for a reply" line at the end of the transcript from sending until the model's first output, and again after a tool finishes until the next output; it counts the seconds once it has waited 3 s, and stays away while a tool runs, the run compacts, retries or is paused, or a dialog waits for an answer
+- A sent prompt shows in the transcript at once, above a quiet "Waiting for a reply" line that stays from sending until the model's first output, and comes back after a tool finishes until the next output; it counts the seconds once it has waited 3 s, and stays away while a tool runs, the run compacts, retries or is paused, or a dialog waits for an answer
 - Finished turns fold their thinking, tool calls and interim messages under a one-line summary (time, tool calls, files edited) and open on a click
 - Steer the running turn or queue a follow-up; edit or remove queued messages
 - `/` command palette from the session's own command list; a slash command omp does not list is never sent to the model
@@ -53,6 +53,7 @@ signs on install.
 
 ### <img src="assets/readme_icons/sessions.svg" height="20" alt="" align="center" /> Sessions & branching
 - Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread; a project stays collapsed across restarts and shows on its row when a session in it waits for input or works
+- Pin sessions from any machine above the machines in the sidebar (right-click or long-press a session, or the chat's menu); pins are kept on this device and show before their machine connects. omp's own `/pin` list is separate
 - Search the listed sessions of every machine by title or project path from the sidebar (Cmd/Ctrl+F)
 - Resume any session on the machine, including ones started in omp's terminal UI
 - On macOS and Linux machines, a session another omp process is writing (omp's terminal UI, `omp -p`, another client) is read, never written: ompanion follows the session file live, refuses to send into it, and names the terminal that holds it when omp left a breadcrumb for one. Take over starts the app's own omp for the file once that process has exited (`docs/contracts/session-writer.md`)

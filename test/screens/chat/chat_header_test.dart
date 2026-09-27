@@ -13,6 +13,7 @@ import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
 import 'package:ompanion/sessions/composer_attachments.dart';
+import 'package:ompanion/sessions/session_pins.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
@@ -69,7 +70,7 @@ final class _Session implements LiveSession {
   void dismissRequest(String id) {}
 
   @override
-  void setPromptPending(bool pending) {}
+  void setPendingPrompt(PendingPrompt? prompt) {}
 
   @override
   void dismissNotice(int seq) {}
@@ -181,7 +182,7 @@ final class _PausedSession implements LiveSession {
   void dismissRequest(String id) {}
 
   @override
-  void setPromptPending(bool pending) {}
+  void setPendingPrompt(PendingPrompt? prompt) {}
 
   @override
   void dismissNotice(int seq) {}
@@ -195,6 +196,17 @@ final class _PausedSession implements LiveSession {
   @override
   Future<void> stop() async {}
 }
+
+/// [header] under the providers it reads.
+Widget _app(SessionsProvider sessions, SessionPins pins, Widget header) => MultiProvider(
+  providers: [
+    ChangeNotifierProvider.value(value: sessions),
+    ChangeNotifierProvider.value(value: pins),
+  ],
+  child: TranslationProvider(
+    child: MaterialApp(home: Scaffold(body: header)),
+  ),
+);
 
 void main() {
   testWidgets('a stop that fails says why', (tester) async {
@@ -211,16 +223,8 @@ void main() {
       deviceId: 'test',
       companionBytes: (_) async => const [],
     );
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: sessions,
-        child: TranslationProvider(
-          child: MaterialApp(
-            home: Scaffold(body: ChatHeader(session: _Session())),
-          ),
-        ),
-      ),
-    );
+    final pins = SessionPins(db);
+    await tester.pumpWidget(_app(sessions, pins, ChatHeader(session: _Session())));
     await tester.tap(find.byKey(const ValueKey('session-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Stop the omp process'));
@@ -230,6 +234,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {
       machines.dispose();
+      pins.dispose();
       await db.close();
     });
   });
@@ -249,6 +254,7 @@ void main() {
       deviceId: 'test',
       companionBytes: (_) async => const [],
     );
+    final pins = SessionPins(db);
     final omp = _Omp({
       'queue.clear': {
         'steering': [
@@ -271,16 +277,7 @@ void main() {
     await attached;
     omp.log.clear();
     final draft = sessions.draftOf(session)..replace('half typed');
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: sessions,
-        child: TranslationProvider(
-          child: MaterialApp(
-            home: Scaffold(body: ChatHeader(session: session)),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(sessions, pins, ChatHeader(session: session)));
     await tester.tap(find.byKey(const ValueKey('stop')));
     await tester.pump();
     await tester.pump();
@@ -303,6 +300,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {
       machines.dispose();
+      pins.dispose();
       await db.close();
     });
   });
@@ -322,6 +320,7 @@ void main() {
       deviceId: 'test',
       companionBytes: (_) async => const [],
     );
+    final pins = SessionPins(db);
     Future<List<Object?>> stop(
       LoopState loop, {
       List<String> verbs = const ['queue.clear', 'pause.set', 'loop.suspend'],
@@ -336,18 +335,7 @@ void main() {
       await tester.pump();
       await attached;
       omp.log.clear();
-      await tester.pumpWidget(
-        ChangeNotifierProvider.value(
-          value: sessions,
-          child: TranslationProvider(
-            child: MaterialApp(
-              home: Scaffold(
-                body: ChatHeader(key: UniqueKey(), session: session),
-              ),
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(_app(sessions, pins, ChatHeader(key: UniqueKey(), session: session)));
       await tester.tap(find.byKey(const ValueKey('stop')));
       for (var i = 0; i < 4; i++) {
         await tester.pump();
@@ -389,6 +377,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {
       machines.dispose();
+      pins.dispose();
       await db.close();
     });
   });
@@ -409,24 +398,14 @@ void main() {
       deviceId: 'test',
       companionBytes: (_) async => const [],
     );
+    final pins = SessionPins(db);
     const commands = [
       SlashCommand(name: 'goal', source: 'extension'),
       SlashCommand(name: 'guided-goal', source: 'extension'),
       SlashCommand(name: 'loop', source: 'extension'),
     ];
     Future<void> pick(LiveSession session, String entry) async {
-      await tester.pumpWidget(
-        ChangeNotifierProvider.value(
-          value: sessions,
-          child: TranslationProvider(
-            child: MaterialApp(
-              home: Scaffold(
-                body: ChatHeader(key: UniqueKey(), session: session),
-              ),
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(_app(sessions, pins, ChatHeader(key: UniqueKey(), session: session)));
       await tester.tap(find.byKey(const ValueKey('session-menu')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey(entry)));
@@ -461,6 +440,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {
       machines.dispose();
+      pins.dispose();
       await db.close();
     });
   });

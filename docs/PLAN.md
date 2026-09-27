@@ -116,7 +116,7 @@ Layers, each owning one thing:
 - `MachineService` — probe, install, companion upload, CLI one-shots with a cache, session index, file
   operations, forwards.
 
-Machine records, host keys and settings live in drift; private keys and passwords in
+Machine records, host keys, settings, read markers and sidebar pins live in drift; private keys and passwords in
 `flutter_secure_storage`. Private keys never leave the device that created or imported them.
 
 ## 4. Machines

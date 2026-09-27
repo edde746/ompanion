@@ -417,6 +417,9 @@ class Translations$sidebar$en {
 
 	/// en: 'No matching sessions.'
 	String get noMatches => 'No matching sessions.';
+
+	/// en: 'Pinned'
+	String get pinned => 'Pinned';
 }
 
 // Path: machines
@@ -1143,6 +1146,15 @@ class Translations$sessions$en {
 
 	/// en: 'Configure'
 	String get configure => 'Configure';
+
+	/// en: 'Machine settings'
+	String get machinePage => 'Machine settings';
+
+	/// en: 'Pin to top'
+	String get pin => 'Pin to top';
+
+	/// en: 'Unpin'
+	String get unpin => 'Unpin';
 
 	/// en: 'New session'
 	String get newSession => 'New session';
@@ -3917,6 +3929,7 @@ extension on Translations {
 			'sidebar.search' => 'Search sessions',
 			'sidebar.searchHint' => 'Search',
 			'sidebar.noMatches' => 'No matching sessions.',
+			'sidebar.pinned' => 'Pinned',
 			'machines.thisComputer' => 'This computer',
 			'machines.tailscale' => 'Tailscale',
 			'machines.route' => 'Route',
@@ -4116,6 +4129,9 @@ extension on Translations {
 			'sessions.collapse' => 'Collapse',
 			'sessions.expand' => 'Expand',
 			'sessions.configure' => 'Configure',
+			'sessions.machinePage' => 'Machine settings',
+			'sessions.pin' => 'Pin to top',
+			'sessions.unpin' => 'Unpin',
 			'sessions.newSession' => 'New session',
 			'sessions.newSessionHere' => 'New session in this directory',
 			'sessions.newSessionOn' => ({required Object machine}) => 'New session on ${machine}',
@@ -4171,12 +4187,12 @@ extension on Translations {
 			'chat.searchModels' => 'Search models',
 			'chat.refreshModels' => 'Reload the model list',
 			'chat.noModels' => 'No models match.',
+			_ => null,
+		} ?? switch (path) {
 			'chat.modelsFailed' => ({required Object error}) => 'Could not load models: ${error}',
 			'chat.modelFailed' => ({required Object error}) => 'Could not switch the model: ${error}',
 			'chat.modelAgent' => ({required Object agent}) => 'Subagent ${agent}',
 			'chat.contextWindow' => ({required Object tokens}) => '${tokens} context',
-			_ => null,
-		} ?? switch (path) {
 			'chat.reasoning' => 'reasoning',
 			'chat.thinking' => ({required Object level}) => 'Thinking: ${level}',
 			'chat.noThinking' => 'This model has no thinking levels.',

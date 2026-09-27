@@ -123,7 +123,7 @@ final class _Session implements LiveSession {
   Stream<SessionView> get views => const Stream.empty();
 
   @override
-  void setPromptPending(bool pending) {}
+  void setPendingPrompt(PendingPrompt? prompt) {}
 
   @override
   void dismissRequest(String id) {}

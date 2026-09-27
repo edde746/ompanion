@@ -34,13 +34,16 @@ bool sidebarTouch(BuildContext context) => switch (Theme.of(context).platform) {
 
 /// A dense sidebar row, [AppSizes.rowHeight] tall on desktop: a rounded hover and selection tone, no divider.
 class SidebarRow extends StatefulWidget {
-  const SidebarRow({super.key, required this.builder, this.indent = 8, this.selected = false, this.onTap});
+  const SidebarRow({super.key, required this.builder, this.indent = 8, this.selected = false, this.onTap, this.onMenu});
 
   /// Builds the content; `hovered` is true while a pointer is over the row, and always on touch screens.
   final Widget Function(BuildContext context, bool hovered) builder;
   final double indent;
   final bool selected;
   final VoidCallback? onTap;
+
+  /// Opens the row's context menu at a global position: a secondary click, or a long press.
+  final void Function(Offset position)? onMenu;
 
   @override
   State<SidebarRow> createState() => _SidebarRowState();
@@ -53,6 +56,7 @@ class _SidebarRowState extends State<SidebarRow> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final touch = sidebarTouch(context);
+    final onMenu = widget.onMenu;
     const radius = BorderRadius.all(Radius.circular(AppSizes.radius));
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -65,6 +69,13 @@ class _SidebarRowState extends State<SidebarRow> {
           child: InkWell(
             borderRadius: radius,
             onTap: widget.onTap,
+            onSecondaryTapUp: onMenu == null ? null : (details) => onMenu(details.globalPosition),
+            onLongPress: onMenu == null
+                ? null
+                : () {
+                    final box = context.findRenderObject()! as RenderBox;
+                    onMenu(box.localToGlobal(box.size.center(Offset.zero)));
+                  },
             child: SizedBox(
               height: touch ? AppSizes.rowHeightTouch : AppSizes.rowHeight,
               child: Padding(
@@ -101,7 +112,9 @@ class _RowButton extends StatelessWidget {
   );
 }
 
-/// A machine's row: its chevron, status dot and name, and on hover a new session button and its menu.
+/// A machine's row: its chevron, status dot and name, and on hover (always on touch screens) a button to the machine's
+/// page and a menu, plus a new session button on desktops. A tap anywhere else on the row expands or collapses it; the
+/// chevron alone is too small a target on a phone.
 class MachineHeader extends StatefulWidget {
   const MachineHeader({
     super.key,
@@ -110,7 +123,7 @@ class MachineHeader extends StatefulWidget {
     required this.expanded,
     required this.loading,
     required this.selected,
-    required this.onTap,
+    required this.onOpen,
     required this.onToggle,
   });
 
@@ -119,7 +132,9 @@ class MachineHeader extends StatefulWidget {
   final bool expanded;
   final bool loading;
   final bool selected;
-  final VoidCallback onTap;
+
+  /// Shows the machine's page.
+  final VoidCallback onOpen;
 
   /// Null while searching: the search decides what shows.
   final VoidCallback? onToggle;
@@ -148,13 +163,20 @@ class _MachineHeaderState extends State<MachineHeader> {
     return SidebarRow(
       indent: 2,
       selected: widget.selected,
-      onTap: widget.onTap,
+      onTap: widget.onToggle,
       builder: (context, hovered) => Row(
         children: [
-          _RowButton(
-            icon: widget.expanded ? Icons.expand_more : Icons.chevron_right,
-            tooltip: widget.expanded ? t.sessions.collapse : t.sessions.expand,
-            onPressed: widget.onToggle,
+          Semantics(
+            label: widget.expanded ? t.sessions.collapse : t.sessions.expand,
+            expanded: widget.expanded,
+            child: SizedBox.square(
+              dimension: _RowButton.size,
+              child: Icon(
+                widget.expanded ? Icons.expand_more : Icons.chevron_right,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
           const SizedBox(width: 2),
           Tooltip(
@@ -185,6 +207,13 @@ class _MachineHeaderState extends State<MachineHeader> {
               icon: Icons.add,
               tooltip: t.sessions.newSession,
               onPressed: () => unawaited(showNewSessionDialog(context, machine)),
+            ),
+          if (hovered || _menuOpen)
+            _RowButton(
+              key: ValueKey('machine-page-${machine.id}'),
+              icon: Icons.settings_outlined,
+              tooltip: t.sessions.machinePage,
+              onPressed: widget.onOpen,
             ),
           if (hovered || _menuOpen)
             MenuAnchor(
@@ -288,6 +317,34 @@ class EmptyRow extends StatelessWidget {
           context.t.sessions.none,
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
+      ),
+    );
+  }
+}
+
+/// "Pinned" above the pinned sessions, in the machine rows' icon and name columns.
+class PinnedHeader extends StatelessWidget {
+  const PinnedHeader({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SidebarRow(
+      // The machine row's indent and chevron.
+      indent: 2 + _RowButton.size + 2,
+      builder: (context, _) => Row(
+        children: [
+          Icon(Icons.push_pin_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              context.t.sidebar.pinned,
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -495,11 +552,13 @@ SessionStatus _liveStatus(SessionView view) {
 /// What a session row says about its session, beside unread.
 enum SessionStatus { none, opening, working, needsInput, failed, disconnected, runningOnMachine }
 
-/// The title of [entry]'s row: the open session's live name, else its file's.
+/// The title of [entry]'s row: the open session's live name, else its file's, else what its pin stored.
 String sidebarEntryTitle(Translations t, SidebarEntry entry) {
   final session = entry.session;
   final summary = entry.summary;
+  final pin = entry.pin;
   if (session != null) return liveSessionName(t, session.view, summary);
+  if (summary == null && pin != null) return sessionName(t, title: pin.title, firstMessage: pin.firstMessage);
   return sessionName(t, title: summary?.title, firstMessage: summary?.firstMessage);
 }
 
@@ -511,6 +570,8 @@ class SessionTile extends StatelessWidget {
     required this.entry,
     required this.opening,
     required this.onTap,
+    this.onMenu,
+    this.place,
     this.match,
   });
 
@@ -518,6 +579,10 @@ class SessionTile extends StatelessWidget {
   final SidebarEntry entry;
   final bool opening;
   final VoidCallback onTap;
+  final void Function(Offset position)? onMenu;
+
+  /// The machine's name, on a row away from its machine's (a pinned session).
+  final String? place;
 
   /// The search match in the title.
   final TextRange? match;
@@ -538,7 +603,9 @@ class SessionTile extends StatelessWidget {
       unread: unread && !selected,
       modified: entry.modified,
       selected: selected,
+      place: place,
       onTap: opening ? null : onTap,
+      onMenu: onMenu,
     );
     if (session == null) {
       return tile(
@@ -561,8 +628,9 @@ class SessionTile extends StatelessWidget {
   }
 }
 
-/// A session in the sidebar: one mark in the icon column, then the title and the relative time. A status (working,
-/// needs input, failed, …) takes the mark over the unread dot; unread then shows through the title's weight alone.
+/// A session in the sidebar: one mark in the icon column, then the title, the machine when the row is away from it,
+/// and the relative time. A status (working, needs input, failed, …) takes the mark over the unread dot; unread then
+/// shows through the title's weight alone.
 class SessionRow extends StatelessWidget {
   const SessionRow({
     super.key,
@@ -572,6 +640,8 @@ class SessionRow extends StatelessWidget {
     required this.modified,
     required this.selected,
     required this.onTap,
+    this.onMenu,
+    this.place,
     this.match,
   });
 
@@ -581,6 +651,10 @@ class SessionRow extends StatelessWidget {
   final DateTime? modified;
   final bool selected;
   final VoidCallback? onTap;
+  final void Function(Offset position)? onMenu;
+
+  /// The machine's name, on a row away from its machine's.
+  final String? place;
 
   /// The search match in [title], on a grey tone.
   final TextRange? match;
@@ -595,13 +669,16 @@ class SessionRow extends StatelessWidget {
     final states = [?statusMark?.$2, if (unread) t.sessions.unread];
     final modified = this.modified;
     final time = modified == null ? null : relativeTime(t, modified, DateTime.now());
+    final muted = theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant);
+    final place = this.place;
     return SidebarRow(
       indent: _projectIndent,
       selected: selected,
       onTap: onTap,
+      onMenu: onMenu,
       builder: (context, _) => Semantics(
         selected: selected,
-        label: [title, ...states, ?time].join(', '),
+        label: [title, ?place, ...states, ?time].join(', '),
         excludeSemantics: true,
         child: Row(
           children: [
@@ -625,10 +702,18 @@ class SessionRow extends StatelessWidget {
                 ),
               ),
             ),
+            if (place != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 96),
+                  child: Text(place, style: muted, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+              ),
             if (time != null)
               Padding(
                 padding: const EdgeInsets.only(left: 6, right: 4),
-                child: Text(time, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+                child: Text(time, style: muted),
               ),
           ],
         ),

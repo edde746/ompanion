@@ -33,7 +33,7 @@ SessionView _reduce(SessionView view, Map<String, Object?> frame) => switch (fra
   ),
   'agent_end' => _agentEnd(view, frame),
   // A run's first message is the prompt the UI waited on, in the transcript from here.
-  'message_start' => _messageStart(view.promptPending ? view.copyWith(promptPending: false) : view, frame),
+  'message_start' => _messageStart(view.pendingPrompt == null ? view : view.copyWith(pendingPrompt: null), frame),
   'message_update' => _messageUpdate(view, frame),
   'message_end' => _messageEnd(view, frame),
   'tool_execution_start' => _toolStart(view, frame),
@@ -329,11 +329,11 @@ SessionView _agentEnd(SessionView view, Map<String, Object?> frame) {
 SessionView _finishRun(SessionView view) => view.copyWith(
   run: view.run.copyWith(running: false, compacting: null, retrying: null),
   transcript: _interruptTools(_finishStreaming(view.transcript)),
-  promptPending: false,
+  pendingPrompt: null,
 );
 
 /// The session went quiet (`session_settled`): nothing runs, background jobs included. A prompt the UI is still sending
-/// keeps [SessionView.promptPending]: the settle can belong to earlier work or to a companion call.
+/// keeps [SessionView.pendingPrompt]: the settle can belong to earlier work or to a companion call.
 SessionView _settle(SessionView view) => view.copyWith(
   run: view.run.copyWith(running: false, compacting: null, retrying: null),
   transcript: _settledTranscript(view.transcript),
@@ -351,7 +351,7 @@ SessionView _promptResult(SessionView view, Map<String, Object?> frame) {
     'error' => RunFailed(frame.optObject('error')?.optString('message')),
     _ => view.run.outcome,
   };
-  // Any prompt's result, a companion call's included, so it leaves [SessionView.promptPending] to the prompt's sender.
+  // Any prompt's result, a companion call's included, so it leaves [SessionView.pendingPrompt] to the prompt's sender.
   final next = view.copyWith(run: view.run.copyWith(outcome: outcome));
   return (frame.optBool('sessionSettled') ?? false) ? _settle(next) : next;
 }

@@ -40,6 +40,17 @@ const _toolbarIcon = BoxConstraints.tightFor(width: AppSizes.control, height: Ap
 /// Image types an Android keyboard may insert (a GIF, a sticker, a copied image in its clipboard).
 const _keyboardImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
+/// The user message omp will echo for a prompt of [text] and [images], shown in the transcript until it does; null
+/// while there is nothing to show yet (only a file, whose mention the upload adds). [key] keeps the row of an earlier
+/// version of it.
+UserItem? _pendingMessage(String text, List<RpcImage> images, {required int timestamp, String? key}) {
+  final content = [
+    if (text.isNotEmpty) TextBlock(text),
+    for (final image in images) ImageBlock(data: image.data, mimeType: image.mimeType),
+  ];
+  return content.isEmpty ? null : UserItem(key: key, timestamp: timestamp, content: content, attribution: 'user');
+}
+
 /// The prompt box: one flat block with the queued messages on top, the attachments and the text in the middle and a
 /// toolbar with the model, thinking level and context meter, the goal and the loop while there are any, attach and
 /// send at the bottom. Enter sends (Shift+Enter is a new line); while a run streams Enter steers and Alt/Option+Enter
@@ -330,17 +341,26 @@ class _ComposerState extends State<Composer> {
       case RunPython(:final code, :final excludeFromContext):
         sessions.execRunsOf(session).start(session, ExecutionKind.python, code, excludeFromContext: excludeFromContext);
         _draft.clear();
-      case SendPrompt(text: final message, :final behavior):
+      case SendPrompt(text: final message, :final behavior, :final command):
         // The draft this text came from; the composer may show another session by the time omp answers.
         final draft = _draft;
         setState(() => _sending = true);
         draft.clear();
-        // The transcript shows its awaiting-reply row from here: the upload and the round trip before omp's first
-        // stream event are silent otherwise (SessionView.promptPending).
-        session.setPromptPending(true);
-        // A send that reached nothing, or that omp refused: the row goes and the draft comes back.
+        // The transcript shows the prompt and its awaiting-reply row from here: the upload and the round trip before
+        // omp puts the prompt in the transcript are silent otherwise (SessionView.pendingPrompt). A slash command
+        // shows no message, since omp does not keep it as typed, nor does a steer or follow-up, which waits in omp's
+        // queue.
+        final shows = command == null && behavior == null;
+        final sentAt = DateTime.now().millisecondsSinceEpoch;
+        final images = [
+          for (final attachment in attachments)
+            if (attachment case ImageAttachment(:final image)) image,
+        ];
+        final shown = shows ? _pendingMessage(message, images, timestamp: sentAt) : null;
+        session.setPendingPrompt(PendingPrompt(message: shown));
+        // A send that reached nothing, or that omp refused: the prompt goes and the draft comes back.
         void giveBack() {
-          session.setPromptPending(false);
+          session.setPendingPrompt(null);
           draft.giveBack(typed, attachments: attachments, chips: chips);
         }
 
@@ -358,6 +378,14 @@ class _ComposerState extends State<Composer> {
             },
           );
           if (mounted) setState(() => _upload = null);
+          // Attached files and pastes add to the text: the message shows what omp will echo.
+          if (shows && prompt.message != message) {
+            session.setPendingPrompt(
+              PendingPrompt(
+                message: _pendingMessage(prompt.message, prompt.images, timestamp: sentAt, key: shown?.key),
+              ),
+            );
+          }
           await _prompt(session, prompt.message, images: prompt.images, behavior: behavior, onRefused: giveBack);
         } on AttachmentException catch (error) {
           // Nothing went to omp: the whole draft comes back, with what kept it from going.
@@ -501,9 +529,9 @@ class _ComposerState extends State<Composer> {
 
   /// Sends [message] as a prompt; throws when omp rejects it. omp acknowledges a prompt before it starts it, so one it
   /// then cannot start (no model or API key, another prompt still starting) fails only in its `prompt_result`, and
-  /// [onRefused] runs. A run that started and then failed is in the transcript already. The awaiting-reply row
-  /// ([SessionView.promptPending]) goes when a run starts (the reducer), or here: when omp is done with the prompt
-  /// without a run (a command that finished in omp, a refusal), or when the connection ends first.
+  /// [onRefused] runs. A run that started and then failed is in the transcript already. The pending prompt
+  /// ([SessionView.pendingPrompt]) and its awaiting-reply row go when a run starts (the reducer), or here: when omp is
+  /// done with the prompt without a run (a command that finished in omp, a refusal), or when the connection ends first.
   static Future<void> _prompt(
     LiveSession session,
     String message, {
@@ -518,7 +546,7 @@ class _ComposerState extends State<Composer> {
     late final StreamSubscription<RpcFrame> results;
     void settle(PromptResultFrame result) {
       unawaited(results.cancel());
-      session.setPromptPending(false);
+      session.setPendingPrompt(null);
       if (result.status == PromptStatus.error && !result.agentInvoked) onRefused();
     }
 
@@ -532,7 +560,7 @@ class _ComposerState extends State<Composer> {
         }
       },
       // Frames of the next connection come from another client; a run this prompt started shows there by itself.
-      onDone: () => session.setPromptPending(false),
+      onDone: () => session.setPendingPrompt(null),
     );
     final RpcPromptAck ack;
     try {
@@ -544,7 +572,7 @@ class _ComposerState extends State<Composer> {
     // A command that finished locally gets no result, and starts no run.
     if (ack.agentInvoked == false) {
       unawaited(results.cancel());
-      session.setPromptPending(false);
+      session.setPendingPrompt(null);
       return;
     }
     id = ack.id;

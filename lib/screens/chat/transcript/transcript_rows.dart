@@ -19,7 +19,7 @@ sealed class TranscriptRow {
 }
 
 /// Whether the transcript shows its awaiting-reply row: a turn is running (or a prompt this device just sent is on
-/// its way to omp, [SessionView.promptPending]) and nothing on screen is producing output yet, so the wait for the
+/// its way to omp, [SessionView.pendingPrompt]) and nothing on screen is producing output yet, so the wait for the
 /// model would otherwise be silent. It covers the whole wait, also the one between a tool result and the next
 /// assistant message.
 ///
@@ -31,11 +31,11 @@ sealed class TranscriptRow {
 /// reply does not count: omp's retry of it starts with `agent_start`, which ends the status strip's retry.
 bool awaitingReply(SessionView view) {
   final run = view.run;
-  if (!run.running && !view.promptPending) return false;
+  if (!run.running && view.pendingPrompt == null) return false;
   if (run.compacting != null || run.retrying != null || run.paused) return false;
   if (view.requests.any(_waitsForAnAnswer)) return false;
   if (view.transcript.lastOrNull case AssistantItem(streaming: false, stopReason: StopReason.stop)
-      when !view.promptPending) {
+      when view.pendingPrompt == null) {
     return false;
   }
   return !view.transcript.any(_isProducing);
@@ -198,6 +198,20 @@ final class AssistantFooterRow extends TranscriptRow {
   Object get content => (item, retryFailed);
 }
 
+/// A prompt this device is sending ([PendingPrompt.message]), shown as the user message it will be until omp's own
+/// user message replaces it. Not an item's row: it is kept at the end of the transcript, before the awaiting-reply row.
+final class PendingPromptRow extends TranscriptRow {
+  const PendingPromptRow(this.message);
+
+  final UserItem message;
+
+  @override
+  String get key => '#pending-prompt:${message.key}';
+
+  @override
+  Object get content => message;
+}
+
 /// The turn is working on an answer and has produced nothing to show yet: one line where the reply will be, counting
 /// the wait. Not an item's row: it is kept at the end of the transcript while [awaitingReply] holds. [seconds] is the
 /// wait so far, ticked by the transcript.
@@ -298,6 +312,9 @@ final class TranscriptRowModel {
   List<TranscriptItem> _items = const [];
   bool _live = false;
 
+  /// The prompt this device is sending, while it shows.
+  PendingPromptRow? _pending;
+
   /// Seconds the current wait has lasted, while the awaiting-reply row shows.
   int? _awaiting;
 
@@ -327,8 +344,8 @@ final class TranscriptRowModel {
   /// Takes [transcript]; [live] means the session works on its latest turn.
   void update(List<TranscriptItem> transcript, {bool live = false}) {
     if (identical(transcript, _items) && live == _live) return;
-    // The awaiting row goes back last at the end of the update; taken off first, it cannot end up between rows.
-    _cutAwaiting();
+    // The tail rows go back last at the end of the update; taken off first, they cannot end up between rows.
+    _cutTail();
     final shared = math.min(transcript.length, _items.length);
     var from = 0;
     while (from < shared && identical(transcript[from], _items[from])) {
@@ -354,7 +371,7 @@ final class TranscriptRowModel {
     } else {
       _showFrom(math.max(turn, 0));
     }
-    showAwaiting(_awaiting);
+    _showTail();
   }
 
   /// Shows again, from the first one, the folded turns whose open state [isOpen] changed.
@@ -365,24 +382,42 @@ final class TranscriptRowModel {
       final (:head, row: _, :fold) = _turns[turn];
       if ((fold == _Fold.closed || fold == _Fold.open) && (fold == _Fold.open) != open(_items[head])) {
         _showFrom(turn);
-        showAwaiting(_awaiting);
+        _showTail();
         return;
       }
     }
   }
 
-  /// Keeps the awaiting-reply row the last row while [seconds] is set, so it takes the place the reply will occupy and
-  /// the transcript does not jump when the reply arrives. [update] and [refold] put it back; the transcript calls this
-  /// as the wait counts up.
-  void showAwaiting(int? seconds) {
-    _awaiting = seconds;
-    _cutAwaiting();
-    if (seconds != null) _show(AwaitingReplyRow(seconds));
+  /// Keeps [message], a prompt this device is sending, after the items' rows while it is set: the user message it will
+  /// be, where omp's own will land, so the transcript does not jump when that replaces it.
+  void showPending(UserItem? message) {
+    if (identical(message, _pending?.message)) return;
+    _pending = message == null ? null : PendingPromptRow(message);
+    _showTail();
   }
 
-  /// Takes the awaiting-reply row off [rows]; it is always the last one while it shows.
-  void _cutAwaiting() {
-    if (rows.isNotEmpty && rows.last is AwaitingReplyRow) _cutRows(rows.length - 1);
+  /// Keeps the awaiting-reply row the last row while [seconds] is set, so it takes the place the reply will occupy and
+  /// the transcript does not jump when the reply arrives. The transcript calls this as the wait counts up.
+  void showAwaiting(int? seconds) {
+    _awaiting = seconds;
+    _showTail();
+  }
+
+  /// Puts the tail rows after the items' rows: the pending prompt, then the awaiting-reply row. [update] and [refold]
+  /// put them back after changing the items' rows.
+  void _showTail() {
+    _cutTail();
+    if (_pending case final pending?) _show(pending);
+    if (_awaiting case final seconds?) _show(AwaitingReplyRow(seconds));
+  }
+
+  /// Takes the tail rows off [rows]; they are always the last ones while they show.
+  void _cutTail() {
+    var end = rows.length;
+    while (end > 0 && (rows[end - 1] is AwaitingReplyRow || rows[end - 1] is PendingPromptRow)) {
+      end--;
+    }
+    _cutRows(end);
   }
 
   /// Whether the update changed only items from [from] on inside the live latest turn [turn], which still shows every
@@ -617,7 +652,12 @@ bool _keeps(TranscriptRow row, AssistantItem? answer) => switch (row) {
   ItemRow(:final item) => item is! CustomItem,
   AssistantTextRow(:final item) => identical(item, answer),
   AssistantFooterRow(:final item) => identical(item, answer) || _failed(item),
-  ThinkingRow() || AssistantImageRow() || ToolRow() || TurnSummaryRow() || AwaitingReplyRow() => false,
+  ThinkingRow() ||
+  AssistantImageRow() ||
+  ToolRow() ||
+  TurnSummaryRow() ||
+  PendingPromptRow() ||
+  AwaitingReplyRow() => false,
 };
 
 /// An error or abort that no retry recovered.

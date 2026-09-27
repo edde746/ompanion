@@ -26,7 +26,7 @@ final class SessionView {
     this.transcript = const [],
     this.historyLength = 0,
     this.stateStale = false,
-    this.promptPending = false,
+    this.pendingPrompt,
     this.external,
     this.idleExit,
     this.resyncReason,
@@ -83,13 +83,13 @@ final class SessionView {
   /// `get_state` has news no frame carried (model, todos, context usage, queue, settings). Cleared by `withState`.
   final bool stateStale;
 
-  /// This device is sending a prompt and omp has not put it in the transcript yet. Set by the UI that sends it
-  /// ([LiveSession.setPromptPending]) and shown as the chat's awaiting-reply row while it holds, so an upload and the
-  /// round trip before the run's first message are not silent. The reducer clears it at a run's first message
-  /// (`message_start`) and when a run ends; the sender clears it when its prompt fails, finishes without a run, or
-  /// loses its connection. A `prompt_result` or `session_settled` does not clear it: companion calls are prompts too,
-  /// and one can finish while this prompt is still on its way.
-  final bool promptPending;
+  /// A prompt this device is sending that omp has not put in the transcript yet. Set by the UI that sends it
+  /// ([LiveSession.setPendingPrompt]); while it holds, the chat shows its [PendingPrompt.message] and its awaiting-reply
+  /// row, so an upload and the round trip before the run's first message are not silent. The reducer clears it at a
+  /// run's first message (`message_start`) and when a run ends; the sender clears it when its prompt fails, finishes
+  /// without a run, or loses its connection. A `prompt_result` or `session_settled` does not clear it: companion calls
+  /// are prompts too, and one can finish while this prompt is still on its way.
+  final PendingPrompt? pendingPrompt;
 
   /// Another process on the machine writes this session file, and what is known about it. Set only by
   /// `ExternalSession`, whose view is read from the file: such a view has no RPC, no queue and no dialogs, and the
@@ -146,7 +146,7 @@ final class SessionView {
     List<TranscriptItem>? transcript,
     int? historyLength,
     bool? stateStale,
-    bool? promptPending,
+    Object? pendingPrompt = _keep,
     Object? external = _keep,
     Object? idleExit = _keep,
     Object? resyncReason = _keep,
@@ -172,13 +172,23 @@ final class SessionView {
     transcript: transcript ?? this.transcript,
     historyLength: historyLength ?? this.historyLength,
     stateStale: stateStale ?? this.stateStale,
-    promptPending: promptPending ?? this.promptPending,
+    pendingPrompt: identical(pendingPrompt, _keep) ? this.pendingPrompt : pendingPrompt as PendingPrompt?,
     external: identical(external, _keep) ? this.external : external as ExternalWriter?,
     idleExit: identical(idleExit, _keep) ? this.idleExit : idleExit as Duration?,
     resyncReason: identical(resyncReason, _keep) ? this.resyncReason : resyncReason as String?,
     nextSeq: nextSeq ?? this.nextSeq,
     settledRequestIds: settledRequestIds ?? this.settledRequestIds,
   );
+}
+
+/// A prompt this device is sending, from the send until omp puts it in the transcript ([SessionView.pendingPrompt]).
+final class PendingPrompt {
+  const PendingPrompt({this.message});
+
+  /// What the transcript shows for the prompt until omp's own user message replaces it. Null when it shows nothing:
+  /// a slash command (omp does not keep it as typed) or a prompt sent while a run streams (steer, follow-up), which
+  /// waits in omp's queue.
+  final UserItem? message;
 }
 
 /// Default of nullable `copyWith` parameters: keep the current value; an explicit null clears it.

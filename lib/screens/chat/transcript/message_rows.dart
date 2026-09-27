@@ -42,6 +42,7 @@ class TranscriptRowView extends StatelessWidget {
   Widget build(BuildContext context) {
     final (child, top) = switch (row) {
       ItemRow(:final item) => (_item(item), _gapBefore(item)),
+      PendingPromptRow(:final message) => (_UserMessage(message), _gapBefore(message)),
       // A later part continues the block, spaced from the part above by its own first block.
       AssistantTextRow(:final text, :final previous) => (
         TranscriptMarkdown(text, previous: previous) as Widget,

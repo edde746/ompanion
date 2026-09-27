@@ -13,10 +13,12 @@ import '../../app/window_chrome.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/session_name.dart';
+import '../../sessions/session_pins.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../widgets/activity_mark.dart';
 import '../sessions/machine_sessions.dart' show shortPath;
+import '../shell/sidebar_tree.dart' show SidebarEntry, pinOf;
 import 'composer_intent.dart' show findCommand;
 import 'mode_controls.dart' show offersVerb;
 import 'queue_list.dart';
@@ -293,8 +295,9 @@ class _StopButton extends StatelessWidget {
 }
 
 /// The session's commands a menu entry starts in the composer: `/goal`, `/guided-goal` and `/loop`, those the session
-/// lists, and `/loop` only while no loop is on, since `/loop` then turns it off whatever follows.
-typedef _MenuCommands = ({bool goal, bool guidedGoal, bool loop});
+/// lists, and `/loop` only while no loop is on, since `/loop` then turns it off whatever follows. [sessionId] decides
+/// the pin entry.
+typedef _MenuData = ({bool goal, bool guidedGoal, bool loop, String? sessionId});
 
 class _SessionMenu extends StatelessWidget {
   const _SessionMenu({required this.session});
@@ -304,13 +307,16 @@ class _SessionMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final pins = context.watch<SessionPins>();
+    final machine = context.select<SessionsProvider, Machine?>((sessions) => sessions.machineOf(session));
     void start(String command) => context.read<SessionsProvider>().draftOf(session).startCommand(command);
-    return SessionViewSelector<_MenuCommands>(
+    return SessionViewSelector<_MenuData>(
       session: session,
       select: (view) => (
         goal: findCommand(view.commands, 'goal') != null,
         guidedGoal: findCommand(view.commands, 'guided-goal') != null,
         loop: view.loop == null && findCommand(view.commands, 'loop') != null,
+        sessionId: view.config.sessionId,
       ),
       builder: (context, commands) => MenuAnchor(
         menuChildren: [
@@ -341,6 +347,17 @@ class _SessionMenu extends StatelessWidget {
                 ? null
                 : () => unawaited(Clipboard.setData(ClipboardData(text: session.sessionPath!))),
             child: Text(t.chat.copyPath),
+          ),
+          MenuItemButton(
+            key: const ValueKey('pin-session'),
+            leadingIcon: const Icon(Icons.push_pin_outlined),
+            onPressed: machine == null || commands.sessionId == null || session.sessionPath == null
+                ? null
+                : () => _togglePin(context, machine, session),
+            child: Text(switch ((machine, commands.sessionId)) {
+              (final machine?, final id?) when pins.isPinned(machine.id, id) => t.sessions.unpin,
+              _ => t.sessions.pin,
+            }),
           ),
           MenuItemButton(
             leadingIcon: const Icon(Icons.logout),
@@ -374,4 +391,16 @@ Future<void> _stop(BuildContext context, LiveSession session) async {
   } on Object catch (error) {
     messenger.showSnackBar(SnackBar(content: Text(t.chat.stopSessionFailed(error: '$error'))));
   }
+}
+
+/// Pins [session] above the machines in the sidebar, or unpins it.
+void _togglePin(BuildContext context, Machine machine, LiveSession session) {
+  final summary = context
+      .read<SessionsProvider>()
+      .listingOf(machine)
+      .sessions
+      .where((summary) => SessionsProvider.holds(session, summary))
+      .firstOrNull;
+  final pin = pinOf(machine.id, SidebarEntry(summary: summary, session: session), DateTime.now());
+  if (pin != null) unawaited(context.read<SessionPins>().toggle(pin));
 }

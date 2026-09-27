@@ -297,7 +297,8 @@
     "noMachines": "No machines yet.",
     "search": "Search sessions",
     "searchHint": "Search",
-    "noMatches": "No matching sessions."
+    "noMatches": "No matching sessions.",
+    "pinned": "Pinned"
   },
   "machines": {
     "thisComputer": "This computer",
@@ -528,6 +529,9 @@
     "collapse": "Collapse",
     "expand": "Expand",
     "configure": "Configure",
+    "machinePage": "Machine settings",
+    "pin": "Pin to top",
+    "unpin": "Unpin",
     "newSession": "New session",
     "newSessionHere": "New session in this directory",
     "newSessionOn": "New session on $machine",

@@ -245,6 +245,9 @@ class _TranscriptViewState extends State<TranscriptView> {
   /// The session worked on its latest turn at the last update.
   bool _live = false;
 
+  /// The pending prompt's message the transcript shows ([_pendingMessage] at the last update).
+  UserItem? _pending;
+
   /// Whether the awaiting-reply row shows, and how many seconds it has counted.
   bool _awaiting = false;
   int _awaitedSeconds = 0;
@@ -290,6 +293,7 @@ class _TranscriptViewState extends State<TranscriptView> {
       _update(initial: false);
     } else if (!identical(widget.view.transcript, _transcript) ||
         _inProgress(widget.view) != _live ||
+        !identical(_pendingMessage, _pending) ||
         _awaitsReply != _awaiting) {
       _update(initial: false);
     }
@@ -371,6 +375,9 @@ class _TranscriptViewState extends State<TranscriptView> {
   /// Whether the awaiting-reply row shows: [awaitingReply], while the link is open.
   bool get _awaitsReply => !widget.closed && awaitingReply(widget.view);
 
+  /// The message of the prompt this device is sending ([SessionView.pendingPrompt]), while the link is open.
+  UserItem? get _pendingMessage => widget.closed ? null : widget.view.pendingPrompt?.message;
+
   /// Keeps the awaiting-reply row and its count in step with the view: the row shows while [_awaitsReply] holds, and
   /// counts one second at a time while it does. The count starts over for each wait. The row model is told every time:
   /// a new model (other turns) starts without the row.
@@ -422,8 +429,12 @@ class _TranscriptViewState extends State<TranscriptView> {
       }
     }
     _live = _inProgress(widget.view);
-    // The awaiting row goes on after the items' rows, so it stays the last one.
+    // The tail rows go on after the items' rows, so they stay the last ones.
     _model.update(transcript, live: _live);
+    final pending = _pendingMessage;
+    final sending = pending != null && pending.key != _pending?.key;
+    _pending = pending;
+    _model.showPending(pending);
     _updateAwaiting();
     _reveal();
     _splitRow = _model.rowOf(split);
@@ -433,11 +444,9 @@ class _TranscriptViewState extends State<TranscriptView> {
       _widgets.removeWhere((key, _) => !keys.contains(key));
       _extents.retain(keys);
     }
-    if (!initial &&
-        newest is UserItem &&
-        newest.key != previous?.key &&
-        !newest.synthetic &&
-        newest.attribution != 'agent') {
+    final typed =
+        newest is UserItem && newest.key != previous?.key && !newest.synthetic && newest.attribution != 'agent';
+    if (!initial && (sending || typed)) {
       // The user just sent something: show it, even when they had scrolled up.
       WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToLatest());
     }

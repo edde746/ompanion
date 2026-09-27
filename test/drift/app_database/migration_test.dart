@@ -4,6 +4,7 @@ import 'package:ompanion/database/app_database.dart';
 
 import 'generated/schema.dart';
 import 'generated/schema_v1.dart' as v1;
+import 'generated/schema_v2.dart' as v2;
 
 void main() {
   late SchemaVerifier verifier;
@@ -59,6 +60,45 @@ void main() {
         .insert(ReadMarkersCompanion.insert(machineId: 'm1', path: '/s.jsonl', seenModified: DateTime.utc(2026)));
     await (db.delete(db.machines)..where((m) => m.id.equals('m1'))).go();
     expect(await db.select(db.readMarkers).get(), isEmpty);
+    await db.close();
+  });
+
+  test('v2 to v3 keeps machines and starts with no pins, which cascade with their machine', () async {
+    final schema = await verifier.schemaAt(2);
+    final old = v2.DatabaseAtV2(schema.newConnection());
+    await old
+        .into(old.machines)
+        .insert(
+          const v2.MachinesData(
+            id: 'm1',
+            name: 'box',
+            kind: 'local',
+            port: 22,
+            tailscale: 0,
+            createdAt: '2026-09-25T12:00:00.000Z',
+            updatedAt: '2026-09-25T12:00:00.000Z',
+          ),
+        );
+    await old.close();
+
+    final db = AppDatabase(schema.newConnection());
+    await verifier.migrateAndValidate(db, 3);
+    expect((await db.select(db.machines).getSingle()).name, 'box');
+    expect(await db.select(db.pinnedSessions).get(), isEmpty);
+
+    await db
+        .into(db.pinnedSessions)
+        .insert(
+          PinnedSessionsCompanion.insert(
+            machineId: 'm1',
+            sessionId: 's1',
+            path: '/s.jsonl',
+            cwd: '/home/me',
+            pinnedAt: DateTime.utc(2026),
+          ),
+        );
+    await (db.delete(db.machines)..where((m) => m.id.equals('m1'))).go();
+    expect(await db.select(db.pinnedSessions).get(), isEmpty);
     await db.close();
   });
 }

@@ -59,7 +59,8 @@ double estimateRowExtent(TranscriptRow row, double width, {double body = 14}) {
   final scale = body / 14;
   return scale *
       switch (row) {
-        ItemRow(item: UserItem(:final content)) => 24 + 24 + _userLines(content, column - 90) * _lineHeight,
+        ItemRow(item: UserItem(:final content)) ||
+        PendingPromptRow(message: UserItem(:final content)) => 24 + 24 + _userLines(content, column - 90) * _lineHeight,
         ItemRow() => 10 + 28,
         AssistantTextRow(:final text, :final part) => (part == 0 ? 6 : 12) + _markdownHeight(text, column),
         ThinkingRow() => 6 + 24,

@@ -18,6 +18,7 @@ import 'package:ompanion/screens/shell/sidebar.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/session_pins.dart';
 import 'package:ompanion/sessions/session_reads.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
@@ -89,7 +90,7 @@ final class _Session implements LiveSession {
   void dismissRequest(String id) {}
 
   @override
-  void setPromptPending(bool pending) {}
+  void setPendingPrompt(PendingPrompt? prompt) {}
 
   @override
   void dismissNotice(int seq) {}
@@ -148,6 +149,7 @@ late _Machines _machines;
 late _Session _waiting;
 late _Sessions _sessions;
 late SessionReads _reads;
+late SessionPins _pins;
 
 Future<SettingsProvider> _loadSettings(WidgetTester tester) async =>
     (await tester.runAsync(() => SettingsProvider.load(_db)))!;
@@ -162,6 +164,7 @@ Future<void> _pump(WidgetTester tester, SettingsProvider settings) async {
         ChangeNotifierProvider<SessionsProvider>.value(value: _sessions),
         ChangeNotifierProvider(create: (_) => ShellProvider()),
         ChangeNotifierProvider.value(value: _reads),
+        ChangeNotifierProvider.value(value: _pins),
       ],
       child: TranslationProvider(
         child: MaterialApp(
@@ -201,10 +204,12 @@ void main() {
     _waiting = _Session(SessionView(requests: const [InputRequest('i1', title: 'License?')]));
     _sessions = _Sessions([_waiting], connector: MachineConnector(secrets, KnownHostsStore(_db)), machines: _machines);
     _reads = SessionReads(_db, relist: (_) {});
+    _pins = SessionPins(_db);
   });
 
   tearDown(() async {
     _reads.dispose();
+    _pins.dispose();
     _sessions.dispose();
     _machines.dispose();
     await _db.close();
@@ -228,6 +233,78 @@ void main() {
     await _toggle(tester, _app, collapse: false);
     expect(find.text('Fix the build'), findsOneWidget);
     await _pump(tester, await _loadSettings(tester));
+    expect(find.text('Fix the build'), findsOneWidget);
+  });
+
+  testWidgets('a session pinned from its row shows above the machines, also after a restart, until it is unpinned', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await _db
+          .into(_db.machines)
+          .insert(
+            MachinesCompanion.insert(
+              id: _machine.id,
+              name: _machine.name,
+              kind: MachineKind.local,
+              createdAt: DateTime(2026),
+              updatedAt: DateTime(2026),
+            ),
+          );
+      await _pins.ready;
+    });
+    final settings = await _loadSettings(tester);
+    await _pump(tester, settings);
+    double top(Finder finder) => tester.getTopLeft(finder).dy;
+    final machineRow = find.byType(MachineHeader);
+
+    Future<void> menu(String title, String action) async {
+      await tester.longPress(find.text(title));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(action));
+      await tester.pumpAndSettle();
+      // Lets the pin reach the database.
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+    }
+
+    expect(top(find.text('Fix the build')), greaterThan(top(machineRow)));
+    await menu('Fix the build', t.sessions.pin);
+    // Once, on top, beside its machine's name.
+    expect(find.text('Fix the build'), findsOneWidget);
+    expect(top(find.text(t.sidebar.pinned)), lessThan(top(find.text('Fix the build'))));
+    expect(top(find.text('Fix the build')), lessThan(top(machineRow)));
+    final pinnedRow = find.ancestor(of: find.text('Fix the build'), matching: find.byType(SessionRow));
+    expect(find.descendant(of: pinnedRow, matching: find.text(_machine.name)), findsOneWidget);
+
+    _pins.dispose();
+    _pins = SessionPins(_db);
+    await tester.runAsync(() => _pins.ready);
+    await _pump(tester, settings);
+    expect(top(find.text('Fix the build')), lessThan(top(machineRow)));
+
+    await menu('Fix the build', t.sessions.unpin);
+    expect(find.text(t.sidebar.pinned), findsNothing);
+    expect(top(find.text('Fix the build')), greaterThan(top(machineRow)));
+  });
+
+  testWidgets("a tap on a machine's row collapses and expands it; its settings button opens the machine's page", (
+    tester,
+  ) async {
+    await _pump(tester, await _loadSettings(tester));
+    final shell = Provider.of<ShellProvider>(tester.element(find.byType(Sidebar)), listen: false);
+    await tester.tap(find.text(_machine.name));
+    await tester.pump();
+    expect(find.text('Fix the build'), findsNothing);
+    expect(shell.selection, isNot(isA<MachineSelection>()));
+
+    await tester.tap(find.text(_machine.name));
+    await tester.pump();
+    expect(find.text('Fix the build'), findsOneWidget);
+
+    await tester.tap(find.byTooltip(t.sessions.machinePage));
+    await tester.pump();
+    expect(shell.selection, MachineSelection(_machine.id));
     expect(find.text('Fix the build'), findsOneWidget);
   });
 

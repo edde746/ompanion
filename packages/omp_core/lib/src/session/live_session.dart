@@ -54,10 +54,10 @@ abstract interface class LiveSession {
   /// dialogs whose timeout passed.
   void dismissRequest(String id);
 
-  /// Marks whether a prompt this device is sending still waits to reach the transcript ([SessionView.promptPending]),
-  /// so the chat shows its awaiting-reply row from the send on. The sender clears it when its prompt fails, finishes
-  /// without a run, or loses its connection; the reducer clears it at a run's first message and when a run ends.
-  void setPromptPending(bool pending);
+  /// Sets the prompt this device is sending ([SessionView.pendingPrompt]), so the chat shows it and its awaiting-reply
+  /// row from the send on; null clears it. The sender clears it when its prompt fails, finishes without a run, or
+  /// loses its connection; the reducer clears it at a run's first message and when a run ends.
+  void setPendingPrompt(PendingPrompt? prompt);
 
   /// Removes toast [seq] from the view.
   void dismissNotice(int seq);

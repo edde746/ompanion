@@ -185,7 +185,7 @@ final class ExternalSession implements LiveSession {
 
   /// Nothing here waits for a reply: a prompt cannot be sent from this session.
   @override
-  void setPromptPending(bool pending) {}
+  void setPendingPrompt(PendingPrompt? prompt) {}
 
   @override
   void dismissNotice(int seq) => _setView(store.dismissNotice(_view, seq));
