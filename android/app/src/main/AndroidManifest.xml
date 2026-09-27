@@ -1,11 +1,14 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- SSH to machines. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Push notifications; requested when the user turns push on (Android 13 and later). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- A restored backup carries flutter_secure_storage values whose Keystore key did not travel with
          them, so they fail to decrypt ("Failed to unwrap key"). Private keys never leave the device. -->
     <application
         android:label="ompanion"
-        android:name="${applicationName}"
+        android:name=".MainApplication"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -35,6 +38,33 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Push (docs/contracts/push.md). Firebase stays uninitialized, and so never contacts Google, until the
+             user turns push on: MainApplication initializes it in code only then, so its auto-init provider is
+             removed, and messaging auto-init and analytics collection are off. Messages target the Firebase
+             installation ID (FID), so FCM registers the installation rather than issuing a token. -->
+        <service
+            android:name=".push.PushMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+        <provider
+            android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider"
+            tools:node="remove"/>
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false"/>
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="true"/>
+        <meta-data
+            android:name="firebase_messaging_installation_id_enabled"
+            android:value="true"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="sessions"/>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

@@ -1,1 +1,4 @@
 #include "Generated.xcconfig"
+// Firebase's client config for push (docs/contracts/push.md): FIREBASE_GOOGLE_APP_ID, FIREBASE_GCM_SENDER_ID,
+// FIREBASE_API_KEY and FIREBASE_PROJECT_ID. Optional: without it the app builds and push reports not configured.
+#include? "Firebase.xcconfig"

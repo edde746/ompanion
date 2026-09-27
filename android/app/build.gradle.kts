@@ -18,14 +18,38 @@ fun keystoreProperty(name: String): String =
     keystoreProperties.getProperty(name)
         ?: throw GradleException("android/key.properties has no $name (README, Releasing).")
 
+// Firebase's public client config for push (docs/contracts/push.md): android/firebase.properties with the
+// projectId, applicationId, apiKey and senderId of the Firebase console's Android app. Firebase is set up in code
+// from these (MainApplication), not by the google-services plugin. Without the file the app builds and reports push
+// as not configured.
+val firebasePropertiesFile = rootProject.file("firebase.properties")
+val firebaseProperties = Properties().apply {
+    if (firebasePropertiesFile.exists()) firebasePropertiesFile.inputStream().use { load(it) }
+}
+
+fun firebaseField(name: String): String {
+    if (!firebasePropertiesFile.exists()) return "\"\""
+    val value =
+        firebaseProperties.getProperty(name)
+            ?: throw GradleException("android/firebase.properties has no $name (docs/contracts/push.md).")
+    return "\"$value\""
+}
+
 android {
     namespace = "com.edde746.ompanion"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // flutter_local_notifications requires desugaring (its README), even on Android, where the app never
+        // initializes it.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     defaultConfig {
@@ -41,6 +65,11 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        buildConfigField("String", "FIREBASE_PROJECT_ID", firebaseField("projectId"))
+        buildConfigField("String", "FIREBASE_APPLICATION_ID", firebaseField("applicationId"))
+        buildConfigField("String", "FIREBASE_API_KEY", firebaseField("apiKey"))
+        buildConfigField("String", "FIREBASE_SENDER_ID", firebaseField("senderId"))
     }
 
     signingConfigs {
@@ -76,4 +105,12 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-installations")
+    testImplementation("junit:junit:4.13.2")
 }

@@ -24,6 +24,14 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- Push (docs/contracts/push.md). Firebase runs only while push is on, set up in code (Push.swift), and hands
+	     over the APNs token explicitly; it registers the installation ID with FCM rather than issuing a token. -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<false/>
+	<key>FirebaseMessagingInstallationIdEnabled</key>
+	<true/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<!-- SSH to a machine on the same network triggers iOS local network privacy (Apple TN3179). -->
@@ -33,6 +41,18 @@
 	     Store validation requires this string (ITMS-90683). The app reads only the items the picker returns. -->
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>ompanion can attach photos and videos you pick to a message for the omp coding agent on your own machines. It reads only the items you select.</string>
+	<!-- Firebase's client config from ios/Flutter/Firebase.xcconfig; empty without it. -->
+	<key>OmpanionFirebaseAPIKey</key>
+	<string>$(FIREBASE_API_KEY)</string>
+	<key>OmpanionFirebaseAppID</key>
+	<string>$(FIREBASE_GOOGLE_APP_ID)</string>
+	<key>OmpanionFirebaseProjectID</key>
+	<string>$(FIREBASE_PROJECT_ID)</string>
+	<key>OmpanionFirebaseSenderID</key>
+	<string>$(FIREBASE_GCM_SENDER_ID)</string>
+	<!-- The keychain group the app shares with its Notification Service Extension for the push key. -->
+	<key>OmpanionKeychainGroup</key>
+	<string>$(AppIdentifierPrefix)com.edde746.ompanion.push</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
