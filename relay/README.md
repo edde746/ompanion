@@ -72,6 +72,24 @@ docker compose up -d --build
 The container publishes on `127.0.0.1` only, so nothing but the proxy reaches it, and it runs with
 `TRUST_PROXY=1`, read-only, without capabilities, restarting unless stopped.
 
+The proxy must keep no client address for this host either: the privacy policy says the relay path logs none.
+Caddy writes no access log for a site without a `log` directive, but its error log (a 502 while the relay is down)
+carries the client's address, so the site discards its log and the global options drop its error lines:
+
+```caddyfile
+{
+	log default {
+		exclude http.log.error.ompanion_push
+	}
+}
+push.ompanion.app {
+	log ompanion_push {
+		output discard
+	}
+	reverse_proxy 127.0.0.1:8787
+}
+```
+
 **Check it.**
 
 ```sh
