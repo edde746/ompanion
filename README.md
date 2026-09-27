@@ -19,11 +19,15 @@ A GUI client for omp, the oh-my-pi coding agent, on this computer and on remote 
 
 ## Download
 
-There is no release yet: build the app from source ([Building from Source](#building-from-source)). The build
-workflow (Actions → Build → Run workflow, maintainers only) builds any commit into artifacts named
-`ompanion-<platform>-<sha>`: a DMG for macOS, zips for Windows x64 and Linux x64 (the Linux build needs GTK 3 and
-libsecret), an APK for Android, and an unsigned IPA for iOS that a sideloading tool such as AltStore or Sideloadly
-signs on install.
+| Platform | Get it |
+|---|---|
+| iPhone and iPad | [App Store](https://apps.apple.com/app/id6816667970) |
+| Android | [Google Play](https://ompanion.app/#google-play), in a closed test: join the testers first |
+| Windows | [Microsoft Store](https://apps.microsoft.com/detail/9P9DVTKZ3SB9), or `ompanion-windows-x64.zip` from the [latest release](https://github.com/edde746/ompanion/releases/latest) |
+| macOS | `ompanion-macos.dmg` from the [latest release](https://github.com/edde746/ompanion/releases/latest), signed and notarized |
+| Linux | `ompanion-linux-x64.zip` from the [latest release](https://github.com/edde746/ompanion/releases/latest); needs GTK 3 and libsecret |
+
+Or build it yourself: [Building from Source](#building-from-source).
 
 ## Features
 
