@@ -4,8 +4,8 @@
 # the host keys live in the /data volume, and the root filesystem is read-only (docker-compose.yml).
 FROM ubuntu:24.04
 
-# From .env, written by setup.sh. Only the hash reaches the image: the `review` field in /etc/passwd
-# holds it.
+# From .env, written by setup.sh. /etc/passwd gets its hash; the plaintext stays in this machine's image
+# and build history (docker-compose.yml).
 ARG REVIEW_PASSWORD
 
 RUN set -eu; \

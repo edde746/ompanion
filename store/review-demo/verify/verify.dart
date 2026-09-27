@@ -3,8 +3,8 @@
 /// root (it belongs to the app package, whose `flutter pub get` provides omp_core), after `./reset.sh`: the
 /// demo rotation is a cycle, and the checks below expect its first three scenarios.
 ///
-///   dart run store/review-demo/verify/verify.dart \
-///     --password "$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)"
+///   REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
+///     dart run store/review-demo/verify/verify.dart
 ///
 /// Steps, each printing one OK line: connect with the generated password, probe the machine and find omp,
 /// check the uploaded companion, open a session, send three prompts and check the demo rotation's canned

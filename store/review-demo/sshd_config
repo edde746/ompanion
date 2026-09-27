@@ -24,23 +24,22 @@ KbdInteractiveAuthentication no
 PermitEmptyPasswords no
 UsePAM no
 
-# Rate limits and timeouts for an internet-facing port: three password tries per connection, at most
-# three unauthenticated connections at once (50% dropped above that, ten hard maximum), 30 s to
-# authenticate.
+# Brute force: the password is 24 random characters (setup.sh), and each connection gets three tries and
+# 30 s. No MaxStartups or PerSourceMaxStartups: Ubuntu 24.04's sshd (1:9.6p1-3ubuntu13.19 when measured)
+# does not count connections waiting at the password prompt against them (five from one address with
+# PerSourceMaxStartups 3 all got in; the listener's title said "0 of 10-30 startups"). A connection flood
+# is bounded by the container's process and memory limits instead (docker-compose.yml).
 MaxAuthTries 3
 MaxSessions 8
-MaxStartups 3:50:10
 LoginGraceTime 30
 ClientAliveInterval 30
 ClientAliveCountMax 3
 
-# The app forwards a port from the machine for an OAuth callback on desktop; nothing else is forwarded.
-AllowTcpForwarding yes
-AllowAgentForwarding no
-X11Forwarding no
+# No forwarding of any kind. The app forwards a port only for a provider's OAuth login on desktop; the
+# demo's provider has no login, and the host has no route out (firewall.sh).
+DisableForwarding yes
 PermitTunnel no
 PermitUserEnvironment no
-GatewayPorts no
 
 Subsystem sftp internal-sftp
 PrintMotd no

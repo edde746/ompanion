@@ -1,0 +1,7 @@
+# The firewall image needs firewall.sh and nothing else from the repository.
+*
+!store
+store/**
+!store/review-demo
+store/review-demo/**
+!store/review-demo/firewall.sh

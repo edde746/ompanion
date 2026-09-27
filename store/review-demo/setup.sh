@@ -1,7 +1,8 @@
 #!/bin/sh
 # Writes .env: the password for the reviewer's account and the port the stack publishes. The password is
 # 24 random alphanumeric characters (~143 bits), generated here, printed once, and never committed
-# (.gitignore). Only its hash enters the host image, as the `review` field of /etc/passwd.
+# (.gitignore). The host image's /etc/passwd holds its hash; the plaintext is also in the image's build
+# history on this machine (docker-compose.yml).
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)

@@ -4,12 +4,13 @@ A throwaway SSH host that runs omp 18.3.1 against a fake model provider. App Rev
 add it in ompanion as a machine and use the app end to end — chat, tool cards, the file browser, the
 terminal, machine configuration — with no AI account, no API key and no cost to anyone.
 
-Two containers, one private network, one published port:
+Three containers, one private network, one published port:
 
 | Container | What runs | Reaches |
 |---|---|---|
-| `host` | Ubuntu, OpenSSH as the unprivileged user `review`, omp 18.3.1 in `~/.local/bin/omp`, a template home with the demo project | runs omp and the reviewer's shell; publishes `${REVIEW_SSH_PORT:-22222}` → 2222 |
-| `provider` | `testing/fake-provider/server.ts --demo`: canned turns, neutral models `demo/fast` ("Fast") and `demo/reasoning` ("Reasoning") | the `host` container only; no published port |
+| `host` | Ubuntu, OpenSSH as the unprivileged user `review`, omp 18.3.1 in `~/.local/bin/omp`, a template home with the demo project | the provider only; sshd listens on 2222 in the firewall's network namespace |
+| `firewall` | Alpine, `firewall.sh`: owns the host's network namespace, rejects its outbound connections | publishes `${REVIEW_SSH_PORT:-22222}` → 2222 |
+| `provider` | `testing/fake-provider/server.ts --demo`: canned turns, neutral models `demo/fast` ("Fast") and `demo/reasoning` ("Reasoning") | nothing; no published port |
 
 The reviewer's home and the host keys live in the `review-data` volume. The host image holds the omp
 release and ompanion uploads its companion into the home on the first connect.
@@ -21,8 +22,8 @@ release and ompanion uploads its companion into the home on the first connect.
   Engine 20.10+ with the `docker compose` plugin. The compose file caps the host container at 768 MB,
   1 CPU and 512 processes, and the provider at 192 MB and 0.5 CPU.
 - Outbound internet while `./up.sh` builds (the build downloads the omp release from GitHub and verifies
-  its SHA-256). Inbound: only the published SSH port. The containers need no internet at runtime: omp's
-  home turns the release and marketplace checks off.
+  its SHA-256). Inbound: the published SSH port and your own SSH. The containers need no internet at
+  runtime and the host container gets none: omp's home turns the release and marketplace checks off.
 - The repository checked out on the VPS — the compose build context is the repository root (it only reads
   a few files from it). Not your main server: the reviewer gets a shell inside the container, and outside
   it, nothing.
@@ -43,28 +44,31 @@ cd store/review-demo
 
 **Credentials.** `setup.sh` writes them to `store/review-demo/.env` (gitignored) and prints them once:
 `REVIEW_PASSWORD` is 24 random alphanumeric characters (~143 bits) and is the password the reviewer logs in
-with; `REVIEW_SSH_PORT` is the published port (default `22222`). Only the password's hash enters the host
-image, as the `review` field of `/etc/passwd`. Read it again with:
+with; `REVIEW_SSH_PORT` is the published port (default `22222`). The host image's `/etc/passwd` holds the
+password's hash; the plaintext is also in the image's build history (see Security). Read it again with:
 
 ```sh
 sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env
 ```
 
-**Firewall.** Allow only the published port from the internet, for example:
+**Firewall.** Keep everything but your own SSH closed on the VPS, for example:
 
 ```sh
-ufw default deny incoming && ufw allow 22222/tcp && ufw enable
+ufw allow OpenSSH && ufw default deny incoming && ufw enable
 ```
+
+Allow your own SSH first, or `ufw enable` locks you out. ufw does not govern the demo's port: Docker
+publishes it through its own iptables chains, ahead of ufw's, so it is reachable whatever ufw says.
 
 ## What the reviewer does
 
 These are the app's own labels. An SSH machine does not dial until the reviewer asks it to, and on a phone
 the session list is behind the machine's row.
 
-1. Sidebar → **Add machine** (the `+` at the top). **Kind** SSH; **Name** anything, e.g. `omp demo`;
-   **Host** the VPS's public address; **Port** `22222`; **User** `review`; **Authentication** **Password**;
-   **Password** from `.env`. *Save password on this device* is optional (with it, the connect does not ask
-   again). → **Save**
+1. Sidebar → **Add machine** (the `+` at the top). **Name** anything, e.g. `Demo` (required); **Host** the
+   VPS's public address; **Port** `22222`; **User** `review`; **Authentication** **Password**; **Password**
+   from `.env`. *Save password on this device* is optional (with it, the connect does not ask again). →
+   **Save**. A desktop build that can still add *this computer* shows **Kind** first: pick SSH.
 2. The machine's page opens. Under **System**, tap **Connect**. The first connection asks about a host key
    it has never seen: **Trust this host?** → **Trust**. `./up.sh` printed that key's fingerprint, and
    `docker compose --env-file .env exec host ssh-keygen -lf /data/ssh/ssh_host_ed25519_key.pub` prints it
@@ -116,8 +120,8 @@ Values the user fills in: `<HOST>` is the VPS's public address, `<PASSWORD>` is 
 > ompanion is a client for omp, an AI coding agent that runs on the user's own machines. The app has no
 > account of its own: to reach every screen, add the demo machine we run for this review.
 >
-> 1. In the sidebar, tap Add machine. Choose Kind: SSH. Enter Host: `<HOST>`, Port: `22222`, User:
->    `review`, Authentication: Password, Password: `<PASSWORD>`. Tap Save.
+> 1. In the sidebar, tap Add machine. Enter Name: Demo, Host: `<HOST>`, Port: `22222`, User: `review`,
+>    Authentication: Password, Password: `<PASSWORD>`. Tap Save.
 > 2. The machine's page opens. Under System, tap Connect. The app asks "Trust this host?" the first time;
 >    tap Trust. The demo machine is a container we run only during this review and destroy afterwards; it
 >    holds no personal data.
@@ -145,25 +149,40 @@ the session directory and the note that the demo machine is destroyed after the 
 - **No root for the reviewer**: the image's user is `review`, `sudo` is not installed, `PermitRootLogin no`
   and `AllowUsers review`, password authentication only. The container itself runs unprivileged:
   `cap_drop: [ALL]`, `no-new-privileges`, a read-only root filesystem with tmpfs for `/tmp` and `/run`,
-  `mem_limit`/`cpus`/`pids_limit`, and the `review-data` volume as its only mount.
+  `mem_limit`/`cpus`/`pids_limit`, and the `review-data` volume as its only mount. No Docker socket.
+- **No way out**: the host container joins the `firewall` container's network namespace, where
+  `firewall.sh` rejects every new outbound connection except to the compose network, where the provider
+  is the only other container; the network's gateway, which is the VPS itself, is rejected too. The
+  shell, omp and sshd cannot reach the internet, the cloud's metadata address (`169.254.169.254`) or the
+  VPS's own services, so the machine is useless for mining, spam or scanning. The host container has no
+  capability to change the rules; the firewall container has `NET_ADMIN` and nothing else. Only the
+  compose services' names resolve: Docker's DNS forwards the rest to `192.0.2.1`, which the rules reject.
+- **No forwarding**: `DisableForwarding yes` refuses TCP, agent, X11 and socket forwarding, so the demo is
+  no SSH proxy either. The app forwards ports only for a provider's OAuth login on desktop, which the
+  demo's provider does not have.
 - **Unprivileged sshd**: sshd runs as `review` on port 2222 (a privileged port needs root). Password auth
   works without `/etc/shadow` because the account's hash sits in `/etc/passwd`, so no root process is
-  needed at all. `UsePAM no`. Two consequences of running without root, both harmless: sshd cannot write
-  the login records, so its log says `Attempt to write login records by non-root user` and the VPS's
-  `last`/`who` do not list the review sessions; and shell sessions and PTYs (the app's Terminal tab) work
-  normally.
-- **Rate limits**: `MaxAuthTries 3`, `MaxStartups 3:50:10`, `LoginGraceTime 30`, `ClientAliveInterval 30`
-  with `ClientAliveCountMax 3` (`sshd_config`). Three wrong passwords in one connection end it with
-  `maximum authentication attempts exceeded` in the host's log. Optional and not exercised here: fail2ban
-  (or sshguard) on the VPS reading those lines — `docker compose --env-file .env logs host` shows
-  `Failed password for review from <address> port <port> ssh2`; on a Linux VPS the client's own address is
-  there (Docker's DNAT preserves it), so a jail can ban the real address. The container's limits already
-  cap guessing at three tries per connection.
+  needed at all. `UsePAM no`. It cannot write the login records, so its log says `Attempt to write login
+  records by non-root user`. Shell sessions and PTYs (the app's Terminal tab) work.
+- **Brute force**: the password has ~143 bits, so guessing it is hopeless; `MaxAuthTries 3` and
+  `LoginGraceTime 30` bound each connection. `MaxStartups`/`PerSourceMaxStartups` are not set: this
+  image's sshd does not count connections waiting at the password prompt against them (`sshd_config`), so
+  a connection flood is bounded only by the container's process and memory limits; it can take the demo
+  down, not the VPS. Optional and not exercised here: fail2ban (or sshguard) on the VPS reading
+  `Failed password for review from <address>` in `docker compose --env-file .env logs host`. On a Linux VPS
+  the client's own address is there (Docker's DNAT preserves it); the ban action has to target Docker's
+  `DOCKER-USER` chain, because published ports bypass the `INPUT` chain.
+- **Logs**: sshd logs every connection (`LogLevel VERBOSE`); the host's log rotates at 3 × 10 MB.
 - **Only sshd is exposed**: the provider publishes no port and is reachable only on the compose network,
   so its control API (`/control/*`) is not on the internet. The provider serves one canned reply per
   request and has no credentials.
 - **The reviewer can do what the app does**: read and write files in the demo home, run omp, open a
-  shell. That is the point of the demo; everything they touch is in the volume.
+  shell. That is the point of the demo; everything they touch is in the volume. That includes the host's
+  private keys in `/data/ssh`: sshd runs as `review`, so anyone with the password can copy them. The
+  trusted host key identifies the demo container only as long as the password stays with the reviewers.
+- **The password's plaintext** is in `.env` and, because it is a build argument, in the build output of
+  `./up.sh` and the host image's build history on the VPS (`docker history`, `docker buildx history`).
+  The history is readable only by whoever controls Docker there. Never push the image.
 - **Afterwards**: `./down.sh --clean` and destroy the VPS. Do not reuse the generated password anywhere,
   and do not commit `.env`.
 
@@ -175,8 +194,8 @@ first: the rotation is a cycle, and both checks expect it to start at its first 
 ```sh
 # From the repository root. The reviewer's path without the widgets: password SSH, probe, companion,
 # session, three demo scenarios, exec, file browser, session list.
-dart run store/review-demo/verify/verify.dart \
-  --password "$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)"
+REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
+  dart run store/review-demo/verify/verify.dart
 
 # The same path in the real app (macOS desktop): add machine, trust, connect, new session, prompt, reply.
 # Writes PNGs of the app's widget tree, by default to /tmp/ompanion-store/ReviewDemo.
@@ -192,20 +211,25 @@ provider's request log from inside the stack.
 
 What was checked here, for the shape of the numbers to expect: `sshd -T` inside the container reports
 `port 2222`, `passwordauthentication yes`, `pubkeyauthentication no`, `permitrootlogin no`, `usepam no`,
-`maxauthtries 3`, `maxstartups 3:50:10`; three wrong passwords in one connection end it with `maximum
-authentication attempts exceeded`; `docker inspect` shows `User=review`, `ReadonlyRootfs=true`,
-`CapDrop=[ALL]`, `no-new-privileges`, `NanoCpus=1000000000`, `Memory=805306368`, `PidsLimit=512` and one
-bind mount (`review-data:/data`), with no port bindings on the provider.
+`maxauthtries 3`, `disableforwarding yes`; three wrong passwords in one connection end it with `Too many
+authentication failures`; `ssh -W` and `ssh -R` are refused; from the reviewer's shell `curl` to a public
+address, `169.254.169.254` and the gateway fail with `Couldn't connect to server`, `getent hosts
+example.com` gets no answer, and `http://provider:8787/v1/models` answers; `docker inspect` shows the host
+with `User=review`, `ReadonlyRootfs=true`, `CapDrop=[ALL]`, no added capabilities, `no-new-privileges`,
+`Memory=805306368`, `PidsLimit=512`, one volume (`review-data:/data`) and
+`NetworkMode=container:<firewall>`, the firewall with `CapAdd=[CAP_NET_ADMIN]` and the only port binding,
+and the provider with none.
 
 ## Files
 
 | Path | What it is |
 |---|---|
-| `docker-compose.yml` | the two services, the network, the limits, the volume |
+| `docker-compose.yml` | the three services, the network, the limits, the volume |
 | `Dockerfile.host` | Ubuntu + OpenSSH + omp (fetched by `scripts/fetch_omp.sh`, checksum-verified) + the template home with the demo project's git history |
+| `Dockerfile.firewall`, `firewall.sh` | Alpine + iptables: owns the host's network namespace and rejects its outbound connections |
 | `Dockerfile.provider` | Bun + `testing/fake-provider` in `--demo` mode |
-| `Dockerfile.host.dockerignore`, `Dockerfile.provider.dockerignore` | keep the build context to the handful of files each image copies |
-| `sshd_config` | the drop-in `/etc/ssh/sshd_config.d/00-review.conf`: port, host keys, password auth, rate limits |
+| `Dockerfile.*.dockerignore` | keep the build context to the handful of files each image copies |
+| `sshd_config` | the drop-in `/etc/ssh/sshd_config.d/00-review.conf`: port, host keys, password auth, no forwarding |
 | `entrypoint.sh` | first start: host keys into the volume, seed the home, exec sshd |
 | `restore-home.sh` | restores the template home and stops the app's omp runs (used by the entrypoint and `reset.sh`) |
 | `setup.sh`, `up.sh`, `reset.sh`, `down.sh` | the four commands above |
@@ -217,7 +241,12 @@ bind mount (`review-data:/data`), with no port bindings on the provider.
 
 - Verified on Docker Desktop for macOS (linux/arm64) only. The x86_64 path uses the same
   `scripts/fetch_omp.sh` targets and asset names, but was not run here.
-- Not run on a VPS; nothing here depends on Docker Desktop.
+- Not run on a VPS; nothing here depends on Docker Desktop. The firewall needs iptables (nf_tables) in
+  the VPS kernel, as Docker itself does; if its rules fail, `firewall` never turns healthy and `host` does
+  not start.
+- After a reboot of the VPS, run `./up.sh`: Docker may start `host` before `firewall`, whose network it
+  joins, and then leaves it stopped (moby/moby#50326). The demo is down until then, never open.
+- Disk is not capped: the reviewer can fill the VPS's disk from the `review-data` volume.
 - The fail2ban/sshguard suggestion above is not exercised.
 - The provider's demo rotation is per container, not per session: two reviewers prompting at the same
   time take turns in the same cycle (`testing/README.md`, "Dev machine").
