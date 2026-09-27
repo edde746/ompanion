@@ -202,13 +202,18 @@ Choose **All or some functionality is restricted** and add one set of sign-in de
 password `<PASSWORD>`. Play's "Any other information" field takes 500 characters, so the notes above do not
 fit: paste the 483-character text in `store/google-play.md` §4.
 
-### Partner Center → Submission options → Notes for certification
+### Partner Center → Additional Testing Information
+
+Partner Center refuses notes that contain credentials ("The details you provided in the description field contain
+credentials"), so the password goes in the page's **Credentials** table instead: two entries, `User` = `root` and
+`Password` = `<PASSWORD>`. The **Notes for Certification** description is the text below.
 
 > ompanion is a client for omp, an AI coding agent that runs on the user's own machines. The app has no
 > account of its own: to reach every screen, add the demo server we run for this review.
 >
 > 1. In the sidebar, click Add machine. If the form shows Kind, choose SSH. Enter Name: Demo, Host:
->    217.160.119.181, Port: 22, User: root, Authentication: Password, Password: `<PASSWORD>`. Click Save.
+>    217.160.119.181, Port: 22, User: root, Authentication: Password, Password: the one under Credentials.
+>    Click Save.
 > 2. The machine's page opens. Under System, click Connect. The app asks "Trust this host?" the first time;
 >    click Trust. The demo server is a machine we run only for this review and destroy afterwards; it holds
 >    no personal data.

@@ -140,11 +140,14 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
        copyright (`copyright.txt`). The limits: description 10,000 characters, what's new 1,500, up to 20
        features of 200, short description 1,000, up to 7 search terms of 30 with 21 words in all, copyright
        200 ("Length check" below measures them).
-10. [ ] Submission options → **Restricted capabilities**: `runFullTrust` asks for a reason. Answer: "ompanion
-        is a Flutter Win32 desktop app packaged as MSIX. It runs omp, the coding agent, and the user's
-        shells on this computer as child processes, which needs a full-trust desktop process." **Notes for
-        certification**: the Partner Center text from `store/review-demo/README.md` §"Console answers" with
-        `<PASSWORD>` filled in, and the demo server up for the whole certification window.
+10. [ ] Submission options shows no **Restricted capabilities** section for this package, so `runFullTrust` asks
+        for no reason (checked 2026-09-27 with the release bundle validated). If a later submission shows one,
+        answer: "ompanion is a Flutter Win32 desktop app packaged as MSIX. It runs omp, the coding agent, and the
+        user's shells on this computer as child processes, which needs a full-trust desktop process." **Notes for
+        certification** live under Supplemental info → **Additional Testing Information**: the Partner Center
+        text from `store/review-demo/README.md` §"Console answers" as the description, the password in the page's
+        Credentials table (Partner Center refuses a description that contains credentials), and the demo server
+        up for the whole certification window.
 11. [ ] Submit to the Store.
 
 ## Where every asset lives
