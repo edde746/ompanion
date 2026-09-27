@@ -45,6 +45,9 @@ final class RpcClient {
   /// Lines skipped before `ready` (login-shell noise), for diagnostics.
   List<String> get noise => _decoder?.noise ?? const [];
 
+  /// Whether a request of this client still waits for its response.
+  bool get hasPending => _pending.isNotEmpty;
+
   /// A fresh id in this client's namespace.
   String nextId() => '$deviceId:${_counter++}';
 

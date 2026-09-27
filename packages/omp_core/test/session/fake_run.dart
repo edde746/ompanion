@@ -294,9 +294,11 @@ final class FakeAccess implements RunAccess {
   @override
   Future<void> recordSession(String sessionPath) async => recorded.add(sessionPath);
 
-  /// `rotateRunOutput` with `settledAt`: a log written to or rotated since is left alone.
+  /// `rotateRunOutput` with `settledAt`: a log written to or rotated since is left alone. The check runs after a
+  /// turn of the event loop, as the script does after its exec opened.
   @override
   Future<void> rotate({required int generation, required int size}) async {
+    await Future<void>.delayed(Duration.zero);
     if (generation != run.generation || size != run.outSize) return;
     rotations++;
     run.rotate();

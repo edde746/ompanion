@@ -208,9 +208,12 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   in a new run: a cold open instead of an attach. A session that ended before its first message opens as a new one.
 - Rotation: every `message_update` carries the whole message, so one 1.5 KB streamed answer wrote 270 KB.
   When a run settles and `out.jsonl` holds 8 MiB, the device that read past that mark truncates it under
-  `in.lock`, unless an active goal or a running loop is about to start the next turn on its own (omp's writes do
-  not take `in.lock`); the next settle without one rotates. Devices that had read everything follow, the others
-  rebuild from RPC. A restarted omp gets a new run directory, never an old `in.jsonl`.
+  `in.lock` at the offset it has read, once its own requests are answered: the `get_state` its `agent_end` asked for
+  and the entries catch-up are answered after the settle, and a log checked against the settle's offset was never
+  rotated (a live run's generation reached 1.6 GB). Anything else omp writes after the settle, a command other than a
+  `get_*` query from any device, or an active goal or running loop about to start the next turn on its own (omp's
+  writes do not take `in.lock`) leaves the log for the next settle. Devices that had read everything follow, the
+  others rebuild from RPC. A restarted omp gets a new run directory, never an old `in.jsonl`.
 - Garbage collection: `removeDeadRuns` deletes the directories of runs whose omp is gone. The app runs it with every
   session listing for runs whose `out.jsonl` last changed over 3 days ago (`deadRunLifetime`); `ompctl gc` removes
   every ended run.

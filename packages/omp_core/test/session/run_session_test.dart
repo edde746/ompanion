@@ -462,10 +462,12 @@ void main() {
     await live.detach();
   });
 
-  test('a settled run whose log passed the threshold is rotated once', () async {
+  test('a settled run whose log passed the threshold is rotated once its own queries are answered', () async {
     access = FakeAccess(run, rotateAt: 64);
     final live = session(recordedPath: run.sessionFile);
     await live.start();
+    // agent_end asks for get_state and the settle for the entries; omp answers both after the settle.
+    run.emit(agentEnd(const []));
     run.emit({'type': 'session_settled'});
     await until(() => access.rotations == 1);
     run.emit(messageEnd(user('after', 9), 'm9'));
