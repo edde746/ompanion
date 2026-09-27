@@ -11,8 +11,8 @@ surface of their own. The companion implements more verbs than the app calls: no
 `queue.get`/`queue.pop`, `goal.set`, `goal.guided` or `loop.enable` (the app starts a goal or a loop through the typed
 command; `contracts/ompx.md`). The App Store and Play build lanes exist; nothing is uploaded (§9). Notifications
 are built (M10). Phone builds carry the Firebase project's config (`android/firebase.properties`,
-`ios/Flutter/Firebase.xcconfig`) and register for push; the relay does not run at `push.ompanion.app` yet, so no
-notification reaches a phone (`contracts/push.md`).
+`ios/Flutter/Firebase.xcconfig`), and the relay runs at `push.ompanion.app` (`relay/README.md`). A message sent
+through it reached an Android emulator on 2026-09-27; delivery to an iPhone is untested (`contracts/push.md`).
 M0's spike results are in `research/`. Numbers were measured on 2026-09-25 (omp 18.3.0 installed, source read at
 tags v18.3.0 and v18.3.1, Flutter 3.47.1, Dart 3.13.1) unless marked [INFERENCE].
 
