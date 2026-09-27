@@ -106,7 +106,9 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 ## Length check
 
 Throwaway script, re-run after any edit to a listing text. It measures the stripped value the way `deliver`
-and `supply` do: characters everywhere, **bytes** for the App Store keyword field.
+and `supply` do: characters everywhere, **bytes** for the App Store keyword field and the App Review notes.
+The notes are measured without their fill-in marker line and with a 64-byte host and a 24-character password
+in place of `<HOST>` and `<PASSWORD>`, since that is the text that gets pasted.
 
 ```bash
 python3 - <<'PY'
@@ -121,9 +123,12 @@ LIMITS = [
     ("Play short description",  "android/fastlane/metadata/android/en-US/short_description.txt", 80, "chars"),
     ("Play full description",   "android/fastlane/metadata/android/en-US/full_description.txt", 4000, "chars"),
     ("Play changelog 1",        "android/fastlane/metadata/android/en-US/changelogs/1.txt", 500, "chars"),
+    ("App Review notes",        "ios/fastlane/metadata/review_information/notes.txt", 4000, "bytes"),
 ]
 for label, path, limit, unit in LIMITS:
     s = open(path, encoding="utf-8").read().strip()
+    if s.startswith("FILL"):
+        s = s.split("\n", 1)[1].strip().replace("<HOST>", "x" * 64).replace("<PASSWORD>", "x" * 24)
     n = len(s.encode()) if unit == "bytes" else len(s)
     print(f"{'ok  ' if n <= limit else 'OVER'} {label:<24} {n:>5} {unit:<5} limit {limit}")
 PY
@@ -142,10 +147,11 @@ ok   Play title                  20 chars limit 30
 ok   Play short description      70 chars limit 80
 ok   Play full description     3864 chars limit 4000
 ok   Play changelog 1           312 chars limit 500
+ok   App Review notes          3829 bytes limit 4000
 ```
 
-Both descriptions are inside their limit, the App Store one by 59 characters: re-run this after any wording
-change.
+Both descriptions are inside their limit, the App Store one by 59 characters, and the filled-in review notes
+by 171 bytes: re-run this after any wording change.
 
 ## Licence
 

@@ -16,8 +16,9 @@ The Mac App Store is **out of scope**: it needs a sandboxed build without "this 
 | Promotional text | 170 characters | [Platform version information](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information) |
 | Description | 4,000 characters | same |
 | What's New (release notes) | 4,000 characters | same |
+| App Review notes | 4,000 **bytes** | same |
 
-Evidence for each of our files is in section 9 (byte and character counts).
+Evidence for each of our files is in section 11 (byte and character counts).
 
 ## 2. App information (App Store Connect → General → App Information)
 
@@ -81,7 +82,7 @@ Check all three URLs in an incognito window before submitting; a dead privacy-po
 | Last name | `last_name.txt` | **field for the user** |
 | Phone | `phone_number.txt` | **field for the user** |
 | Email | `email_address.txt` | **field for the user** |
-| Notes | `notes.txt` | the canonical text is `store/review-demo/README.md` §"Console answers"; the file here is that text plus the guideline paragraphs (2.1/4.2, 2.5.2, 5.1.2(i), AI output). Replace `<HOST>` and `<PASSWORD>` on line 1 before submitting. |
+| Notes | `notes.txt` | the canonical text is `store/review-demo/README.md` §"Console answers"; the file here is that text plus the guideline paragraphs (2.1/4.2, 2.5.2, 5.1.2(i), AI output). Before submitting, delete the fill-in marker on line 1 and replace `<HOST>` and `<PASSWORD>` in step 1. Filled in, it stays under the 4,000-byte limit (`store/README.md`, "Length check"). |
 | Sign-in required | `demo_user.txt`, `demo_password.txt` | **Yes**: user `review`, password from `store/review-demo/.env`. The app has no account of its own, but this is the form an App Review person looks at first, so the demo machine's credentials belong here as well as in the notes. deliver sets "Sign-in required" to Yes only when both files are non-empty. |
 | Trade representative contact (EU DSA) | `ios/fastlane/metadata/trade_representative_contact_information/*.txt` | optional and **field for the user** (legal name, address, phone); only needed if you appoint an EU trade representative and want it uploaded with the metadata |
 
