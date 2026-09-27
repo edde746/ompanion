@@ -14,6 +14,23 @@ export class VerbError extends Error {
 	}
 }
 
+/** Level of an omp `notify` toast: the TUI's showStatus, showWarning and showError. */
+export type NoticeLevel = "info" | "warning" | "error";
+
+/**
+ * A request the TUI turns down with a notice. A slash command shows `message` as a toast of `level`; a verb
+ * fails with `code` and the same text.
+ */
+export class Refusal extends VerbError {
+	constructor(
+		code: ErrorCode,
+		message: string,
+		readonly level: NoticeLevel,
+	) {
+		super(code, message);
+	}
+}
+
 export interface CallRequest {
 	callId: string;
 	verb: string;
@@ -40,3 +57,11 @@ export interface VerbContext {
 export type VerbHandler = (args: Record<string, unknown>, context: VerbContext) => Promise<unknown>;
 
 export type VerbTable = Readonly<Record<string, VerbHandler>>;
+
+/** A slash command the companion registers next to `ompx`; it acts on the main session. */
+export interface SlashCommand {
+	readonly description: string;
+	handler(args: string, ctx: ExtensionCommandContext, session: AgentSession): Promise<void>;
+}
+
+export type CommandTable = Readonly<Record<string, SlashCommand>>;

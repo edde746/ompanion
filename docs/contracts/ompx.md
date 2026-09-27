@@ -1,8 +1,9 @@
 # ompx: app ↔ companion protocol
 
 The companion is a TypeScript extension (`companion/`) loaded into every rpc process with
-`omp --mode rpc-ui -e <companion.js>`. It registers one slash command, `ompx`. Everything below rides on
-the ordinary omp RPC channel of that process (`docs/research/omp-surface.md`).
+`omp --mode rpc-ui -e <companion.js>`. It registers the slash command `ompx`, which carries the calls below, and
+`goal`, `guided-goal` and `loop` (see "Slash commands: goal, guided-goal, loop"). Everything below rides on the
+ordinary omp RPC channel of that process (`docs/research/omp-surface.md`).
 
 Verified on omp 18.3.1 (spike, 2026-09-25): `ctx.ui.output` is a function that writes any object as a
 frame; `ctx.ui.pendingRequests` is a `Map`; a companion request answered with `extension_ui_response`
@@ -110,10 +111,13 @@ type Roles = {
 
 ### state.snapshot
 
-`args: {}` → `result: {pause: Pause, queue: Queue, requests: {id: string, method: string, params: unknown}[]}`
+`args: {}` → `result: {pause: Pause, queue: Queue, requests: {id: string, method: string, params: unknown}[],
+goal: Goal | null, loop: LoopState | null}`
 
 What a device needs on attach besides RPC `get_state`. `requests` are companion requests still open
-(for example an `ask` dialog); each ends with `request.settled`.
+(for example an `ask` dialog); each ends with `request.settled`. `goal` is the session's goal-mode goal (null when
+there is none, after a drop and after the completion exit) and `loop` the loop state (see "Goal mode and loop mode:
+common rules"); both override whatever a device carried over from before an attach or resync.
 
 ### pause.set
 
@@ -248,10 +252,10 @@ Owner: CompanionSession (`companion/src/verbs/session.ts`, `companion/src/verbs/
 `SessionState` is `{sessionId: string, sessionFile: string | null, leafId: string | null}`, read after the
 verb ran. Times are epoch milliseconds.
 
-Event `session.changed` `{reason: "fork" | "clear" | "delete" | "tree" | "label"} & SessionState`, no `callId`:
-pushed after `session.fork`, `session.clear`, `session.delete` of the open session, `tree.navigate` and
-`tree.label` succeed, because omp sends no RPC frame for them. Devices resync with `get_state`,
-`get_messages_page` and `get_entries`.
+Event `session.changed` `{reason: "fork" | "clear" | "delete" | "tree" | "label" | "new"} & SessionState`, no
+`callId`: pushed after `session.fork`, `session.clear`, `session.delete` of the open session, `tree.navigate` and
+`tree.label` succeed, and (`"new"`) after a `loop.mode: reset` loop started a new session, because omp sends no RPC
+frame for them. Devices resync with `get_state`, `get_messages_page` and `get_entries`.
 
 ### sessions.list
 
@@ -473,6 +477,199 @@ without a model or when the model call fails.
 
 `args: {}` → `result: {aborted: boolean}`. Cancels the running `btw`, which then replies with
 `status: "cancelled"` and the text streamed so far.
+
+### Goal mode and loop mode: common rules
+
+Owner: CompanionGoalLoop (`companion/src/verbs/session/goal.ts`, `companion/src/verbs/session/loop.ts`). The
+companion runs omp 18.3.1's TUI goal mode, guided goal and loop mode (`interactive-mode.ts`) inside the rpc process,
+so a goal or a loop keeps going with no device attached: same grammar, state transitions, prompt texts, notice
+texts, 800 ms delays and session-file entries. The differences are listed at the end of this section.
+
+```ts
+// omp's own goal, exactly as `goal_updated` carries it.
+type Goal = {
+  id: string; objective: string;
+  status: "active" | "paused" | "budget-limited" | "complete" | "dropped";
+  tokenBudget?: number; tokensUsed: number; timeUsedSeconds: number;
+  createdAt: number; updatedAt: number; // epoch ms
+};
+type Limit = { kind: "iterations"; total: number } | { kind: "duration"; ms: number };
+type Condition = { kind: "while" | "until"; command: string };
+type LoopState = {
+  paused: boolean;        // suspended (Esc, loop.suspend): the next idle user prompt resumes the loop
+  prompt: string | null;  // repeated after every turn; null while waiting for the next prompt
+  limit: null
+    | { kind: "iterations"; total: number; remaining: number }
+    | { kind: "duration"; ms: number; deadline: number }; // deadline: host epoch ms, set when the loop was enabled
+  condition: Condition | null;
+  iterations: number;     // automatic repetitions started so far
+};
+```
+
+- Goal state reaches devices through omp's own `goal_updated` frame (`{type: "goal_updated", goal: Goal | null,
+  state?: {enabled, mode: "active" | "exiting", reason?, goal}}`) and `state.snapshot`'s `goal`; the companion adds
+  no goal event. Loop state has no omp frame: `loop.changed` and `state.snapshot`'s `loop`. Loop off is `null`.
+- Refusals fail with the TUI's text: `unsupported` when `goal.enabled` is off ("Goal mode is disabled. Enable it in
+  settings (goal.enabled)."); `failed` for plan or vibe mode ("Exit plan mode first.", "Exit vibe mode first.") and
+  state conflicts; `bad_request` for malformed arguments. Verbs push no notices; the slash commands do.
+- Goal verbs check plan mode, vibe mode and `goal.enabled` first, as every `/goal` does.
+
+### goal.set
+
+`args: {objective: string}` → `result: {goal: Goal}`. `/goal set <objective>`: starts a goal, or replaces a running
+(active or budget-limited) one with a fresh id and zero usage. Turns the `goal` tool on, then submits the objective
+as a visible user prompt: a turn of its own when idle, a steer while streaming. omp puts its hidden
+`goal-mode-context` message in front of it. `failed` "Resume the current goal first, or drop it before setting a new
+objective." for a paused goal; `bad_request` for a blank objective.
+
+### goal.pause, goal.resume
+
+`args: {}` → `result: {goal: Goal}`. `/goal pause` and `/goal resume`. Pausing stops continuations; `failed` "No
+active goal to pause." without a running goal. Resuming reactivates a paused goal (also one over its budget) and
+schedules a continuation 800 ms later; `failed` "No paused goal to resume.". RPC `abort` already pauses an active
+goal inside omp.
+
+### goal.drop
+
+`args: {}` → `result: {goal: null}`. `/goal drop` after its confirmation (the verb does not ask; the app does).
+omp emits `goal_updated` with status `dropped`, then clears the goal. Dropping a running goal restores the tools that
+were on before goal mode; a goal dropped while paused leaves the `goal` tool on, as in the TUI. `failed` "No goal to
+drop.".
+
+### goal.budget
+
+`args: {tokenBudget: number | null}` (an integer ≥ 1, or `null` for no budget) → `result: {goal: Goal}`. `/goal
+budget N` / `off`. A budget at or below the usage makes an active goal `budget-limited`; a larger one (or none)
+makes a budget-limited goal active again. Lifts the stall hold and schedules a continuation. `failed` "Resume the goal
+before adjusting the budget." (paused), "No active goal.", "Goal is already complete.".
+
+### goal.guided
+
+`args: {initial: string | null}` → `result: null`. `/guided-goal [rough objective]`: turns the `goal` tool on and sends
+omp's interview kickoff (`prompts/goals/guided-goal-interview.md` of omp 18.3.1, copied into the companion) as a
+hidden synthetic developer prompt, queued as a follow-up while streaming. The model interviews the user in normal
+turns and ends with `goal({op: "create"})`, which starts the goal and its continuations. `failed` "Goal mode is already
+active. Use /goal to manage it, or /goal drop to start over." or the paused-goal text of `goal.set`.
+
+### Goal continuation, completion and restore
+
+- Continuation: 800 ms after each terminal `agent_end` (the turn settled) while loop mode is off (also when
+  suspended), `goal.continuationModes` contains `interactive`, plan mode is off, the goal is enabled and `active`,
+  and no stall hold applies. The text is omp's `goal-continuation.md`, built at that moment; it is sent as
+  `promptCustomMessage({customType: "goal-continuation", display: false, attribution: "agent"}, {streamingBehavior:
+  "followUp"})`, so omp prepends its `goal-mode-context`. When it is due, loop mode or plan mode turned on since
+  cancels it; a streaming, compacting or post-prompt-busy session drops it (the next terminal `agent_end` schedules
+  again); a prompt or companion call still being admitted, or a session switch, new session or branch still in
+  progress, retries it 800 ms later. `agent_start` cancels a pending one.
+- Failed submission: an objective or continuation that starts no turn (omp threw, shown as an error notice, or
+  dropped it before the agent) schedules the next continuation 800 ms later; each further failure in a row doubles
+  the wait, up to 60 s. A turn that starts resets it.
+- Stall hold: after a continuation turn, its tool calls (name, arguments) and results (name, content, error) are
+  hashed. None, or the same as the previous continuation's, holds further continuations until a non-synthetic user
+  message, `goal.set`, `goal.budget` or a turn that was not a continuation.
+- Completion: after the turn in which the model called `goal({op: "complete"})` ends, the companion writes
+  `mode_change` `none` and a `custom` entry `goal-completed` `{objective, tokensUsed, tokenBudget, timeUsedSeconds}`
+  and clears the goal (no `goal_updated` follows; `state.snapshot`'s `goal` is `null`). The tools stay as they are.
+- Budget: omp marks the goal `budget-limited` and, when that happens at a tool result, steers the model once with a
+  hidden `goal-budget-limit` message; no continuation follows.
+- Restore: when the process starts, the last `mode_change` of the branch comes back: an active goal as `paused`
+  (a `goal_paused` entry is written), a paused one as paused, each with the `goal` tool on. `switch_session` and
+  `branch` (through omp's session-switch reconciler) keep a running goal running and clear the previous session's
+  goal first, restoring its tools. `new_session` keeps the goal in memory, paused by omp's abort, as the TUI does.
+
+### loop.enable
+
+`args: {limit: Limit | null, condition: Condition | null, prompt: string | null}` (all three keys required) →
+`result: {loop: LoopState}`. `/loop …` while loop mode is off. A duration's deadline starts now. A non-null `prompt`
+is submitted at once like a typed prompt (steer behaviour) and becomes the loop prompt: at once when idle, once omp
+accepted it while streaming. `failed` "Loop mode is already on."; `bad_request` for a malformed limit or condition.
+
+### loop.suspend, loop.disable
+
+- `loop.suspend` `args: {}` → `result: {loop: LoopState | null}`: the TUI's Esc on a loop. Drops the loop prompt,
+  cancels a pending iteration and a running condition command; `paused: true`. The next idle user prompt resumes the
+  loop with that prompt. No-op when off or already paused. It does not abort the running turn (RPC `abort` does).
+- `loop.disable` `args: {}` → `result: {loop: null}`: `/loop` while on. No-op when off.
+
+### Loop iterations
+
+- Process-wide and not persisted: a loop survives new and switched sessions, not a restart.
+- The loop prompt is the first user message of a run that started after a terminal `agent_end`, before any assistant
+  message: a prompt a device sent while the session was idle. Steers and follow-ups never replace it, nor do prompts
+  the companion submits itself (a goal's objective).
+- 800 ms after each terminal `agent_end`, with a loop prompt: a busy session (streaming, compacting, post-prompt work,
+  a prompt being admitted, a session switch, new session or branch in progress) retries 800 ms later. Then, in order:
+  `loop.mode: reset` with vibe mode on disables ("Exit vibe mode before using reset loops. Loop mode disabled."); a
+  spent limit disables ("Loop limit reached. Loop mode disabled."); the condition command runs (the session's cwd,
+  `loop.conditionTimeoutMs`); one iteration is counted; `loop.mode: compact` compacts (warning "Nothing to compact (no
+  messages yet)", errors "Compaction cancelled", "Compaction failed: …") and `reset` starts a new session and emits
+  `session.changed {reason: "new"}`; a passed duration disables ("Loop time limit reached. Loop mode disabled."); the
+  prompt is submitted with follow-up behaviour. A prompt that starts no turn, or fails (error notice), suspends the
+  loop.
+- `/loop N` runs the prompt N + 1 times: the typed first run counts no iteration.
+- Condition verdicts, by exit status: `--while` continues on 0 and ends on 1 ("Loop condition `<cmd>` no longer holds.
+  Loop mode disabled."); `--until` continues on 1 and ends on 0 ("Loop condition `<cmd>` is now satisfied. Loop mode
+  disabled."). Any other status, a timeout or a spawn failure ends it too ("Loop condition `<cmd>` failed (exit N)[:
+  <first output line>]. Loop mode disabled.", "… timed out after <timeout>. …", "… could not run: …"). `<cmd>` is
+  cut to 60 columns. A loop the companion disables shows its message as an `info` notice.
+
+### loop.changed
+
+Event `{loop: LoopState | null}`, no `callId`: the whole state, pushed on every change (enable, prompt taken, iteration
+counted, suspend, disable) and never for a state the devices already have.
+
+### Slash commands: goal, guided-goal, loop
+
+Extension commands with omp's descriptions. `get_available_commands` lists them with `source: "extension"` and omp's
+fixed hint `"arguments"`; they run before the agent, also while it streams. Like the TUI's builtins they run outside
+omp's prompt admission: the `prompt` is done (its `prompt_result` comes) at once, and a dialog they wait on holds
+neither the goal continuation nor the loop. Dialogs are omp's own UI requests (`select`, `confirm`, `editor`);
+notices are `notify` requests whose `notifyType` is `info` (the TUI's status line), `warning` or `error`. Every
+`/goal` and `/guided-goal` first refuses plan mode, vibe mode and `goal.enabled` off (warnings, texts above).
+
+| Input | State | Result |
+|---|---|---|
+| `/goal <objective>` | none | starts it (`goal.set`) |
+| | running | info "Goal mode is already active. Use /goal to manage it, or /goal drop to start over." |
+| | paused | warning "Resume the current goal first, or drop it before setting a new objective." |
+| `/goal` | none | editor "Goal objective"; empty cancels |
+| | running | select "Goal: `<summary>` (`<status>`)": Show details, Adjust budget…, Pause, Drop |
+| | paused | select "Goal paused: `<summary>`": Resume, Show details, Adjust budget…, Drop |
+| `/goal set [objective]` | any | `goal.set`; without an objective, the editor first |
+| `/goal show` | any | info "No goal set.", or the lines `Objective: …`, `Status: <status>[ (paused)]`, `Tokens: <used> / <budget> (<left> left)` or `Tokens: <used> (no budget)`, `Time spent: <n>s|m|h|d` |
+| `/goal pause`, `resume` | any | info "Goal mode paused." / "Goal mode resumed.", or the verbs' warnings |
+| `/goal drop` | any | confirm "Drop goal?" / "This removes the goal record. Accumulated usage stays in the session log.", then info "Goal dropped."; warning "No goal to drop." |
+| `/goal budget [N\|off]` | any | info "Goal budget set to N." / "Goal budget cleared."; error "Goal budget must be a positive integer or \`off\`." (N is read with `parseInt`: `12abc` is 12); the verb's warnings; without an argument, editor "Goal budget (number, \`off\`, or empty to cancel)" prefilled with the budget |
+| `/guided-goal [idea]` | any | `goal.guided`; its refusals as notices |
+| `/loop [count\|duration] [--while\|--until '<cmd>'] [prompt]` | off | enables; info "Loop mode enabled.[ Limited to `<limit>`.][ `<remaining>`.][ Continuing while\|until \`<cmd>\` succeeds.] Repeating it after each turn.\|Your next prompt will repeat after each turn. Esc suspends the ongoing loop; /loop again to disable."; parse errors are error notices with omp's `parseLoopArgs` texts |
+| `/loop …` | on | disables, info "Loop mode disabled."; arguments are ignored |
+
+`<summary>` is the objective, cut to 47 characters plus "…" when longer than 48. The paused menu's "Adjust budget…"
+ends in "No active goal.", as in the TUI.
+
+### Differences from the TUI
+
+- The TUI holds a continuation or iteration while its editor has a draft; the machine cannot see a device's composer.
+- A `/skill:` prompt does not become the loop prompt: rpc-ui runs skills outside the session's prompt path.
+- The loop repeats the text omp sent the model (after prompt-template expansion); the TUI re-expands the typed text.
+- A prompt that starts no turn leaves a waiting loop waiting; the TUI marks it paused.
+- Images attached to `/goal <objective>` or `/guided-goal` are not forwarded: extension commands receive text only.
+- A continuation due while a prompt or companion call is being admitted is retried 800 ms later instead of dropped.
+- A continuation or iteration due while a session switch, new session or branch is in progress waits for it; the
+  TUI's timers do not look, and would submit into the disconnected agent.
+- A continuation after failed submissions backs off (doubling, up to 60 s); the TUI's main loop retries every 800 ms.
+- A `reset` iteration shows no "New session started" line; devices resync and show the new session.
+- The TUI-only paused plan mode ("Plan mode is paused — run /plan again to fully exit.") does not exist in rpc-ui.
+- The app's budget field parses strictly: `12abc` is refused with the TUI's error text, where the TUI's `parseInt`
+  takes 12. The typed `/goal budget 12abc` stays lenient.
+- The app offers no budget field for a paused goal; the TUI's paused menu offers "Adjust budget…", which then fails
+  with "No active goal.".
+- A duration loop's time left is counted on the device's clock against the machine's `deadline`, so clock skew between
+  the two shows in the label.
+- The app's composer toolbar can show a goal and a loop at once; the TUI footer shows one mode segment (the goal wins).
+- A synthetic developer message (the guided-goal kickoff, omp's continuation after a compaction) starts a new turn in
+  the app's transcript, so the reply it prompts is not folded into the previous turn; like the TUI, the app shows no
+  row for the message itself.
 
 <!-- verb sections are appended by their implementers -->
 

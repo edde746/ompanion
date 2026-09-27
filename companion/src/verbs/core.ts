@@ -25,6 +25,8 @@ import {
 import { channel, emitEvent } from "../channel.ts";
 import { takeSecretFile } from "../paths.ts";
 import { VerbError, type VerbHandler, type VerbTable } from "../protocol.ts";
+import { goalSnapshot } from "./session/goal.ts";
+import { loopState } from "./session/loop.ts";
 
 /** Events pushed by the core verbs' watchers and the channel. */
 export const coreEvents = [
@@ -227,7 +229,13 @@ export function helloVerb(verbNames: () => readonly string[], events: readonly s
 export const coreVerbs: VerbTable = {
 	"state.snapshot": async (args, { session }) => {
 		expectKeys(args, []);
-		return { pause: pauseState(), queue: queueState(session), requests: channel().openRequests() };
+		return {
+			pause: pauseState(),
+			queue: queueState(session),
+			requests: channel().openRequests(),
+			goal: goalSnapshot(session),
+			loop: loopState(),
+		};
 	},
 
 	"pause.set": async args => {

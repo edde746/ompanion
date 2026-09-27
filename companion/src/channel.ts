@@ -1,5 +1,5 @@
 import type { ExtensionUIContext } from "@oh-my-pi/pi-coding-agent";
-import type { ErrorCode } from "./protocol.ts";
+import type { ErrorCode, NoticeLevel } from "./protocol.ts";
 
 /** Wire contract: docs/contracts/ompx.md ("Frames", "Fallback channel"). */
 
@@ -119,6 +119,11 @@ export class Channel {
 	send(frame: OmpxFrame): void {
 		if (this.#rpc) this.#rpc.output(frame);
 		else this.#ui.setStatus("ompx", JSON.stringify(frame));
+	}
+
+	/** A toast on every attached device: omp's `notify` UI request, the TUI's status, warning and error lines. */
+	notify(message: string, level: NoticeLevel): void {
+		this.#ui.notify(message, level);
 	}
 
 	/** Companion requests that have not settled yet, for devices that attach while one is open. */

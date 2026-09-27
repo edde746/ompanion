@@ -53,17 +53,43 @@ describe("calls", () => {
 				"settings.unset",
 				"roles.get",
 				"roles.set",
+				"goal.set",
+				"goal.pause",
+				"goal.resume",
+				"goal.drop",
+				"goal.budget",
+				"goal.guided",
+				"loop.enable",
+				"loop.suspend",
+				"loop.disable",
 			]),
 		);
 		expect(hello.events).toEqual(
-			expect.arrayContaining(["pause.changed", "queue.changed", "settings.changed", "roles.changed", "request.settled"]),
+			expect.arrayContaining([
+				"pause.changed",
+				"queue.changed",
+				"settings.changed",
+				"roles.changed",
+				"request.settled",
+				"loop.changed",
+			]),
 		);
 	});
 
-	test("ompx is an extension command, so the app can detect the companion", async () => {
+	test("ompx, goal, guided-goal and loop are extension commands, so the app can detect and send them", async () => {
 		const response = await omp.command({ type: "get_available_commands" });
-		const commands = (response.data as { commands: { name: string; source: string }[] }).commands;
+		const commands = (response.data as { commands: { name: string; source: string; description: string }[] })
+			.commands;
 		expect(commands.find(command => command.name === "ompx")).toMatchObject({ source: "extension" });
+		expect(commands.find(command => command.name === "goal")).toMatchObject({
+			source: "extension",
+			description: "Toggle goal mode (persistent autonomous objective for this session)",
+		});
+		expect(commands.find(command => command.name === "guided-goal")).toMatchObject({
+			source: "extension",
+			description: "Have the agent interview you in chat, then set up goal mode",
+		});
+		expect(commands.find(command => command.name === "loop")?.source).toBe("extension");
 	});
 
 	test("invalid calls get bad_request replies, never extension errors", async () => {
@@ -92,6 +118,8 @@ describe("calls", () => {
 			pause: { paused: false, pausedAt: null },
 			queue: { steering: [], followUp: [], count: 0 },
 			requests: [],
+			goal: null,
+			loop: null,
 		});
 	});
 });

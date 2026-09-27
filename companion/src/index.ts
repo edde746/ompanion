@@ -2,9 +2,9 @@ import type { AgentSession, ExtensionAPI, ExtensionCommandContext, ExtensionCont
 import { CallParseError, parseCall } from "./args.ts";
 import { askDialog } from "./ask.ts";
 import { bindChannel, type Channel, channel, errorFrame, eventFrame, replyFrame } from "./channel.ts";
-import { type CallRequest, VerbError, type VerbTable } from "./protocol.ts";
+import { type CallRequest, Refusal, VerbError, type VerbTable } from "./protocol.ts";
 import { coreEvents, coreVerbs, helloVerb, watchCore } from "./verbs/core.ts";
-import { installSessionHooks, sessionEvents, sessionVerbs } from "./verbs/session.ts";
+import { installSessionHooks, sessionCommands, sessionEvents, sessionVerbs } from "./verbs/session.ts";
 
 const events: readonly string[] = [...coreEvents, ...sessionEvents];
 
@@ -36,7 +36,7 @@ let mainBound = false;
  * subagent session (task/executor.ts `preloadedPreparedExtensions`) with the module evaluated once,
  * so everything process-wide happens here, once, for the session that owns the RPC UI.
  */
-function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): void {
+async function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
 	if (mainBound || !ctx.hasUI) return;
 	const session = mainSession(pi);
 	if (!session || ctx.sessionManager !== session.sessionManager) return;
@@ -46,7 +46,7 @@ function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): void {
 	mainBound = true;
 	if (bindChannel(ui).kind === "output") ui.askDialog = askDialog;
 	watchCore(session);
-	installSessionHooks(pi, session);
+	await installSessionHooks(pi, session);
 }
 
 async function dispatch(call: CallRequest, pi: ExtensionAPI, ctx: ExtensionCommandContext, out: Channel): Promise<void> {
@@ -95,4 +95,22 @@ export default function ompx(pi: ExtensionAPI): void {
 			await dispatch(call, pi, ctx, out);
 		},
 	});
+	for (const [name, command] of Object.entries(sessionCommands)) {
+		pi.registerCommand(name, {
+			description: command.description,
+			handler: async (args, ctx) => {
+				// Bound like `ompx`: without the main session's RPC UI, `channel()` throws (`extension_error`).
+				channel();
+				const session = mainSession(pi);
+				if (!session) throw new Error("the main session is not registered");
+				// Not awaited: the TUI runs these as builtins, outside its prompt path, so a dialog they wait on does
+				// not hold the goal continuation or the loop. omp counts an awaited handler as an admitted submission.
+				command.handler(args, ctx, session).catch(error => {
+					// The TUI shows a refused or failed mode command as a notice (builtin-modes.ts runWithDetachedModeDraft).
+					if (error instanceof Refusal) ctx.ui.notify(error.message, error.level);
+					else ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+				});
+			},
+		});
+	}
 }

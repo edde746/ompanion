@@ -27,17 +27,19 @@ import {
 	requireNullableString,
 	requireString,
 } from "../args.ts";
-import { emitEvent } from "../channel.ts";
 import { isSessionFilePath } from "../paths.ts";
-import { VerbError, type VerbTable } from "../protocol.ts";
+import { type CommandTable, VerbError, type VerbTable } from "../protocol.ts";
 import { accountVerbs } from "./session/accounts.ts";
 import { agentVerbs, installAgentRoster } from "./session/agents.ts";
 import { btwVerbs } from "./session/btw.ts";
+import { announceChange, sessionState } from "./session/changes.ts";
 import { installCompactionEvents } from "./session/compaction.ts";
 import { execVerbs, installExecMessageEvents } from "./session/exec.ts";
+import { goalCommands, goalVerbs, installGoalMode } from "./session/goal.ts";
 import { historyVerbs, installHistoryRecording } from "./session/history.ts";
+import { installLoopMode, loopCommands, loopVerbs } from "./session/loop.ts";
 
-/** Wire contract: docs/contracts/ompx.md, sections `sessions.list` through `btw`. */
+/** Wire contract: docs/contracts/ompx.md, sections `sessions.list` through `loop.disable`. */
 
 export const sessionEvents: readonly string[] = [
 	"agents.changed",
@@ -47,40 +49,17 @@ export const sessionEvents: readonly string[] = [
 	"btw.delta",
 	"compaction.started",
 	"compaction.ended",
+	"loop.changed",
 ];
 
 /** Called once per process from the main session's `session_start`, after the channel is bound. */
-export function installSessionHooks(pi: ExtensionAPI, session: AgentSession): void {
+export async function installSessionHooks(pi: ExtensionAPI, session: AgentSession): Promise<void> {
 	installAgentRoster();
 	installHistoryRecording(pi);
 	installExecMessageEvents(pi);
 	installCompactionEvents(pi, session);
-}
-
-type ChangeReason = "fork" | "clear" | "delete" | "tree" | "label";
-
-interface SessionState {
-	sessionId: string;
-	sessionFile: string | null;
-	leafId: string | null;
-}
-
-function sessionState(session: AgentSession): SessionState {
-	return {
-		sessionId: session.sessionId,
-		sessionFile: session.sessionFile ?? null,
-		leafId: session.sessionManager.getLeafId(),
-	};
-}
-
-/**
- * omp sends no RPC frame when the companion rewrites the session, so every attached device is told
- * to resync (`get_state`, `get_messages_page`, `get_entries`).
- */
-function announceChange(reason: ChangeReason, session: AgentSession): SessionState {
-	const state = sessionState(session);
-	emitEvent("session.changed", { reason, ...state });
-	return state;
+	installLoopMode(session);
+	await installGoalMode(session);
 }
 
 function sessionRow(info: SessionInfo, pinned: ReadonlySet<string>) {
@@ -297,4 +276,9 @@ export const sessionVerbs: VerbTable = {
 	...historyVerbs,
 	...accountVerbs,
 	...btwVerbs,
+	...goalVerbs,
+	...loopVerbs,
 };
+
+/** Slash commands the TUI has as builtins that rpc-ui lacks (docs/contracts/ompx.md, "Slash commands"). */
+export const sessionCommands: CommandTable = { ...goalCommands, ...loopCommands };

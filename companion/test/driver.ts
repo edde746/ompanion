@@ -13,7 +13,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import type { Subprocess } from "bun";
-import { FakeProvider } from "../../harness/fake-provider/client.ts";
+import { FakeProvider, type RecordedRequest } from "../../harness/fake-provider/client.ts";
 import { createOmpHome, ompEnv } from "../../harness/omp-home.ts";
 import { isRecord } from "../src/args.ts";
 import type { EventFrame, ReplyErrorFrame, ReplyOkFrame, RequestFrame } from "../src/channel.ts";
@@ -307,6 +307,26 @@ export class OmpDriver {
 		return frame as unknown as RequestFrame;
 	}
 
+	/** Waits for omp's `notify` UI request carrying `message` (a toast) and resolves with its level. */
+	async waitNotice(message: string, options: WaitOptions = {}): Promise<unknown> {
+		const frame = await this.waitFor(
+			candidate =>
+				candidate.type === "extension_ui_request" && candidate.method === "notify" && candidate.message === message,
+			options,
+		);
+		return frame.notifyType;
+	}
+
+	/** Waits for one of omp's own dialog UI requests (`select`, `confirm`, `editor`, `input`). */
+	waitDialog(method: string, options: WaitOptions = {}): Promise<Frame> {
+		return this.waitFor(candidate => candidate.type === "extension_ui_request" && candidate.method === method, options);
+	}
+
+	/** Answers one of omp's own dialogs: `{value}`, `{confirmed}` or `{cancelled: true}`, sent as is. */
+	respond(id: unknown, answer: { value: string } | { confirmed: boolean } | { cancelled: true }): void {
+		this.send({ type: "extension_ui_response", id, ...answer });
+	}
+
 	/** Answers a companion request; `value` is sent JSON-encoded as the contract requires. */
 	answer(id: string, value: unknown): void {
 		this.send({ type: "extension_ui_response", id, value: JSON.stringify(value) });
@@ -351,4 +371,30 @@ export class OmpDriver {
 			clearTimeout(timer);
 		}
 	}
+}
+
+/** Role and joined text parts of every message one model request carried, system prompt first. */
+export function requestMessages(request: RecordedRequest | undefined): { role: string; text: string }[] {
+	const body = request?.body;
+	if (!isRecord(body) || !Array.isArray(body.messages)) throw new Error("not a chat-completions request");
+	return body.messages.map((message: unknown) => {
+		if (!isRecord(message) || typeof message.role !== "string") throw new Error("malformed request message");
+		const content = message.content;
+		const text =
+			typeof content === "string"
+				? content
+				: Array.isArray(content)
+					? content.map(part => (isRecord(part) && typeof part.text === "string" ? part.text : "")).join("")
+					: "";
+		return { role: message.role, text };
+	});
+}
+
+/** Tool names one model request offered. */
+export function requestTools(request: RecordedRequest | undefined): string[] {
+	const body = request?.body;
+	if (!isRecord(body) || !Array.isArray(body.tools)) return [];
+	return body.tools.map((tool: unknown) =>
+		isRecord(tool) && isRecord(tool.function) && typeof tool.function.name === "string" ? tool.function.name : "",
+	);
 }
