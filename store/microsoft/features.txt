@@ -14,4 +14,4 @@ Agent Hub: subagents with progress, tokens and cost, their transcripts, steer, k
 omp's settings, model roles, providers, MCP servers, plugins and skills
 Usage limits of your provider subscriptions, with reset times
 A wide window with machines, chat and tools side by side, and keyboard shortcuts
-No accounts, analytics, ads or tracking; free and open source (GPLv3)
+No accounts, analytics, ads or tracking; open source (GPLv3)

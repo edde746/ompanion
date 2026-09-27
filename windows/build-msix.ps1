@@ -38,15 +38,12 @@ function New-AppxManifest {
         [Parameter(Mandatory)][string]$Architecture
     )
 
-    # Copied from the reserved product's identity page in Partner Center (Product
-    # management -> Product identity); Store validation rejects the upload if any
-    # of the three differs by a single character. Publisher and
-    # PublisherDisplayName belong to the account and are Plezy's too, so the
-    # package family name ends in _13q3sv6jzathm. Identity/@Name is assigned when
-    # the name "ompanion" is reserved: edde746.ompanion is the expected value and
-    # must be replaced with the page's "Package/Identity/Name" before the first
-    # submission. The schema constrains it to '[-.A-Za-z0-9]+', so it can never
-    # carry an underscore.
+    # Copied from Partner Center's Product management -> Product identity for
+    # Store ID 9P9DVTKZ3SB9 (package family name edde746.ompanion_13q3sv6jzathm);
+    # Store validation rejects the upload if any of the three differs by a single
+    # character. Publisher and PublisherDisplayName belong to the account and are
+    # Plezy's too. The schema constrains Identity/@Name to '[-.A-Za-z0-9]+', so it
+    # can never carry an underscore.
     $IdentityName = "edde746.ompanion"
     $Publisher = "CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25"
     $PublisherDisplayName = "edde746"

@@ -49,4 +49,8 @@ Privacy
 - Your data stays on your PC or goes over SSH to your own machines; the app reaches GitHub only to download omp, and a web image in a reply only when you click it
 - Prompts go to omp, which calls the providers you configured there, under their policies
 
-ompanion is free and open source (GPLv3): github.com/edde746/ompanion
+AI-generated content
+- The chat shows live output of generative AI: the replies, plans and code come from the AI models your omp uses, and ompanion adds no filter of its own
+- Report inappropriate content to the developer from Settings > About > Report an issue, or at github.com/edde746/ompanion/issues
+
+ompanion is open source (GPLv3): github.com/edde746/ompanion

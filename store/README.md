@@ -96,12 +96,11 @@ output as the GitHub release's zip, unsigned (the Store signs it after certifica
 of Actions → Build uploads it as the artifact `ompanion-windows-msix-<sha>`. The Partner Center account is the one
 that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publisher display name `edde746`.
 
-1. [ ] Partner Center → Apps and games → New product → **MSIX or PWA app**; reserve the name `ompanion`.
-2. [ ] Product management → **Product identity**: copy `Package/Identity/Name` into `$IdentityName` in
-       `windows/build-msix.ps1`. It holds `edde746.ompanion`, the value Partner Center is expected to assign,
-       not one it has shown. Check that `Package/Identity/Publisher` and
-       `Package/Properties/PublisherDisplayName` equal the script's `$Publisher` and `$PublisherDisplayName`.
-       Store validation rejects the upload if any of the three differs by one character. Commit to main.
+1. [x] Partner Center → Apps and games → New product → **MSIX or PWA app**; the name `ompanion` is reserved:
+       Store ID `9P9DVTKZ3SB9`.
+2. [x] Product management → **Product identity** matches `windows/build-msix.ps1`: `Package/Identity/Name`
+       `edde746.ompanion`, the publisher above, package family name `edde746.ompanion_13q3sv6jzathm`. Store
+       validation rejects the upload if any of the three differs by one character.
 3. [ ] Set `pubspec.yaml` `version:` to 1.0.0 or later. Partner Center rejects a package version whose first
        field is 0 ([package version numbering](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements#package-version-numbering));
        the script maps `major.minor.patch+build` to `major.minor.patch.0`, so `0.1.0+1` becomes `0.1.0.0`, and the
@@ -109,14 +108,27 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
        `major.minor.patch`: a build-number bump alone collides.
 4. [ ] Run Actions → Build on main with Windows selected (a release run builds it too). Download the artifact
        `ompanion-windows-msix-<sha>` and unzip it: it holds `ompanion-windows.msixbundle`.
-5. [ ] Start a submission. Pricing and availability: free, the markets you want.
+5. [ ] Start a submission. Pricing and availability: **US$4.99** (the owner's choice; the other stores and the
+       GitHub build are free), no free trial, every market including future ones, public and discoverable,
+       published automatically after certification. The listing therefore never says "free".
 6. [ ] Properties: category **Developer tools**; privacy policy URL `https://ompanion.app/privacy` (the one
        Play and the App Store get); website `https://ompanion.app`; support contact
-       `https://github.com/edde746/ompanion/issues`.
+       `https://github.com/edde746/ompanion/issues`. Product declarations:
+       - **Accesses, collects or transmits personal information: yes.** The app sends SSH user names,
+         passwords, keys and the user's prompts and files to the user's own machines; policy 10.5.1 then asks
+         for the privacy policy URL above.
+       - **Incorporates generative AI features: yes.** The chat shows live output of the AI models the user's
+         omp calls, which is policy 11.16's "dynamic content created by generative AI models in response to
+         user inputs". Its four duties: the description's "AI-generated content" section discloses it; this
+         declaration notes it; the content is the user's own agent's output on the user's own machine, shown
+         to nobody else; users report content to the developer from Settings → About → Report an issue (the
+         GitHub tracker), which the description names.
+       - The rest stay at their defaults; "tested to meet accessibility guidelines" stays unticked.
 7. [ ] Age ratings: the IARC questionnaire. If Play's content rating is done, choose the option to enter an
        existing IARC rating ID and paste Play's, so both stores carry one rating. Otherwise answer as
        `store/google-play.md` §6: category "Utility, Productivity, Communication, or Other", Language **Yes,
-       mild**, every other question **No**, the same contact email.
+       mild**, every other question **No**. The answers preview as ESRB Everyone 10+, PEGI 3, IARC 3+; saving
+       them accepts IARC's terms of use, which is the owner's to accept.
 8. [ ] Packages: upload `ompanion-windows.msixbundle`. Partner Center checks the identity and the version on
        upload.
 9. [ ] Store listings, English (United States), from `store/microsoft/`: description (`description.txt`),
@@ -215,8 +227,8 @@ ok   Play short description      70 chars limit 80
 ok   Play full description     3864 chars limit 4000
 ok   Play changelog 1           312 chars limit 500
 ok   App Review notes          3829 bytes limit 4000
-ok   MS Store description      4098 chars limit 10000
-ok   MS Store what's new        332 chars limit 1500
+ok   MS Store description      4394 chars limit 10000
+ok   MS Store what's new        323 chars limit 1500
 ok   MS Store short descr.       85 chars limit 1000
 ok   MS Store copyright          19 chars limit 200
 ok   MS Store features           17       limit 20
