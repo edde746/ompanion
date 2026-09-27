@@ -32,7 +32,7 @@
 
   <div class="grid">
     <article class="tile replay" aria-labelledby="t-replay">
-      <p class="mono-label">01 · Chat</p>
+      <p class="mono-label">Chat</p>
       <h3 id="t-replay">Watch the turn, then fold it away.</h3>
       <p class="body">
         Replies stream in with every tool call. A quiet line counts the wait until the first word, and a
@@ -42,7 +42,7 @@
     </article>
 
     <article class="tile machines" aria-labelledby="t-machines">
-      <p class="mono-label">02 · Machines</p>
+      <p class="mono-label">Machines</p>
       <h3 id="t-machines">Every machine you own.</h3>
       <ul class="rows">
         {#each machines as machine (machine.name)}
@@ -59,7 +59,7 @@
     </article>
 
     <article class="tile detached" aria-labelledby="t-detached">
-      <p class="mono-label">03 · Sessions</p>
+      <p class="mono-label">Sessions</p>
       <h3 id="t-detached">Lock the phone.<br />The turn keeps going.</h3>
       <div class="lanes" aria-hidden="true">
         <span class="mono-label">Machine</span>
@@ -78,7 +78,7 @@
     <article class="tile route-tile" aria-labelledby="t-route">
       <div class="route-copy">
         <div class="route-title">
-          <p class="mono-label">04 · Where it runs</p>
+          <p class="mono-label">Where it runs</p>
           <h3 id="t-route">The work happens on your machine.</h3>
         </div>
         <p class="body">
@@ -106,7 +106,7 @@
     </article>
 
     <article class="tile trust" aria-labelledby="t-trust">
-      <p class="mono-label">05 · Privacy</p>
+      <p class="mono-label">Privacy</p>
       <h3 id="t-trust" class="display">No account.<br />No daemon.<br />No telemetry.</h3>
       <p class="body">
         Stock omp on the machine, plus a small companion extension the app uploads. No sign-up, no analytics,
@@ -116,7 +116,7 @@
     </article>
 
     <article class="tile approve" aria-labelledby="t-approve">
-      <p class="mono-label">06 · Approvals</p>
+      <p class="mono-label">Approvals</p>
       <h3 id="t-approve">Answer tool calls in the chat.</h3>
       <p class="body">
         Approvals, questions from the ask tool and extension dialogs, inline. On a session open on several
@@ -134,7 +134,7 @@
     </article>
 
     <article class="tile tree" aria-labelledby="t-tree">
-      <p class="mono-label">07 · Tree</p>
+      <p class="mono-label">Tree</p>
       <h3 id="t-tree">Branch from any message.</h3>
       <!-- Squares are your messages, circles the replies; the lime one is where the reset happened. -->
       <svg class="branches" viewBox="0 0 250 150" aria-hidden="true">
@@ -157,7 +157,7 @@
     </article>
 
     <article class="tile index" aria-labelledby="t-index">
-      <p class="mono-label">08 · Around the chat</p>
+      <p class="mono-label">Around the chat</p>
       <h3 id="t-index">The rest of omp, a tap away.</h3>
       <div class="lists">
         <div>
@@ -176,7 +176,7 @@
     </article>
 
     <article class="tile platforms" aria-labelledby="t-platforms">
-      <p class="mono-label">09 · Platforms</p>
+      <p class="mono-label">Platforms</p>
       <h3 id="t-platforms">One app, five platforms.</h3>
       <div class="layouts" aria-hidden="true">
         <figure class="wide-figure">
@@ -202,7 +202,7 @@
 
     <article class="tile gpl" aria-labelledby="t-gpl">
       <img class="pi" src={piDither} alt="" width="168" height="159" />
-      <p class="mono-label">10 · Source</p>
+      <p class="mono-label">Source</p>
       <h3 id="t-gpl">Open source, GPLv3.</h3>
       <a class="text-link more" href={REPO_URL} target="_blank" rel="noopener noreferrer">Read the source</a>
     </article>
@@ -265,7 +265,7 @@
     margin-top: 0.4rem;
   }
 
-  /* 02 — machine rows with their route. */
+  /* Machines — machine rows with their route. */
   .rows {
     display: grid;
     margin-block: 0.2rem 0.4rem;
@@ -301,7 +301,7 @@
     white-space: nowrap;
   }
 
-  /* 03 — two lanes: the machine works through the gap in the phone's. */
+  /* Sessions — two lanes: the machine works through the gap in the phone's. */
   .lanes {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -366,7 +366,7 @@
     }
   }
 
-  /* 04 — the route of a prompt, device to provider: nodes on a rail, a signal running along it. */
+  /* Where it runs — the route of a prompt, device to provider: nodes on a rail, a signal running along it. */
   .route-copy,
   .route-title {
     display: flex;
@@ -461,7 +461,7 @@
     }
   }
 
-  /* 05 — the promise, as type, on the page's own black. */
+  /* Privacy — the promise, as type, on the page's own black. */
   .trust {
     background: var(--color-bg);
   }
@@ -472,7 +472,7 @@
     line-height: 1.02;
   }
 
-  /* 06 — the one capture in the grid: a real approval card. */
+  /* Approvals — the one capture in the grid: a real approval card. */
   .crop {
     margin-top: auto;
     padding-top: 0.5rem;
@@ -482,7 +482,7 @@
     width: 100%;
   }
 
-  /* 07 — a trunk with a fork. */
+  /* Tree — a trunk with a fork. */
   .branches {
     width: 100%;
     max-width: 16rem;
@@ -540,7 +540,7 @@
     }
   }
 
-  /* 08 — the dock and the settings, as an index. */
+  /* Around the chat — the dock and the settings, as an index. */
   .lists {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -555,7 +555,7 @@
     font-size: 0.9375rem;
   }
 
-  /* 09 — a wide window and a phone, drawn as panes. */
+  /* Platforms — a wide window and a phone, drawn as panes. */
   .layouts {
     display: flex;
     align-items: flex-end;
@@ -619,7 +619,7 @@
     width: 90%;
   }
 
-  /* 10 — the glyph, dithered on the same cell grid as the hero's light. */
+  /* Source — the glyph, dithered on the same cell grid as the hero's light. */
   .pi {
     width: 168px;
     margin-bottom: 0.75rem;
