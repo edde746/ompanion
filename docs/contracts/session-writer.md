@@ -4,7 +4,7 @@ How the app tells that a session file belongs to another omp process, what it sh
 session over. Code: `packages/omp_core/lib/src/host/session_writer.dart` (the probe),
 `packages/omp_core/lib/src/store/external_writer.dart` (the writer and whether it is in a turn),
 `packages/omp_core/lib/src/session/external_session.dart` (the reader),
-`packages/omp_core/lib/src/session/machine_runtime.dart` (`open` refuses to launch for a held file).
+`packages/omp_core/lib/src/session/machine_runtime.dart` (`open` refuses to launch into or attach to a held file).
 
 ## Why this contract exists
 
@@ -48,15 +48,17 @@ counts, and a crumb naming no tty (a multiplexer or emulator id) is ignored rath
 
 ## Ownership
 
-| app run holds it | writer | what the app does |
+| writer | app run holds it | what the app does |
 |---|---|---|
-| yes | anything | attach to that run, unless its omp is behind the file (below) |
-| no | null | launch its own run (`--session <file>`) |
-| no | non-null | read the file, launch nothing |
+| non-null | anything | kill that run (below), read the file, launch nothing |
+| null | yes | attach to that run, unless its omp is behind the file (below) |
+| null | no | launch its own run (`--session <file>`) |
 
-The app's own runs (`~/.ompanion/run/*/meta.json`, `listRuns`) are looked up before the probe, so an app omp
-holding the file, from this device or another, is attached to and never counted as foreign. The launch itself
-re-checks under the machine's launch lock, so two devices race into the same run and never into a second writer.
+The app's own live run for the file (`~/.ompanion/run/*/meta.json`, `listRuns`) is looked up before the probe, and
+its omp (`omp.pid`) is left out of the holders (`runPid`): it holds the file after its first append, from this
+device's launch or another's. The probe runs before that run is attached, so a writer wins over the run even before
+it writes. The launch itself re-checks under the machine's launch lock, so two devices race into the same run and
+never into a second writer.
 
 ## A run of the app that another process wrote past
 
@@ -65,13 +67,14 @@ same file later appends turns this run never sees, and the run's omp holds no wr
 (omp opens it on its first append), so nothing stops the terminal. Attaching to that run shows the old history, and a
 prompt there continues from the old leaf.
 
-`open(ResumeSession)` therefore checks the run it attaches to: the attach reads the file's last entry and asks omp
-for `get_entries` since it; `unknown_since` while `get_state` still names this file sets `RunSession.behindFile`.
-Such a run is detached and killed (`killRun`: SIGKILL on POSIX, a terminate on Windows), then the file is opened as
-if no run held it: read (`ExternalSession`) when a writer is there, else a fresh run. Killed, not stopped: omp's
-exit, graceful or on SIGTERM, appends `session_exit` under its own old leaf, which makes that leaf the file's last
-entry, and the reader then shows the conversation without the other process's turns (measured with omp 18.3.1,
-2026-09-27).
+`open(ResumeSession)` therefore never keeps such a run. When the probe finds a writer, the run's history is stale or
+will be at that writer's next append or exit record, so it is not attached. When the probe finds nobody, the attach
+reads the file's last entry and asks omp for `get_entries` since it; `unknown_since` while `get_state` still names
+this file sets `RunSession.behindFile`, and the run is detached. Either way the run is killed (`killRun`: SIGKILL on
+POSIX, a terminate on Windows), then the file is opened as if no run held it: read (`ExternalSession`) when a writer
+is there, else a fresh run. Killed, not stopped: omp's exit, graceful or on SIGTERM, appends `session_exit` under
+its own old leaf, which makes that leaf the file's last entry, and the reader then shows the conversation without
+the other process's turns (measured with omp 18.3.1, 2026-09-27). A run that was in a turn loses that turn.
 
 An app run that is already attached on this device when another process starts writing is not checked; it shows the
 old history until it is attached again.

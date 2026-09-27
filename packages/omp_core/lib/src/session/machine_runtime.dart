@@ -233,19 +233,23 @@ final class MachineRuntime {
           ready.link,
           ready.probe,
         )).where((run) => run.state == RunState.running && run.meta?.sessionPath == sessionPath).firstOrNull;
+        // Probed before the run is attached: a process that holds the file wins over the app's run even before it
+        // writes. The run's own omp holds the file too once it appended, and is left out.
+        final writer = await probeSessionWriter(ready.link, ready.probe, sessionPath, runPid: live?.ompPid);
         if (live != null) {
-          final attached = await _openRun(live, ready.probe);
-          if (!attached.behindFile) return attached;
-          // Another process (a terminal omp) wrote the file after this run's omp loaded it: attaching would show the
-          // old history, and a prompt would fork the session off its old leaf. The omp is killed before it can write
-          // its exit record there, and the file is opened as if no run of the app held it.
-          await attached.detach();
+          if (writer == null) {
+            final attached = await _openRun(live, ready.probe);
+            if (!attached.behindFile) return attached;
+            await attached.detach();
+          }
+          // Another process (a terminal omp) holds the file, or wrote it after this run's omp loaded it: the run's
+          // history is or will be stale, and a prompt there would fork the session off its old leaf. The omp is
+          // killed before it can write its exit record there, and the file is opened as if no run of the app held it.
           await killRun(ready.link, ready.probe, live);
         }
         final cwd = await _sessionCwd(ready.link, ready.probe, sessionPath);
         // A process the app did not start holds the file: launching here would put a second writer on one session
         // file. Read the file instead ([ExternalSession]); it offers the take-over once the writer is gone.
-        final writer = await probeSessionWriter(ready.link, ready.probe, sessionPath);
         if (writer != null) {
           if (_external[sessionPath] case final open?) return open;
           final external = ExternalSession(

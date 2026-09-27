@@ -218,6 +218,55 @@ void main() {
     await ours.detach();
   }, timeout: const Timeout(Duration(minutes: 5)));
 
+  test('a run of the app whose file another process holds is not attached, even before that process writes', () async {
+    // Device A resumes the session, runs a turn and leaves: the run's omp stays alive, idle, and holds the file from
+    // that append on.
+    final path = await closedSession('device-a');
+    final first = runtime('device-a');
+    await fake.enqueue([
+      {
+        'steps': [
+          {'text': 'Resumed here'},
+        ],
+      },
+    ]);
+    final resumed = await first.open(ResumeSession(path));
+    await resumed.rpc.prompt('Again');
+    await viewWhere(resumed, (view) => idle(view) && answers(view).contains('Resumed here'));
+    final runId = resumed.runId;
+    await resumed.detach();
+    final runPid = (await first.listRuns()).where((run) => run.id == runId).single.ompPid;
+    await _eventually(() async => (await holdersOf(path)).contains(runPid));
+    final before = await File(path).readAsBytes();
+
+    // Another process opens the file for writing and has not written: what a terminal omp that just resumed the
+    // session looks like once it holds the file (the probe finds one that holds nothing yet by its breadcrumb).
+    final holder = await Process.start('/bin/sh', ['-c', 'exec 9>>"\$0"; exec sleep 60', path]);
+    addTearDown(holder.kill);
+    await _eventually(() async => (await holdersOf(path)).contains(holder.pid));
+
+    final second = runtime('device-b');
+    final held = await second.open(ResumeSession(path));
+    expect(held, isA<ExternalSession>(), reason: 'the run is not behind the file yet, but the other process owns it');
+    expect(held.view.external?.pids, [holder.pid]);
+    expect(
+      (await second.listRuns()).where((run) => run.id == runId && run.live),
+      isEmpty,
+      reason: 'the run would write its exit record under its own leaf once the other process wrote',
+    );
+    expect(await File(path).readAsBytes(), before, reason: 'the run is killed before it can write anything');
+    await held.detach();
+
+    holder.kill();
+    await holder.exitCode;
+    await _eventually(() async => (await holdersOf(path)).isEmpty);
+    final ours = await second.open(ResumeSession(path));
+    expect(ours, isNot(isA<ExternalSession>()));
+    expect(ours.runId, isNot(runId));
+    expect(prompts(ours.view), ['Start a session', 'Again']);
+    await ours.detach();
+  }, timeout: const Timeout(Duration(minutes: 5)));
+
   test('a device attaching to an already busy run sees it running, with its queue', () async {
     final first = runtime('device-a');
     await fake.enqueue([

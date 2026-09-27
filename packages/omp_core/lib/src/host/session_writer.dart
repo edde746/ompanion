@@ -5,19 +5,20 @@ import '../transport/host_link.dart';
 import 'probe.dart';
 import 'scripts.dart';
 
-/// Who else on the machine is writing the session file at [sessionPath], or null when nobody is.
+/// Who else on the machine is writing the session file at [sessionPath], or null when nobody is. [runPid] is the omp
+/// of the app's own live run for the file: it holds the file open once it appended, and is not someone else.
 ///
 /// POSIX only. Windows has no equivalent of `/proc` or `lsof`, and omp's breadcrumb ids there name a Windows
 /// Terminal session, not a device the process table shows: the probe reports null, and the app keeps the
 /// behaviour it had (it may start a second omp for a session another process holds).
-Future<ExternalWriter?> probeSessionWriter(HostLink link, HostProbe probe, String sessionPath) async {
+Future<ExternalWriter?> probeSessionWriter(HostLink link, HostProbe probe, String sessionPath, {int? runPid}) async {
   if (probe.isWindows) return null;
   final marker = newMarker();
   final result = await runPosixScript(
     link,
     sessionWriterScript(marker, sessionPath, _breadcrumbDirs(probe, sessionPath)),
   );
-  return parseSessionWriter(result.payload(marker));
+  return parseSessionWriter(result.payload(marker), runPid: runPid);
 }
 
 /// Directories holding omp's terminal breadcrumbs for [sessionPath]: the probed agent directory, and the one
@@ -111,15 +112,16 @@ for A in OMP_BREADCRUMB_DIRS; do
 done
 ''';
 
-/// Reads [sessionWriterScript]'s payload. Unparsable lines are an empty answer, not an error: the probe is a
-/// guard, and a script that printed nothing useful must not look like a holder.
-ExternalWriter? parseSessionWriter(String payload) {
+/// Reads [sessionWriterScript]'s payload, leaving out the holder [runPid] (see [probeSessionWriter]). Unparsable
+/// lines are an empty answer, not an error: the probe is a guard, and a script that printed nothing useful must not
+/// look like a holder.
+ExternalWriter? parseSessionWriter(String payload, {int? runPid}) {
   final pids = <int>[];
   String? terminal;
   for (final line in const LineSplitter().convert(payload)) {
     final fields = line.split(' ');
     if (fields.length == 2 && fields[0] == 'holder') {
-      if (int.tryParse(fields[1]) case final pid?) pids.add(pid);
+      if (int.tryParse(fields[1]) case final pid? when pid != runPid) pids.add(pid);
     } else if (fields.length == 3 && fields[0] == 'terminal' && fields[1].isNotEmpty) {
       if (int.tryParse(fields[2]) != null) terminal = fields[1];
     }

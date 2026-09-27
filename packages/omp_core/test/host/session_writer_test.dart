@@ -48,6 +48,11 @@ void main() {
       expect(parseSessionWriter(''), isNull);
       expect(parseSessionWriter('holder x\nterminal ttys004\n'), isNull, reason: 'an unparsable pid is not a holder');
     });
+
+    test("the app's own run is not a holder", () {
+      expect(parseSessionWriter('holder 41\nholder 42\n', runPid: 41)?.pids, [42]);
+      expect(parseSessionWriter('holder 41\n', runPid: 41), isNull);
+    });
   });
 
   group('probeSessionWriter', () {
