@@ -59,6 +59,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$sshConfig$en sshConfig = Translations$sshConfig$en.internal(_root);
 	late final Translations$transfer$en transfer = Translations$transfer$en.internal(_root);
 	late final Translations$settings$en settings = Translations$settings$en.internal(_root);
+	late final Translations$notifications$en notifications = Translations$notifications$en.internal(_root);
 	late final Translations$time$en time = Translations$time$en.internal(_root);
 	late final Translations$sessions$en sessions = Translations$sessions$en.internal(_root);
 	late final Translations$install$en install = Translations$install$en.internal(_root);
@@ -1086,6 +1087,99 @@ class Translations$settings$en {
 
 	/// en: 'Open-source licenses'
 	String get aboutLicenses => 'Open-source licenses';
+}
+
+// Path: notifications
+class Translations$notifications$en {
+	Translations$notifications$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Notifications'
+	String get title => 'Notifications';
+
+	/// en: 'Notifications'
+	String get desktop => 'Notifications';
+
+	/// en: 'About the sessions open here, while you are in another window or session'
+	String get desktopDetail => 'About the sessions open here, while you are in another window or session';
+
+	/// en: 'Push notifications'
+	String get push => 'Push notifications';
+
+	/// en: 'From your machines, while this phone is not in the session'
+	String get pushDetail => 'From your machines, while this phone is not in the session';
+
+	/// en: 'Turned off: this phone no longer has its notification key, as after a restore from a backup. Turn them on again.'
+	String get pushLost => 'Turned off: this phone no longer has its notification key, as after a restore from a backup. Turn them on again.';
+
+	/// en: 'Not available: $reason'
+	String pushUnavailable({required Object reason}) => 'Not available: ${reason}';
+
+	/// en: 'A session needs input'
+	String get kindInput => 'A session needs input';
+
+	/// en: 'A run finishes'
+	String get kindDone => 'A run finishes';
+
+	/// en: 'A run fails'
+	String get kindFailed => 'A run fails';
+
+	/// en: 'Send test notification'
+	String get test => 'Send test notification';
+
+	/// en: 'Connect to a machine to send a test notification.'
+	String get testNone => 'Connect to a machine to send a test notification.';
+
+	/// en: 'Sent a test notification from $machine.'
+	String testSent({required Object machine}) => 'Sent a test notification from ${machine}.';
+
+	/// en: 'The test notification from $machine failed: $error'
+	String testFailed({required Object machine, required Object error}) => 'The test notification from ${machine} failed: ${error}';
+
+	/// en: 'Notifications are turned off for ompanion in the system settings.'
+	String get denied => 'Notifications are turned off for ompanion in the system settings.';
+
+	/// en: 'Turning on push notifications failed: $error'
+	String enableFailed({required Object error}) => 'Turning on push notifications failed: ${error}';
+
+	/// en: 'Turning off push notifications failed: $error'
+	String disableFailed({required Object error}) => 'Turning off push notifications failed: ${error}';
+
+	/// en: 'Push notifications on $machine could not be updated: $error'
+	String registrationFailed({required Object machine, required Object error}) => 'Push notifications on ${machine} could not be updated: ${error}';
+
+	/// en: 'That notification came from a machine that is no longer in ompanion.'
+	String get unknownMachine => 'That notification came from a machine that is no longer in ompanion.';
+
+	/// en: '$machine · $kind'
+	String subtitle({required Object machine, required Object kind}) => '${machine} · ${kind}';
+
+	/// en: 'Needs input'
+	String get subtitleInput => 'Needs input';
+
+	/// en: 'Done'
+	String get subtitleDone => 'Done';
+
+	/// en: 'Failed'
+	String get subtitleFailed => 'Failed';
+
+	/// en: 'Allow $tool?'
+	String approval({required Object tool}) => 'Allow ${tool}?';
+
+	/// en: 'Goal complete: $objective'
+	String goalComplete({required Object objective}) => 'Goal complete: ${objective}';
+
+	/// en: 'Finished'
+	String get finished => 'Finished';
+
+	/// en: 'The run failed'
+	String get runFailed => 'The run failed';
+
+	/// en: 'Open'
+	String get open => 'Open';
 }
 
 // Path: time
@@ -4121,6 +4215,34 @@ extension on Translations {
 			'settings.aboutLicense' => 'License',
 			'settings.aboutLicenseValue' => 'GPL-3.0',
 			'settings.aboutLicenses' => 'Open-source licenses',
+			'notifications.title' => 'Notifications',
+			'notifications.desktop' => 'Notifications',
+			'notifications.desktopDetail' => 'About the sessions open here, while you are in another window or session',
+			'notifications.push' => 'Push notifications',
+			'notifications.pushDetail' => 'From your machines, while this phone is not in the session',
+			'notifications.pushLost' => 'Turned off: this phone no longer has its notification key, as after a restore from a backup. Turn them on again.',
+			'notifications.pushUnavailable' => ({required Object reason}) => 'Not available: ${reason}',
+			'notifications.kindInput' => 'A session needs input',
+			'notifications.kindDone' => 'A run finishes',
+			'notifications.kindFailed' => 'A run fails',
+			'notifications.test' => 'Send test notification',
+			'notifications.testNone' => 'Connect to a machine to send a test notification.',
+			'notifications.testSent' => ({required Object machine}) => 'Sent a test notification from ${machine}.',
+			'notifications.testFailed' => ({required Object machine, required Object error}) => 'The test notification from ${machine} failed: ${error}',
+			'notifications.denied' => 'Notifications are turned off for ompanion in the system settings.',
+			'notifications.enableFailed' => ({required Object error}) => 'Turning on push notifications failed: ${error}',
+			'notifications.disableFailed' => ({required Object error}) => 'Turning off push notifications failed: ${error}',
+			'notifications.registrationFailed' => ({required Object machine, required Object error}) => 'Push notifications on ${machine} could not be updated: ${error}',
+			'notifications.unknownMachine' => 'That notification came from a machine that is no longer in ompanion.',
+			'notifications.subtitle' => ({required Object machine, required Object kind}) => '${machine} · ${kind}',
+			'notifications.subtitleInput' => 'Needs input',
+			'notifications.subtitleDone' => 'Done',
+			'notifications.subtitleFailed' => 'Failed',
+			'notifications.approval' => ({required Object tool}) => 'Allow ${tool}?',
+			'notifications.goalComplete' => ({required Object objective}) => 'Goal complete: ${objective}',
+			'notifications.finished' => 'Finished',
+			'notifications.runFailed' => 'The run failed',
+			'notifications.open' => 'Open',
 			'time.now' => 'now',
 			'time.minutes' => ({required Object n}) => '${n}m',
 			'time.hours' => ({required Object n}) => '${n}h',
@@ -4165,6 +4287,8 @@ extension on Translations {
 			'sessions.modelUseDefault' => 'Use the model from omp\'s settings',
 			'sessions.create' => 'Start',
 			'sessions.browse' => 'Browse the machine',
+			_ => null,
+		} ?? switch (path) {
 			'sessions.browseTitle' => 'Choose a directory',
 			'sessions.up' => 'Parent directory',
 			'sessions.showHidden' => 'Show hidden directories',
@@ -4193,8 +4317,6 @@ extension on Translations {
 			'chat.searchModels' => 'Search models',
 			'chat.refreshModels' => 'Reload the model list',
 			'chat.noModels' => 'No models match.',
-			_ => null,
-		} ?? switch (path) {
 			'chat.modelsFailed' => ({required Object error}) => 'Could not load models: ${error}',
 			'chat.modelFailed' => ({required Object error}) => 'Could not switch the model: ${error}',
 			'chat.modelAgent' => ({required Object agent}) => 'Subagent ${agent}',
@@ -4679,6 +4801,8 @@ extension on Translations {
 			'config.stats.byFolder' => 'By project',
 			'config.stats.byAgent' => 'By agent',
 			'config.stats.model' => 'Model',
+			_ => null,
+		} ?? switch (path) {
 			'config.stats.folder' => 'Project',
 			'config.stats.agent' => 'Agent',
 			_ => null,

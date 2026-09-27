@@ -9,6 +9,7 @@ import '../../providers/settings_provider.dart';
 import '../../widgets/app_segmented.dart';
 import '../shell/shortcuts.dart';
 import 'about_section.dart';
+import 'notifications_section.dart';
 
 class SettingsPane extends StatelessWidget {
   const SettingsPane({super.key});
@@ -36,6 +37,8 @@ class SettingsPane extends StatelessWidget {
             onChanged: (mode) => settings.set(Prefs.themeMode, mode),
           ),
         ),
+        const SizedBox(height: 24),
+        const NotificationsSection(),
         const SizedBox(height: 24),
         Text(t.settings.buildChannel, style: theme.textTheme.titleMedium),
         const SizedBox(height: 4),

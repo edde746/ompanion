@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../database/app_database.dart';
 import '../i18n/strings.g.dart';
+import '../notifications/desktop_notifications.dart';
+import '../notifications/push_service.dart';
 import '../providers/keys_provider.dart';
 import '../providers/machines_provider.dart';
 import '../providers/settings_provider.dart';
@@ -10,6 +14,7 @@ import '../providers/shell_provider.dart';
 import '../screens/chat/attachment_input.dart';
 import '../screens/dock/dock_controller.dart';
 import '../screens/shell/connect_prompt_host.dart';
+import '../screens/shell/notification_host.dart';
 import '../screens/shell/shell_screen.dart';
 import '../services/known_hosts_store.dart';
 import '../services/machine_connector.dart';
@@ -19,6 +24,7 @@ import '../sessions/machine_images.dart';
 import '../sessions/session_pins.dart';
 import '../sessions/session_reads.dart';
 import '../sessions/sessions_provider.dart';
+import 'build_channel.dart';
 import 'theme.dart';
 import 'window_chrome.dart';
 
@@ -29,6 +35,7 @@ final _darkTheme = appTheme(Brightness.dark);
 
 /// Root widget. [settings] and [machines] are created in `main` because startup reads and seeds them, and [images]
 /// with them because deleting a machine deletes its cached images; they live as long as the process.
+/// [notifications] runs desktop notifications or phone push; widget tests have no platform plugins behind them.
 class OmpanionApp extends StatelessWidget {
   const OmpanionApp({
     super.key,
@@ -37,6 +44,7 @@ class OmpanionApp extends StatelessWidget {
     required this.secrets,
     required this.machines,
     required this.images,
+    this.notifications = false,
   });
 
   final AppDatabase db;
@@ -44,6 +52,7 @@ class OmpanionApp extends StatelessWidget {
   final SecretStore secrets;
   final MachinesProvider machines;
   final MachineImages images;
+  final bool notifications;
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +101,26 @@ class OmpanionApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => DockController(machines)),
         Provider.value(value: images),
+        if (notifications && isDesktop)
+          Provider(
+            create: (context) => DesktopNotifications.following(
+              sessions: context.read<SessionsProvider>(),
+              shell: context.read<ShellProvider>(),
+              settings: settings,
+            ),
+            dispose: (_, notifications) => notifications.dispose(),
+            lazy: false,
+          ),
+        if (notifications && (Platform.isAndroid || Platform.isIOS))
+          ChangeNotifierProvider(
+            create: (context) => PushService.following(
+              sessions: context.read<SessionsProvider>(),
+              shell: context.read<ShellProvider>(),
+              machines: machines,
+              settings: settings,
+            ),
+            lazy: false,
+          ),
       ],
       child: TranslationProvider(
         child: Builder(
@@ -104,7 +133,7 @@ class OmpanionApp extends StatelessWidget {
             locale: TranslationProvider.of(context).flutterLocale,
             supportedLocales: AppLocaleUtils.supportedLocales,
             builder: (context, child) => WindowChrome(child: child!),
-            home: const ConnectPromptHost(child: ShellScreen()),
+            home: const ConnectPromptHost(child: NotificationHost(child: ShellScreen())),
           ),
         ),
       ),

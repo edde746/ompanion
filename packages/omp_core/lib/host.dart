@@ -2,6 +2,7 @@ export 'src/host/companion.dart';
 export 'src/host/host_image.dart';
 export 'src/host/install.dart';
 export 'src/host/probe.dart';
+export 'src/host/push_registration.dart';
 export 'src/host/scripts.dart'
     show
         CommandShell,

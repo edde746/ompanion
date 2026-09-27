@@ -16,6 +16,7 @@ dependencies:
   drift_flutter: ^0.3.1
   desktop_drop: ^0.8.4
   file_picker: ^13.1.0
+  flutter_local_notifications: ^22.3.1
   flutter_secure_storage: ^11.2.0
   logger: ^2.8.0
   package_info_plus: ^10.2.1

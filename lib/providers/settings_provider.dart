@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:omp_core/host.dart' show NotificationKind;
 
 import '../database/app_database.dart';
 import '../models/dock_tab.dart';
@@ -55,6 +56,18 @@ final class EnumPref<T extends Enum> extends Pref<T> {
   Object? encode(T value) => value.name;
 }
 
+final class StringListPref extends Pref<List<String>> {
+  const StringListPref(super.key, super.defaultValue);
+
+  @override
+  List<String> decode(Object? json) => json is List && json.every((item) => item is String)
+      ? List.unmodifiable(json.cast<String>())
+      : throw FormatException('setting $key: expected a list of strings');
+
+  @override
+  Object? encode(List<String> value) => value;
+}
+
 abstract final class Prefs {
   static const themeMode = EnumPref<ThemeMode>('theme_mode', ThemeMode.system, ThemeMode.values);
   static const sidebarOpen = BoolPref('sidebar_open', true);
@@ -74,6 +87,19 @@ abstract final class Prefs {
   /// Namespaces this install's RPC request ids and companion call ids on shared sessions; generated once.
   /// Empty until `main` generates it.
   static const deviceId = StringPref('device_id', '');
+
+  /// Desktops: notifications about the sessions this device has open.
+  static const desktopNotifications = BoolPref('desktop_notifications', true);
+
+  /// Phones: push notifications from the machines (docs/contracts/push.md); off until the user turns them on.
+  static const pushNotifications = BoolPref('push_notifications', false);
+
+  /// Whether this device wants notifications of [kind]: the desktop's and the phone's registration `kinds`.
+  static BoolPref notify(NotificationKind kind) => BoolPref('notify_${kind.name}', true);
+
+  /// Machines that may still hold this phone's registration file after push was turned off; each one's next
+  /// connect removes it.
+  static const pushRemovals = StringListPref('push_removals', []);
 }
 
 /// App settings, loaded once at startup; reads are synchronous afterwards.

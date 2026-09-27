@@ -39,5 +39,7 @@ Future<void> main() async {
     await settings.set(Prefs.localMachineSeeded, true);
   }
   if (settings.get(Prefs.deviceId).isEmpty) await settings.set(Prefs.deviceId, newId());
-  runApp(OmpanionApp(db: db, settings: settings, secrets: secrets, machines: machines, images: images));
+  runApp(
+    OmpanionApp(db: db, settings: settings, secrets: secrets, machines: machines, images: images, notifications: true),
+  );
 }

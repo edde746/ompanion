@@ -15,6 +15,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/session_pins.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../sessions/show_session.dart';
 import '../../widgets/app_search_field.dart';
 import '../machines/connect_dialogs.dart';
 import '../machines/machine_editor.dart';
@@ -135,23 +136,14 @@ class SidebarState extends State<Sidebar> {
     final shell = context.read<ShellProvider>();
     final messenger = ScaffoldMessenger.of(context);
     final t = context.t;
-    final open = entry.session;
-    if (open != null && open.linkState is! LinkClosed) {
-      sessions.select(open);
-      shell.select(const SessionSelection());
-      return;
-    }
     final path = entry.path;
-    if (path == null) return;
-    setState(() => _opening.add(path));
+    if (path != null) setState(() => _opening.add(path));
     try {
-      // Attaches to the live run holding the file, or launches one.
-      await sessions.open(machine, ResumeSession(path));
-      shell.select(const SessionSelection());
+      await showSession(sessions, shell, machine, runId: entry.session?.runId, sessionPath: path);
     } on Object catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: describeConnectError(t, error)))));
     } finally {
-      if (mounted) setState(() => _opening.remove(path));
+      if (mounted && path != null) setState(() => _opening.remove(path));
     }
   }
 
