@@ -1,0 +1,5 @@
+# The image needs the manifest, the lockfile and src/. Nothing else goes in, above all no service account.
+*
+!package.json
+!bun.lock
+!src

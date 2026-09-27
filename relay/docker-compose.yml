@@ -1,0 +1,53 @@
+# The ompanion push relay: one Bun process that hands encrypted notifications to Firebase Cloud Messaging
+# (relay/README.md). It speaks plain HTTP on 127.0.0.1; the VPS's own reverse proxy terminates TLS for
+# push.ompanion.app and forwards to it.
+name: ompanion-push
+
+services:
+  relay:
+    build: .
+    image: ompanion-push-relay
+    restart: unless-stopped
+    # tini as PID 1, so the relay stops on SIGTERM instead of waiting out Docker's stop timeout.
+    init: true
+    ports:
+      # Loopback only: the proxy on this VPS reaches the relay, the internet does not. RELAY_PORT in .env moves it.
+      - "127.0.0.1:${RELAY_PORT:-8787}:8787"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8787"
+      # Every request arrives from the proxy (through Docker's port forwarding), so the client's address is
+      # the one the proxy appends to X-Forwarded-For.
+      TRUST_PROXY: "1"
+      FCM_SERVICE_ACCOUNT_FILE: /run/secrets/fcm-service-account
+    secrets: [fcm-service-account]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 128m
+    pids_limit: 64
+    cpus: 0.5
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://127.0.0.1:8787/healthz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging:
+      # One line per request; Docker's default json-file log never rotates.
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+secrets:
+  fcm-service-account:
+    # The service-account JSON's path on this VPS, set in .env (README.md). It must be readable by uid 1000,
+    # the image's `bun` user.
+    file: ${FCM_SERVICE_ACCOUNT_FILE:?set FCM_SERVICE_ACCOUNT_FILE in relay/.env to the service-account JSON's path}
