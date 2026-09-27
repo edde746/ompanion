@@ -368,6 +368,35 @@ void main() {
       expect(find.byType(RequestContent), findsNothing);
     });
 
+    testWidgets('a space typed on a keyboard in an Other answer is left to the text, not taken as a tap', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(2400, 3600);
+      addTearDown(tester.view.resetPhysicalSize);
+      final session = _Session(
+        SessionView(
+          requests: const [CompanionRequest('q1', method: 'ask', params: params)],
+        ),
+      );
+      await _pump(tester, session);
+      final others = find.byWidgetPredicate(
+        (widget) => widget is TextField && widget.decoration?.hintText == 'Other: type your own answer',
+      );
+      expect(others, findsNWidgets(2), reason: 'the single-select question and the multi-select one');
+      for (var i = 0; i < 2; i++) {
+        await tester.ensureVisible(others.at(i));
+        await tester.pumpAndSettle();
+        await tester.tap(others.at(i));
+        await tester.pump();
+        // A key event the framework handles never reaches the text input, so the character is not typed.
+        expect(await tester.sendKeyEvent(LogicalKeyboardKey.space), isFalse, reason: 'field $i');
+        expect(await tester.sendKeyEvent(LogicalKeyboardKey.enter), isFalse, reason: 'field $i');
+        await tester.pump();
+      }
+      // Neither key chose "Other": the recommended option is still the single-select question's choice.
+      expect(tester.widget<RadioGroup<String>>(find.byType(RadioGroup<String>)).groupValue, 'Blue');
+    });
+
     testWidgets('a form shown again after another request keeps its choices and text', (tester) async {
       tester.view.physicalSize = const Size(2400, 3600);
       addTearDown(tester.view.resetPhysicalSize);

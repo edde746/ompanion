@@ -181,6 +181,16 @@ class _QuestionForm extends StatelessWidget {
         onChanged();
       },
     );
+    // Beside its control, not a list tile's title: a tile takes Space and Enter as a tap, so a field inside one never
+    // got a space typed on a keyboard, and the tile merged the field's semantics into its own.
+    Widget otherRow(Widget control) => Row(
+      children: [
+        control,
+        // Lines the answer's text up with the options' labels, which a list tile starts 12 px after its control.
+        const SizedBox(width: 12),
+        Expanded(child: otherField),
+      ],
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -192,13 +202,12 @@ class _QuestionForm extends StatelessWidget {
         const SizedBox(height: 4),
         if (question.multi) ...[
           ...options,
-          CheckboxListTile(
-            value: draft.other,
-            onChanged: enabled ? (_) => _chooseOther() : null,
-            controlAffinity: ListTileControlAffinity.leading,
-            contentPadding: EdgeInsets.zero,
-            visualDensity: VisualDensity.compact,
-            title: otherField,
+          otherRow(
+            Checkbox(
+              value: draft.other,
+              onChanged: enabled ? (_) => _chooseOther() : null,
+              visualDensity: VisualDensity.compact,
+            ),
           ),
         ] else
           RadioGroup<String>(
@@ -210,13 +219,7 @@ class _QuestionForm extends StatelessWidget {
             child: Column(
               children: [
                 ...options,
-                RadioListTile<String>(
-                  value: _otherValue,
-                  enabled: enabled,
-                  contentPadding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                  title: otherField,
-                ),
+                otherRow(Radio<String>(value: _otherValue, enabled: enabled, visualDensity: VisualDensity.compact)),
               ],
             ),
           ),
