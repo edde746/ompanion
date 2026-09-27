@@ -17,18 +17,45 @@ import 'windows_channel.dart';
 const _createBreakawayFromJob = 0x01000000;
 
 /// `run.cmd`, started by WMI. ASCII only: every path comes from the `OMPANION_*` environment variables the
-/// launch sets, so no code page ever touches them, and cmd.exe expands a variable's value only once.
-/// `echo.` puts the exit marker on its own line even when omp died mid-line.
+/// launch sets, so no code page ever touches them, and cmd.exe expands a variable's value only once. Each pipeline
+/// stage that is a batch file runs in a cmd.exe of its own, so `pump.cmd`'s `BUN_BE_BUN` never reaches omp; omp's
+/// exit code comes from the file `omp.cmd` writes, as a pipeline's `ERRORLEVEL` is the pump's. `echo.` puts the exit
+/// marker on its own line even when omp died mid-line.
 const windowsRunCmd =
     '@echo off\r\n'
     '"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -NonInteractive '
-    '-ExecutionPolicy Bypass -File "%OMPANION_RUN%\\feed.ps1" | "%OMPANION_OMP%" %OMPANION_ARGS% '
-    '>> "%OMPANION_RUN%\\out.jsonl" 2>> "%OMPANION_RUN%\\err.log"\r\n'
-    'set OMPANION_CODE=%ERRORLEVEL%\r\n'
+    '-ExecutionPolicy Bypass -File "%OMPANION_RUN%\\feed.ps1" | "%OMPANION_RUN%\\omp.cmd" | '
+    '"%OMPANION_RUN%\\pump.cmd"\r\n'
+    'set OMPANION_CODE=\r\n'
+    'set /p OMPANION_CODE=< "%OMPANION_RUN%\\code"\r\n'
+    'if not defined OMPANION_CODE set OMPANION_CODE=-1\r\n'
     '>> "%OMPANION_RUN%\\out.jsonl" echo.\r\n'
     '>> "%OMPANION_RUN%\\out.jsonl" echo {"type":"ompanion_exit","code":%OMPANION_CODE%}\r\n'
     '> "%OMPANION_RUN%\\exit.tmp" echo %OMPANION_CODE%\r\n'
     'move /y "%OMPANION_RUN%\\exit.tmp" "%OMPANION_RUN%\\exit" > nul\r\n';
+
+/// `omp.cmd`: omp itself, its stderr to `err.log`, and then its exit code to the file `code`.
+const windowsOmpCmd =
+    '@echo off\r\n'
+    '"%OMPANION_OMP%" %OMPANION_ARGS% 2>> "%OMPANION_RUN%\\err.log"\r\n'
+    '> "%OMPANION_RUN%\\code" echo %ERRORLEVEL%\r\n';
+
+/// `pump.cmd`: [windowsPumpScript], run by the omp binary as Bun.
+const windowsPumpCmd =
+    '@echo off\r\n'
+    'set BUN_BE_BUN=1\r\n'
+    '"%OMPANION_OMP%" "%OMPANION_RUN%\\pump.js" "%OMPANION_RUN%\\out.jsonl"\r\n';
+
+/// `pump.js`: appends omp's stdout to `out.jsonl`. Opened for appending (`FILE_APPEND_DATA`), each write lands at the
+/// file's current end and the file stays open to other writers, so a rotation can truncate it while omp runs.
+/// cmd.exe's `>>` refuses other writers and keeps writing at its own offset (measured on Windows 11 26200).
+const windowsPumpScript = '''
+import { openSync, writeSync } from "node:fs";
+const fd = openSync(process.argv[2], "a");
+for await (const chunk of process.stdin) {
+  for (let at = 0; at < chunk.length; ) at += writeSync(fd, chunk, at);
+}
+''';
 
 /// `feed.ps1`: copies bytes appended to `in.jsonl` to stdout, polling every 50 ms, and exits once
 /// `in.jsonl.stop` exists and everything before it was copied. Its exit closes omp's stdin, omp's only
@@ -219,6 +246,9 @@ Future<({DetachedRun run, bool launched})> openWindowsRun(HostLink link, HostPro
       await files.write('$sftpDir/overlay.yml', utf8.encode(spec.overlay));
       await files.write('$sftpDir/meta.json', utf8.encode('${jsonEncode(meta.toJson())}\n'));
       await files.write('$sftpDir/run.cmd', ascii.encode(windowsRunCmd));
+      await files.write('$sftpDir/omp.cmd', ascii.encode(windowsOmpCmd));
+      await files.write('$sftpDir/pump.cmd', ascii.encode(windowsPumpCmd));
+      await files.write('$sftpDir/pump.js', ascii.encode(windowsPumpScript));
       // Windows PowerShell reads a BOM-less script as ANSI.
       await files.write('$sftpDir/feed.ps1', [0xEF, 0xBB, 0xBF, ...utf8.encode(windowsFeedScript)]);
       for (final name in ['in.jsonl', 'out.jsonl', 'err.log']) {
@@ -296,6 +326,138 @@ String windowsKillScript(String dir) => '\$needle = ${psQuote('$dir\\overlay.yml
 
 const _windowsKillBody = r'''
 Get-CimInstance -ClassName Win32_Process | Where-Object { $_.Name -ne 'cmd.exe' -and $_.CommandLine -and $_.CommandLine.Contains($needle) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+''';
+
+/// PowerShell functions for scripts that change a run: `Lock-Inbox` takes the append lock, the write handle on
+/// `in.jsonl` the appenders open (`windowsAppenderScript`), and `Write-Meta` replaces `meta.json` in one step.
+const _windowsRunFunctions = r'''
+$metaPath = [System.IO.Path]::Combine($run, 'meta.json')
+function Lock-Inbox {
+  $path = [System.IO.Path]::Combine($run, 'in.jsonl')
+  $deadline = [DateTime]::UtcNow.AddSeconds(30)
+  while ($true) {
+    try {
+      return [System.IO.File]::Open($path, 'Open', 'Write', 'Read, Delete')
+    } catch {
+      $shared = $false
+      for ($e = $_.Exception; $e; $e = $e.InnerException) { if ($e.HResult -eq -2147024864) { $shared = $true } }
+      if (-not $shared) { throw }
+      if ([DateTime]::UtcNow -gt $deadline) { throw "$path is still held after 30 s" }
+      Start-Sleep -Milliseconds 10
+    }
+  }
+}
+function Write-Meta([string]$Text) {
+  $temp = $metaPath + '.tmp'
+  [System.IO.File]::WriteAllText($temp, $Text, (New-Object System.Text.UTF8Encoding $false))
+  # PowerShell passes $null to a string parameter as '', which Replace takes for a path.
+  [System.IO.File]::Replace($temp, $metaPath, [NullString]::Value)
+}
+''';
+
+/// `rotateRunOutput` on Windows, in PowerShell: under the append lock, the size is read through an open handle, as
+/// NTFS directory entries lag for a file another process writes. A run launched before `pump.js` wrote its output
+/// is left alone: cmd.exe's `>>` holds its `out.jsonl`.
+Future<int> rotateWindowsRun(
+  HostLink link,
+  HostProbe probe,
+  DetachedRun run, {
+  ({int generation, int size})? settledAt,
+}) async {
+  final marker = newMarker();
+  final result = await runPowerShell(
+    link,
+    probe.commandShell,
+    '\$m = ${psQuote(marker)}; \$run = ${psQuote(run.dir)}; \$g0 = ${settledAt?.generation ?? -1}; '
+    '\$s0 = ${settledAt?.size ?? -1}\n$_windowsRunFunctions$_windowsRotateBody',
+  );
+  if (result.exit.code != 0) throw result.failure('rotating ${run.dir}\\out.jsonl failed');
+  return int.parse(result.payload(marker).trim().split(' ').first);
+}
+
+const _windowsRotateBody = r'''
+$outPath = [System.IO.Path]::Combine($run, 'out.jsonl')
+if (-not [System.IO.File]::Exists([System.IO.Path]::Combine($run, 'pump.cmd'))) {
+  if ([System.IO.File]::ReadAllText($metaPath) -notmatch '"generation":(\d+)') { throw "no generation in $metaPath" }
+  [Console]::Out.Write($m + ":begin`n" + $Matches[1] + "`n" + $m + ":end`n")
+  exit 0
+}
+$lock = Lock-Inbox
+try {
+  $text = [System.IO.File]::ReadAllText($metaPath)
+  if ($text -notmatch '"generation":(\d+)') { throw "no generation in $metaPath" }
+  $g = [long]$Matches[1]
+  $n = $g
+  $out = [System.IO.File]::Open($outPath, 'Open', 'Write', 'ReadWrite, Delete')
+  try {
+    $s = $out.Length
+    if (($g0 -lt 0 -or $g -eq $g0) -and ($s0 -lt 0 -or $s -eq $s0)) {
+      $n = $g + 1
+      Write-Meta $text.Replace('"generation":' + $g, '"generation":' + $n)
+      $out.SetLength(0)
+    }
+  } finally {
+    $out.Dispose()
+  }
+  if ($n -ne $g) {
+    # Appending: output pump.js wrote since the truncation stays ahead of the marker, as on POSIX.
+    $bytes = [System.Text.Encoding]::ASCII.GetBytes('{"type":"ompanion_rotate","generation":' + $n + ',"previousSize":' + $s + "}`n")
+    $append = [System.IO.File]::Open($outPath, 'Append', 'Write', 'ReadWrite, Delete')
+    try { $append.Write($bytes, 0, $bytes.Length) } finally { $append.Dispose() }
+  }
+  [Console]::Out.Write($m + ":begin`n$n $s`n" + $m + ":end`n")
+} finally {
+  $lock.Dispose()
+}
+''';
+
+/// `recordRunSession` on Windows: under the launch lock (SFTP) and then the append lock (PowerShell), so a rotation's
+/// own rewrite of `meta.json` cannot interleave. [session] is the `"sessionPath":…,` text a current record holds; the
+/// new record is [head], the current generation, [tail]. Returns whether `meta.json` changed.
+Future<bool> recordWindowsRunSession(
+  HostLink link,
+  HostProbe probe,
+  DetachedRun run, {
+  required String session,
+  required String head,
+  required String tail,
+}) async {
+  final files = await link.files();
+  try {
+    final lock = toSftpPath('${runRoot(probe)}\\.launch.lock');
+    await acquireDirLock(files, lock, timeout: const Duration(seconds: 60), stale: const Duration(seconds: 60));
+    try {
+      final marker = newMarker();
+      final result = await runPowerShell(
+        link,
+        probe.commandShell,
+        '\$m = ${psQuote(marker)}; \$run = ${psQuote(run.dir)}; \$session = ${psQuote(session)}\n'
+        '\$head = ${psQuote(head)}; \$tail = ${psQuote(tail)}\n$_windowsRunFunctions$_windowsRecordBody',
+      );
+      if (result.exit.code != 0) throw result.failure('recording the session of run ${run.id} failed');
+      return result.payload(marker).trim() == 'updated';
+    } finally {
+      await files.removeDir(lock);
+    }
+  } finally {
+    await files.close();
+  }
+}
+
+const _windowsRecordBody = r'''
+$lock = Lock-Inbox
+try {
+  $text = [System.IO.File]::ReadAllText($metaPath)
+  $r = 'same'
+  if (-not $text.Contains($session)) {
+    if ($text -notmatch '"generation":(\d+)') { throw "no generation in $metaPath" }
+    Write-Meta ($head + $Matches[1] + $tail + "`n")
+    $r = 'updated'
+  }
+  [Console]::Out.Write($m + ":begin`n$r`n" + $m + ":end`n")
+} finally {
+  $lock.Dispose()
+}
 ''';
 
 /// Removes run directories over SFTP, re-checking under the launch lock that their omp is gone.

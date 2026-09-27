@@ -196,6 +196,46 @@ void main() {
     expect(await stopRun(link, probe, run), 0);
   }, timeout: const Timeout(Duration(minutes: 3)));
 
+  test(
+    'pump.js lets a rotation truncate out.jsonl while omp runs, and a channel follows into the next generation',
+    () async {
+      final run = (await openRun(
+        link,
+        probe,
+        RunSpec(
+          omp: probe.ompPath!,
+          ompVersion: probe.ompVersion!,
+          cwd: project,
+          args: const ['--model', 'fake/fake-1'],
+        ),
+      )).run;
+      final channel = await attachRun(link, probe, run, replay: noReplay);
+      final frames = Frames(channel.lines);
+      await frames.next((f) => f['type'] == 'ready', timeout: const Duration(seconds: 60));
+      await channel.send(getState('r:1'));
+      await frames.response('r:1');
+      final size = File('${run.dir}\\out.jsonl').lengthSync();
+
+      expect(await rotateRunOutput(link, probe, run, settledAt: (generation: 1, size: size - 1)), 1, reason: 'grown');
+      expect(await rotateRunOutput(link, probe, run, settledAt: (generation: 1, size: size)), 2);
+      await channel.send(getState('r:2'));
+      await frames.response('r:2');
+      expect(channel.generation, 2);
+      final log = File('${run.dir}\\out.jsonl').readAsStringSync();
+      expect(log, startsWith('{"type":"ompanion_rotate","generation":2,"previousSize":$size}\n'));
+      expect(channel.offset, utf8.encode(log).length, reason: 'offsets count from the start of the new generation');
+      expect(File('${run.dir}\\meta.json').readAsStringSync(), contains('"generation":2,'));
+
+      // Recorded from the launch's meta.json, generation 1: the script keeps the generation the file holds now.
+      expect(await recordRunSession(link, probe, run, '$project\\recorded.jsonl'), isTrue);
+      final meta = (await listRuns(link, probe)).singleWhere((r) => r.id == run.id).meta!;
+      expect((meta.generation, meta.sessionPath), (2, '$project\\recorded.jsonl'));
+      await channel.close();
+      expect(await stopRun(link, probe, run), 0, reason: 'omp.cmd hands omp exit code past the pump');
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
   test('with PowerShell as the OpenSSH default shell, the probe notices and a run takes lines', () async {
     const key = r'HKLM:\SOFTWARE\OpenSSH';
     final powershell = '${Platform.environment['SystemRoot']}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';

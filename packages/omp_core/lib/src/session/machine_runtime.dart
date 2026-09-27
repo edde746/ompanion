@@ -452,7 +452,7 @@ final class MachineRuntime {
     final session = RunSession(
       runId: run.id,
       cwd: run.meta?.cwd ?? probe.home,
-      access: _DetachedAccess(this, run, windows: probe.isWindows),
+      access: _DetachedAccess(this, run),
       deviceId: deviceId,
       recordedPath: run.meta?.sessionPath,
     );
@@ -578,13 +578,13 @@ String renderOverlay(Map<String, String> overlay) {
 
 /// A detached run in `~/.ompanion/run/<id>/`.
 final class _DetachedAccess implements RunAccess {
-  _DetachedAccess(this._machine, this._run, {required bool windows}) : rotateAt = windows ? null : rotateOutputAt;
+  _DetachedAccess(this._machine, this._run);
 
   final MachineRuntime _machine;
   final DetachedRun _run;
 
   @override
-  final int? rotateAt;
+  int? get rotateAt => rotateOutputAt;
 
   @override
   bool get persistent => true;

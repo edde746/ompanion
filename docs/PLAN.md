@@ -217,7 +217,7 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   in a new run: a cold open instead of an attach. A session that ended before its first message opens as a new one.
 - Rotation: every `message_update` carries the whole message, so one 1.5 KB streamed answer wrote 270 KB.
   When a run settles and `out.jsonl` holds 8 MiB, the device that read past that mark truncates it under
-  `in.lock` at the offset it has read, once its own requests are answered: the `get_state` its `agent_end` asked for
+  the append lock at the offset it has read, once its own requests are answered: the `get_state` its `agent_end` asked for
   and the entries catch-up are answered after the settle, and a log checked against the settle's offset was never
   rotated (a live run's generation reached 1.6 GB). Anything else omp writes after the settle, a command other than a
   `get_*` query from any device, or an active goal or running loop about to start the next turn on its own (omp's
@@ -248,20 +248,28 @@ end against Win32-OpenSSH on `windows-latest` (`packages/omp_core/test/windows/`
 - Launch: sshd puts the channel's first process in a job with `KILL_ON_JOB_CLOSE`, so children started
   with `Start-Process`, `start` or `&` die with the channel. omp is started through WMI
   `Win32_Process.Create` with `CREATE_BREAKAWAY_FROM_JOB` (0x01000000); WMI-created processes are
-  outside that job. Command line: `cmd.exe /d /s /c "powershell -NoProfile -File feed.ps1 <run> |
-  <omp.exe> --mode rpc-ui --config <run>\overlay.yml -e <companion> [--session <path>] >> <run>\out.jsonl
-  2>> <run>\err.log"`. cmd redirection passes bytes through unchanged; PowerShell 5.1 redirection does
-  not.
+  outside that job. Command line: `cmd.exe /d /s /c "<run>\run.cmd"`, which runs `powershell -NoProfile -File
+  feed.ps1 | omp.cmd | pump.cmd`. `omp.cmd` runs `<omp.exe> --mode rpc-ui --config <run>\overlay.yml -e <companion>
+  [--session <path>] 2>> <run>\err.log` and then writes omp's exit code to `<run>\code`, as a pipeline's `ERRORLEVEL`
+  is its last stage's. `pump.cmd` runs `pump.js` with omp's binary as Bun, a batch stage having an environment of
+  its own, so `BUN_BE_BUN` never reaches omp; `pump.js` appends omp's stdout to `out.jsonl`, opened for appending.
+  cmd.exe's `>>`, the form before it, refused every other writer and kept its own offset, so the log could never be
+  rotated (measured on Windows 11 26200: a truncation fails with a sharing violation; through `pump.js` it succeeds
+  and the next lines start at byte 0). Pipes and redirection in cmd pass bytes through unchanged; PowerShell 5.1's
+  do not.
 - Feed: `feed.ps1` is a byte pump from `in.jsonl` (opened for reading with `ReadWrite, Delete` sharing) to stdout, polling
   every 50 ms, exiting when `in.jsonl.stop` appears. Its exit closes omp's stdin. Windows has no
   signals; closing stdin is omp's only graceful stop (`Stop-Process -Force` skips cleanup).
 - Scripts run as `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand
   <base64 UTF-16LE>`, which works under a cmd, PowerShell or bash default shell. cmd caps a line at
   8191 characters, so larger scripts are uploaded over SFTP and run with `-File`.
-- Attach: SFTP stat and offset reads on `out.jsonl` and `in.jsonl`; a first attach to a log over 8 MiB runs the replay
-  script through PowerShell into a file in the run directory, as PowerShell 5.1 re-encodes a native program's output,
-  and reads that over SFTP. `meta.json` updates go over SFTP under the launch lock. `out.jsonl` is never rotated:
-  cmd.exe's `>>` keeps its offset, so a Windows run's log grows until the run ends.
+- Attach: SFTP stat and offset reads on `out.jsonl` and `in.jsonl`; a log that shrank was rotated, and the channel
+  reads the new generation from byte 0 once its marker line is complete. A first attach to a log over 8 MiB runs the
+  replay script through PowerShell into a file in the run directory, as PowerShell 5.1 re-encodes a native
+  program's output, and reads that over SFTP.
+- Rotation and `meta.json` updates: PowerShell scripts under the append lock (below); the session record also holds
+  the launch lock first, over SFTP. The rotation reads the size through an open handle, as NTFS directory entries lag
+  for a file another process writes. A run launched before `pump.js` (no `pump.cmd`) is never rotated.
 - Send: one long-running PowerShell appender per channel opens `in.jsonl` per line for writing with `Read,
   Delete` sharing, so a second appender's open fails with a sharing violation and retries: the handle is the
   append lock. SFTP cannot append while omp runs: Win32-OpenSSH's sftp-server opens for writing with

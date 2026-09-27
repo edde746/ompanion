@@ -133,8 +133,15 @@ final class SftpRunChannel implements RunChannel {
         final size = (await _files.stat('$dir/out.jsonl'))?.size;
         if (size == null) throw HostLinkException('$dir/out.jsonl is gone');
         final from = _output.readPosition;
-        if (size < from) throw HostLinkException('$dir/out.jsonl shrank from $from to $size bytes');
-        if (size > from) {
+        if (size < from) {
+          // A rotation truncated the log. Its bytes go on as `tail -F` sends them, continuing what this channel read;
+          // the marker, their first line, moves the offsets to the new file. Until it is complete, nothing is read.
+          final head = await _files.read('$dir/out.jsonl', length: min(size, _readLimit));
+          if (head.contains(0x0A)) {
+            _output.add(head);
+            continue;
+          }
+        } else if (size > from) {
           _output.add(await _files.read('$dir/out.jsonl', offset: from, length: min(size - from, _readLimit)));
           continue;
         }

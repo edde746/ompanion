@@ -174,6 +174,24 @@ void main() {
         await late.close();
       });
 
+      test('follows a rotation it had read to, counting offsets from the new file', () async {
+        final channel = await attach();
+        final frames = Frames(channel.lines);
+        final first = '{"id":"1","pad":"${'x' * 200}"}';
+        await omp('$first\n');
+        await frames.next((f) => f['id'] == '1');
+        // As rotateRunOutput leaves it: truncated, the marker first, then whatever omp writes next.
+        final marker = '{"type":"ompanion_rotate","generation":2,"previousSize":${first.length + 1}}\n';
+        await File('$dir/out.jsonl').writeAsString(marker, flush: true);
+        await omp('{"id":"2"}\n');
+        await frames.next((f) => f['id'] == '2');
+        expect(frames.raw, [first, '{"id":"2"}']);
+        expect(frames.error, isNull);
+        expect(channel.generation, 2);
+        expect(channel.offset, marker.length + 11);
+        await channel.close();
+      });
+
       test(
         'a first attach to a long log gets a compacted replay and follows the log from its end',
         tags: ['omp'],
