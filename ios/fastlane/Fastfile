@@ -1,4 +1,4 @@
-require 'dotenv/load'
+require 'dotenv'
 require 'shellwords'
 
 PROJECT_ROOT = File.expand_path("../..", __dir__)
@@ -11,9 +11,10 @@ default_platform(:ios)
 platform :ios do
   desc "Build the App Store IPA and upload it with its metadata and screenshots; never submits for review"
   lane :deploy_appstore do |options|
-    # An App Store Connect API key is the credential to prefer. Without one, fastlane uses FASTLANE_USER with
-    # FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD, or asks for an Apple ID interactively. Both live in .env
-    # (store/README.md). Half a key is a mistake worth failing on, as in CI.
+    # An App Store Connect API key is the credential to prefer. Without one, FASTLANE_USER: the metadata upload then
+    # logs in as that Apple ID, with FASTLANE_PASSWORD or a password prompt and a two-factor code, and the binary
+    # upload uses FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD. Both live in .env (store/README.md). Half a key is a
+    # mistake worth failing on, as in CI.
     api_key_names = [
       "APP_STORE_CONNECT_API_KEY_KEY_ID",
       "APP_STORE_CONNECT_API_KEY_ISSUER_ID",

@@ -1,6 +1,4 @@
 app_identifier("com.edde746.ompanion")
 
-# Credentials come from the environment (see store/README.md): either an App Store Connect API key
-# (APP_STORE_CONNECT_API_KEY_KEY_ID, APP_STORE_CONNECT_API_KEY_ISSUER_ID,
-# APP_STORE_CONNECT_API_KEY_KEY_FILEPATH) or FASTLANE_USER with FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD.
-# Add apple_id("you@example.com") here to skip fastlane asking for the Apple ID interactively.
+# Credentials come from .env, not from here: an App Store Connect API key or FASTLANE_USER, which the
+# deploy_appstore lane checks for (ios/fastlane/Fastfile, store/README.md).

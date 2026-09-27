@@ -8,10 +8,13 @@
 	<array/>
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array/>
-	<!-- File metadata: this file's own use is in ios/Runner; the third-party code linked into Runner that
-	     uses it ships no manifest of its own (sqlite3 via the sqlite3 Dart package's native asset, which
-	     stats its database file; flutter-pty2, which stats the pty). C617.1 covers files in the app
-	     container, which is where every one of those reads happens. -->
+	<!-- The required-reason APIs the release build's binaries import (`nm -u`) where the code that calls them
+	     declares nothing itself; Flutter.framework declares its own. package_info_plus, linked into Runner with
+	     an empty manifest, reads the Documents folder's creation date and the bundle's modification date.
+	     sqlite3.framework, the sqlite3 Dart package's native asset, ships no manifest: it stats its database
+	     files, and calls statfs and fstatfs for the file system type of the database's volume (os_unix.c), not
+	     its free space. Apple lists no reason for reading a file system type; E174.1, disk space for writing
+	     files, is the nearest. flutter-pty2 stats a working directory, and only desktop builds start a pty. -->
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>
@@ -20,6 +23,14 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>C617.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>E174.1</string>
 			</array>
 		</dict>
 	</array>

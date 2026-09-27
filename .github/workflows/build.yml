@@ -164,7 +164,7 @@ jobs:
             echo "signed=true" >> "$GITHUB_OUTPUT"
           elif [ "$present" -eq 0 ]; then
             echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=Debug-signed Android build::No Android signing secrets are set, so the APK and the Play bundle are signed with the debug key. They install for testing; the stores reject them."
+            echo "::warning title=Debug-signed Android build::No Android signing secrets are set, so the APK and the Play bundle are signed with the debug key. The APK installs for testing; Play rejects both."
           else
             echo "Signing is half set up, missing:$missing" >&2
             echo "Set all four or none: the job signs with the upload key only when every secret is there." >&2

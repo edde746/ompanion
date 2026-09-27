@@ -1,4 +1,4 @@
-require 'dotenv/load'
+require 'dotenv'
 require 'shellwords'
 
 PROJECT_ROOT = File.expand_path("../..", __dir__)
@@ -26,6 +26,10 @@ platform :android do
 
     metadata_path = File.join(PROJECT_ROOT, "android/fastlane/metadata/android")
     UI.user_error!("No Play metadata in #{metadata_path} (store/README.md).") unless Dir.exist?(metadata_path)
+    # Without android/key.properties the release build signs with the debug key (android/app/build.gradle.kts),
+    # which Play rejects only after the build and the upload.
+    key_properties = File.join(PROJECT_ROOT, "android/key.properties")
+    UI.user_error!("No #{key_properties}: the bundle would be signed with the debug key (README, Releasing).") unless File.exist?(key_properties)
 
     match = File.read(File.join(PROJECT_ROOT, "pubspec.yaml")).match(/version:\s*(.+)\+(\d+)/)
     UI.user_error!("Could not read version and versionCode from pubspec.yaml") if match.nil?
