@@ -20,6 +20,7 @@ import { cfgLoopConditionTimeoutMs, cfgLoopMode } from "@oh-my-pi/pi-coding-agen
 import type { LoopConditionConfig, LoopLimitRuntime } from "@oh-my-pi/pi-tui/status-line/loop";
 import { expectKeys, isRecord, requireNullableString } from "../../args.ts";
 import { channel, emitEvent } from "../../channel.ts";
+import { notifyDone } from "../../notify.ts";
 import { type CommandTable, Refusal, VerbError, type VerbTable } from "../../protocol.ts";
 import { announceChange } from "./changes.ts";
 
@@ -91,6 +92,11 @@ export function loopEnabled(): boolean {
 	return loop !== undefined;
 }
 
+/** Whether an iteration is about to start the next turn (docs/contracts/push.md: a loop's turns notify nothing). */
+export function iterationScheduled(): boolean {
+	return timer !== undefined;
+}
+
 function pushLoop(): void {
 	const state = loopState();
 	const json = JSON.stringify(state);
@@ -127,14 +133,17 @@ function abortCondition(): void {
 	conditionAbort = undefined;
 }
 
-/** `notice` is the TUI's status line; a disable asked for by a verb shows none. */
+/** `notice` is the TUI's status line and the push `done` body; a disable asked for by a verb shows and sends none. */
 function disableLoop(notice: string | undefined): void {
 	const was = loop !== undefined;
 	loop = undefined;
 	cancelTimer();
 	abortCondition();
 	pushLoop();
-	if (was && notice) channel().notify(notice, "info");
+	if (was && notice) {
+		channel().notify(notice, "info");
+		notifyDone(notice);
+	}
 }
 
 function setLoopPrompt(prompt: string): void {

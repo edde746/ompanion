@@ -3,9 +3,12 @@ import { CallParseError, parseCall } from "./args.ts";
 import { askDialog } from "./ask.ts";
 import { bindChannel, type Channel, channel, errorFrame, eventFrame, replyFrame } from "./channel.ts";
 import { IDLE_EXIT_EVENT, idleRun, installIdleExit, tracked } from "./idle.ts";
+import { installNotifications, notifyVerbs } from "./notify.ts";
 import { type CallRequest, Refusal, VerbError, type VerbTable } from "./protocol.ts";
 import { coreEvents, coreVerbs, helloVerb, watchCore } from "./verbs/core.ts";
 import { installSessionHooks, sessionCommands, sessionEvents, sessionVerbs } from "./verbs/session.ts";
+import { continuationScheduled } from "./verbs/session/goal.ts";
+import { iterationScheduled } from "./verbs/session/loop.ts";
 
 const events: readonly string[] = [...coreEvents, ...sessionEvents, IDLE_EXIT_EVENT];
 
@@ -24,6 +27,7 @@ const verbs: VerbTable = mergeVerbs(
 	{ hello: helloVerb(() => Object.keys(verbs), events) },
 	coreVerbs,
 	sessionVerbs,
+	notifyVerbs,
 );
 
 function mainSession(pi: ExtensionAPI): AgentSession | undefined {
@@ -48,9 +52,13 @@ async function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> 
 	if (bindChannel(ui).kind === "output") ui.askDialog = askDialog;
 	watchCore(session);
 	await installSessionHooks(pi, session);
-	// Last: a broken launch environment throws here, after everything else is in place.
+	// Last: a broken launch environment throws here, after everything else is in place. Notifications subscribe after
+	// the goal and loop hooks, which schedule the next turn in the same `agent_end`.
 	const run = idleRun(process.env, process.argv);
-	if (run) installIdleExit(session, run);
+	if (run) {
+		installNotifications(session, ui, run, () => continuationScheduled() || iterationScheduled());
+		installIdleExit(session, run);
+	}
 }
 
 async function dispatch(call: CallRequest, pi: ExtensionAPI, ctx: ExtensionCommandContext, out: Channel): Promise<void> {

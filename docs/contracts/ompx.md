@@ -264,6 +264,19 @@ exit"); the control process never sends it. Code: `companion/src/idle.ts`.
 - A prompt a device appends while omp stops is lost with the process.
 - A failed stop is logged to omp's log and shown as an error notice, and tried again after another `idleMs`.
 
+### notify.test
+
+`args: {}` → `result: {}`. Sends a `test` push notification to the calling device, the `deviceId` prefix of the
+`callId`, through the relay its registration file names; the control process answers it too. `not_found` when that
+device has no valid registration (`<home>/.ompanion/push/<deviceId>.json`); `failed` with the relay's status and
+error, or the network error, as the message. A `410` also deletes the registration unless the phone rewrote it
+meanwhile. Code: `companion/src/notify.ts`.
+
+The registration file, the payload and its encryption, the relay, and the `input`, `done` and `failed` notifications
+a detached run sends by itself: `docs/contracts/push.md`. Those send no frame, except a `notify` warning, once per
+process, for a registration file that is invalid and for a device the relay fails for (again after a later delivery
+to it succeeded).
+
 ### Session verbs: common rules
 
 Owner: CompanionSession (`companion/src/verbs/session.ts`, `companion/src/verbs/session/*.ts`).

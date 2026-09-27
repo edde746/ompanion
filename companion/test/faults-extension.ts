@@ -1,15 +1,17 @@
 /**
- * An omp extension that `goal-loop-faults.e2e.test.ts` loads next to the companion (`-e`). Its `session_switch`
- * handler holds every `switch_session` for 1.5 s, as a slow extension or a slow load would, and `/faults` makes
- * submissions fail on demand:
+ * An omp extension that `goal-loop-faults.e2e.test.ts` and `notify.e2e.test.ts` load next to the companion (`-e`). Its
+ * `session_switch` handler holds every resuming `switch_session` for 1.5 s, as a slow extension or a slow load would,
+ * and `/faults` makes submissions fail on demand:
  *
- *   /faults no-key      omp finds no API key, so every prompt's setup throws "No API key found for fake. …"
- *   /faults bail-once   the next goal continuation resolves `false`, as when an abort races omp's prompt setup
+ *   /faults no-key               omp finds no API key, so every prompt's setup throws "No API key found for fake. …"
+ *   /faults bail-once            the next goal continuation resolves `false`, as when an abort races omp's prompt setup
+ *   /faults continue-fails-once  the next `agent.continue()` throws before its turn starts, as when an automatic retry
+ *                                finds nothing to continue from
  *   /faults off
  */
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
-const FAULTS = ["off", "no-key", "bail-once"] as const;
+const FAULTS = ["off", "no-key", "bail-once", "continue-fails-once"] as const;
 type Fault = (typeof FAULTS)[number];
 
 function isFault(value: string): value is Fault {
@@ -43,6 +45,13 @@ export default function faults(pi: ExtensionAPI): void {
 				}
 				fault = "off";
 				return Promise.resolve(false);
+			};
+			const agent = session.agent;
+			const continueAgent = agent.continue.bind(agent);
+			agent.continue = signal => {
+				if (fault !== "continue-fails-once") return continueAgent(signal);
+				fault = "off";
+				return Promise.reject(new Error("the faults extension failed this continue"));
 			};
 		},
 	});

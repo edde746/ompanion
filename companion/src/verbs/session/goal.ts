@@ -6,6 +6,7 @@ import type { Goal } from "@oh-my-pi/pi-tui/tools/goal";
 import { prompt, stableStringifyJson } from "@oh-my-pi/pi-utils";
 import { expectKeys, requireInteger, requireNullableString, requireString } from "../../args.ts";
 import { channel } from "../../channel.ts";
+import { notifyDone } from "../../notify.ts";
 import { type CommandTable, Refusal, VerbError, type VerbTable } from "../../protocol.ts";
 import { loopEnabled, promptAsCompanion } from "./loop.ts";
 
@@ -125,6 +126,11 @@ function resetSuppression(): void {
 function cancelContinuation(): void {
 	clearTimeout(continuationTimer);
 	continuationTimer = undefined;
+}
+
+/** Whether a continuation is about to start the next turn (docs/contracts/push.md: a goal's turns notify nothing). */
+export function continuationScheduled(): boolean {
+	return continuationTimer !== undefined;
 }
 
 /** The TUI's `#exitGoalMode` bookkeeping; the tools come back only for a goal that was running. */
@@ -294,6 +300,7 @@ async function reconcileGoal(session: AgentSession, preserveActiveGoal: boolean)
  */
 async function finishCompletedGoal(session: AgentSession): Promise<void> {
 	const goal = session.getGoalModeState()?.goal;
+	if (goal) notifyDone(`Goal complete: ${goal.objective}`);
 	session.setGoalModeState(undefined);
 	session.sessionManager.appendModeChange("none");
 	session.sessionManager.appendCustomEntry("goal-completed", {

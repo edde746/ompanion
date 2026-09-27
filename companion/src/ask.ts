@@ -7,6 +7,7 @@ import type {
 } from "@oh-my-pi/pi-coding-agent";
 import { isRecord } from "./args.ts";
 import { channel } from "./channel.ts";
+import { notifyInput } from "./notify.ts";
 
 /** Params of the companion request `ask` (docs/contracts/ompx.md). */
 export interface AskParams {
@@ -118,6 +119,8 @@ export async function askDialog(
 	dialogOptions?: ExtensionUIDialogOptions,
 ): Promise<ExtensionAskDialogResult | undefined> {
 	const normalized = normalizeQuestions(questions);
+	const first = normalized[0];
+	if (first) notifyInput(first.question);
 	const timeout = dialogOptions?.timeout !== undefined && dialogOptions.timeout > 0 ? dialogOptions.timeout : undefined;
 	const expiry = new AbortController();
 	const outer = dialogOptions?.signal;
