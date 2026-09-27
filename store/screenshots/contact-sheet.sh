@@ -3,10 +3,11 @@
 #
 #   store/screenshots/contact-sheet.sh [out.png] [class]
 #
-# [class] is a suffix to keep, e.g. iphone69, ipad13, or a directory name (phoneScreenshots, sevenInch, tenInch).
+# [class] is a suffix to keep, e.g. iphone69, ipad13, or a directory name (phoneScreenshots, sevenInch, tenInch,
+# microsoft).
 #
-# Needs ImageMagick (`brew install imagemagick`). Tiles the composed files from the fastlane directories and
-# `store/app-icon-1024.png`, top-left to bottom-right, with each file's name under it.
+# Needs ImageMagick (`brew install imagemagick`). Tiles the composed files from the fastlane directories,
+# `store/microsoft/screenshots` and `store/app-icon-1024.png`, top-left to bottom-right, with each file's name under it.
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -17,6 +18,7 @@ only=${2:-}
 files=$(find \
   "$repo/ios/fastlane/screenshots" \
   "$repo/android/fastlane/metadata/android/en-US/images" \
+  "$repo/store/microsoft/screenshots" \
   "$repo/store/app-icon-1024.png" \
   -name '*.png' 2>/dev/null | sort)
 if [ -n "$only" ]; then

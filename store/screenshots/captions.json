@@ -39,7 +39,8 @@
       "headline": "Subagents, [at a glance]",
       "subline": "Status, tokens and tools for each one",
       "play-phone": {"headline": "Follow [each subagent]", "subline": "Its task, tokens, tools and transcript"},
-      "play-10in": {"headline": "Follow [each subagent]", "subline": "Its task, tokens, tools and transcript"}
+      "play-10in": {"headline": "Follow [each subagent]", "subline": "Its task, tokens, tools and transcript"},
+      "ms-desktop": {"headline": "Follow [each subagent]", "subline": "Its task, tokens, tools and transcript"}
     },
     "08-config": {
       "label": "08 — CONFIG",

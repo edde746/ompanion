@@ -3,11 +3,13 @@
 #
 #   store/screenshots/capture.sh ios-phone
 #   store/screenshots/capture.sh play-10in --no-compose
+#   store/screenshots/capture.sh ms-desktop --windows <ssh destination of a Windows 11 machine>
 #
 # The script owns everything it starts: the fake provider (unless one is already listening), the scripted
-# turns, the simulator or emulator, and the temporary Android AVDs of the tablet classes. It needs the SSH
-# demo host up (`harness/sshd/up.sh`: the `omp` user on 127.0.0.1:22221, the bastion on 22220), `flutter`,
-# `bun`, `python3` with Pillow, and `docker` while the demo host is the container.
+# turns, the simulator or emulator, the temporary Android AVDs of the tablet classes, and for ms-desktop the
+# reverse tunnel, the copy of the checkout on the Windows machine and everything `windows/run.ps1` starts there.
+# It needs the SSH demo host up (`harness/sshd/up.sh`: the `omp` user on 127.0.0.1:22221, the bastion on 22220),
+# `flutter`, `bun`, `python3` with Pillow, and `docker` while the demo host is the container.
 #
 # Raw captures land in <raw>/<class>/; the composed images go straight into the fastlane directories of
 # `--out`. The run's own log is <raw>/<class>/capture.log and the app's progress log is printed at the end.
@@ -18,8 +20,10 @@
 #   --provider-port <n>  fake provider port (default 18991); --provider-url overrides what the host gets
 #   --ssh-host/--ssh-port/--ssh-user/--ssh-key   the demo host as this Mac reaches it
 #   --avd <name>     use this AVD instead of the class default
+#   --windows <dest> the Windows machine of ms-desktop, as `ssh` reaches it (key auth, a user logged on at its console)
 #   --no-container   do not install git/node/npm through docker exec
-#   --no-compose     capture only; --keep leaves the simulator booted; --keep-avds keeps the temporary AVDs
+#   --no-compose     capture only; --keep leaves the simulator booted, or the Windows clone and its build in
+#                    ~\ompanion-shots; --keep-avds keeps the temporary AVDs
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -38,9 +42,10 @@ compose=yes
 keep=no
 keep_avds=no
 avd_override=
+windows=
 while [ $# -gt 0 ]; do
   case "$1" in
-    ios-phone | ios-ipad | play-phone | play-7in | play-10in) class=$1; shift ;;
+    ios-phone | ios-ipad | play-phone | play-7in | play-10in | ms-desktop) class=$1; shift ;;
     --repo) repo=$(cd "$2" && pwd); shift 2 ;;
     --raw) raw=$2; shift 2 ;;
     --out) out=$(cd "$2" && pwd); shift 2 ;;
@@ -55,13 +60,15 @@ while [ $# -gt 0 ]; do
     --no-compose) compose=no; shift ;;
     --keep) keep=yes; shift ;;
     --keep-avds) keep_avds=yes; shift ;;
+    --windows) windows=$2; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 if [ -z "$class" ]; then
-  sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//' >&2
+  sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//' >&2
   exit 2
 fi
+[ "$class" != ms-desktop ] || [ -n "$windows" ] || { echo "ms-desktop needs --windows <ssh destination>" >&2; exit 2; }
 [ -n "$ssh_key" ] || ssh_key="$out/.tools/ssh-test/id_ed25519"
 [ -f "$ssh_key" ] || { echo "missing SSH key $ssh_key: run harness/sshd/up.sh first" >&2; exit 1; }
 [ -n "$provider_url" ] || provider_url="http://host.docker.internal:$provider_port/v1"
@@ -76,7 +83,16 @@ say() { printf '%s %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$log"; }
 pids=
 avds=
 udid=
+# ms-desktop: the Windows copy of the checkout, relative to the Windows user's home, once it is there.
+windows_run=
 cleanup() {
+  if [ -n "$windows_run" ]; then
+    if [ "$keep" = yes ]; then keep_clone=-KeepClone; else keep_clone=; fi
+    say "cleaning up on $windows"
+    # shellcheck disable=SC2086 # $keep_clone is one flag or none
+    ssh "$windows" powershell -NoProfile -ExecutionPolicy Bypass -File "$windows_run" -Cleanup $keep_clone >>"$log" 2>&1 ||
+      say "the cleanup on $windows failed; see $log"
+  fi
   for pid in $pids; do kill "$pid" 2>/dev/null || true; done
   if [ "$keep_avds" = no ]; then
     for avd in $avds; do
@@ -223,14 +239,39 @@ case "$class" in
     $adb -s "$device" uninstall com.edde746.ompanion >/dev/null 2>&1 || true
     target="android:$device"
     ;;
+  ms-desktop)
+    companion="$repo/assets/companion/ompx.js"
+    [ -f "$companion" ] || { echo "missing $companion: run scripts/build_companion.sh" >&2; exit 1; }
+    # The Windows app dials the demo host as localhost, through this tunnel to the ports on this Mac.
+    say "tunnelling the demo host's ports to $windows"
+    start_bg "$shots/tunnel.log" ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 \
+      -R "22221:$ssh_host:$ssh_port" -R "22220:$ssh_host:22220" "$windows" >/dev/null
+    tunnel=$!
+    sleep 3
+    kill -0 "$tunnel" 2>/dev/null || { echo "the tunnel to $windows failed: $(cat "$shots/tunnel.log")" >&2; exit 1; }
+    # What the Windows build needs: the app, its package, the test, the runner, the assets (the companion is not
+    # tracked) and the Windows half of this harness. It lands in ~\ompanion-shots\repo on the Windows machine.
+    say "copying the checkout to $windows"
+    (cd "$repo" && {
+      git ls-files -co --exclude-standard -- ':(glob)*' lib packages integration_test windows assets store/screenshots/windows
+      echo assets/companion/ompx.js
+    } | while IFS= read -r path; do [ -f "$path" ] && printf '%s\n' "$path"; done |
+      tar -czf "$shots/checkout.tgz" -s ',^,ompanion-shots/repo/,' -T -)
+    scp -q "$shots/checkout.tgz" "$windows:ompanion-shots.tgz"
+    rm -f "$shots/checkout.tgz"
+    windows_run=ompanion-shots/repo/store/screenshots/windows/run.ps1
+    ssh "$windows" tar -xzf ompanion-shots.tgz >>"$log" 2>&1
+    ssh "$windows" del ompanion-shots.tgz >>"$log" 2>&1
+    device=$windows
+    ;;
 esac
 
 # --- capture ------------------------------------------------------------------------------------------
 key_b64=$(base64 -i "$ssh_key" | tr -d '\n')
-# The iOS simulator shares this Mac's loopback; an emulator reaches it as 10.0.2.2. The machines' *names* stay
-# dev-box and build-server, so no screen shows an address.
+# The iOS simulator shares this Mac's loopback, and Windows reaches it through the tunnel; an emulator reaches it as
+# 10.0.2.2. The machines' *names* stay dev-box and build-server, so no screen shows an address.
 case "$class" in
-  ios-*) ssh_define=localhost ;;
+  ios-* | ms-desktop) ssh_define=localhost ;;
   *) ssh_define=10.0.2.2 ;;
 esac
 hostkeys=$(python3 "$here/device.py" hostkeys "$out/.tools/ssh-test/hostkeys" "$ssh_define")
@@ -238,13 +279,25 @@ hostkeys=$(python3 "$here/device.py" hostkeys "$out/.tools/ssh-test/hostkeys" "$
 rm -f "$shots"/*.png "$shots/driver.log"
 say "capturing $class on $device"
 drive_status=0
-(cd "$repo" && OMPANION_SHOT_TARGET="$target" OMPANION_SHOT_DIR="$shots" flutter drive -d "$device" \
-  --driver=integration_test/driver/store_driver.dart \
-  --target=integration_test/store_screenshots_test.dart \
-  --dart-define=OMPANION_SHOT_CLASS="$class" \
-  --dart-define=OMPANION_SHOT_SSH_HOST="$ssh_define" \
-  --dart-define=OMPANION_SHOT_KEY_B64="$key_b64" \
-  --dart-define=OMPANION_SHOT_HOSTKEYS="$hostkeys") >>"$log" 2>&1 || drive_status=$?
+if [ "$class" = ms-desktop ]; then
+  # A define file, not arguments: the host keys hold `|` and `;`, which no Windows shell should see.
+  python3 -c 'import json, sys; json.dump(dict(pair.split("=", 1) for pair in sys.argv[2:]), open(sys.argv[1], "w"))' \
+    "$shots/defines.json" OMPANION_SHOT_CLASS="$class" OMPANION_SHOT_SSH_HOST="$ssh_define" \
+    OMPANION_SHOT_KEY_B64="$key_b64" OMPANION_SHOT_HOSTKEYS="$hostkeys"
+  scp -q "$shots/defines.json" "$windows:ompanion-shots/defines.json"
+  rm -f "$shots/defines.json"
+  ssh "$windows" powershell -NoProfile -ExecutionPolicy Bypass -File "$windows_run" -Launch >>"$log" 2>&1 || drive_status=$?
+  scp -q "$windows:ompanion-shots/raw/*" "$shots/" >>"$log" 2>&1 || true
+  scp -q "$windows:ompanion-shots/tmp/ompanion-shots.log" "$shots/app.log" >>"$log" 2>&1 || true
+else
+  (cd "$repo" && OMPANION_SHOT_TARGET="$target" OMPANION_SHOT_DIR="$shots" flutter drive -d "$device" \
+    --driver=integration_test/driver/store_driver.dart \
+    --target=integration_test/store_screenshots_test.dart \
+    --dart-define=OMPANION_SHOT_CLASS="$class" \
+    --dart-define=OMPANION_SHOT_SSH_HOST="$ssh_define" \
+    --dart-define=OMPANION_SHOT_KEY_B64="$key_b64" \
+    --dart-define=OMPANION_SHOT_HOSTKEYS="$hostkeys") >>"$log" 2>&1 || drive_status=$?
+fi
 say "raw captures in $shots (flutter drive exited $drive_status)"
 [ "$drive_status" = 0 ] || say "the capture reported failures; see $log"
 
@@ -255,6 +308,7 @@ fi
 
 case "$class" in
   ios-*) say "app log: $(xcrun simctl get_app_container "$udid" com.edde746.ompanion data 2>/dev/null)/tmp/ompanion-shots.log" ;;
+  ms-desktop) say "app log: $shots/app.log" ;;
   *) say "app log: $ANDROID_HOME/platform-tools/adb -s $device shell run-as com.edde746.ompanion cat cache/ompanion-shots.log" ;;
 esac
 say "done"

@@ -1,9 +1,10 @@
 // Host side of the store-screenshot capture.
 //
-// The app cannot photograph itself with the system status bar — a Flutter-side screenshot renders only the
-// Flutter view — so every shot is taken from the host: `xcrun simctl io <udid> screenshot` on iOS,
-// `adb -s <serial> exec-out screencap -p` on Android. The timing comes from a file channel in the app's own
-// temporary directory, which is a directory on this Mac for a simulator:
+// The app cannot photograph itself with the system status bar or its window frame — a Flutter-side screenshot
+// renders only the Flutter view — so every shot is taken from the host: `xcrun simctl io <udid> screenshot` on iOS,
+// `adb -s <serial> exec-out screencap -p` on Android, and on Windows `winshot capture` (store/screenshots/windows/
+// winshot.cs), which photographs the app's window with its title bar. The timing comes from a file channel in the
+// app's own temporary directory, which is a directory on this computer for a simulator and a Windows app:
 //
 //   <app tmp>/ompanion-shots/<name>.request   the test asks for a screenshot and waits
 //   <app tmp>/ompanion-shots/<name>.done      this driver wrote <out>/<name>.png
@@ -11,9 +12,10 @@
 // This driver polls that directory while `integration_test` runs (the `onScreenshot` callback of
 // `integrationDriver` only fires once the test is over, which is too late to photograph anything).
 //
-//   OMPANION_SHOT_TARGET=ios:<udid>|android:<serial>   the device
+//   OMPANION_SHOT_TARGET=ios:<udid>|android:<serial>|windows:<directory the app's executable is built under>
 //   OMPANION_SHOT_DIR=<dir>                            where the PNGs land
 //   OMPANION_SHOT_ADB=<path>                           the adb binary (default: adb on PATH)
+//   OMPANION_SHOT_WINSHOT=<path>                       the winshot executable (Windows)
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -26,14 +28,17 @@ Future<void> main() async {
   final target = Platform.environment['OMPANION_SHOT_TARGET'] ?? '';
   final kind = target.split(':').first;
   final device = target.substring(target.indexOf(':') + 1);
-  if (device.isEmpty || (kind != 'ios' && kind != 'android')) {
-    stderr.writeln('set OMPANION_SHOT_TARGET=ios:<udid> or android:<serial> (got "$target")');
+  if (device.isEmpty || !const {'ios', 'android', 'windows'}.contains(kind)) {
+    stderr.writeln(
+      'set OMPANION_SHOT_TARGET=ios:<udid>, android:<serial> or windows:<build directory> (got "$target")',
+    );
     exit(2);
   }
   final out = Directory(Platform.environment['OMPANION_SHOT_DIR'] ?? '/tmp/ompanion-store/shots')
     ..createSync(recursive: true);
   final log = File('${out.path}/driver.log');
   final adb = Platform.environment['OMPANION_SHOT_ADB'] ?? 'adb';
+  final winshot = Platform.environment['OMPANION_SHOT_WINSHOT'] ?? 'winshot';
 
   void note(String message) {
     final line = '${DateTime.now().toIso8601String()} $message\n';
@@ -42,7 +47,7 @@ Future<void> main() async {
   }
 
   if (kind == 'android') await Process.run(adb, ['-s', device, 'logcat', '-c']);
-  final shots = _Shots(kind: kind, device: device, adb: adb, out: out, note: note);
+  final shots = _Shots(kind: kind, device: device, adb: adb, winshot: winshot, out: out, note: note);
   final watching = shots.watch();
   try {
     await integrationDriver(responseDataCallback: (data) async => note(jsonEncode({'reported': data})));
@@ -58,11 +63,19 @@ Future<void> main() async {
 }
 
 class _Shots {
-  _Shots({required this.kind, required this.device, required this.adb, required this.out, required this.note});
+  _Shots({
+    required this.kind,
+    required this.device,
+    required this.adb,
+    required this.winshot,
+    required this.out,
+    required this.note,
+  });
 
   final String kind;
   final String device;
   final String adb;
+  final String winshot;
   final Directory out;
   final void Function(String) note;
   final _pending = <String>{};
@@ -70,6 +83,9 @@ class _Shots {
   int captured = 0;
   bool _stopped = false;
   String? _deviceDir;
+
+  /// Whether the app's temporary directory is a directory of this computer.
+  bool get _local => kind != 'android';
 
   Future<void> watch() async {
     while (!_stopped) {
@@ -100,6 +116,9 @@ class _Shots {
       final result = await Process.run('xcrun', ['simctl', 'get_app_container', device, _bundle, 'data']);
       if (result.exitCode != 0) return null;
       _deviceDir = '${(result.stdout as String).trim()}/tmp/ompanion-shots';
+    } else if (kind == 'windows') {
+      // The app inherits this process's environment from `flutter drive`, so its temporary directory is this one.
+      _deviceDir = '${Directory.systemTemp.path}/ompanion-shots';
     } else {
       // An app's temp directory is inside its sandbox, so the test announces the path in its stdout and this
       // reads it out of logcat; `run-as` then reaches it, which is how the app's own files are read here.
@@ -114,7 +133,7 @@ class _Shots {
   Future<List<String>> _requests() async {
     final dir = await _dir();
     if (dir == null) return const [];
-    if (kind == 'ios') {
+    if (_local) {
       final folder = Directory(dir);
       if (!folder.existsSync()) return const [];
       return [
@@ -132,7 +151,11 @@ class _Shots {
 
   Future<void> _capture(String name) async {
     final file = File('${out.path}/$name.png');
-    final capturedOk = kind == 'ios' ? await _simctl(file) : await _adb(file);
+    final capturedOk = switch (kind) {
+      'ios' => await _run('xcrun', ['simctl', 'io', device, 'screenshot', '--type=png', file.path]),
+      'windows' => await _run(winshot, ['capture', device, file.path]),
+      _ => await _adb(file),
+    };
     if (!capturedOk) {
       note('capture of $name failed');
       return;
@@ -142,10 +165,10 @@ class _Shots {
     note('captured $name (${await file.length()} bytes)');
   }
 
-  Future<bool> _simctl(File file) async {
-    final result = await Process.run('xcrun', ['simctl', 'io', device, 'screenshot', '--type=png', file.path]);
+  Future<bool> _run(String executable, List<String> arguments) async {
+    final result = await Process.run(executable, arguments);
     if (result.exitCode != 0) {
-      note('simctl screenshot failed: ${result.stderr}');
+      note('$executable ${arguments.first} failed: ${result.stderr}');
       return false;
     }
     return true;
@@ -165,10 +188,14 @@ class _Shots {
   Future<void> _ack(String name) async {
     final dir = _deviceDir;
     if (dir == null) return;
-    if (kind == 'ios') {
+    if (_local) {
       final request = File('$dir/$name.request');
       if (request.existsSync()) request.deleteSync();
-      File('$dir/$name.done').writeAsStringSync('ok');
+      // Written aside and renamed into place: the test deletes the ack as soon as it sees it, and Windows refuses to
+      // delete a file another process still has open.
+      File('$dir/$name.done.tmp')
+        ..writeAsStringSync('ok')
+        ..renameSync('$dir/$name.done');
       return;
     }
     await Process.run(adb, ['-s', device, 'shell', 'run-as', _bundle, 'rm', '-f', '$_deviceDir/$name.request']);

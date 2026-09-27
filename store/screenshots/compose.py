@@ -76,6 +76,7 @@ SPECS: dict[str, Spec] = {
     "play-phone": Spec("play-phone", (1080, 1920), ((1080, 1920), (1920, 1080)), "android/fastlane/metadata/android/en-US/images/phoneScreenshots"),
     "play-7in": Spec("play-7in", (1920, 1080), ((1920, 1080), (1080, 1920)), "android/fastlane/metadata/android/en-US/images/sevenInchScreenshots"),
     "play-10in": Spec("play-10in", (2560, 1440), ((2560, 1440), (1440, 2560)), "android/fastlane/metadata/android/en-US/images/tenInchScreenshots"),
+    "ms-desktop": Spec("ms-desktop", (3840, 2160), ((3840, 2160),), "store/microsoft/screenshots"),
 }
 
 
@@ -361,12 +362,23 @@ def shade(image: Image.Image, box: tuple[int, int, int, int], radius: float, spr
 
 
 def device(image: Image.Image, shot: Image.Image, placement: dict, style: dict) -> tuple[int, int, int, int]:
-    """The whole capture in a plain, flat device body: a bezel in near black with one grey outer edge. Returns its box."""
+    """The whole capture in a plain, flat device body: a bezel in near black with one grey outer edge. Returns its box.
+
+    A `window` class captures a desktop window, title bar and all: that is its own device, so it stands without a
+    body, cut to the window's own rounded corners (`corner`, capture pixels)."""
     width, height = image.size
     screen_width = round(placement["width"] * width)
+    if screen_width > shot.width:
+        raise SystemExit(f"a device {screen_width} px wide would enlarge its {shot.width} px capture")
     screen = shot.resize((screen_width, round(shot.height * screen_width / shot.width)), Image.LANCZOS)
     if placement.get("dim"):
         screen = Image.blend(screen, Image.new("RGB", screen.size, BLACK), placement["dim"])
+    if style.get("window"):
+        corner = style["corner"] * screen_width / shot.width
+        left, top = round(placement["at"][0] * width), round(placement["at"][1] * height)
+        shade(image, (left, top, left + screen.width, top + screen.height), corner, round(style["shadow"] * screen_width))
+        image.paste(screen, (left, top), rounded_mask(screen.size, corner))
+        return left, top, left + screen.width, top + screen.height
     bezel = round(style["bezel"] * screen_width)
     radius = style["radius"] * screen_width
     edge = max(2, round(0.003 * screen_width))

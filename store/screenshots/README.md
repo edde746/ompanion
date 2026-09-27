@@ -1,14 +1,17 @@
 # Store screenshots
 
-The harness that captures the App Store and Play listing images from the real app, and the script that
-composes them. `capture.sh` drives a simulator or emulator headlessly, seeds an SSH demo host, scripts the
-model turns, photographs the screen from the host and writes the store images into the fastlane directories.
+The harness that captures the App Store, Play and Microsoft Store listing images from the real app, and the
+script that composes them. `capture.sh` drives a simulator or emulator headlessly, or the Windows app on a Windows
+machine, seeds an SSH demo host, scripts the model turns, photographs the screen from the host and writes the
+store images into the fastlane directories and `store/microsoft/screenshots/`.
 
 ## What is here
 
 | Path | Contents |
 | --- | --- |
 | `capture.sh` | One device class: boots the device, seeds the host, runs `flutter drive`, composes |
+| `windows/run.ps1` | The Windows half of `ms-desktop`: runs `flutter drive` in the console session, sets the display and puts it back, cleans up |
+| `windows/winshot.cs` | Sets the display's mode and scale, photographs the app's window, and holds the run's processes in one job |
 | `compose.py` | Composes every store image from its raw capture, renders the icons and the feature graphic |
 | `layouts.json` | One composition per image and class: the light, the device and the magnified crops, the caption's place |
 | `captions.json` | The label, headline (with its lime phrase) and subline of every shot (plain words, no trademarks) |
@@ -31,6 +34,11 @@ Raw captures stay in `/tmp/ompanion-store/StoreShots/raw/<class>/` and are never
 - `python3 -m pip install pillow` and `brew install librsvg` for `compose.py`.
 - A built companion and, for the local rehearsal, this computer's omp: `scripts/build_companion.sh`,
   `scripts/fetch_omp.sh darwin-arm64`.
+- For `ms-desktop`, a Windows 11 machine this Mac reaches with `ssh` (key auth, remote TCP forwarding allowed)
+  whose user is logged on at the console, with `flutter` on that user's PATH (with its Windows toolchain: Visual
+  Studio with the C++ workload), `tar` and the .NET Framework 4 compiler that ships with Windows, a primary display
+  that offers 3840×2160, and ports 22220 and 22221 free on its loopback. Nothing is installed there; see "The
+  Windows capture".
 
 ## Refresh
 
@@ -41,6 +49,7 @@ store/screenshots/capture.sh ios-ipad
 store/screenshots/capture.sh play-phone
 store/screenshots/capture.sh play-7in
 store/screenshots/capture.sh play-10in
+store/screenshots/capture.sh ms-desktop --windows <ssh destination of the Windows machine>
 python3 store/screenshots/compose.py --review /tmp/ompanion-store/StoreShots/review
 harness/sshd/down.sh
 ```
@@ -50,9 +59,10 @@ session. Heavy work belongs in a private copy of the checkout (`rsync -a --exclu
 --exclude node_modules <checkout>/ /tmp/<me>-copy/`) so nobody else's build is disturbed; pass
 `--repo /tmp/<me>-copy` to `capture.sh`.
 
-`--keep` leaves the simulator booted, `--keep-avds` keeps the temporary tablet AVDs, `--no-compose` captures
-only, `--no-container` skips the `docker exec` package install when the demo host is a machine you prepared
-yourself (then also pass `--provider-url http://127.0.0.1:<port>/v1`).
+`--keep` leaves the simulator booted, or the Windows copy and its build in place so the next run builds
+incrementally; `--keep-avds` keeps the temporary tablet AVDs, `--no-compose` captures only, `--no-container`
+skips the `docker exec` package install when the demo host is a machine you prepared yourself (then also pass
+`--provider-url http://127.0.0.1:<port>/v1`).
 
 Before spending a capture run on a change to `demo/turns.ts`, rehearse it:
 
@@ -83,6 +93,32 @@ bun store/screenshots/demo/rehearse.ts --session deploy --keep
 6. `compose.py` composes every raw capture by its entry in `layouts.json`, draws the words from `captions.json`
    and writes the store images.
 
+## The Windows capture
+
+`ms-desktop` runs the same test in the Windows app on a Windows machine, driven from this Mac:
+
+1. `capture.sh` opens a reverse tunnel (`ssh -R 22221 -R 22220`), so the Windows app dials the demo host as
+   `localhost` like the iOS simulator does, and copies what the build needs (the app, `packages/`, the tests, the
+   runner, the assets with the built companion, `windows/`) to `~\ompanion-shots\repo` on the Windows machine.
+2. `windows/run.ps1 -Launch`, over SSH, registers a scheduled task that runs `run.ps1 -Console` in the logged-on
+   user's console session (a program started over SSH runs in session 0, which has no desktop), and prints that
+   run's log until it ends.
+3. The console run builds `windows/winshot.cs` with the .NET Framework's `csc`, notes the primary display's mode
+   and scale, sets 3840×2160 at 200 %, and runs `flutter drive -d windows` inside a `winshot run` job, which ends
+   every process the run started (the app, the driver, MSBuild's and the compiler's helpers) when it ends. The
+   display goes back to its old mode and scale afterwards, and `run.ps1 -Cleanup` puts it back if the run was cut
+   short.
+4. Nothing of the Windows user's own is read or written: `flutter drive` and the app run with `USERPROFILE`,
+   `TEMP` and `PUB_CACHE` under `~\ompanion-shots`, and the app with `OMPANION_DATA_DIR`, `OMPANION_LOCAL_HOME`
+   and a fresh `OMPANION_SECRET_PREFIX` there too (`lib/app/dev_overrides.dart`); the test mocks secure storage
+   and seeds no "this computer".
+5. The test sizes the window so the app's view is 1600×900 logical pixels (3200×1800 at 200 %), wide enough for
+   the sidebar, the chat and the dock side by side, and asks for a dark title bar. `winshot capture` photographs
+   the window with `PrintWindow`, title bar included, cropped to what Windows draws of it, whatever covers it on
+   the screen.
+6. `capture.sh` copies the raw captures and the app's log back and calls `run.ps1 -Cleanup`, which deletes the
+   task and `~\ompanion-shots` (kept with `--keep`).
+
 ## The look
 
 Every image is its own composition, fitted to what its screen is about, and neighbours in a gallery never share
@@ -101,8 +137,12 @@ a layout. What they share is the family, the same as the website's:
 - **Devices and zooms.** A device is the whole capture in a plain body (near black, one grey outer edge). A zoom
   is a rectangle of the same capture, cut on element or row boundaries (`crop` in `layouts.json`, capture pixels),
   magnified with a Lanczos filter, rounded, and lifted on a black shadow. No lines, rims, borders, callouts or
-  gradient text. On tablets the dock (agents, tree, files, terminal) is on the right of the capture, so tablet
-  zooms come from there, and a device that carries a zoomed dock keeps that dock inside the canvas.
+  gradient text. On tablets and the Windows desktop the dock (agents, tree, files, terminal) is on the right of the
+  capture, so their zooms come from there, and a device that carries a zoomed dock keeps that dock inside the
+  canvas. A capture is never shown larger than it was taken: `compose.py` fails a device wider than its capture.
+- **The Windows window.** On the Microsoft Store the device is the app's window as Windows drew it: its own
+  title bar and frame, no body around it, cut to the Windows 11 corner radius (8 px at 100 %, `corner` in
+  capture pixels), on the same black shadow.
 
 `compose.py` fails a class when a caption runs into a device or a zoom. `--review <dir>` writes what to judge a
 class by: the gallery as a contact sheet, the gallery at store-thumbnail size (300 px wide) and the hero at full
@@ -121,12 +161,16 @@ edge.
 | `04-machines` | Machines, projects and sessions in the sidebar | The machine groups lifted out of the sidebar, no device |
 | `05-terminal` | An SSH terminal on the machine (`git status`) | The terminal output as a field, a mono headline with a cursor |
 | `06-files` | The edited file with its diff against HEAD | The diff magnified, the device bleeding off an edge |
-| `07-agents` | The Agent Hub: the roster, or one subagent's transcript (Play phone, 10-inch) | The roster or transcript magnified beside an offset device |
+| `07-agents` | The Agent Hub: the roster, or one subagent's transcript (Play phone, 10-inch, Windows) | The roster or transcript magnified beside an offset device |
 | `08-config` | Machine configuration and the model list the machine serves | The model dialog magnified over the dimmed device |
 
 `04-machines` is captured last, so the sidebar shows both machines with their sessions and what each is
 waiting for. The tablet sets have no `02-approval`: from the iPad simulator and the tablet emulators, the
 bastion hop to build-server did not come online within the test's 120 s.
+
+The Windows window shows the sidebar, the chat and the dock at once, so every Windows image carries all three.
+The Microsoft Store may lay text over the bottom third of a screenshot, so on Windows the captions and what each
+image is about stay in the top two thirds.
 
 ## Outputs and their sizes
 
@@ -142,22 +186,32 @@ Cited from the stores' own help pages, read 2026-09-26:
 | Play icon | 512×512, 32-bit PNG | `.../images/icon.png` |
 | Play feature graphic | 1024×500, 24-bit PNG | `.../images/featureGraphic.png` |
 | App Store marketing icon | 1024×1024, no alpha | `store/app-icon-1024.png` |
+| Microsoft Store Desktop | 3840×2160 (16:9), no alpha | `store/microsoft/screenshots/<NN>-<shot>.png` |
 
 - Apple screenshot sizes: [Screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications).
   The iPad set is 2048×2732 (portrait, the orientation the simulator captures in), an accepted 13-inch
   resolution that is also on fastlane `deliver`'s own size list.
 - Play assets: [Add preview assets to showcase your app](https://support.google.com/googleplay/android-developer/answer/9866151).
   Screenshots must be 1080–7680 px on the long edge and 16:9 or 9:16; tablets need at least four.
+- Microsoft Store: [App screenshots, images, and trailers for MSIX app](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/screenshots-and-images),
+  read 2026-09-27. Desktop screenshots are PNG, 1366×768 or larger (4K, 3840×2160, supported), up to 10 and
+  under 50 MB each; critical visuals and text belong in the top two thirds. The same page advises against added
+  logos, icons or marketing messages in screenshots; the captions are such text, a risk at certification.
+  Partner Center takes the images by hand (Store listings → Screenshots → Desktop), shown in upload order.
 - Play asks whether each asset is AI-generated: nothing here is. Every image is a capture of the running app;
   only the model's answers are scripted, through the fake provider.
 
 ## Troubleshooting
 
 - The app's progress log is the first place to look: `<app data container>/tmp/ompanion-shots.log` for a
-  simulator (`xcrun simctl get_app_container <udid> com.edde746.ompanion data`), or
-  `adb -s <serial> shell run-as com.edde746.ompanion cat cache/ompanion-shots.log` for an emulator.
+  simulator (`xcrun simctl get_app_container <udid> com.edde746.ompanion data`),
+  `adb -s <serial> shell run-as com.edde746.ompanion cat cache/ompanion-shots.log` for an emulator, and
+  `<raw>/ms-desktop/app.log`, copied back from the Windows machine, for `ms-desktop`.
 - A run that produces no raw captures: check the driver log (`<raw>/<class>/driver.log`) and the run log
-  (`<raw>/<class>/capture.log`).
+  (`<raw>/<class>/capture.log`, which holds the Windows run's own log for `ms-desktop`).
+- `ms-desktop` needs the Windows user logged on at the console: the scheduled task runs only while they are.
+  A run that was killed can leave the display at 3840×2160 and 200 %: `run.ps1 -Cleanup`, which `capture.sh`
+  runs on exit, restores it from `~\ompanion-shots\display.txt`.
 - The simulator is only captured headless. Everything renders off screen; do not open Simulator.app, and do
   not unlock anything — nothing here needs a visible window.
 - Machines and sessions are seeded on every run, and the app is installed fresh, so a stale database or a

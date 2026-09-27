@@ -15,9 +15,10 @@
 //
 // Machines, the key and the trusted host keys are seeded through the app's own providers; everything else is
 // tapped, typed and swiped. Screenshots come from the host (`integration_test/driver/store_driver.dart`), so the real
-// status bar is in the picture. Progress: `<system temp>/ompanion-shots.log` on the device, which is
-// `<app data container>/tmp/ompanion-shots.log` on this Mac for a simulator and
-// `/data/user/0/com.edde746.ompanion/cache/ompanion-shots.log` for an emulator.
+// status bar, or on Windows the window's own title bar, is in the picture. Progress: `<system temp>/ompanion-shots.log`
+// on the device, which is `<app data container>/tmp/ompanion-shots.log` on this Mac for a simulator,
+// `/data/user/0/com.edde746.ompanion/cache/ompanion-shots.log` for an emulator and `%TEMP%\ompanion-shots.log` on
+// Windows.
 //
 // The model output is scripted by `store/screenshots/demo/turns.ts`, which runs beside this test; the prompts
 // below must stay in step with the ones there.
@@ -25,6 +26,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -42,6 +44,7 @@ import 'package:ompanion/screens/chat/transcript/transcript_view.dart';
 import 'package:ompanion/screens/config/machine_config_screen.dart';
 import 'package:ompanion/screens/dock/dock_controller.dart';
 import 'package:ompanion/screens/dock/tree/tree_tab.dart';
+import 'package:ompanion/screens/sessions/machine_sessions.dart';
 import 'package:ompanion/screens/shell/layout.dart';
 import 'package:ompanion/screens/shell/shell_screen.dart';
 import 'package:ompanion/sessions/machine_images.dart';
@@ -51,11 +54,13 @@ import 'package:ompanion/widgets/activity_mark.dart';
 import 'package:omp_core/session.dart' show MachineOnline;
 import 'package:omp_core/ssh.dart' show sha256Fingerprint;
 import 'package:provider/provider.dart';
+import 'package:window_manager/window_manager.dart';
 
 const _shotClass = String.fromEnvironment('OMPANION_SHOT_CLASS', defaultValue: 'ios-phone');
 const _keyB64 = String.fromEnvironment('OMPANION_SHOT_KEY_B64');
 
-/// How this device reaches the demo host: `localhost` from an iOS simulator, `10.0.2.2` from an emulator.
+/// How this device reaches the demo host: `localhost` from an iOS simulator and from Windows (through `capture.sh`'s
+/// reverse tunnel), `10.0.2.2` from an emulator.
 const _sshHost = String.fromEnvironment('OMPANION_SHOT_SSH_HOST', defaultValue: 'localhost');
 const _hostKeys = String.fromEnvironment('OMPANION_SHOT_HOSTKEYS');
 
@@ -95,6 +100,8 @@ void main() {
       await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
       await Future<void>.delayed(const Duration(seconds: 2));
     }
+    // The Windows window is wide enough for the sidebar, the chat and the dock side by side.
+    if (_shotClass == 'ms-desktop') await _sizeWindow(tester, const Size(1600, 900));
     _log(
       'start $_shotClass (${Platform.operatingSystem} ${tester.view.physicalSize.width.toInt()}x${tester.view.physicalSize.height.toInt()})',
     );
@@ -438,6 +445,26 @@ Future<void> _seed({required MachinesProvider machines, required KeysProvider ke
   );
 }
 
+/// Sizes the window so the app's own view is [view] logical pixels. The window's frame (its title bar and resize
+/// borders) comes on top of that and differs between Windows versions and scales, so it is measured, not assumed.
+Future<void> _sizeWindow(WidgetTester tester, Size view) async {
+  await windowManager.ensureInitialized();
+  // The title bar follows the system's app theme; the app is dark, so its frame is too.
+  await windowManager.setBrightness(Brightness.dark);
+  for (var attempt = 0; attempt < 5; attempt++) {
+    final current = tester.view.physicalSize / tester.view.devicePixelRatio;
+    if ((current.width - view.width).abs() < 1 && (current.height - view.height).abs() < 1) break;
+    final window = await windowManager.getSize();
+    await windowManager.setSize(
+      Size(window.width + view.width - current.width, window.height + view.height - current.height),
+    );
+    await windowManager.center();
+    await tester.pump(const Duration(seconds: 1));
+  }
+  await windowManager.focus();
+  _log('window: view ${tester.view.physicalSize} at ${tester.view.devicePixelRatio}x');
+}
+
 T _provider<T>(WidgetTester tester) => Provider.of<T>(tester.element(find.byType(ShellScreen)), listen: false);
 
 /// Selects a machine and waits for its probe. A phone shows the machine list as its home page and the new
@@ -459,12 +486,17 @@ Future<void> _connect(WidgetTester tester, SessionsProvider sessions, Machine ma
 
 /// Opens a session in [cwd] on the machine whose sidebar row was just used.
 Future<void> _newSession(WidgetTester tester, String machineId, String cwd) async {
-  // A pointer shows the row's own add button; a wide layout repeats it in the title bar; a touch screen keeps
-  // both behind the row's More menu.
+  // A pointer shows the row's own add button while it hovers the row; a wide layout repeats it in the title bar
+  // once a machine is selected; a touch screen keeps both behind the row's More menu. The mouse leaves again at
+  // once, so no picture shows a hovered row.
   final direct = find.byKey(ValueKey('new-session-$machineId'));
   final titleBar = find.widgetWithText(TextButton, 'New session');
-  if (direct.evaluate().isNotEmpty) {
+  if (!sidebarTouch(tester.element(find.byType(ShellScreen)))) {
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(find.byKey(ValueKey('machine:$machineId'))));
+    await tester.pump(const Duration(milliseconds: 300));
     await _tap(tester, direct.first);
+    await mouse.removePointer();
   } else if (titleBar.evaluate().isNotEmpty) {
     await _tap(tester, titleBar.first);
   } else {
@@ -487,9 +519,11 @@ Future<void> _newSession(WidgetTester tester, String machineId, String cwd) asyn
     what: 'the new session dialog',
   );
   await _enterText(tester, find.byKey(const ValueKey('new-session-cwd')), cwd);
-  // Start stays disabled until the dialog has probed the machine, so press it until the chat is up.
+  // Start stays disabled until the dialog has probed the machine, so press it until the chat is up. A wide layout
+  // keeps the previous session's chat behind the dialog, so the chat is this session's once the dialog is gone.
   for (var attempt = 0; attempt < 60; attempt++) {
-    if (find.byKey(const ValueKey('composer')).evaluate().isNotEmpty) {
+    if (find.byKey(const ValueKey('new-session-cwd')).evaluate().isEmpty &&
+        find.byKey(const ValueKey('composer')).evaluate().isNotEmpty) {
       _log('session open in $cwd');
       return;
     }
@@ -502,9 +536,12 @@ Future<void> _newSession(WidgetTester tester, String machineId, String cwd) asyn
 
 /// Types a prompt into the composer and sends it.
 Future<void> _send(WidgetTester tester, String prompt) async {
+  final composer = find.byKey(const ValueKey('composer'));
+  final send = find.byKey(const ValueKey('send'));
+  // Send stays disabled while the previous prompt or command is still on its way.
   await _pumpUntil(
     tester,
-    () => find.byKey(const ValueKey('send')).evaluate().isNotEmpty,
+    () => send.evaluate().isNotEmpty && tester.widget<IconButton>(send).onPressed != null,
     timeout: 60,
     what: 'the composer',
   );
@@ -515,8 +552,20 @@ Future<void> _send(WidgetTester tester, String prompt) async {
     timeout: 180,
     what: 'the session to go idle',
   );
-  await _enterText(tester, find.byKey(const ValueKey('composer')), prompt);
-  await _tap(tester, find.byKey(const ValueKey('send')));
+  // The field may have lost its focus since the last prompt, and with it the text input connection that typed text
+  // goes through: a tap gives it both again.
+  await _tap(tester, composer);
+  await _enterText(tester, composer, prompt);
+  final typed = tester.widget<TextField>(composer).controller!.text;
+  if (typed != prompt) throw StateError('the composer holds "$typed" instead of the prompt');
+  await _tap(tester, send);
+  // The draft clears once the prompt is on its way, and comes back if omp refuses it.
+  await _pumpUntil(
+    tester,
+    () => tester.widget<TextField>(composer).controller!.text.isEmpty,
+    timeout: 30,
+    what: 'the prompt to go',
+  );
   _log('prompt sent: ${prompt.split(" ").take(4).join(" ")}…');
 }
 
@@ -616,8 +665,8 @@ Future<void> _hideKeyboard(WidgetTester tester) async {
 }
 
 /// Asks the host to photograph the screen and waits for it, through a file channel in this app's own temporary
-/// directory: `integration_test/driver/store_driver.dart` watches it and runs `xcrun simctl`/`adb` there. A screenshot the
-/// app takes itself renders only the Flutter view, without the system status bar.
+/// directory: `integration_test/driver/store_driver.dart` watches it and runs `xcrun simctl`/`adb`/`winshot` there. A
+/// screenshot the app takes itself renders only the Flutter view, without the system status bar or the window frame.
 Future<void> _shot(WidgetTester tester, String name) async {
   await _hideKeyboard(tester);
   final dir = Directory('${Directory.systemTemp.path}/ompanion-shots')..createSync(recursive: true);
