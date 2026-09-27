@@ -215,7 +215,9 @@ reaches the developer; arguing scope is the alternative. Decide which before the
 - Play requires new apps and updates to target API level 36 from 31 August 2026
   ([Target API level requirements](https://developer.android.com/google/play/requirements/target-sdk));
   the Flutter 3.47 defaults already do (compileSdk 36, targetSdk 36, minSdk 24), so nothing is pinned.
-- Uploads run from the Mac with `(cd android && fastlane release)`, not from CI.
+- Uploads run from the Mac with `(cd android && fastlane release)`, not from CI, except the first bundle: Play's
+  API knows no package until the console has received one, so that one is uploaded by hand in Testing →
+  Internal testing (`store/README.md`, Google Play step 8).
 
 ## 10. Counts (evidence)
 

@@ -49,8 +49,14 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 7. [ ] Sign-in details: choose **"All or some functionality is restricted"** and paste the text from
        `store/review-demo/README.md` §"Console answers" (or `store/google-play.md` §4) with the demo host and
        password filled in.
-8. [ ] Upload the AAB (`(cd android && fastlane release)`, defaults to a draft/internal test; it refuses to
-       run without `android/key.properties`, which would leave the bundle signed with the debug key).
+8. [ ] Upload the first AAB by hand. Build it with `flutter build appbundle --release
+       --dart-define=OMPANION_CHANNEL=play` (with `android/key.properties` in place, or the bundle is signed with
+       the debug key) and upload `build/app/outputs/bundle/release/app-release.aab` in Play Console → Testing →
+       Internal testing → Create new release. Play's API knows no package until the console has received a
+       bundle, so `(cd android && fastlane release)` fails with "Package not found" before that
+       ([fastlane's `upload_to_play_store` docs](https://github.com/fastlane/fastlane/blob/master/fastlane/lib/fastlane/actions/docs/upload_to_play_store.md)).
+       Later releases use the lane: a draft/internal test by default, and it refuses to run without
+       `android/key.properties`.
 9. [ ] **New personal developer account only:** run a closed test with at least 12 testers opted in for 14
        continuous days, then apply for production access. Internal testing does not count. Recruit 15–20
        testers. Source: <https://support.google.com/googleplay/android-developer/answer/14151465>.
@@ -186,7 +192,8 @@ change.
   Play's requirement to target API 36 for new apps and updates from 31 August 2026. The app's only
   user-facing permission is `android.permission.INTERNET`, and `android:allowBackup` is false.
 - **Uploads come from the Mac with fastlane, not CI:** `(cd ios && fastlane deploy_appstore)` and
-  `(cd android && fastlane release)`. A brand-new Play app accepts only a draft release, so the default is a
+  `(cd android && fastlane release)`, except Play's first bundle, which goes through the console by hand
+  (checklist step 8). A brand-new Play app accepts only a draft release, so the lane's default is a
   draft/internal test; the Fastfile's `track:production release_status:completed` publishes.
 - **iOS screenshots must be a pixel size fastlane knows**; an unknown size aborts that step even when App
   Store Connect would accept it. The sets are 1320×2868 (iPhone 6.9-inch, portrait) and 2048×2732 (iPad
