@@ -133,6 +133,7 @@ class TranscriptView extends StatefulWidget {
     this.alignTop = false,
     this.foldTurns = true,
     this.turns,
+    this.closed = false,
   });
 
   final SessionView view;
@@ -144,6 +145,10 @@ class TranscriptView extends StatefulWidget {
 
   /// Which turns the reader opened; kept by the caller to outlive this view. Without it the view keeps its own.
   final TurnExpansion? turns;
+
+  /// The session's link is closed: a run or a send its last view shows as going on is not answered here any more, so
+  /// the awaiting-reply row does not count on (the status strip hides its run chips the same way).
+  final bool closed;
 
   @override
   State<TranscriptView> createState() => _TranscriptViewState();
@@ -253,7 +258,7 @@ class _TranscriptViewState extends State<TranscriptView> {
       _update(initial: false);
     } else if (!identical(widget.view.transcript, _transcript) ||
         _inProgress(widget.view) != _live ||
-        awaitingReply(widget.view) != _awaiting) {
+        _awaitsReply != _awaiting) {
       _update(initial: false);
     }
   }
@@ -331,17 +336,21 @@ class _TranscriptViewState extends State<TranscriptView> {
     _turns.setOpen(row.head, !row.open);
   }
 
-  /// Keeps the awaiting-reply row and its count in step with the view: the row shows while [awaitingReply] holds, and
-  /// counts one second at a time while it does. The count starts over for each wait.
+  /// Whether the awaiting-reply row shows: [awaitingReply], while the link is open.
+  bool get _awaitsReply => !widget.closed && awaitingReply(widget.view);
+
+  /// Keeps the awaiting-reply row and its count in step with the view: the row shows while [_awaitsReply] holds, and
+  /// counts one second at a time while it does. The count starts over for each wait. The row model is told every time:
+  /// a new model (other turns) starts without the row.
   void _updateAwaiting() {
-    final awaiting = awaitingReply(widget.view);
-    if (awaiting == _awaiting) return;
-    _awaiting = awaiting;
-    _awaitingTick?.cancel();
-    _awaitingTick = null;
-    _awaitedSeconds = 0;
-    if (awaiting) _awaitingTick = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
-    _model.showAwaiting(awaiting ? 0 : null);
+    final awaiting = _awaitsReply;
+    if (awaiting != _awaiting) {
+      _awaiting = awaiting;
+      _awaitingTick?.cancel();
+      _awaitingTick = awaiting ? Timer.periodic(const Duration(seconds: 1), (_) => _tick()) : null;
+      _awaitedSeconds = 0;
+    }
+    _model.showAwaiting(awaiting ? _awaitedSeconds : null);
   }
 
   /// Counts one more second of waiting.

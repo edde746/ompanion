@@ -341,9 +341,9 @@ class _ComposerState extends State<Composer> {
 
   /// Sends [message] as a prompt; throws when omp rejects it. omp acknowledges a prompt before it starts it, so one it
   /// then cannot start (no model or API key, another prompt still starting) fails only in its `prompt_result`, and
-  /// [onRefused] runs. A run that started and then failed is in the transcript already. A command that finished in
-  /// omp itself starts no run, so the awaiting-reply row goes when its acknowledgement says so; every other outcome
-  /// clears [SessionView.promptPending] through the reducer, when the run starts or ends.
+  /// [onRefused] runs. A run that started and then failed is in the transcript already. The awaiting-reply row
+  /// ([SessionView.promptPending]) goes when a run starts (the reducer), or here: when omp is done with the prompt
+  /// without a run (a command that finished in omp, a refusal), or when the connection ends first.
   static Future<void> _prompt(
     LiveSession session,
     String message, {
@@ -358,17 +358,22 @@ class _ComposerState extends State<Composer> {
     late final StreamSubscription<RpcFrame> results;
     void settle(PromptResultFrame result) {
       unawaited(results.cancel());
+      session.setPromptPending(false);
       if (result.status == PromptStatus.error && !result.agentInvoked) onRefused();
     }
 
-    results = rpc.frames.listen((frame) {
-      if (frame is! PromptResultFrame) return;
-      if (id == null) {
-        early.add(frame);
-      } else if (frame.id == id) {
-        settle(frame);
-      }
-    });
+    results = rpc.frames.listen(
+      (frame) {
+        if (frame is! PromptResultFrame) return;
+        if (id == null) {
+          early.add(frame);
+        } else if (frame.id == id) {
+          settle(frame);
+        }
+      },
+      // Frames of the next connection come from another client; a run this prompt started shows there by itself.
+      onDone: () => session.setPromptPending(false),
+    );
     final RpcPromptAck ack;
     try {
       ack = await rpc.prompt(message, images: images, streamingBehavior: behavior);
@@ -662,7 +667,7 @@ class _ExternalComposer extends StatelessWidget {
     final t = context.t;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final taken = await context.read<SessionsProvider>().takeOver(session);
+      final taken = await context.read<SessionsProvider>().reopen(session);
       if (identical(taken, session)) {
         messenger.showSnackBar(SnackBar(content: Text(t.composer.externalWait)));
       }

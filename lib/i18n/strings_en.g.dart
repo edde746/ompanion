@@ -1058,11 +1058,8 @@ class Translations$settings$en {
 	/// en: 'About'
 	String get about => 'About';
 
-	/// en: 'Version $version'
-	String aboutVersion({required Object version}) => 'Version ${version}';
-
 	/// en: 'Version $version (build $build)'
-	String aboutVersionBuild({required Object version, required Object build}) => 'Version ${version} (build ${build})';
+	String aboutVersion({required Object version, required Object build}) => 'Version ${version} (build ${build})';
 
 	/// en: 'A client for omp, the oh-my-pi coding agent'
 	String get aboutClient => 'A client for omp, the oh-my-pi coding agent';
@@ -3907,8 +3904,7 @@ extension on Translations {
 			'settings.shortcutSearchSessions' => 'Search sessions',
 			'settings.shortcutAbort' => 'Stop the running turn',
 			'settings.about' => 'About',
-			'settings.aboutVersion' => ({required Object version}) => 'Version ${version}',
-			'settings.aboutVersionBuild' => ({required Object version, required Object build}) => 'Version ${version} (build ${build})',
+			'settings.aboutVersion' => ({required Object version, required Object build}) => 'Version ${version} (build ${build})',
 			'settings.aboutClient' => 'A client for omp, the oh-my-pi coding agent',
 			'settings.aboutPrivacy' => 'Privacy policy',
 			'settings.aboutSource' => 'Source code',
@@ -3988,9 +3984,9 @@ extension on Translations {
 			'chat.modelsFailed' => ({required Object error}) => 'Could not load models: ${error}',
 			'chat.modelFailed' => ({required Object error}) => 'Could not switch the model: ${error}',
 			'chat.contextWindow' => ({required Object tokens}) => '${tokens} context',
+			'chat.reasoning' => 'reasoning',
 			_ => null,
 		} ?? switch (path) {
-			'chat.reasoning' => 'reasoning',
 			'chat.thinking' => ({required Object level}) => 'Thinking: ${level}',
 			'chat.noThinking' => 'This model has no thinking levels.',
 			'chat.thinkingFailed' => ({required Object error}) => 'Could not change the thinking level: ${error}',

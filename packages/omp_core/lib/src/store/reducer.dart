@@ -30,11 +30,10 @@ SessionView _reduce(SessionView view, Map<String, Object?> frame) => switch (fra
     run: view.run.copyWith(running: true, retrying: null, outcome: const RunIdle()),
     // A new run cannot inherit a streaming message or a foreground tool; omp's TUI seals them here too.
     transcript: _interruptTools(_finishStreaming(view.transcript)),
-    // The run the UI waited on started; its own state describes it from here.
-    promptPending: false,
   ),
   'agent_end' => _agentEnd(view, frame),
-  'message_start' => _messageStart(view, frame),
+  // A run's first message is the prompt the UI waited on, in the transcript from here.
+  'message_start' => _messageStart(view.promptPending ? view.copyWith(promptPending: false) : view, frame),
   'message_update' => _messageUpdate(view, frame),
   'message_end' => _messageEnd(view, frame),
   'tool_execution_start' => _toolStart(view, frame),
@@ -330,11 +329,11 @@ SessionView _finishRun(SessionView view) => view.copyWith(
   promptPending: false,
 );
 
-/// The session went quiet (`session_settled`): nothing runs, background jobs included.
+/// The session went quiet (`session_settled`): nothing runs, background jobs included. A prompt the UI is still sending
+/// keeps [SessionView.promptPending]: the settle can belong to earlier work or to a companion call.
 SessionView _settle(SessionView view) => view.copyWith(
   run: view.run.copyWith(running: false, compacting: null, retrying: null),
   transcript: _settledTranscript(view.transcript),
-  promptPending: false,
 );
 
 List<TranscriptItem> _settledTranscript(List<TranscriptItem> transcript) => _mapWhere(
@@ -349,7 +348,8 @@ SessionView _promptResult(SessionView view, Map<String, Object?> frame) {
     'error' => RunFailed(frame.optObject('error')?.optString('message')),
     _ => view.run.outcome,
   };
-  final next = view.copyWith(run: view.run.copyWith(outcome: outcome), promptPending: false);
+  // Any prompt's result, a companion call's included, so it leaves [SessionView.promptPending] to the prompt's sender.
+  final next = view.copyWith(run: view.run.copyWith(outcome: outcome));
   return (frame.optBool('sessionSettled') ?? false) ? _settle(next) : next;
 }
 

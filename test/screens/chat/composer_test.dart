@@ -134,8 +134,11 @@ final class _Session implements LiveSession {
   @override
   void dismissRequest(String id) {}
 
+  /// What the composer last said about its prompt's wait ([LiveSession.setPromptPending]).
+  bool promptPending = false;
+
   @override
-  void setPromptPending(bool pending) {}
+  void setPromptPending(bool pending) => promptPending = pending;
 
   @override
   void dismissNotice(int seq) {}
@@ -426,6 +429,43 @@ void main() {
     await tester.enterText(composer, 'typed meanwhile');
     await promptResult(agentInvoked: false);
     expect(text(), 'typed meanwhile');
+
+    await tearDownProviders(tester);
+  });
+
+  testWidgets('the awaiting-reply wait ends when omp is done with the prompt without a run, or the link ends', (
+    tester,
+  ) async {
+    final session = await pumpComposer(tester);
+    session.emit(
+      session.view.copyWith(
+        commands: const [SlashCommand(name: 'review', description: 'Review the diff', source: 'extension')],
+      ),
+    );
+    Future<void> send(String message) async {
+      await tester.enterText(composer, message);
+      await tester.tap(find.byKey(const ValueKey('send')));
+      await tester.pump();
+    }
+
+    // An extension command: omp acknowledges it without saying whether a run starts, runs it, and reports its result.
+    await send('/review');
+    expect(session.promptPending, isTrue);
+    session.omp.emit({
+      'type': 'prompt_result',
+      'id': session.omp.prompts.last['id'],
+      'agentInvoked': false,
+      'status': 'completed',
+      'sessionSettled': true,
+    });
+    await tester.pump();
+    expect(session.promptPending, isFalse);
+
+    await send('hello');
+    expect(session.promptPending, isTrue);
+    await session.omp.close();
+    await tester.pump();
+    expect(session.promptPending, isFalse, reason: 'the next connection shows a run the prompt started by itself');
 
     await tearDownProviders(tester);
   });

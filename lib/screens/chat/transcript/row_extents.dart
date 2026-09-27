@@ -53,7 +53,8 @@ double estimateRowExtent(TranscriptRow row, double width) {
     ThinkingRow() => 6 + 24,
     AssistantImageRow() => 6 + 200,
     ToolRow() => 6 + 36,
-    AssistantFooterRow() => 4 + 20,
+    // The chat's message menu takes a line of its own under the facts of a reply with an entry.
+    AssistantFooterRow(:final item) => 4 + 20 + (item.entryId == null ? 0 : 32),
     AwaitingReplyRow() => 10 + 20,
     TurnSummaryRow() => 6 + 24,
   };

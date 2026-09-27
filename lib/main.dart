@@ -11,6 +11,7 @@ import 'models/machine.dart';
 import 'providers/machines_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/secret_store.dart';
+import 'sessions/machine_images.dart';
 import 'utils/ids.dart';
 
 Future<void> main() async {
@@ -29,7 +30,8 @@ Future<void> main() async {
   final db = AppDatabase.open();
   final settings = await SettingsProvider.load(db);
   final secrets = SecretStore();
-  final machines = MachinesProvider(db, secrets);
+  final images = MachineImages(cacheDir: machineImageCacheDir);
+  final machines = MachinesProvider(db, secrets, images: images);
   // Once per install, so deleting this computer sticks.
   if (thisComputerAvailable && !settings.get(Prefs.localMachineSeeded)) {
     final now = DateTime.now();
@@ -37,5 +39,5 @@ Future<void> main() async {
     await settings.set(Prefs.localMachineSeeded, true);
   }
   if (settings.get(Prefs.deviceId).isEmpty) await settings.set(Prefs.deviceId, newId());
-  runApp(OmpanionApp(db: db, settings: settings, secrets: secrets, machines: machines));
+  runApp(OmpanionApp(db: db, settings: settings, secrets: secrets, machines: machines, images: images));
 }

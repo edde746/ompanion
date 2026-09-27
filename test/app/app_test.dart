@@ -7,6 +7,7 @@ import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/providers/machines_provider.dart';
 import 'package:ompanion/providers/settings_provider.dart';
 import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/machine_images.dart';
 
 void main() {
   testWidgets('a setting other than the theme changes in one frame, without animating the theme', (tester) async {
@@ -18,7 +19,15 @@ void main() {
     final secrets = SecretStore();
     final settings = (await tester.runAsync(() => SettingsProvider.load(db)))!;
     final machines = MachinesProvider(db, secrets);
-    await tester.pumpWidget(OmpanionApp(db: db, settings: settings, secrets: secrets, machines: machines));
+    await tester.pumpWidget(
+      OmpanionApp(
+        db: db,
+        settings: settings,
+        secrets: secrets,
+        machines: machines,
+        images: MachineImages(cacheDir: machineImageCacheDir),
+      ),
+    );
     await tester.pumpAndSettle();
     final theme = Theme.of(tester.element(find.byType(Scaffold).first));
 

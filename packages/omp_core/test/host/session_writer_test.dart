@@ -6,64 +6,34 @@ import 'package:omp_core/store.dart';
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
 
-/// The two rules the app's guard rests on, and the probe that feeds them: who owns a session file, and whether a
-/// writer the machine reported is writing right now. The probe runs against this computer (POSIX shell, `lsof` or
-/// `/proc`), so the run is skipped where neither exists.
+/// The probe the app's guard rests on, against this computer (POSIX shell; `/proc` on Linux, `lsof` on macOS), and
+/// the rule that says whether the other process is in a turn.
 void main() {
-  group('sessionOwnership', () {
-    test('an app run owns the file, whatever else holds it', () {
-      expect(sessionOwnership(appRun: true, writer: const ExternalWriter(pids: [1])), SessionOwnership.appRun);
-    });
+  group('turnInFlight', () {
+    Map<String, Object?> message(String role, {String? stopReason}) => {
+      'type': 'message',
+      'message': {'role': role, 'stopReason': ?stopReason},
+    };
+    const compaction = {'type': 'compaction', 'summary': 'earlier turns'};
 
-    test('a writer the app did not start owns it', () {
-      expect(sessionOwnership(appRun: false, writer: const ExternalWriter(pids: [1])), SessionOwnership.foreign);
+    test('a turn is open from the prompt until an assistant message ends it', () {
+      expect(turnInFlight([message('user')]), isTrue, reason: 'the model has not answered yet');
+      expect(turnInFlight([message('user'), message('assistant', stopReason: 'toolUse')]), isTrue);
       expect(
-        sessionOwnership(
-          appRun: false,
-          writer: const ExternalWriter(pids: [], terminal: 'ttys004'),
-        ),
-        SessionOwnership.foreign,
-        reason: 'omp closes its append descriptor at the end of a turn; the breadcrumb still names the writer',
+        turnInFlight([message('user'), message('assistant', stopReason: 'toolUse'), message('toolResult')]),
+        isTrue,
+        reason: 'the next assistant message is streaming; omp appends it when it ends',
       );
+      for (final reason in ['stop', 'length', 'error', 'aborted']) {
+        expect(turnInFlight([message('user'), message('assistant', stopReason: reason)]), isFalse, reason: reason);
+      }
     });
 
-    test('nobody holds it', () {
-      expect(sessionOwnership(appRun: false, writer: null), SessionOwnership.free);
-    });
-  });
-
-  group('polledWriter', () {
-    test('a write means a turn is running, and restarts the quiet clock', () {
-      final appended = polledWriter(
-        probed: const ExternalWriter(pids: [], terminal: 'ttys004', idleFor: Duration(seconds: 40)),
-        changed: true,
-        quietFor: const Duration(seconds: 40),
-      );
-      expect(appended?.busy, isTrue, reason: 'the file grew between polls: a turn is running');
-      expect(appended?.idleFor, Duration.zero);
-    });
-
-    test('a held descriptor alone is not a running turn', () {
-      // omp keeps the session file open for the life of the process; an idle omp at its prompt holds it too.
-      final held = polledWriter(
-        probed: const ExternalWriter(pids: [7], terminal: 'ttys004'),
-        changed: false,
-        quietFor: const Duration(seconds: 40),
-      );
-      expect(held?.pids, [7], reason: 'the writer still owns the session, so the app still must not launch');
-      expect(held?.busy, isFalse);
-      expect(held?.idleFor, const Duration(seconds: 40));
-
-      final writing = polledWriter(
-        probed: const ExternalWriter(pids: [7], terminal: 'ttys004'),
-        changed: false,
-        quietFor: const Duration(seconds: 3),
-      );
-      expect(writing?.busy, isTrue, reason: 'a write within the window is a turn still running');
-    });
-
-    test('nobody there stays nobody there', () {
-      expect(polledWriter(probed: null, changed: true, quietFor: Duration(seconds: 30)), isNull);
+    test('entries that are not messages leave the answer to the last message', () {
+      expect(turnInFlight([message('user'), message('assistant', stopReason: 'stop'), compaction]), isFalse);
+      expect(turnInFlight([message('user'), compaction]), isTrue);
+      expect(turnInFlight([compaction]), isFalse);
+      expect(turnInFlight([message('assistant', stopReason: 'stop'), message('bashExecution')]), isFalse);
     });
   });
 
@@ -78,18 +48,14 @@ void main() {
       expect(parseSessionWriter(''), isNull);
       expect(parseSessionWriter('holder x\nterminal ttys004\n'), isNull, reason: 'an unparsable pid is not a holder');
     });
-
-    test('a terminal without a live pid is dropped', () {
-      final writer = parseSessionWriter('terminal ttys004\nholder 9\n');
-      expect(writer?.terminal, isNull);
-      expect(writer?.pids, [9]);
-    });
   });
 
   group('probeSessionWriter', () {
     late Directory dir;
     late HostLink link;
     late HostProbe probe;
+    // Every character the probe script's quoting has to survive.
+    late String path;
 
     setUp(() async {
       dir = await Directory.systemTemp.createTemp('ompanion-writer-');
@@ -102,6 +68,9 @@ void main() {
         home: dir.path,
         agentDir: '${dir.path}/.omp/agent',
       );
+      final sessions = Directory("${dir.path}/it's \$HOME `id` \\n dir")..createSync();
+      path = '${sessions.path}/session.jsonl';
+      await File(path).writeAsString('{"type":"session"}\n');
     });
 
     tearDown(() async {
@@ -110,8 +79,6 @@ void main() {
     });
 
     test('a process holding the file open for writing is found', () async {
-      final path = '${dir.path}/session.jsonl';
-      await File(path).writeAsString('{"type":"session"}\n');
       // A descriptor held for writing, kept open by this child until it is killed.
       final holder = await Process.start('/bin/sh', ['-c', 'exec 9>>"\$0"; sleep 60', path]);
       addTearDown(() => holder.kill());
@@ -123,21 +90,20 @@ void main() {
     });
 
     test('a reader is not a writer', () async {
-      final path = '${dir.path}/session.jsonl';
-      await File(path).writeAsString('{"type":"session"}\n');
       final reader = await Process.start('/bin/sh', ['-c', 'exec 9<"\$0"; sleep 60', path]);
       addTearDown(() => reader.kill());
       await Future<void>.delayed(const Duration(seconds: 1));
 
       expect(await probeSessionWriter(link, probe, path), isNull);
-    }, skip: !Platform.isMacOS && !Directory('/usr/bin/lsof').existsSync() && !Directory('/proc').existsSync());
+    });
 
     test('a terminal breadcrumb of the file with a live omp on that tty is found', () async {
       final fake = await _fakeOmpOnPty(dir);
-      if (fake == null) return;
+      if (fake == null) {
+        markTestSkipped('`script` gives no pty here');
+        return;
+      }
       addTearDown(fake.kill);
-      final path = '${dir.path}/session.jsonl';
-      await File(path).writeAsString('{"type":"session"}\n');
       final breadcrumbs = Directory('${probe.agentDir}/terminal-sessions')..createSync(recursive: true);
       File('${breadcrumbs.path}/${fake.breadcrumbId}').writeAsStringSync('${dir.path}\n$path\n');
 
@@ -147,8 +113,6 @@ void main() {
     });
 
     test('a breadcrumb whose terminal runs nothing is stale, not a writer', () async {
-      final path = '${dir.path}/session.jsonl';
-      await File(path).writeAsString('{"type":"session"}\n');
       final breadcrumbs = Directory('${probe.agentDir}/terminal-sessions')..createSync(recursive: true);
       // omp never removes a breadcrumb, so one of a closed terminal must not lock the app out of its own session.
       File('${breadcrumbs.path}/ttys999').writeAsStringSync('${dir.path}\n$path\n');

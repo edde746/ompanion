@@ -209,9 +209,16 @@ final class TerminalSession extends ChangeNotifier {
   /// Opens the backend at a grid size.
   final Future<TerminalBackend> Function(int columns, int rows) open;
 
-  final terminal = Terminal(maxLines: 10000, platform: _platform);
+  // xterm2's view answers an OSC 52 query with this device's clipboard whenever the terminal has focus, unless the
+  // terminal has its own answer: `cat` of a hostile file, or a compromised machine, could read a copied password.
+  // Writes to the clipboard (a remote editor's yank) stay allowed.
+  final terminal = Terminal(maxLines: 10000, platform: _platform, onClipboardQuery: (_) => null);
   final controller = TerminalController();
-  late final _writer = TerminalFrameWriter(terminal.write);
+  late final _writer = TerminalFrameWriter(
+    terminal.write,
+    pause: () => _output?.pause(),
+    resume: () => _output?.resume(),
+  );
 
   String _title;
   TerminalPhase _phase = const TerminalStarting();
@@ -284,8 +291,6 @@ final class TerminalSession extends ChangeNotifier {
       _pendingInput.clear();
       _setPhase(const TerminalRunning());
       final code = await backend.exitCode;
-      // No flush here: a shell that exits behind a burst (a `cat` of a large file, then `exit`) leaves megabytes
-      // queued, and writing them in one go is the freeze the writer exists to avoid. The frames carry them still.
       _setPhase(TerminalExited(code));
     } on Object catch (error) {
       _setPhase(TerminalFailed(error));

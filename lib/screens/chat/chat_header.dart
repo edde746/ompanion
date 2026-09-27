@@ -247,7 +247,8 @@ class _SessionMenu extends StatelessWidget {
         ),
         MenuItemButton(
           leadingIcon: const Icon(Icons.power_settings_new),
-          onPressed: session.view.external == null ? () => unawaited(_stop(context, session)) : null,
+          // A reader of another process's file has no omp of ours to stop, also once that process is gone.
+          onPressed: session is ExternalSession ? null : () => unawaited(_stop(context, session)),
           child: Text(t.chat.stopSession),
         ),
       ],

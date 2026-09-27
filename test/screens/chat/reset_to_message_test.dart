@@ -313,6 +313,22 @@ void main() {
     expect(copied, ['first answer']);
   });
 
+  testWidgets('a reset an extension cancels says so and moves nothing', (tester) async {
+    final session = _Session(SessionView());
+    await pump(tester, session, _userRow('u1', 'first question'));
+    await openMenu(tester);
+    await tester.tap(find.text('Reset to here'));
+    await tester.pump();
+
+    session.omp.answerCompanion(0, {'cancelled': true, 'aborted': false});
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Navigation cancelled.'), findsOneWidget);
+    expect(find.text('Earlier replies are kept in the session tree.'), findsNothing);
+    expect(sessions.draftOf(session).text.text, isEmpty);
+    expect(sessions.turnsOf(session).takeJumpToEnd(), isFalse);
+  });
+
   testWidgets('while a turn runs, Reset to here is disabled and explains why', (tester) async {
     final session = _Session(SessionView(run: const RunState(running: true)));
     await pump(tester, session, _userRow('u1', 'first question'));

@@ -86,7 +86,8 @@ final class HostProbe {
   /// it failed), which is always the case on Windows.
   final String? loginPath;
 
-  /// Why [loginPath] is null on a POSIX machine: no login shell, or one that answered with no `PATH`.
+  /// Why [loginPath] is null on a POSIX machine: no login shell, one that answered with no `PATH`, or no
+  /// temporary file to take its answer.
   final String? loginProblem;
 
   final bool curl;
@@ -212,10 +213,11 @@ if [ -n "$prof" ]; then agent="$cfg/profiles/$prof/agent"; else agent=${PI_CODIN
 # shellenv and path_helper in .zprofile, ~/.local/bin, version managers and Android in .zshrc/.bashrc. The exec
 # channel this probe runs on is neither, so a program started from it sees sshd's default PATH, which is
 # missing all of that. Ask the login shell for the PATH its own children get, in the account's home directory
-# (the app may run omp with another HOME, e.g. an isolated one, which must not change the answer). `env` is read
-# instead of "$PATH" because fish joins its PATH list into the exported, colon-separated variable. The answers
-# arrive between markers in a 0600 temp file, so rc noise (motd, echoes, prompts, .zcompdump) cannot corrupt
-# them; a shell that never answers is killed after lwait tenths of a second.
+# (the app may run omp with another HOME, e.g. an isolated one, which must not change the answer). `printenv
+# PATH` is read instead of "$PATH" because fish joins its PATH list into the exported, colon-separated
+# variable; nothing else of the shell's environment is printed, since an rc may export secrets. The answer
+# arrives between markers in a mktemp file, so rc noise (motd, echoes, prompts, .zcompdump) cannot corrupt it
+# and no one can plant the file; a shell that never answers is killed after lwait tenths of a second.
 llogin=
 lwhy=
 luser=$(id -un 2>/dev/null)
@@ -230,14 +232,17 @@ if [ -z "$lshell" ] && [ -n "$lrow" ]; then lshell=$(printf '%s' "$lrow" | cut -
 if [ -z "$lshell" ] && has dscl; then lshell=$(dscl . -read "/Users/$luser" UserShell 2>/dev/null | cut -d' ' -f2-); fi
 if [ -z "$lhome" ]; then lhome=$HOME; fi
 case $lhome in /*) ;; *) lhome=$HOME ;; esac
+# A POSIX shell on Windows: the Windows probe that follows replaces this one, and omp there keeps its PATH.
+case $kernel in *MINGW* | *MSYS* | *CYGWIN*) lshell= ;; esac
 if [ -z "$lshell" ] || [ ! -x "$lshell" ]; then
   lwhy='no login shell'
+elif ! lout=$(mktemp "${TMPDIR:-/tmp}/ompanion-login.XXXXXX" 2>/dev/null); then
+  lwhy="cannot create a temporary file in ${TMPDIR:-/tmp}"
 else
-  lout=${TMPDIR:-/tmp}/ompanion-login-$$
   lm=login-$m
   ltry() {
-    (umask 077; : >"$lout")
-    HOME="$lhome" "$lshell" "$@" "printf '%s\n' $lm; env; printf '%s\n' $lm" </dev/null >"$lout" 2>/dev/null &
+    : >"$lout"
+    HOME="$lhome" "$lshell" "$@" "printf '\n%s\n' $lm; printenv PATH; printf '%s\n' $lm" </dev/null >"$lout" 2>/dev/null &
     lp=$!
     ln=0
     while [ "$(grep -c "$lm" "$lout" 2>/dev/null)" -lt 2 ] && kill -0 $lp 2>/dev/null && [ $ln -lt $lwait ]; do
@@ -251,7 +256,7 @@ else
       lk=$((lk + 1))
     done
     kill -9 $lp 2>/dev/null
-    llogin=$(awk -v m="$lm" 'n == 0 && $0 == m { n = 1; next } n == 1 && /^PATH=/ { print substr($0, 6); exit }' "$lout")
+    llogin=$(awk -v m="$lm" '$0 == m { if (n == 2) { print p; exit } n = 1; next } n == 1 { p = $0; n = 2; next } n == 2 { exit }' "$lout")
     if [ -z "$llogin" ]; then lwhy='the login shell reported no PATH'; else lwhy=; fi
   }
   ltry -l -i -c

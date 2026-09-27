@@ -63,7 +63,10 @@ abstract final class Prefs {
 
   /// Whether the sidebar hides the sessions of the project folder [cwd] on machine [machineId].
   static BoolPref projectCollapsed(String machineId, String cwd) =>
-      BoolPref('project_collapsed:$machineId:$cwd', false);
+      BoolPref('${projectCollapsedPrefix(machineId)}$cwd', false);
+
+  /// The key prefix of machine [machineId]'s [projectCollapsed] settings, which go with the machine.
+  static String projectCollapsedPrefix(String machineId) => 'project_collapsed:$machineId:';
 
   /// Set once "this computer" was added automatically, so deleting it sticks.
   static const localMachineSeeded = BoolPref('local_machine_seeded', false);

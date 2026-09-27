@@ -168,8 +168,9 @@ class SessionsProvider extends ChangeNotifier {
     NewSession() => false,
   };
 
-  /// Opens the session again after its link closed (the omp process exited or reconnecting gave up),
-  /// replacing [session] in [openSessions].
+  /// Opens the session again, replacing [session] in [openSessions]: after its link closed (the omp process exited or
+  /// reconnecting gave up), or to take over a session file another omp process held ([ExternalSession]). Returns
+  /// [session] itself when the runtime hands the same one back, such as a reader whose file is still held.
   Future<LiveSession> reopen(LiveSession session) async {
     final machine = machineOf(session);
     if (machine == null) throw StateError('the machine of this session was deleted');
@@ -180,38 +181,6 @@ class SessionsProvider extends ChangeNotifier {
       select(session);
       return session;
     }
-    final index = _open.indexOf(session);
-    if (index < 0) {
-      _open.add(replacement);
-    } else {
-      _open[index] = replacement;
-    }
-    _machineIds.remove(session);
-    _machineIds[replacement] = machine.id;
-    final draft = _drafts.remove(session);
-    if (draft != null) _drafts[replacement] = draft;
-    final turns = _turns.remove(session);
-    if (turns != null) _turns[replacement] = turns;
-    _disposeLater(_execRuns.remove(session));
-    _deadlines.remove(session)?.dispose();
-    deadlinesOf(replacement);
-    if (_active == session || _active == null) _active = replacement;
-    notifyListeners();
-    unawaited(session.detach());
-    unawaited(refresh(machine));
-    return replacement;
-  }
-
-  /// Takes the session file of [session] over from the other omp process reading it: the machine is probed again,
-  /// and the app opens its own run for the file once nothing else holds it. Returns [session] again when the other
-  /// process still holds it, so the caller can say so and leave the reader in place.
-  Future<LiveSession> takeOver(LiveSession session) async {
-    final machine = machineOf(session);
-    if (machine == null) throw StateError('the machine of this session was deleted');
-    final path = session.sessionPath;
-    if (path == null) throw StateError('this session has no file to take over');
-    final replacement = await runtimeFor(machine).open(ResumeSession(path));
-    if (identical(replacement, session)) return session;
     final index = _open.indexOf(session);
     if (index < 0) {
       _open.add(replacement);

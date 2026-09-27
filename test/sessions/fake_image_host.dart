@@ -18,7 +18,7 @@ const fakeProbe = HostProbe(
 /// [answers] when it has the path (the auto load; [originals] for `original: true`), else with [bytesPerImage] bytes
 /// whose first byte is the file's size, so images are told apart by content.
 final class FakeImageHost implements ImageHost {
-  FakeImageHost({this.bytesPerImage = 100});
+  FakeImageHost({this.bytesPerImage = 100, this.id = 'machine-1'});
 
   final int bytesPerImage;
   final files = <String, ({int size, DateTime modified})>{};
@@ -29,7 +29,7 @@ final class FakeImageHost implements ImageHost {
   Completer<void>? gate;
 
   @override
-  String get id => 'machine-1';
+  final String id;
 
   @override
   HostProbe? get probe => fakeProbe;

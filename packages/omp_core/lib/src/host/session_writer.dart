@@ -36,8 +36,10 @@ Iterable<String> _breadcrumbDirs(HostProbe probe, String sessionPath) sync* {
 /// omp's breadcrumb of [sessionPath] whose terminal still runs an omp. [breadcrumbDirs] are the candidate
 /// `<agentDir>`s (`terminal-sessions` is appended).
 ///
-/// The two are independent: the descriptor is held for the length of a turn, while the breadcrumb survives the
-/// turn and even the terminal (omp never removes one), so it counts only with a live omp on that tty.
+/// The two are independent: omp opens its append descriptor at the first write after it opened or rewrote the file
+/// and keeps it until it switches sessions, rewrites the file or exits, while the breadcrumb is written when omp
+/// opens a session and survives even the terminal (omp never removes one), so it counts only with a live omp on
+/// that tty.
 String sessionWriterScript(String marker, String sessionPath, Iterable<String> breadcrumbDirs) {
   final dirs = breadcrumbDirs.map(shQuote).join(' ');
   return '''
@@ -49,57 +51,56 @@ printf '%s:end\\n' "\$m"
 ''';
 }
 
-/// `lsof`'s FD column carries the access mode (`30w`); its field output does not, so the plain table is parsed.
-/// On a Linux host without `lsof`, `/proc/<pid>/fd` symlinks and the octal `flags` of `fdinfo` answer the same
-/// question: the low two bits are the access mode (0 read, 1 write, 2 read-write).
+/// On Linux, `/proc/<pid>/fd` answers with shell builtins only: `-ef` compares the device and inode each descriptor
+/// resolves to with the file's, and `fdinfo/<fd>`'s octal `flags` carry the access mode in the low two bits (0 read,
+/// 1 write, 2 read-write). A `readlink` per descriptor took 3 s for 10,000 descriptors on the test machine, and
+/// BusyBox's `lsof` ignores its arguments and prints no access mode. Elsewhere (macOS) `lsof`'s FD column carries
+/// the mode after the descriptor number (`30w`); its field output does not, so the plain table is parsed.
 const _holdersBody = r'''
-lsof_path=
-if command -v lsof >/dev/null 2>&1; then
-  lsof_path=lsof
-elif [ -x /usr/sbin/lsof ]; then
-  lsof_path=/usr/sbin/lsof
-elif [ -x /usr/bin/lsof ]; then
-  lsof_path=/usr/bin/lsof
-fi
-if [ -n "$lsof_path" ]; then
-  "$lsof_path" -w -- "$s" 2>/dev/null | awk 'NR > 1 && $4 ~ /[wu]$/ { print "holder", $2 }'
-elif [ -d /proc ]; then
+if [ -d /proc/self/fd ]; then
   for d in /proc/[0-9]*; do
-    p=${d#/proc/}
-    held=0
     for f in "$d"/fd/*; do
-      [ -L "$f" ] || continue
-      t=$(readlink "$f" 2>/dev/null) || continue
-      [ "$t" = "$s" ] || continue
-      v=$(awk '/^flags:/ { print $2 }' "$d/fdinfo/${f##*/}" 2>/dev/null)
-      if [ -n "$v" ] && [ "$((0$v & 3))" -ne 0 ]; then held=1; break; fi
+      [ "$f" -ef "$s" ] || continue
+      v=
+      while read -r k v; do [ "$k" = flags: ] && break; v=; done 2>/dev/null < "$d/fdinfo/${f##*/}"
+      case "$v" in ''|*[!0-7]*) continue ;; esac
+      if [ $((0$v & 3)) -ne 0 ]; then echo "holder ${d#/proc/}"; break; fi
     done
-    [ "$held" = 1 ] && echo "holder $p"
   done
+else
+  lsof_path=
+  if command -v lsof >/dev/null 2>&1; then
+    lsof_path=lsof
+  elif [ -x /usr/sbin/lsof ]; then
+    lsof_path=/usr/sbin/lsof
+  fi
+  if [ -n "$lsof_path" ]; then
+    "$lsof_path" -w -- "$s" 2>/dev/null | awk 'NR > 1 && $4 ~ /^[0-9]+[wu]/ { print "holder", $2 }'
+  fi
 fi
 ''';
 
 /// The breadcrumb's second line is the session file omp last opened in that terminal. Only a terminal-shaped id
 /// names a device the process table shows (`ttys004` on macOS, `pts-3` → `pts/3` on Linux); a multiplexer or
-/// emulator id (`tmux-%7`, `kitty-3`, `apple-…`) names none, and is left alone rather than guessed at.
+/// emulator id (`tmux-%7`, `kitty-3`, `apple-…`) names none, and is left alone rather than guessed at. omp never
+/// removes a crumb, so the id is checked before the file is read.
 const _breadcrumbBody = r'''
 case "$s" in
   /private/*) s_alt=${s#/private} ;;
   *) s_alt=/private$s ;;
 esac
 for A in OMP_BREADCRUMB_DIRS; do
-  [ -d "$A/terminal-sessions" ] || continue
   for f in "$A"/terminal-sessions/*; do
-    [ -f "$f" ] || continue
-    p=$(sed -n 2p "$f" 2>/dev/null)
-    if [ "$p" != "$s" ] && [ "$p" != "$s_alt" ]; then continue; fi
     id=${f##*/}
     case "$id" in
       ttys*) tty=$id ;;
       pts-*) tty=pts/${id#pts-} ;;
       *) continue ;;
     esac
-    pid=$(ps -eo pid=,tty=,command= 2>/dev/null | awk -v t="$tty" '
+    p=
+    { IFS= read -r c; IFS= read -r p; } 2>/dev/null < "$f"
+    [ "$p" = "$s" ] || [ "$p" = "$s_alt" ] || continue
+    pid=$(ps -eo pid=,tty=,args= 2>/dev/null | awk -v t="$tty" '
       $2 == t {
         c = $0
         sub(/^[ \t]*[0-9]+[ \t]+[^ \t]+[ \t]+/, "", c)

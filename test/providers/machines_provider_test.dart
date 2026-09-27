@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -8,8 +9,12 @@ import 'package:ompanion/models/host_key_trust.dart';
 import 'package:ompanion/models/machine.dart';
 import 'package:ompanion/models/machine_export.dart';
 import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/providers/settings_provider.dart';
 import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/sessions/machine_images.dart';
 import 'package:omp_core/ssh.dart';
+
+import '../sessions/fake_image_host.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -72,15 +77,71 @@ void main() {
     expect(await secrets.password('j'), 'jump-secret');
   });
 
-  test('deleting a machine deletes the saved passwords of all its hops', () async {
-    await provider.save(machine(), passwords: {'m': 'target-secret', 'j': 'jump-secret'});
+  test('deleting a machine deletes everything kept for it and nothing of another machine', () async {
+    final temp = await Directory.systemTemp.createTemp('machine delete ');
+    addTearDown(() => temp.delete(recursive: true));
+    final images = MachineImages(cacheDir: () async => temp);
+    final machines = MachinesProvider(db, secrets, images: images);
+    addTearDown(machines.dispose);
+    // Its id starts with the deleted one's, and it dials the same jump host.
+    final other = SshMachine(
+      id: 'm2',
+      name: 'box2',
+      createdAt: now,
+      updatedAt: now,
+      target: const SshEndpoint(id: 'm2', host: 'box2', user: 'me', auth: AuthMethod.password),
+      jumps: const [SshEndpoint(id: 'j2', host: 'bastion', user: 'me', auth: AuthMethod.password)],
+    );
+    await machines.save(machine(), passwords: {'m': 'secret', 'j': 'secret'});
+    await machines.save(other, passwords: {'m2': 'secret', 'j2': 'secret'});
+    final hostKey = generateEd25519Key().publicKey;
+    await db.batch((batch) {
+      batch.insertAll(db.knownHosts, [
+        for (final host in ['box', 'bastion', 'box2'])
+          KnownHostRow(
+            host: host,
+            port: 22,
+            keyType: hostKey.type,
+            keyBlob: base64.encode(hostKey.blob),
+            fingerprint: hostKey.fingerprint,
+            addedAt: now,
+          ),
+      ]);
+      batch.insertAll(db.readMarkers, [
+        for (final id in ['m', 'm2']) ReadMarkerRow(machineId: id, path: '/home/me/s.jsonl', seenModified: now),
+      ]);
+      batch.insertAll(db.settings, [
+        for (final id in ['m', 'm2']) SettingRow(key: Prefs.projectCollapsed(id, '/src').key, value: 'true'),
+      ]);
+    });
+    final hosts = [
+      for (final id in ['m', 'm2']) FakeImageHost(id: id)..files['/a.png'] = (size: 1000, modified: now),
+    ];
+    for (final host in hosts) {
+      await images.load(host, '/a.png');
+    }
     await pumpEventQueue();
 
-    await provider.delete(provider.byId('m')!);
+    await machines.delete(machines.byId('m')!);
 
-    expect(await secrets.password('m'), isNull);
-    expect(await secrets.password('j'), isNull);
-    expect(await db.select(db.machineJumps).get(), isEmpty);
+    expect([for (final row in await db.select(db.machines).get()) row.id], ['m2']);
+    expect([for (final row in await db.select(db.machineJumps).get()) row.id], ['j2']);
+    expect([for (final row in await db.select(db.readMarkers).get()) row.machineId], ['m2']);
+    expect([for (final row in await db.select(db.settings).get()) row.key], [Prefs.projectCollapsed('m2', '/src').key]);
+    expect([for (final row in await db.select(db.knownHosts).get()) row.host], unorderedEquals(['bastion', 'box2']));
+    expect(
+      [
+        for (final id in ['m', 'j', 'm2', 'j2']) await secrets.password(id),
+      ],
+      [null, null, 'secret', 'secret'],
+    );
+    expect([for (final host in hosts) images.peek(host, '/a.png') != null], [false, true]);
+    // A reopened app finds only the other machine's image on disk.
+    final reopened = MachineImages(cacheDir: () async => temp);
+    for (final host in hosts) {
+      await reopened.load(host, '/a.png');
+    }
+    expect([for (final host in hosts) host.fetches.length], [2, 1]);
   });
 
   test(

@@ -25,18 +25,25 @@ sealed class TranscriptRow {
 ///
 /// It stays away where something else already says what is going on: a compacting, retrying or parked run (the
 /// status strip), a request the run waits on (an approval, a question), a streaming message with a row of its own
-/// (its spinner) or a running tool (its progress).
+/// (its spinner) or a running tool (its progress). And while the transcript ends in a finished reply, unless this
+/// device just sent a prompt: omp keeps a run going after that reply while a background task works
+/// (`agent_end{isTerminal: false}`), and no reply is on its way until the task's result reaches the model. A failed
+/// reply does not count: omp's retry of it starts with `agent_start`, which ends the status strip's retry.
 bool awaitingReply(SessionView view) {
   final run = view.run;
   if (!run.running && !view.promptPending) return false;
   if (run.compacting != null || run.retrying != null || run.paused) return false;
   if (view.requests.any(_waitsForAnAnswer)) return false;
-  return !view.transcript.any(isProducing);
+  if (view.transcript.lastOrNull case AssistantItem(streaming: false, stopReason: StopReason.stop)
+      when !view.promptPending) {
+    return false;
+  }
+  return !view.transcript.any(_isProducing);
 }
 
 /// Whether [item] is producing something the reader can see right now: a streaming message with a row on screen, or
 /// a running tool.
-bool isProducing(TranscriptItem item) => switch (item) {
+bool _isProducing(TranscriptItem item) => switch (item) {
   final AssistantItem item when item.streaming => _showsContent(item),
   ToolResultItem(state: ToolState.running) => true,
   _ => false,

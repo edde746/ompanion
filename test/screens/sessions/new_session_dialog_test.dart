@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/database/app_database.dart';
@@ -114,7 +115,8 @@ final class _Connector extends MachineConnector {
 
 /// What the dialog uses of [SessionsProvider]: the fake machine's [runtime], the recent project directories of
 /// its listing, its model list, and the session requests [open] records. [controlPending], while set, stands for
-/// a control process that has not started yet; [controlFailure] for one that does not start.
+/// a control process that has not started yet; [controlFailure] for one that does not start; [openPending] for a
+/// session that is still starting.
 final class _Sessions extends ChangeNotifier implements SessionsProvider {
   _Sessions(this.runtime, {this.catalogue = const [], this.recent = const []});
 
@@ -127,6 +129,7 @@ final class _Sessions extends ChangeNotifier implements SessionsProvider {
   List<String> recent;
   Completer<LiveSession>? controlPending;
   Object? controlFailure;
+  Completer<LiveSession>? openPending;
   final opened = <SessionOpen>[];
 
   @override
@@ -159,7 +162,7 @@ final class _Sessions extends ChangeNotifier implements SessionsProvider {
   @override
   Future<LiveSession> open(Machine machine, SessionOpen request) async {
     opened.add(request);
-    return FakeSession();
+    return openPending?.future ?? FakeSession();
   }
 }
 
@@ -220,14 +223,15 @@ Future<_Sessions> _pumpDialog(
   return sessions;
 }
 
-/// The directory field's text.
-String _cwdField(WidgetTester tester) =>
-    tester.widget<TextField>(find.byKey(const ValueKey('new-session-cwd'))).controller!.text;
-
-/// Taps Start and returns the new-session request the provider received. Pumped in steps, not settled: a
-/// spinner the dialog shows meanwhile never stops animating.
-Future<NewSession> _startSession(WidgetTester tester, _Sessions sessions) async {
-  await tester.tap(find.byKey(const ValueKey('new-session-create')));
+/// Starts the session, with a tap on Start or, when [enter], with Enter in the focused field, and returns the
+/// new-session request the provider received. Pumped in steps, not settled: a spinner the dialog shows meanwhile
+/// never stops animating.
+Future<NewSession> _startSession(WidgetTester tester, _Sessions sessions, {bool enter = false}) async {
+  if (enter) {
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+  } else {
+    await tester.tap(find.byKey(const ValueKey('new-session-create')));
+  }
   for (var i = 0; i < 50 && sessions.opened.isEmpty; i++) {
     await tester.pump(const Duration(milliseconds: 20));
   }
@@ -311,13 +315,31 @@ void main() {
     });
   });
 
-  testWidgets('a recent project row puts its directory in the working directory field', (tester) async {
-    await _pumpDialog(tester, recent: ['/home/u/alpha', '/home/u/.cache/deep/beta']);
+  testWidgets('a recent project row fills the directory field, and Enter starts the session there', (tester) async {
+    final sessions = await _pumpDialog(
+      tester,
+      recent: ['/home/u/alpha', '/home/u/.cache/deep/beta'],
+      files: {'/home/u/.cache/deep/beta/README.md': 'x'},
+    );
 
     await tester.tap(find.byKey(const ValueKey('new-session-recent-/home/u/.cache/deep/beta')));
     await tester.pumpAndSettle();
 
-    expect(_cwdField(tester), '/home/u/.cache/deep/beta');
+    // A desktop click outside a text field takes its focus; the row leaves it in the directory field.
+    expect((await _startSession(tester, sessions, enter: true)).cwd, '/home/u/.cache/deep/beta');
+  }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+  testWidgets('a long recent project keeps its last directory whole and inside its row', (tester) async {
+    const deep = '/home/u/.cache/some/very/deeply/nested/directory/structure/that/goes/on/and/on/beta';
+    const wide = '/home/u/work/a-project-whose-own-directory-name-is-wider-than-the-row';
+    await _pumpDialog(tester, recent: [deep, wide]);
+
+    // The directories above the last one give way first, so `/beta` still tells this path from its neighbours.
+    expect(tester.renderObject<RenderParagraph>(find.text('/beta')).didExceedMaxLines, isFalse);
+    // A last directory wider than the row is cut at the row's end instead of running past it.
+    final row = tester.getRect(find.byKey(const ValueKey('new-session-recent-$wide')));
+    final name = tester.getRect(find.text('/a-project-whose-own-directory-name-is-wider-than-the-row'));
+    expect(name.right, lessThanOrEqualTo(row.right));
   });
 
   testWidgets('the session opens with the model picked in the picker', (tester) async {
@@ -344,23 +366,53 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('new-session-model-default')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('new-session-model-default')), findsNothing);
 
     expect((await _startSession(tester, sessions)).model, isNull);
   });
 
-  testWidgets('a model list still loading leaves Start on omp\'s default', (tester) async {
-    final sessions = await _pumpDialog(tester, files: {'/home/u/project/README.md': 'x'});
-    sessions.controlPending = Completer<LiveSession>();
+  testWidgets('Start while the model list loads opens the session on omp\'s default, and no picker follows', (
+    tester,
+  ) async {
+    final sessions = await _pumpDialog(tester, catalogue: _models, files: {'/home/u/project/README.md': 'x'});
+    final control = sessions.controlPending = Completer<LiveSession>();
+    final open = sessions.openPending = Completer<LiveSession>();
     await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
-
     await tester.tap(find.byKey(const ValueKey('new-session-model')));
     await tester.pump();
 
-    // The picker waits for the machine's control process; Start does not.
+    final request = await _startSession(tester, sessions);
+    // The models arrive while the session starts, then the session is up.
+    control.complete(FakeSession());
+    await tester.pump(const Duration(milliseconds: 300));
+    open.complete(FakeSession());
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(request.model, isNull);
     expect(find.text('Choose a model'), findsNothing);
-    expect(tester.widget<FilledButton>(find.byKey(const ValueKey('new-session-create'))).onPressed, isNotNull);
-    expect((await _startSession(tester, sessions)).model, isNull);
+    expect(find.byKey(const ValueKey('new-session-create')), findsNothing);
+  });
+
+  testWidgets('Escape while the session starts leaves the dialog up until the session shows', (tester) async {
+    final sessions = await _pumpDialog(tester, files: {'/home/u/project/README.md': 'x'});
+    final open = sessions.openPending = Completer<LiveSession>();
+    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
+    await _startSession(tester, sessions);
+
+    // The session is created either way; like the disabled Cancel, Escape does not let go of it.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byKey(const ValueKey('new-session-create')), findsOneWidget);
+
+    open.complete(FakeSession());
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byKey(const ValueKey('new-session-create')), findsNothing);
+    expect(tester.element(find.text('new')).read<ShellProvider>().selection, isA<SessionSelection>());
   });
 
   testWidgets('a model list that does not load leaves Start working, on omp\'s default', (tester) async {

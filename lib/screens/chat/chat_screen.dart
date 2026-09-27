@@ -42,10 +42,12 @@ class ChatScreen extends StatelessWidget {
     final sessions = context.read<SessionsProvider>();
     final images = context.read<MachineImages?>()?.forSession(sessions, session);
     // A large session opens with its latest part; the transcript asks for earlier pages as the reader scrolls up.
+    // A session another omp process writes has no RPC to branch or reset with.
+    final writable = session is! ExternalSession;
     TranscriptActions actions(Future<void> Function()? loadEarlier) => TranscriptActions(
-      onBranchFrom: (entryId) => unawaited(branchFrom(context, session, entryId)),
-      onResetTo: (entryId, kind) => unawaited(resetToEntry(context, session, entryId, kind)),
-      canReset: () => !session.view.run.running && session.view.external == null,
+      onBranchFrom: writable ? (entryId) => unawaited(branchFrom(context, session, entryId)) : null,
+      onResetTo: writable ? (entryId, kind) => unawaited(resetToEntry(context, session, entryId, kind)) : null,
+      canReset: () => !session.view.run.running,
       onCopy: (text) => unawaited(_copy(context, text)),
       onOpenFile: (path, {line}) => context.read<DockController>().openFile(path, line: line),
       onOpenSubagent: (id) => context.read<DockController>().openSubagent(id),
@@ -64,10 +66,17 @@ class ChatScreen extends StatelessWidget {
             LinkBanner(session: session),
             StatusStrip(session: session),
             Expanded(
-              child: SessionViewBuilder(
+              child: LinkStateBuilder(
                 session: session,
-                builder: (context, view) =>
-                    TranscriptView(view: view, actions: actions(session.loadEarlier), turns: turns),
+                builder: (context, link) => SessionViewBuilder(
+                  session: session,
+                  builder: (context, view) => TranscriptView(
+                    view: view,
+                    actions: actions(session.loadEarlier),
+                    turns: turns,
+                    closed: link is LinkClosed,
+                  ),
+                ),
               ),
             ),
             CommandOutputs(key: ObjectKey(session), session: session),
@@ -105,7 +114,11 @@ Future<void> resetToEntry(BuildContext context, LiveSession session, String entr
   final dock = context.read<DockController>();
   try {
     final outcome = await navigateTree(session, sessions, entryId: entryId, kind: kind);
-    if (outcome != TreeNavigation.moved) return;
+    if (outcome != TreeNavigation.moved) {
+      // An extension's `session_before_tree` kept the leaf where it was.
+      messenger.showSnackBar(SnackBar(content: Text(t.dock.sessionTree.navigationCancelled)));
+      return;
+    }
     messenger.showSnackBar(
       SnackBar(
         content: Text(t.chat.resetKept),

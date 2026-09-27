@@ -14,7 +14,6 @@ import '../host/scripts.dart';
 import '../host/session_listing.dart' hide listSessions;
 import '../host/session_listing.dart' as listing show listSessions;
 import '../host/session_writer.dart';
-import '../store/external_writer.dart';
 import '../transport/host_link.dart';
 import 'external_session.dart';
 import 'live_session.dart';
@@ -141,10 +140,8 @@ final class MachineRuntime {
   final _opens = <String, Future<RunSession>>{};
   final _sessions = <RunSession>{};
 
-  /// Sessions another process holds, read from their files ([ExternalSession]), by session file path. One reader
-  /// per file while its writer is there; dropped when a later open finds the writer gone.
+  /// Readers of session files another process holds ([ExternalSession]), by session file path, while they are open.
   final _external = <String, ExternalSession>{};
-  final _externals = <ExternalSession>{};
   RunSession? _control;
   _ControlAccess? _controlAccess;
   Future<RunSession>? _controlStarting;
@@ -249,17 +246,22 @@ final class MachineRuntime {
         // A process the app did not start holds the file: launching here would put a second writer on one session
         // file. Read the file instead ([ExternalSession]); it offers the take-over once the writer is gone.
         final writer = await probeSessionWriter(ready.link, ready.probe, sessionPath);
-        if (sessionOwnership(appRun: false, writer: writer) == SessionOwnership.foreign) {
-          final cached = _external[sessionPath];
-          if (cached != null && cached.linkState is! LinkClosed) return cached;
-          final external = ExternalSession(sessionPath: sessionPath, cwd: cwd, link: ready.link, probe: ready.probe);
+        if (writer != null) {
+          if (_external[sessionPath] case final open?) return open;
+          final external = ExternalSession(
+            sessionPath: sessionPath,
+            cwd: cwd,
+            link: ready.link,
+            probe: ready.probe,
+            writer: writer,
+          );
+          external.onClosed = () {
+            if (identical(_external[sessionPath], external)) _external.remove(sessionPath);
+          };
           _external[sessionPath] = external;
-          _externals.add(external);
           await external.start();
           return external;
         }
-        // The writer is gone (or was never there): a cached reader of the file is stale, so drop it and launch.
-        _external.remove(sessionPath);
         // The launch looks for a live run of the session again, under the machine's launch lock.
         final (:run, launched: _) = await openRun(ready.link, ready.probe, _spec(ready, cwd, sessionPath: sessionPath));
         return _openRun(run, ready.probe);
@@ -316,12 +318,10 @@ final class MachineRuntime {
     _disposed = true;
     await Future.wait([
       for (final session in _sessions.toList()) session.detach(),
-      for (final external in _externals.toList()) external.detach(),
+      for (final external in _external.values.toList()) external.detach(),
       if (_control case final control?) control.detach(),
       for (final forward in _forwards.toList()) forward.close(),
     ]);
-    _external.clear();
-    _externals.clear();
     final connection = _connection;
     _connection = null;
     await connection?.link.close();

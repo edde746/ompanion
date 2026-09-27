@@ -167,17 +167,20 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
     }
     if (!mounted) return;
     setState(() => _loadingModels = false);
+    // Start was pressed while the list loaded: the session opens on omp's default, and a picker now would sit over
+    // the dialog when the session closes it.
+    if (_creating) return;
     final selector = await pickModel(context, models: models, title: t.sessions.modelPick, current: _model?.selector);
     if (!mounted || selector == null) return;
     setState(() => _model = (selector: selector, name: _modelName(models, selector)));
   }
 
-  /// [selector] as the picker lists it: the model's name and provider, or the selector itself for a typed
-  /// selector omp does not list here.
+  /// [selector] as the field shows it: the model's name, provider and thinking level, or the selector itself for a
+  /// typed selector omp does not list here.
   static String _modelName(List<RpcModel> models, String selector) {
-    final id = splitSelector(selector).model;
-    for (final model in models) {
-      if ('${model.provider}/${model.id}' == id) return '${model.name} · ${model.provider}';
+    final (:model, :thinking) = splitSelector(selector);
+    for (final listed in models) {
+      if ('${listed.provider}/${listed.id}' == model) return [listed.name, listed.provider, ?thinking].join(' · ');
     }
     return selector;
   }
@@ -249,27 +252,30 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
                   constraints: BoxConstraints(
                     maxHeight: (sidebarTouch(context) ? AppSizes.rowHeightTouch : AppSizes.rowHeight) * 5,
                   ),
-                  child: ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: _cwd,
-                    builder: (context, value, _) {
-                      final current = _expand(value.text.trim());
-                      return ListView.builder(
-                        key: const ValueKey('new-session-recent'),
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        itemCount: recent.length,
-                        itemBuilder: (context, index) {
-                          final cwd = recent[index];
-                          return _RecentProject(
-                            key: ValueKey('new-session-recent-$cwd'),
-                            path: cwd,
-                            home: _probe?.home,
-                            selected: cwd == current,
-                            onTap: () => _setCwd(cwd),
-                          );
-                        },
-                      );
-                    },
+                  // Part of the directory field for its tap-outside check: on desktop a click elsewhere takes the
+                  // field's focus, and a picked project is where the user goes on typing or presses Enter.
+                  child: TextFieldTapRegion(
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _cwd,
+                      builder: (context, value, _) {
+                        final current = _expand(value.text.trim());
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          itemCount: recent.length,
+                          itemBuilder: (context, index) {
+                            final cwd = recent[index];
+                            return _RecentProject(
+                              key: ValueKey('new-session-recent-$cwd'),
+                              path: cwd,
+                              home: _probe?.home,
+                              selected: cwd == current,
+                              onTap: () => _setCwd(cwd),
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -284,7 +290,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
                       label: _model?.name ?? t.sessions.modelDefault,
                       tooltip: _model?.selector,
                       busy: _loadingModels,
-                      onPressed: _loadingModels || _probe == null ? null : () => unawaited(_pickModel()),
+                      onPressed: ready && !_loadingModels ? () => unawaited(_pickModel()) : null,
                     ),
                   ),
                   if (_model != null) ...[
@@ -309,7 +315,12 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _creating ? null : () => Navigator.pop(context), child: Text(t.common.cancel)),
+        // Escape and the scrim wait like Cancel while the session starts: omp creates it either way, and the dialog
+        // hands it to the shell.
+        PopScope(
+          canPop: !_creating,
+          child: TextButton(onPressed: _creating ? null : () => Navigator.pop(context), child: Text(t.common.cancel)),
+        ),
         FilledButton(
           key: const ValueKey('new-session-create'),
           onPressed: ready ? () => unawaited(_create()) : null,
@@ -342,11 +353,11 @@ class _RecentProject extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final shown = shortPath(path, home);
+    // The last segment, with its separator, yields only to the row's own width; the directories above it are cut
+    // first, so the segment that tells two long `.cache` paths apart stays readable.
     final cut = shown.lastIndexOf(RegExp(r'[/\\]'));
-    // Only the directories above the last segment are cut away, so the segment that tells two long `.cache`
-    // paths apart stays readable.
-    final head = cut < 0 ? '' : shown.substring(0, cut + 1);
-    final tail = cut < 0 ? shown : shown.substring(cut + 1);
+    final head = cut <= 0 ? '' : shown.substring(0, cut);
+    final tail = cut <= 0 ? shown : shown.substring(cut);
     final style = theme.textTheme.bodyMedium;
     return SidebarRow(
       selected: selected,
@@ -357,11 +368,29 @@ class _RecentProject extends StatelessWidget {
           children: [
             Icon(Icons.folder_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
-            if (head.isNotEmpty)
-              Flexible(
-                child: Text(head, maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  children: [
+                    if (head.isNotEmpty)
+                      Flexible(
+                        // Sized to the glyphs it keeps, so the cut head meets the last segment without a gap.
+                        child: Text(
+                          head,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textWidthBasis: TextWidthBasis.longestLine,
+                          style: style,
+                        ),
+                      ),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                      child: Text(tail, maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
+                    ),
+                  ],
+                ),
               ),
-            Text(tail, maxLines: 1, style: style),
+            ),
           ],
         ),
       ),
@@ -384,14 +413,14 @@ class _ModelField extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final button = FilledButton.tonal(
       key: const ValueKey('new-session-model'),
-      onPressed: busy ? null : onPressed,
+      onPressed: onPressed,
       style: const ButtonStyle(
         padding: WidgetStatePropertyAll(EdgeInsetsDirectional.only(start: 12, end: 8)),
         alignment: AlignmentDirectional.centerStart,
       ),
       child: Row(
         children: [
-          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
           const SizedBox(width: 4),
           if (busy)
             const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2))

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omp_core/ssh.dart';
@@ -18,6 +19,33 @@ import '../chat/transcript/code_style.dart';
 
 /// OpenSSH private keys are a few KiB; anything much larger is the wrong file.
 const _maxKeyFileBytes = 64 * 1024;
+
+/// iOS names the picker's directory for a copy with `UUID().uuidString`.
+final _uuidName = RegExp(r'^[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}$');
+
+/// Deletes the plaintext copy of [file], a picked private key, that the picker left in this app's storage; nothing
+/// else would. On Android and iOS the picker hands over a copy in a directory of its own: `<cache>/file_picker/<time>/`
+/// and `<tmp>/<uuid>/`, which iOS in turn copied from its own import in `<tmp>/<app>-Inbox/`. On desktop the path is
+/// the user's own file, which stays.
+Future<void> _deletePickerCopy(PlatformFile file) async {
+  final path = file.path;
+  final platform = defaultTargetPlatform;
+  if (path == null || (platform != TargetPlatform.android && platform != TargetPlatform.iOS)) return;
+  final dir = Directory(p.dirname(path));
+  final ownDirectory = platform == TargetPlatform.android
+      ? p.basename(dir.parent.path) == 'file_picker'
+      : _uuidName.hasMatch(p.basename(dir.path));
+  if (!ownDirectory) {
+    await File(path).delete();
+    throw StateError('the file picker put its copy of a key file at $path, not where the app looks for copies');
+  }
+  await dir.delete(recursive: true);
+  if (platform != TargetPlatform.iOS) return;
+  // The picker copies out of the Inbox and never reads it again, nor does anything else.
+  await for (final entity in dir.parent.list()) {
+    if (entity is Directory && p.basename(entity.path).endsWith('-Inbox')) await entity.delete(recursive: true);
+  }
+}
 
 /// Imports a pasted or picked private key. Pops the stored key, or null when cancelled.
 Future<SshKeyRow?> showImportKeyDialog(BuildContext context) =>
@@ -70,28 +98,40 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
   Future<void> _chooseFile() async {
     final t = context.t;
     final home = Platform.environment[Platform.isWindows ? 'USERPROFILE' : 'HOME'];
-    final file = await FilePicker.pickFile(
-      dialogTitle: t.keys.importTitle,
-      initialDirectory: hostAccessAvailable && home != null ? p.join(home, '.ssh') : null,
-    );
-    if (file == null || !mounted) return;
-    final length = await file.length();
-    if (length == null || length > _maxKeyFileBytes) {
-      setState(() => _error = t.keys.fileTooLarge);
-      return;
-    }
-    final String text;
+    final PlatformFile? file;
     try {
-      text = utf8.decode(await file.readAsBytes());
+      file = await FilePicker.pickFile(
+        dialogTitle: t.keys.importTitle,
+        initialDirectory: hostAccessAvailable && home != null ? p.join(home, '.ssh') : null,
+      );
+    } on PlatformException {
+      // Android reports a copy that failed partway as an error, without its path.
+      if (defaultTargetPlatform == TargetPlatform.android) await FilePicker.clearTemporaryFiles();
+      rethrow;
+    }
+    if (file == null) return;
+    String? text;
+    String? error;
+    try {
+      final length = await file.length();
+      if (length == null || length > _maxKeyFileBytes) {
+        error = t.keys.fileTooLarge;
+      } else {
+        text = utf8.decode(await file.readAsBytes());
+      }
     } on FormatException {
-      setState(() => _error = t.keys.malformed);
-      return;
+      error = t.keys.malformed;
+    } finally {
+      await _deletePickerCopy(file);
     }
     if (!mounted) return;
+    final name = file.name;
     setState(() {
-      _error = null;
-      _pem.text = text;
-      if (_name.text.trim().isEmpty) _name.text = file.name;
+      _error = error;
+      if (text != null) {
+        _pem.text = text;
+        if (_name.text.trim().isEmpty) _name.text = name;
+      }
     });
   }
 

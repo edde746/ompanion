@@ -7,11 +7,14 @@ import '../database/app_database.dart';
 import '../models/machine.dart';
 import '../models/machine_export.dart';
 import '../services/secret_store.dart';
+import '../sessions/machine_images.dart';
 import '../utils/ids.dart';
+import 'settings_provider.dart';
 
 /// All machines, kept current from the database. Mutations write rows and secrets; the list follows.
 class MachinesProvider extends ChangeNotifier {
-  MachinesProvider(this._db, this._secrets) {
+  /// Without [images], [delete] leaves the image cache alone.
+  MachinesProvider(this._db, this._secrets, {this._images}) {
     _subscription = _query().watch().map(_read).listen((machines) {
       _machines = machines;
       _loaded = true;
@@ -21,6 +24,7 @@ class MachinesProvider extends ChangeNotifier {
 
   final AppDatabase _db;
   final SecretStore _secrets;
+  final MachineImages? _images;
   late final StreamSubscription<List<Machine>> _subscription;
   List<Machine> _machines = const [];
   bool _loaded = false;
@@ -74,11 +78,35 @@ class MachinesProvider extends ChangeNotifier {
     }
   }
 
+  /// Deletes [machine] and everything kept for it: its row, jump hosts and read markers (they cascade), its sidebar
+  /// settings, the trusted keys of its hosts that no other machine dials, its hops' saved passwords and its cached
+  /// images.
   Future<void> delete(Machine machine) async {
-    await (_db.delete(_db.machines)..where((m) => m.id.equals(machine.id))).go();
-    for (final hop in _hops(machine)) {
+    final hops = await _db.transaction(() async {
+      final stored = _read(await _query().get());
+      final hops = _hops(stored.where((m) => m.id == machine.id).firstOrNull ?? machine);
+      // Host keys are per host and port, not per machine: another machine, or another's jump host, may dial the same.
+      final dialedByOthers = {
+        for (final other in stored)
+          if (other.id != machine.id)
+            for (final hop in _hops(other)) (hop.host, hop.port),
+      };
+      final unused = {for (final hop in hops) (hop.host, hop.port)}.difference(dialedByOthers);
+      await (_db.delete(_db.machines)..where((m) => m.id.equals(machine.id))).go();
+      final settings = Prefs.projectCollapsedPrefix(machine.id);
+      await (_db.delete(_db.settings)..where((s) => s.key.substr(1, settings.length).equals(settings))).go();
+      if (unused.isNotEmpty) {
+        await (_db.delete(_db.knownHosts)..where(
+              (k) => Expression.or([for (final (host, port) in unused) k.host.equals(host) & k.port.equals(port)]),
+            ))
+            .go();
+      }
+      return hops;
+    });
+    for (final hop in hops) {
       await _secrets.deletePassword(hop.id);
     }
+    await _images?.forget(machine.id);
   }
 
   /// JSON for [machines], without secrets (see [MachineExport]).

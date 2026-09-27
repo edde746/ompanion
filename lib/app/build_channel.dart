@@ -26,6 +26,3 @@ bool get thisComputerAvailable => isDesktop && BuildChannel.current == BuildChan
 /// Reading `~/.ssh` (config aliases, `known_hosts`) and running local CLIs (`ssh -G`, `tailscale`).
 /// Sandboxed desktop channels get no access to the user's home or host binaries.
 bool get hostAccessAvailable => isDesktop && BuildChannel.current == BuildChannel.direct;
-
-/// Self-update from GitHub releases; stores deliver updates themselves.
-bool get autoUpdateAvailable => isDesktop && BuildChannel.current == BuildChannel.direct;

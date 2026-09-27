@@ -78,10 +78,12 @@ final class SessionView {
   /// `get_state` has news no frame carried (model, todos, context usage, queue, settings). Cleared by `withState`.
   final bool stateStale;
 
-  /// This device sent a prompt and omp has not started producing output for it yet. Set by the UI that sent it
-  /// ([LiveSession.setPromptPending]) and shown as the chat's awaiting-reply row while it holds, so the round trip
-  /// before `agent_start` (and before `get_state.isStreaming` says so) is not silent. The reducer clears it once the
-  /// run starts, its prompt's result arrives or the run ends.
+  /// This device is sending a prompt and omp has not put it in the transcript yet. Set by the UI that sends it
+  /// ([LiveSession.setPromptPending]) and shown as the chat's awaiting-reply row while it holds, so an upload and the
+  /// round trip before the run's first message are not silent. The reducer clears it at a run's first message
+  /// (`message_start`) and when a run ends; the sender clears it when its prompt fails, finishes without a run, or
+  /// loses its connection. A `prompt_result` or `session_settled` does not clear it: companion calls are prompts too,
+  /// and one can finish while this prompt is still on its way.
   final bool promptPending;
 
   /// Another process on the machine writes this session file, and what is known about it. Set only by

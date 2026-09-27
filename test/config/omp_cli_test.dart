@@ -33,12 +33,10 @@ void main() {
     loginPath: loginPath,
   );
 
-  test('the login shell PATH is in front, the link PATH behind it', () async {
-    final result = await runOmp(link, probe(loginPath: '/opt/homebrew/bin:/Users/me/.local/bin'), [
-      '-c',
-      r'printf %s "$PATH"',
-    ]);
-    expect(result.stdout, '/opt/homebrew/bin:/Users/me/.local/bin:/usr/bin:/bin');
+  test('the login shell PATH is in front, verbatim, the link PATH behind it', () async {
+    const login = r"/opt/homebrew/bin:/Users/me/it's here/$(exit 7)/`exit 8`/\x";
+    final result = await runOmp(link, probe(loginPath: login), ['-c', r'printf %s "$PATH"']);
+    expect(result.stdout, '$login:/usr/bin:/bin');
   });
 
   test('without a login PATH the process keeps the link PATH', () async {

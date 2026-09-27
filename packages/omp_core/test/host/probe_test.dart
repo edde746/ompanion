@@ -145,6 +145,7 @@ void main() {
     test('reads the PATH the login shell gives its children, past rc noise', () async {
       final shell = await fakeShell(
         'echo "welcome to my shell"\n'
+        'printf "loading nvm..."\n'
         'PATH=/opt/homebrew/bin:/home/me/.local/bin:/usr/bin\n'
         'export PATH\n'
         r'eval "$1"'

@@ -26,8 +26,8 @@ import 'window_chrome.dart';
 final _lightTheme = appTheme(Brightness.light);
 final _darkTheme = appTheme(Brightness.dark);
 
-/// Root widget. [settings] and [machines] are created in `main` because startup reads and seeds them;
-/// they live as long as the process.
+/// Root widget. [settings] and [machines] are created in `main` because startup reads and seeds them, and [images]
+/// with them because deleting a machine deletes its cached images; they live as long as the process.
 class OmpanionApp extends StatelessWidget {
   const OmpanionApp({
     super.key,
@@ -35,12 +35,14 @@ class OmpanionApp extends StatelessWidget {
     required this.settings,
     required this.secrets,
     required this.machines,
+    required this.images,
   });
 
   final AppDatabase db;
   final SettingsProvider settings;
   final SecretStore secrets;
   final MachinesProvider machines;
+  final MachineImages images;
 
   @override
   Widget build(BuildContext context) {
@@ -84,10 +86,7 @@ class OmpanionApp extends StatelessWidget {
           lazy: false,
         ),
         ChangeNotifierProvider(create: (_) => DockController(machines)),
-        Provider(
-          create: (_) => MachineImages(cacheDir: machineImageCacheDir),
-          dispose: (_, images) => images.dispose(),
-        ),
+        Provider.value(value: images),
       ],
       child: TranslationProvider(
         child: Builder(

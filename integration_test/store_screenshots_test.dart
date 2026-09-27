@@ -43,6 +43,7 @@ import 'package:ompanion/screens/dock/dock_controller.dart';
 import 'package:ompanion/screens/dock/tree/tree_tab.dart';
 import 'package:ompanion/screens/shell/layout.dart';
 import 'package:ompanion/screens/shell/shell_screen.dart';
+import 'package:ompanion/sessions/machine_images.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:ompanion/services/secret_store.dart';
 import 'package:omp_core/session.dart' show MachineOnline;
@@ -105,11 +106,14 @@ void main() {
     final settings = await SettingsProvider.load(db);
     await settings.set(Prefs.themeMode, ThemeMode.dark);
     final secrets = SecretStore();
-    final machines = MachinesProvider(db, secrets);
+    final images = MachineImages(cacheDir: machineImageCacheDir);
+    final machines = MachinesProvider(db, secrets, images: images);
     final keys = KeysProvider(db, secrets);
     await _seed(machines: machines, keys: keys);
 
-    await tester.pumpWidget(OmpanionApp(db: db, settings: settings, secrets: secrets, machines: machines));
+    await tester.pumpWidget(
+      OmpanionApp(db: db, settings: settings, secrets: secrets, machines: machines, images: images),
+    );
     await tester.pump(const Duration(seconds: 2));
 
     final devBox = machines.byId('dev-box')!;

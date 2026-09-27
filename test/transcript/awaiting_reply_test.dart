@@ -5,13 +5,15 @@ import 'package:ompanion/screens/chat/transcript/transcript_rows.dart';
 import 'package:ompanion/screens/chat/transcript/transcript_view.dart';
 import 'package:omp_core/store.dart';
 
+import 'fixtures.dart';
+
 /// What the chat asks of the screen, stubbed: the awaiting row has no actions.
 final _actions = TranscriptActions(onCopy: (_) {}, onOpenFile: (path, {line}) {}, onOpenSubagent: (_) {});
 
-Widget _harness(SessionView view) => TranslationProvider(
+Widget _harness(SessionView view, {bool closed = false}) => TranslationProvider(
   child: MaterialApp(
     home: Scaffold(
-      body: TranscriptView(view: view, actions: _actions, foldTurns: false),
+      body: TranscriptView(view: view, actions: _actions, foldTurns: false, closed: closed),
     ),
   ),
 );
@@ -102,15 +104,33 @@ void main() {
       );
     });
 
-    test('hidden on agent_end, on a failure and on an abort', () {
-      final running = _running([_user(1)]);
-      expect(awaitingReply(running), isTrue);
+    test('hidden once the run the send started ends', () {
+      var view = reduce(_sent([_user(1)]), const {'type': 'agent_start'});
+      expect(awaitingReply(view), isTrue);
+      view = reduce(view, const {'type': 'agent_end', 'isTerminal': true, 'messages': <Object?>[]});
+      expect(awaitingReply(view), isFalse);
+    });
 
-      final ended = reduce(running, const {'type': 'agent_end', 'isTerminal': true, 'messages': <Object?>[]});
-      expect((ended.run.running, awaitingReply(ended)), (false, false));
+    test('hidden while a background task works after the reply, shown once its result reaches the model', () {
+      // omp 18.3.1: an async task, the reply, `agent_end{isTerminal: false}`, the task's result as a custom message.
+      final views = replayFixture('subagent').views;
+      final afterReply = [
+        for (final view in views)
+          if (view.run.running &&
+              view.transcript.any((item) => item is ToolResultItem && item.state == ToolState.background) &&
+              view.transcript.last is AssistantItem &&
+              !(view.transcript.last as AssistantItem).streaming)
+            view,
+      ];
+      expect(afterReply, isNotEmpty, reason: 'the run goes on after the reply');
+      expect(afterReply.where(awaitingReply), isEmpty, reason: 'the task card shows the work; no reply is on its way');
 
-      expect(awaitingReply(running.copyWith(run: const RunState(outcome: RunFailed('500')))), isFalse);
-      expect(awaitingReply(running.copyWith(run: const RunState(outcome: RunAborted()))), isFalse);
+      final delivered = [
+        for (final view in views)
+          if (view.run.running && view.transcript.lastOrNull is CustomItem) view,
+      ];
+      expect(delivered, isNotEmpty);
+      expect(delivered.every(awaitingReply), isTrue, reason: 'the model answers the delivered result');
     });
 
     test('hidden during compaction and retry, where the status strip says so', () {
@@ -127,6 +147,18 @@ void main() {
       });
       expect(view.run.retrying, isNotNull);
       expect(awaitingReply(view), isFalse);
+    });
+
+    test('shown while the retry of a failed reply waits for the model', () {
+      // omp 18.3.1: the failed reply, `auto_retry_start`, then the retry's own `agent_start`, which ends the retry.
+      final retry = [
+        for (final view in replayFixture('error-retry').views)
+          if (view.transcript.lastOrNull case AssistantItem(streaming: false, stopReason: StopReason.error)
+              when view.run.running && view.run.retrying == null)
+            view,
+      ];
+      expect(retry, isNotEmpty);
+      expect(retry.every(awaitingReply), isTrue);
     });
 
     test('hidden while the run waits on an answer, shown again once it is given', () {
@@ -224,34 +256,16 @@ void main() {
       expect(tester.getBottomLeft(find.text('The answer')).dy, greaterThan(screen - 60));
     });
 
-    testWidgets('the mark is three dots, stepping once a second, still for less motion', (tester) async {
-      Finder dots() =>
-          find.byWidgetPredicate((widget) => widget is SizedBox && widget.width == 14 && widget.height == 14);
-      Finder dotsOf(double alpha) => find.byWidgetPredicate(
-        (widget) => widget is Container && (widget.decoration as BoxDecoration?)?.color?.a == alpha,
-      );
+    testWidgets('a session whose link closed mid-wait stops showing and counting the row', (tester) async {
+      final view = _running([_user(1)]);
+      await tester.pumpWidget(_harness(view));
+      await tester.pump(const Duration(seconds: 4));
+      expect(find.text(t.transcript.waitingElapsed(seconds: 4)), findsOneWidget);
 
-      Future<void> show({required bool animations}) => tester.pumpWidget(
-        MediaQuery(
-          data: MediaQueryData(disableAnimations: !animations),
-          child: _harness(_running([_user(1)])),
-        ),
-      );
-
-      await show(animations: true);
-      expect(find.text(t.transcript.waiting), findsOneWidget);
-      expect(dots(), findsOneWidget, reason: 'one 14 px mark, centred on the text line');
-      expect(dotsOf(1), findsNWidgets(2));
-      expect(dotsOf(0.4), findsOneWidget, reason: 'the leading dot steps as the wait counts');
-
-      await tester.pump(const Duration(seconds: 1));
-      expect(dotsOf(0.4), findsOneWidget, reason: 'the dimmed dot moved on');
-
-      await show(animations: false);
-      expect(find.text(t.transcript.waiting), findsOneWidget);
-      expect(dots(), findsOneWidget);
-      expect(dotsOf(0.4), findsNothing, reason: 'less motion: the three dots stay lit');
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      // omp exited mid-turn: no agent_end came, so the last view still says the run goes on.
+      await tester.pumpWidget(_harness(view, closed: true));
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.textContaining(t.transcript.waiting), findsNothing);
     });
   });
 }

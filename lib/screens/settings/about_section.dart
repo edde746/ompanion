@@ -20,11 +20,6 @@ final Uri _licenseUrl = Uri.parse('https://github.com/edde746/ompanion/blob/main
 /// The agent this app is a client for.
 final Uri _ompUrl = Uri.parse('https://github.com/can1357/oh-my-pi');
 
-/// The version line: the version with the build number, which every platform but a bare test host reports.
-String _versionLine(Translations t, PackageInfo info) => info.buildNumber.isEmpty
-    ? t.settings.aboutVersion(version: info.version)
-    : t.settings.aboutVersionBuild(version: info.version, build: info.buildNumber);
-
 /// The About section of the settings pane: the app's mark, the version the running build reports and the links
 /// a reviewer looks for, the privacy policy (App Review guideline 5.1.1(i)) among them.
 ///
@@ -84,7 +79,7 @@ class _AboutSectionState extends State<AboutSection> {
                         Text(t.app.title, style: theme.textTheme.titleMedium),
                         if (info != null)
                           Text(
-                            _versionLine(t, info),
+                            t.settings.aboutVersion(version: info.version, build: info.buildNumber),
                             style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                           ),
                       ],

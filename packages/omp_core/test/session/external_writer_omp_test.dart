@@ -120,6 +120,7 @@ void main() {
     expect(opened, isA<ExternalSession>(), reason: 'the app must not launch a second omp for a held session');
     expect(opened.view.external, isNotNull);
     expect(opened.view.external!.pids, contains(foreignPid));
+    expect(opened.view.external!.busy, isTrue, reason: 'omp wrote the foreign prompt; its reply is still streaming');
     expect(opened.view.run.running, isFalse, reason: 'no run of ours is streaming');
     expect(
       prompts(opened.view),
@@ -148,15 +149,16 @@ void main() {
     expect(again, isA<ExternalSession>(), reason: 'an idle omp still owns the session in memory');
     expect(await holdersOf(path), [foreignPid]);
 
-    await opened.detach();
     process.kill();
     await process.exit;
-    // The foreign omp is gone, so the file is free: opening it launches the app's own run and attaches to it.
-    await _eventually(() async => (await holdersOf(path)).isEmpty);
+    // The foreign omp is gone: the reader's own poll says so, which is what enables Take over.
+    await viewWhere(opened, (view) => view.external == null, timeout: const Duration(seconds: 30));
+    // Take over opens the file again while the reader is still open: the app's own run, not the reader.
     final ours = await sessions.open(ResumeSession(path));
     expect(ours, isNot(isA<ExternalSession>()));
     expect(ours.view.external, isNull);
     expect(prompts(ours.view), contains('foreign prompt'), reason: 'the app read the file the other omp wrote');
+    await opened.detach();
     await ours.detach();
   }, timeout: const Timeout(Duration(minutes: 5)));
 

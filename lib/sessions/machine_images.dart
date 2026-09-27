@@ -256,12 +256,21 @@ final class MachineImages {
 
   static int _seconds(DateTime? time) => time == null ? -1 : time.millisecondsSinceEpoch ~/ 1000;
 
-  /// Closes the machines' SFTP channels.
-  void dispose() {
-    for (final host in _hosts.values) {
-      host.close();
+  /// Drops everything kept of the deleted machine [id]: its images in memory and on disk, and its SFTP channel. Its
+  /// loads in flight settle first, so none of them writes to the disk afterwards.
+  Future<void> forget(String id) async {
+    final prefix = '$id\n';
+    _hosts.remove(id)?.close();
+    await Future.wait([
+      for (final MapEntry(:key, value: loading) in _loading.entries)
+        // Only their end matters here; their errors reach the callers of [load].
+        if (key.startsWith(prefix)) loading.then((_) {}, onError: (Object _) {}),
+    ]);
+    for (final key in [..._memory.keys.where((key) => key.startsWith(prefix))]) {
+      _memoryUsed -= _memory.remove(key)!.cost;
     }
-    _hosts.clear();
+    final disk = await (_disk ??= _openDisk());
+    await disk.deleteKeysStartingWith(prefix);
   }
 }
 
@@ -316,6 +325,24 @@ final class _DiskCache {
     await partial.writeAsBytes([...header, 0x0a, ...image.bytes], flush: true);
     await (await partial.rename(file.path)).setLastModified(clock());
     await _trim();
+  }
+
+  /// Deletes the images whose key starts with [prefix], and the writes with that key a crash left half done.
+  Future<void> deleteKeysStartingWith(String prefix) async {
+    // [write]'s header is a JSON object whose first member is the key.
+    final quoted = jsonEncode(prefix);
+    final head = String.fromCharCodes(utf8.encode('{"key":${quoted.substring(0, quoted.length - 1)}'));
+    for (final entity in await dir.list().toList()) {
+      if (entity is! File || !(entity.path.endsWith('.img') || entity.path.endsWith('.img.part'))) continue;
+      try {
+        final file = await entity.open();
+        final start = await file.read(head.length).whenComplete(file.close);
+        if (String.fromCharCodes(start) == head) await entity.delete();
+      } on PathNotFoundException {
+        // Trimmed after another machine's write meanwhile: gone either way.
+        continue;
+      }
+    }
   }
 
   Future<void> _trim() async {
