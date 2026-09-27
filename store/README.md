@@ -20,7 +20,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 
 | Field | Where it goes |
 |---|---|
-| Legal name or seller name | App Store Connect account. The listings use `Edvard Wikhall` as the copyright line (`ios/fastlane/metadata/copyright.txt`), taken from your Plezy App Store seller name — confirm it or replace it. A company does instead needs a **D-U-N-S number** when enrolling as an organization. |
+| Legal name or seller name | App Store Connect account. The listings use `Edvard Wikhall` as the copyright line (`ios/fastlane/metadata/copyright.txt`), taken from your Plezy App Store seller name — confirm it or replace it. A company instead needs a **D-U-N-S number** when enrolling as an organization. |
 | Contact email | App Store Connect → App Review Information (`ios/fastlane/metadata/review_information/email_address.txt`) and Play Console → Store settings → Contact details |
 | Contact phone | App Store Connect → App Review Information (`phone_number.txt`); optional on Play |
 | Contact first and last name | App Store Connect → App Review Information (`first_name.txt`, `last_name.txt`) |
@@ -30,7 +30,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 | Apple Team ID, App Store Connect API key (or Apple ID + app-specific password) | `.env`, see Build below |
 | Play upload keystore + 4 GitHub secrets | `keytool -genkeypair -v -keystore upload-keystore.jks -alias ompanion -keyalg RSA -keysize 4096 -validity 10000`; keep the file and both passwords; set `ANDROID_KEYSTORE_BASE64`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS` as repo secrets and in `android/key.properties` for local store builds |
 | Play service-account JSON key | Google Cloud service account with the Play Developer API enabled, invited under Play Console → Users and permissions; point `PLAY_JSON_KEY_PATH` in `.env` at the JSON |
-| App Store Connect API key, or Apple ID | `.env`: `APP_STORE_CONNECT_API_KEY_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH`, or `FASTLANE_USER` + `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD` |
+| App Store Connect API key, or Apple ID | `.env`: `APP_STORE_CONNECT_API_KEY_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH`, or `FASTLANE_USER` + `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD`; without the API key, fastlane asks for the Apple ID password and a two-factor code |
 
 ## Google Play, in order
 
@@ -49,7 +49,8 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 7. [ ] Sign-in details: choose **"All or some functionality is restricted"** and paste the text from
        `store/review-demo/README.md` §"Console answers" (or `store/google-play.md` §4) with the demo host and
        password filled in.
-8. [ ] Upload the AAB (`(cd android && fastlane release)`, defaults to a draft/internal test).
+8. [ ] Upload the AAB (`(cd android && fastlane release)`, defaults to a draft/internal test; it refuses to
+       run without `android/key.properties`, which would leave the bundle signed with the debug key).
 9. [ ] **New personal developer account only:** run a closed test with at least 12 testers opted in for 14
        continuous days, then apply for production access. Internal testing does not count. Recruit 15–20
        testers. Source: <https://support.google.com/googleplay/android-developer/answer/14151465>.
@@ -61,21 +62,23 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 1. [ ] App Store Connect: create the app record, bundle id `com.edde746.ompanion`, SKU of your choice
        (suggest `ompanion-ios-001`), English (US).
 2. [ ] App information: name, subtitle, categories `DEVELOPER_TOOLS` + `PRODUCTIVITY`, copyright, content
-       rights **No**, price free — `store/app-store.md` §2, §6.
+       rights **Yes, with the necessary rights**, price free — `store/app-store.md` §2, §6.
 3. [ ] Age rating questionnaire: answers in `store/app-store.md` §5; computed 9+, with the 18+ override
        option explained there.
 4. [ ] App Privacy: "No, we do not collect data from this app", plus the privacy policy URL — §7.
 5. [ ] Version 0.1.0: promotional text, description, keywords, support/marketing/privacy URLs, what's new.
 6. [ ] Upload the build (`(cd ios && fastlane deploy_appstore)`).
-7. [ ] Export compliance: answer "uses encryption: yes", "limited to the OS: no" — §8. Upload nothing unless
-       France is in your territories.
+7. [ ] Export compliance: encryption **yes**, "an industry standard algorithm, not provided within the Apple
+       operating system" (SSH and TLS in Dart) — §8. Upload nothing unless France is in your territories.
 8. [ ] App Review Information: contact fields, **Sign-in required = Yes** with user `review` and the demo
        password (`demo_user.txt`, `demo_password.txt`), and the notes from
        `ios/fastlane/metadata/review_information/notes.txt` with `<HOST>` and `<PASSWORD>` filled in.
 9. [ ] Screenshots for the iPhone 6.9-inch set (1320×2868) and the iPad set (2048×2732).
-10. [ ] **Bring the demo host up and leave it up for the whole review window** (`store/review-demo/up.sh`).
+10. [ ] Pricing and Availability: opt out of **iPhone and iPad Apps on Apple Silicon Mac** and **Apple Vision
+        Pro**; both are on unless you deselect them — `store/app-store.md` §2.
+11. [ ] **Bring the demo host up and leave it up for the whole review window** (`store/review-demo/up.sh`).
         Leave a way to be reached: App Review will ask, and a dead demo host reads as a broken app (2.1).
-11. [ ] Submit for review.
+12. [ ] Submit for review.
 
 ## Where every asset lives
 
@@ -101,8 +104,6 @@ and `supply` do: characters everywhere, **bytes** for the App Store keyword fiel
 
 ```bash
 python3 - <<'PY'
-import os
-ROOT = "/Users/edde/omp-app"
 LIMITS = [
     ("App Store name",          "ios/fastlane/metadata/en-US/name.txt",            30,   "chars"),
     ("App Store subtitle",      "ios/fastlane/metadata/en-US/subtitle.txt",        30,   "chars"),
@@ -115,29 +116,30 @@ LIMITS = [
     ("Play full description",   "android/fastlane/metadata/android/en-US/full_description.txt", 4000, "chars"),
     ("Play changelog 1",        "android/fastlane/metadata/android/en-US/changelogs/1.txt", 500, "chars"),
 ]
-for label, rel, limit, unit in LIMITS:
-    s = open(os.path.join(ROOT, rel), encoding="utf-8").read().strip()
+for label, path, limit, unit in LIMITS:
+    s = open(path, encoding="utf-8").read().strip()
     n = len(s.encode()) if unit == "bytes" else len(s)
     print(f"{'ok  ' if n <= limit else 'OVER'} {label:<24} {n:>5} {unit:<5} limit {limit}")
 PY
 ```
 
-Output on this revision (2026-09-26, repository at the commit that added these files):
+Run it from the repository root. Output on this revision (2026-09-27):
 
 ```
 ok   App Store name              20 chars limit 30
 ok   App Store subtitle          21 chars limit 30
 ok   App Store keywords          97 bytes limit 100
 ok   App Store promo text       161 chars limit 170
-ok   App Store description     3793 chars limit 4000
+ok   App Store description     3941 chars limit 4000
 ok   App Store release notes    660 chars limit 4000
 ok   Play title                  20 chars limit 30
 ok   Play short description      70 chars limit 80
-ok   Play full description     3717 chars limit 4000
+ok   Play full description     3864 chars limit 4000
 ok   Play changelog 1           312 chars limit 500
 ```
 
-Both descriptions sit well inside their limit, but re-run this after any wording change.
+Both descriptions are inside their limit, the App Store one by 59 characters: re-run this after any wording
+change.
 
 ## Licence
 
@@ -151,8 +153,9 @@ Both descriptions sit well inside their limit, but re-run this after any wording
   contain no `DBUS_SESSION_BUS_ADDRESS`, `org.freedesktop.DBus` or desktop_drop portal strings, while other
   strings from the same programs are present (`docs/research/licenses.md`). That closes the "what about the
   copyleft dependency" question a reviewer could ask.
-- Console answers this fixes: App Store **Content Rights** No (no third-party content we lack rights to);
-  Play has no licence field, so the GPLv3 line lives in the description.
+- Console answers this settles: App Store **Content Rights** Yes, with the necessary rights (open-source
+  licences for the bundled libraries and for omp); Play has no licence field, so the GPLv3 line lives in the
+  description.
 - In-app licence and privacy text: **Settings → About** (`lib/screens/settings/about_section.dart`) shows the
   app mark, the version, "A client for omp, the oh-my-pi coding agent", and rows for the privacy policy, the
   source, the issue tracker, the licence ("GPL-3.0"), omp itself and Flutter's
@@ -163,21 +166,25 @@ Both descriptions sit well inside their limit, but re-run this after any wording
 ## Build-side facts
 
 - **Data safety and App Privacy:** no data collected — no accounts, no analytics, no crash reporting, no ads,
-  no tracking; all traffic goes to the user's own machines over SSH.
-- **Export compliance:** `dartssh2` implements SSH in Dart (AES-CTR/CBC, ChaCha20-Poly1305, Curve25519,
-  Ed25519), so the app is **not** limited to encryption Apple's OS provides. `ITSAppUsesNonExemptEncryption`
-  is deliberately not set in `Info.plist`, so App Store Connect asks per submission: "uses encryption — yes",
-  "limited to the OS — no", and nothing is uploaded unless France is in your territories. Apple notes that
+  no tracking. Traffic goes to the user's own machines over SSH, plus two requests the user starts: the omp
+  release from `github.com` when a machine cannot download it itself, and a web image after "Load image".
+- **Export compliance:** `dartssh2` implements SSH in Dart (ChaCha20-Poly1305, AES-GCM and AES-CTR as
+  `packages/omp_core/lib/src/ssh/ssh_link.dart` orders them; Curve25519/ECDH/DH key exchange; Ed25519, RSA
+  and ECDSA signatures), and the omp download's HTTPS goes through `dart:io`'s BoringSSL. So the app is
+  **not** limited to encryption Apple's OS provides. `ITSAppUsesNonExemptEncryption` is deliberately not set
+  in `Info.plist`, so App Store Connect asks per submission: "uses encryption — yes", standard algorithms not
+  provided by the OS, and nothing is uploaded unless France is in your territories. Apple notes that
   exempt-encryption apps may owe the U.S. BIS a year-end self-classification report.
 - **iOS purpose strings now in `Info.plist`:** `NSLocalNetworkUsageDescription` (SSH to a machine on the same
   network triggers iOS local-network privacy) and `NSPhotoLibraryUsageDescription` (the bundled file picker
   references `PHPhotoLibrary`/`PHPickerViewController`, so validation requires the string). No camera,
   microphone, contacts, location, Bluetooth, motion, health, calendar or tracking API is linked.
 - **No tracking manifest:** `ios/Runner/PrivacyInfo.xcprivacy` sets `NSPrivacyTracking` false, no tracking
-  domains, no collected data types, and declares `NSPrivacyAccessedAPICategoryFileTimestamp` reason `C617.1`.
+  domains, no collected data types, and declares `NSPrivacyAccessedAPICategoryFileTimestamp` reason `C617.1`
+  and `NSPrivacyAccessedAPICategoryDiskSpace` reason `E174.1`.
 - **Android target API level:** Flutter 3.47.1 defaults (compileSdk 36, targetSdk 36, minSdk 24) already meet
-  Play's requirement to target API 36 for new apps and updates from 31 August 2026. The built app requests
-  only `android.permission.INTERNET`.
+  Play's requirement to target API 36 for new apps and updates from 31 August 2026. The app's only
+  user-facing permission is `android.permission.INTERNET`, and `android:allowBackup` is false.
 - **Uploads come from the Mac with fastlane, not CI:** `(cd ios && fastlane deploy_appstore)` and
   `(cd android && fastlane release)`. A brand-new Play app accepts only a draft release, so the default is a
   draft/internal test; the Fastfile's `track:production release_status:completed` publishes.
@@ -204,12 +211,13 @@ password stay in one place (only `<HOST>` and `<PASSWORD>` need filling). What i
 
 Caveats to keep honest in the listings: the demo machine has omp **preinstalled** and answers with canned
 turns only, and its model picker shows the two neutral demo models, so nothing implies a real provider or a
-real subscription. The omp-install support the listings claim is real (`scripts/fetch_omp.sh`,
-checksum-verified) but is not what the demo shows.
+real subscription. The omp install the listings claim is real (`packages/omp_core/lib/src/host/install.dart`
+and `lib/screens/sessions/install_omp_dialog.dart`: omp 18.3.1 from its GitHub release, SHA-256 checked on
+the machine) but is not what the demo shows.
 
 ## Screenshots and graphics
 
-Paths and sizes, all PNG and no alpha for store uploads:
+Paths and sizes, all PNG; no alpha except the Play icon, which Play takes as a 32-bit PNG with alpha:
 
 | Asset | Path | Size |
 |---|---|---|

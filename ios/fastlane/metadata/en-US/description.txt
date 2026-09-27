@@ -13,8 +13,8 @@ Chat
 - Steer the running turn or queue a follow-up, and edit or remove queued messages
 - Slash commands from the session's own command list, model and thinking-level pickers, and a context and cost meter
 - Pause and resume every agent of a session; Stop aborts the run and restores queued messages
-- Attach files by picking or pasting; images go to the model, files reach omp as mentions it reads on the machine
-- Copy messages, code and tool output, and branch from any of your messages
+- Attach files by picking them, or paste images; images go to the model, files reach omp as mentions it reads on the machine
+- Copy messages and code, and branch from any of your messages
 
 Tools and approvals
 - Tool cards for shell, read, edit and write with word-level diffs, eval, todo, task, web search and fetch
@@ -23,8 +23,8 @@ Tools and approvals
 
 Sessions
 - Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread
-- Search the sessions of every machine by title or project path
-- Resume any session on the machine, including ones you started in omp's terminal UI
+- Search sessions across your machines by title or project path
+- Resume any session on the machine, including ones from omp's terminal UI (read-only while that omp still has it open)
 - Session tree with search, filters, labels, branching and an optional model-written summary
 - Several of your devices on one live session: each sees what the others send, and the first answer settles the dialog everywhere
 
@@ -43,11 +43,11 @@ Files, terminal and configuration
 - Todos by phase, and compactions shown with their summary and file lists
 - Settings from omp's own schema, model roles, providers, MCP servers, plugins, skills, and stats
 - Usage: subscription limits from every online machine, with reset times and account priority
-- Monochrome, flat design with an OLED-black dark theme and a light theme; on an iPad, machines, chat and tools sit together
+- Monochrome, flat design with an OLED-black dark theme and a light theme; on an iPad in landscape, machines, chat and tools sit side by side
 
 Privacy
 - No accounts, no analytics, no crash reporting, no ads, no tracking
-- Everything stays on your device or goes directly to your own machines over SSH
+- Your data stays on your device or goes over SSH to your own machines; the app reaches GitHub only to download omp for a machine, and a web image in a reply only when you tap it
 - Prompts go to omp on your machine, which calls the providers you configured there, under their policies
 - Private keys and passwords are kept in the platform's secure storage
 
