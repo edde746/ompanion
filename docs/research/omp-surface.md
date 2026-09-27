@@ -65,7 +65,7 @@ Column meanings:
 | Provider setup (sign-in + web search) | `/setup` (`/providers`) | **no** | config + login | onboarding wizard |
 | OAuth login | `/login` | `get_login_providers`, `login` → `open_url` + `input`; prompts marked secret fail | `omp login [p]` over an SSH PTY; CE `ctx.modelRegistry.authStorage` | login dialog |
 | Logout / account pin | `/logout`, `/session pin` | **no** logout; text `/session pin [account]` | `omp auth-broker logout` (broker mode only) | accounts page |
-| MCP servers | `/mcp …` | text (add/list/remove/test/reauth/unauth/enable/disable/smithery-*/reconnect/reload/resources/prompts/notifications) | SFTP `.omp/mcp.json`, `~/.omp/agent/mcp.json` | MCP page |
+| MCP servers | `/mcp …` | text (add/list/remove/test/enable/disable/smithery-search/reload/resources/prompts/notifications); reauth, unauth, reconnect, smithery-login and smithery-logout answer "requires OAuth or browser flows only available in the TUI client" (18.3.1, measured) | SFTP `.omp/mcp.json`, `~/.omp/agent/mcp.json` | MCP page |
 | Marketplace / plugins | `/marketplace`, `/plugins`, `/reload-plugins` | text (RPC reloads skills and commands automatically) | `omp plugin … --json`, `omp install --json` | plugins page |
 | Skills registry | `/skills` | **no** (TUI-only) | `omp skill search/info --json`, install/update/uninstall | skills page |
 | Invoke a skill | `/skill:<name>` | via prompt (`dispatchRpcSkillPrompt`), when `skills.enableSkillCommands` is on | — | palette |
@@ -310,7 +310,10 @@ What it can reach:
 - session-listing exports
 - forwarding of `tool_approval_*` events
 
-What it cannot reach: plan mode, goal mode, vibe mode and loop mode. The rest of the list below now goes through `AgentRegistry.global().get(MAIN_AGENT_ID).session`: `/clear`, fork, pause, dequeue, and subagent kill and revive (`contracts/ompx.md`).
+What it cannot call: plan, goal, vibe and loop mode, whose state lives in InteractiveMode, which rpc-ui does not
+have; a companion can only rebuild them from session APIs (`companion-reach.md` §5, and §6 item 5). `/clear`, fork,
+pause, dequeue, and subagent kill and revive go through the live session,
+`AgentRegistry.global().get(MAIN_AGENT_ID).session` (`contracts/ompx.md`).
 
 **Upstream RPC additions that would close the rest:**
 - `set_plan_mode` plus plan-proposal UI

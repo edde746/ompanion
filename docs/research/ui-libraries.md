@@ -213,10 +213,10 @@ Risks:
 - Pin it exactly if a 5.3.0 ever appears: the API is small but `TerminalView`'s widget API is where a fork can
   drift.
 
-**xterm3 6.3.4** (2026-09-24, AGPL-3.0-or-later) is the fork this project used until the store work, and it is out
-of every build. AGPL-3.0 code cannot be conveyed through the App Store by anyone but its copyright holder: the
-project publishes its own GPLv3 code as that holder, but it holds no rights in klc's. Two forks of the same 4.0.0 base, one licence
-apart, is not a trade worth carrying, so one terminal serves all builds.
+**xterm3 6.3.4** (2026-09-24, AGPL-3.0-or-later) is in no build. AGPL-3.0 code cannot be conveyed through the App
+Store by anyone but its copyright holder: the project publishes its own GPLv3 code as that holder, but it holds no
+rights in klc's. Two forks of the same 4.0.0 base, one licence apart, is not a trade worth carrying, so one terminal
+serves all builds.
 
 **What xterm3 has that xterm2 does not.** Compared library by library (its `core.dart`, `ui.dart` and `zmodem.dart`
 against xterm2's): `TerminalUrlDetection`, `RenderStats`, and `PacedTerminalWriter`. Every other difference is
@@ -227,9 +227,9 @@ xterm3 also spells `Buffer.onLineEvicted`, `TerminalStyle.enableLigatures`, `Ter
 - `TerminalUrlDetection`: unused. The view's own OSC 8 `onHyperlinkTap` exists in both, and that is what ompanion
   opens links with.
 - `RenderStats`: unused (xterm3's own benchmark support).
-- `PacedTerminalWriter`: **used**, so ompanion has its own `lib/terminal/frame_writer.dart`: the same job (queue,
-  `flush`, `dispose`) under a character budget per frame instead of xterm3's time budget. It is ompanion's code under
-  ompanion's licence, not a copy of xterm3's version, which is AGPL-3.0 and could not ship either. Details below.
+- `PacedTerminalWriter`: **used**, so ompanion has its own `lib/terminal/frame_writer.dart` for the same job,
+  queueing PTY output and spreading it over frames. It is ompanion's code under ompanion's licence, not a copy of
+  xterm3's version, which is AGPL-3.0 and could not ship either. Details below.
 
 **Performance (numbers from the xterm3 README; xterm2 is slower).** Setup: AOT build, M1 Pro, 170×50 grid, 32 MiB of
 output.
@@ -237,9 +237,8 @@ output.
 - Cyrillic: xterm3 90 MiB/s, xterm2 5.5.
 - Scrollback memory for 10k lines at 170 columns: xterm3 52.8 MiB, xterm2 79.3.
 
-The Cyrillic figure is xterm3's widest lead and the reason it was picked first; nothing in this project has
-measured a difference in the app, and the frame writer (which both forks lack in xterm2) is what keeps frames
-flowing under a burst.
+The Cyrillic figure is xterm3's widest lead; nothing in this project has measured a difference in the app, and
+ompanion's own frame writer (below) is what keeps frames flowing under a burst.
 
 **API**
 - `Terminal(maxLines:, onOutput:, onResize: (w,h,pw,ph), onReply:, onTitleChange:, onBell:, inputHandler:)`.
@@ -254,25 +253,46 @@ flowing under a burst.
 **Selection, search, links**
 - Selection: `TerminalController.selection`, then `terminal.buffer.getText(sel)`.
 - Search: `TerminalSearch`. OSC 8 hyperlinks are supported.
+- OSC 52: xterm2's `TerminalView` answers a program's clipboard read with the device clipboard whenever the
+  terminal has focus, unless the `Terminal` has its own `onClipboardQuery`. ompanion's answers null, so reads are
+  refused and writes (a remote editor's yank) still reach the clipboard (`lib/terminal/terminal_session.dart`).
 
-**`TerminalFrameWriter` is now ompanion's.** xterm2 has no equivalent, so `lib/terminal/frame_writer.dart` queues PTY
-output and hands at most 64 Ki UTF-16 code units to `Terminal.write` per frame, carrying the rest over frames
-scheduled with `SchedulerBinding.scheduleFrameCallback`: a transient callback runs at the start of a frame, before
-build and layout, so what it parses paints in that same frame, and it can be unregistered in `dispose`, which a
-post-frame callback cannot. The budget is characters, not milliseconds: xterm2's parser has no time slice to hand out,
-and a PTY delivers a burst as many chunks inside one frame, so the writer counts what the frame has carried. A frame
-boundary never falls between the two code units of a surrogate pair; an escape sequence cut by one is fine, because
-xterm2's `EscapeParser` keeps an unfinished sequence across `write` calls (`lib/src/core/escape/parser.dart`). Output
-arriving at an idle writer goes through at once, so typing echo pays no frame. `flush()` writes the queue for tests and
-teardown; `dispose()` unregisters the callback and drops what is queued. It is written here, not copied from xterm3
-(which is AGPL-3.0), and is covered by ompanion's own licence.
+**ompanion's `TerminalFrameWriter`.** xterm2 has no equivalent, so `lib/terminal/frame_writer.dart` queues PTY
+output and parses it for at most 8 ms per frame, in slices of 4 Ki UTF-16 code units, carrying the rest over
+frames scheduled with `SchedulerBinding.scheduleFrameCallback`: a transient callback runs at the start of a frame,
+before build and layout, so what it parses paints in that same frame, and it can be unregistered in `dispose`,
+which a post-frame callback cannot. The budget is time, not characters: 64 Ki code units cost xterm2's parser
+0.7 ms of ASCII but 10.4 ms of emoji, 10.5 ms of CJK and 12.8 ms of Cyrillic (JIT, M3), so a character count that
+keeps Cyrillic inside a frame throttles ASCII, and one that suits ASCII freezes on Cyrillic. A PTY delivers a
+burst as many chunks between two frames, so the budget counts all parsing since the last frame. A slice never ends
+between the two code units of a surrogate pair (xterm2 decodes a code point only within one `write`); an escape
+sequence cut by a slice is fine, because xterm2's `EscapeParser` keeps an unfinished sequence across `write` calls.
+Output arriving at an idle writer goes through at once, so typing echo pays no frame. More than 256 Ki queued code
+units pause the output stream (flutter_pty2 stops reading the PTY, dartssh2 stops granting channel window) until
+the frames have carried the backlog: a shell that writes faster than the terminal draws blocks, as in any
+terminal, and the prompt after Ctrl-C does not wait behind megabytes. While the app is hidden no frames run, so the
+writer then parses output as it arrives. `dispose()` unregisters the callback and drops what is queued. It is
+written here, not copied from xterm3 (which is AGPL-3.0), and is covered by ompanion's own licence.
 
-Measured here (macOS 26.6.2, arm64, debug build, screen locked, a real local PTY in a private copy of the checkout,
-80×24 grid, `yes | head -c 20000000; seq 1 200000`): the writer delivered the whole burst with `200000` as its last
-line in 27.6 s while every frame answered — the frame loop stalled 45 ms at the median, 216 ms at worst, worst frame
-build 106 ms. The same chunks written straight into `Terminal.write` finished sooner (23.6 s) but starved the isolate
-723 ms at the median and 1543 ms at worst, which is the freeze this replaces. The drain is tied to the frame rate, so
-the writer is the slower of the two overall; that is the trade.
+Measured here (macOS 26, M3, profile build, 1100×800 window, a real local PTY and an SSH channel to the Docker
+test target; before = 64 Ki code units per frame without back-pressure; after = two runs; frame intervals
+p50/p99/max):
+
+| Output | Before | After |
+|---|---|---|
+| local `seq 1 200000` | 0.59 s; 17/70/70 ms | 0.58–1.0 s; 17/41–55/41–55 ms |
+| local `cat` 20 MB ASCII | 5.2 s; 17/20/23 ms | 1.0–1.8 s; 19–21/26–32/26–32 ms |
+| local `cat` 2.5 M code units of Cyrillic | 1.6 s; 37/57/57 ms | 0.9–2.3 s; 17/21–23/21–26 ms |
+| local `yes` for 3 s, Ctrl-C, then the prompt | 31.7 s; 49/159/193 ms | 0.2–1.2 s; 17/18–31/19–38 ms |
+| SSH `seq 1 200000` | 1.1 s; 43/214/214 ms | 0.5–0.7 s; 17/18–86/18–86 ms |
+| SSH `cat` 20 MB ASCII | 7.5 s; 17/28/2187 ms | 1.4–3.5 s; 17–21/95–232/95–232 ms |
+| SSH `cat` 2.5 M code units of Cyrillic | 1.8 s; 35/425/425 ms | 1.1–2.6 s; 17/86–157/86–198 ms |
+| SSH `yes` for 3 s, Ctrl-C, then the prompt | 42.5 s; 69/171/270 ms | 1.0–1.7 s; 17/27–68/108–212 ms |
+
+An SSH channel that the far end fills faster than the terminal parses shows 80–100 ms gaps every few frames: each
+resume lets dartssh2 grant its whole 2 MiB window back, the target sends it at once, and dartssh2 decrypts it on
+the UI isolate [INFERENCE from the gap pattern; without back-pressure the same transfer has no gaps but queues
+without bound, which is the 42 s above]. A link slower than the parser never pauses the channel.
 
 ```dart
 const _utf8 = Utf8Decoder(allowMalformed: true); // the default decoder errors on bad bytes
@@ -288,7 +308,8 @@ Future<SSHSession> openShell(SSHClient client) async { // dartssh2 4.1.0
   return s;
 }
 ```
-**Local shell on desktop.** Use flutter_pty2 2.0.0 (2026-09-19, MIT, 1★), pinned exactly.
+**Local shell on desktop.** Use flutter_pty2 2.0.0 (2026-09-19, MIT, 1★). `pubspec.yaml` allows `^2.0.0`;
+`pubspec.lock` holds 2.0.0.
 - It is a clean-slate API with backpressure, Windows ConPTY with a Job Object that contains child processes, and all output drained before `done` completes.
 - The alternative, flutter_pty 0.4.2 (2025-01-06), has been unmaintained since then. Open issues include a duplicated program name in Windows arguments (#19), a 1-second sleep on Windows (#20) and 1 KB reads (#24).
 - flutter_pty2's 1.x line keeps flutter_pty's old API if 2.0 misbehaves.
@@ -310,7 +331,9 @@ the rights to ompanion's code only, not a third party's. `docs/research/licenses
 resolved package.
 
 **Other risks**
-- One maintainer on each fork; pin the exact version.
+- One maintainer on each fork. `pubspec.yaml` allows `xterm2: ^5.2.0` and `flutter_pty2: ^2.0.0`, so
+  `flutter pub upgrade` takes a new minor release; `pubspec.lock` (CI installs with `--enforce-lockfile`) holds
+  the versions in use.
 - `write` takes decoded text, so every data source needs the tolerant decoder.
 - `paste()` replaces ESC and other control bytes with a space and converts `\n` to `\r`; when the program has asked
   for bracketed paste (bash 5 on a remote host does), a paste that ends in a newline is inserted into the line
@@ -384,7 +407,7 @@ DiffRow? parseOmpDiffLine(String s) {
 | Word diff | dartdiff | 1.0.0, 2026-02-27 | MIT |
 
 **M3 checks**
-- Done: a build of re_editor on Flutter 3.47 (`test/dock/file_editor_view_test.dart` runs on Flutter 3.47.1 in CI), and the markdown renderer (the decisions table above; rows and spaces in `lib/screens/chat/transcript/markdown.dart`).
+- Done: a build of re_editor on Flutter 3.47 (`test/dock/file_editor_view_test.dart` runs on Flutter 3.47.1 in CI), and the markdown renderer (the decisions table above; `lib/screens/chat/transcript/markdown.dart`).
 - Still open: replay recorded omp transcripts (nested fences, `~~~` fences, lists, tables and `$` math) against the TUI's rendering; profile-mode frame times on a mid-range phone streaming a 50 KB reply at 60 updates per second; fling near the bottom, keyboard and iOS bounce.
 
 ---

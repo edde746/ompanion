@@ -4,10 +4,22 @@ Every user-facing omp feature (18.3.1) and how the app reaches it. A row is done
 against a real machine. Evidence: `research/omp-surface.md` (RPC, text builtins, CLI),
 `research/companion-reach.md` (companion API paths), `research/voice.md`.
 
-The table is the target, not a status. At 0.1 the shipped routes are the README's feature list and the
-companion verbs in `contracts/ompx.md`. Not built: goal, guided goal and loop modes; `/omfg`, `/tan` and
-`/cleanse`; session export, share and handoff; the worktree and `@`-dir rows; user port forwards; voice;
-the agents dashboard and the extensions control center; the store builds (`PLAN.md` §1 and §10).
+The tables are the target, not a status. What ships at 0.1 is the README's feature list. Rows without a surface of
+their own:
+
+- Not reachable: goal, guided goal and loop modes; `/btw`, `/fork` and `/clear` (TUI-only names the app does not
+  send; their companion verbs exist, but the app does not call them); `/omfg`, `/tan` and `/cleanse`; the provider
+  setup wizard; Claude Code and Codex import; prompt history search; `@` file completion in the composer; the
+  sidebar's pause badge and pause-all per machine; magic keyword highlighting; user port forwards; voice; the
+  agents dashboard; the extensions control center; editing `keybindings.yml`.
+- Only by typing the command omp lists into the composer (sent as prompt text, its output shown in the chat):
+  `/todo` edits, `/retry`, `/compact`, `/shake`, `/fresh`, `/handoff`, `/export` (the HTML stays on the machine),
+  `/share`, `/move`, `/wt`, `/add-dir`, `/dirs`, `/fast`, `/extended-context`, `/skillful`, `/computer`, `/browser`,
+  `/prewalk`, `/advisor`, `/rename`, `/pin`, `/session delete`, `/tools`, `/dump`, `/context`, `/jobs`, `/memory`,
+  `/ssh`, `/security`, `/changelog`.
+- Partly: the model catalog (no models page; the roles page refreshes the RPC model list), updating omp (the app
+  installs 18.3.1 where omp is missing or older; it never runs `omp update`), and omp's TUI theme (generic rows on
+  the settings page).
 
 Route codes:
 
@@ -91,11 +103,11 @@ what stock lacks.
 
 | Feature | TUI entry | Route | Surface | M |
 |---|---|---|---|---|
-| List sessions, all projects | `/resume` | FS listing script; CE `listAllSessions` for titles, counts, status | session browser | M4 |
-| Resume | `/resume` | launch `--session`; RPC `switch_session`, `open_session` | session browser | M2 |
+| List sessions, all projects | `/resume` | FS listing script (CE `sessions.list` exists, unused) | session browser | M4 |
+| Resume | `/resume` | launch `--session` | session browser | M2 |
 | Read a session another omp process holds | — (another terminal, `omp -p`, another client) | FS listing script; host probe for write descriptors and omp's terminal breadcrumb (`contracts/session-writer.md`) | chat (read-only), sidebar badge | M4 |
 | Take a held session over | — (after that omp exits) | re-probe, then launch `--session` | composer card, Take over | M4 |
-| New | `/new` | RPC `new_session` | sidebar | M2 |
+| New | `/new` | launch without `--session` (a new run) | sidebar | M2 |
 | Rename | `/rename` | RPC `set_session_name`; `session_info_update` | inline edit | M4 |
 | Pin | `/pin` | TXT `/pin` | session browser | M4 |
 | Delete | `/delete` | CE `deleteSessionWithArtifacts`; current session via `newSession({drop})` | session browser | M4 |
@@ -131,7 +143,7 @@ what stock lacks.
 | Settings (project scope) | `/settings` | FS edit `.omp/config.yml` (no companion writer; rpc-ui reloads it) | settings page | M5 |
 | MCP servers | `/mcp …` | TXT add/remove/enable/disable/test/reload/resources/prompts/smithery-search; FS `mcp.json` | MCP page | M5 |
 | MCP OAuth (reauth, unauth, reconnect, smithery login/logout) | `/mcp reauth` … | none: omp 18.3.1 answers these in RPC with "only available in the TUI client"; the app says so | MCP page | — |
-| Plugins, marketplace | `/plugins`, `/marketplace` | CLI `plugin --json` (npm plugins need `bun` on the machine's PATH); TXT marketplace | plugins page | M5 |
+| Plugins, marketplace | `/plugins`, `/marketplace` | CLI `plugin --json`, `plugin marketplace`, `plugin discover` (npm plugins need `bun` on the machine's PATH) | plugins page | M5 |
 | Skills registry | `/skills` | CLI `skill search/info --json`; installed list from FS `skills.json` + `skills.lock.json` (no CLI lists them) | skills page | M5 |
 | Invoke skill | `/skill:<name>` | RPC prompt | palette | M2 |
 | Extensions control center | `/extensions` | CE-R (list loaded, persist disable, `reload`) | extensions page | M5 |

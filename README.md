@@ -19,23 +19,17 @@ A GUI client for omp, the oh-my-pi coding agent, on this computer and on remote 
 
 ## Download
 
-| Platform | Download |
-| --- | --- |
-| macOS | [ompanion-macos.dmg](https://github.com/edde746/ompanion/releases/latest/download/ompanion-macos.dmg) |
-| Windows x64 | [ompanion-windows-x64.zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-windows-x64.zip) |
-| Linux x64 | [ompanion-linux-x64.zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.zip) (needs GTK 3 and libsecret) |
-| Android | [ompanion-android.apk](https://github.com/edde746/ompanion/releases/latest/download/ompanion-android.apk) |
-| iOS | [ompanion-ios.ipa](https://github.com/edde746/ompanion/releases/latest/download/ompanion-ios.ipa) (unsigned: install it with a sideloading tool such as AltStore or Sideloadly) |
-
-Every file is on the [latest release](https://github.com/edde746/ompanion/releases/latest). Builds of any commit
-come from Actions → Build → Run workflow as artifacts named `ompanion-<platform>-<sha>`. To build it yourself, see
-[Building from Source](#building-from-source).
+There is no release yet: build the app from source ([Building from Source](#building-from-source)). The build
+workflow (Actions → Build → Run workflow, maintainers only) builds any commit into artifacts named
+`ompanion-<platform>-<sha>`: a DMG for macOS, zips for Windows x64 and Linux x64 (the Linux build needs GTK 3 and
+libsecret), an APK for Android, and an unsigned IPA for iOS that a sideloading tool such as AltStore or Sideloadly
+signs on install.
 
 ## Features
 
 ### <img src="assets/readme_icons/chat.svg" height="20" alt="" align="center" /> Chat & transcript
 - Streaming transcript with markdown, LaTeX math, highlighted code, collapsible thinking and images
-- A quiet "Waiting for a reply" line at the end of the transcript fills the silence from sending until the reply streams, counting the seconds it has waited; it goes the moment thinking, text or a tool call arrives, and while a step's tool result has not yet been answered it comes back
+- A quiet "Waiting for a reply" line at the end of the transcript from sending until the model's first output, and again after a tool finishes until the next output; it counts the seconds once it has waited 3 s, and stays away while a tool runs, the run compacts, retries or is paused, or a dialog waits for an answer
 - Finished turns fold their thinking, tool calls and interim messages under a one-line summary (time, tool calls, files edited) and open on a click
 - Steer the running turn or queue a follow-up; edit or remove queued messages
 - `/` command palette from the session's own command list; a slash command omp does not list is never sent to the model
@@ -43,7 +37,7 @@ come from Actions → Build → Run workflow as artifacts named `ompanion-<platf
 - `!` shell and `$` Python runs on the machine, streamed into the chat
 - Pause and resume every agent of a session; Stop aborts the run and puts queued messages back into the composer
 - Attach by pasting, dropping or picking: files copied in Finder or Explorer, screenshots and copied images, and files and folders dropped on the chat (macOS, Windows, Linux) become chips above the text; a paste over 10 lines or 1000 characters becomes a "Pasted text" chip with a preview and "Paste inline", as in omp's terminal UI
-- Attached images go to the model as images; a pasted text chip goes into the message after the typed text, and one over 256 KB into the session's `local://` store as `local://paste-N.md`; files reach omp as `@` mentions it reads itself (text, images, videos as a contact sheet): on this computer where they are, on another machine uploaded over SSH into the session's `local://` directory with progress, 100 MB at most each, deleted with the session; folders attach on this computer only, as a listing
+- Attached images go to the model as images; a pasted text chip goes into the message after the typed text, and one over 256 KB into the session's `local://` store as `local://paste-N.md`; files, 100 MB at most each, reach omp as `@` mentions it reads itself (text, images, videos as a contact sheet): on this computer where they are, on another machine uploaded over SSH into the session's `local://` directory with progress, deleted with the session; folders attach on this computer only, as a listing
 - Images the agent reads show in the read card; images a reply names by a path on the machine load on their own, as previews ffmpeg makes on the machine when it has ffmpeg (WebP, or JPEG and PNG), cached in memory and on disk; web images still wait for a tap
 - Copy messages, code and tool output; branch from any of your messages
 
@@ -58,7 +52,7 @@ come from Actions → Build → Run workflow as artifacts named `ompanion-<platf
 - Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread; a project stays collapsed across restarts and shows on its row when a session in it waits for input or works
 - Search the listed sessions of every machine by title or project path from the sidebar (Cmd/Ctrl+F)
 - Resume any session on the machine, including ones started in omp's terminal UI
-- A session another omp process is writing (omp's terminal UI, `omp -p`, another client) is read, never written: ompanion follows the session file live, refuses to send into it, and names the terminal that holds it. Take over starts the app's own omp for the file once that process has exited (`docs/contracts/session-writer.md`)
+- On macOS and Linux machines, a session another omp process is writing (omp's terminal UI, `omp -p`, another client) is read, never written: ompanion follows the session file live, refuses to send into it, and names the terminal that holds it when omp left a breadcrumb for one. Take over starts the app's own omp for the file once that process has exited (`docs/contracts/session-writer.md`)
 - Session tree: search, filters, labels, branch into a new session, and navigate with an optional summary
 - Reset the conversation to any message from its menu: your own message goes back into the composer, an assistant reply becomes the point to continue from, and the replies left behind stay in the session tree (the snackbar opens it)
 - Compactions show as dividers with their summary and file lists
@@ -72,8 +66,9 @@ come from Actions → Build → Run workflow as artifacts named `ompanion-<platf
 - Key, password, keyboard-interactive, SSH config and agent[^agent] and Tailscale SSH authentication
 - SSH config and agent auth works like the `ssh` command: the agent from `IdentityAgent` or `SSH_AUTH_SOCK`, then the `IdentityFile` keys `~/.ssh/config` sets for the host (or the default `~/.ssh/id_*` keys), with `IdentitiesOnly`; encrypted keys ask for their passphrase and can remember it in secure storage
 - A host that refuses every key names the refused keys and asks for its password or keyboard-interactive answers, like `ssh`; waiting on a prompt never counts toward the connect timeout
-- Import hosts from `~/.ssh/config`, jump chains included, and peers from `tailscale status`[^desktop]
+- On desktop, import hosts from `~/.ssh/config`, jump chains included, and peers from `tailscale status`
 - Host-key checks on every hop, honouring `~/.ssh/known_hosts` on desktop
+- On macOS and Linux machines, omp and the commands it runs get the PATH the account's login shell sets (Homebrew, `~/.local/bin`, version managers), over SSH as on this computer, even when the app was started from the Dock
 - Probes each machine and installs omp with a checksum check, or shows the commands to run by hand
 - Generate Ed25519 keys or import OpenSSH and PEM keys; private keys stay in the platform's secure storage
 - Export and import machines; private keys never leave the device
@@ -196,7 +191,7 @@ flutter test
 (cd companion && bun run typecheck && bun test)
 ```
 
-In `packages/omp_core`, tests that start omp or need Docker are tagged and skipped by default; `dart test -P integration` runs them. In `companion/`, `bun run test:e2e` runs the tests that start omp. These, and `flutter test`'s `test/sessions/sessions_provider_omp_test.dart`, need this computer's omp in `.tools/`; the Docker tests also need the SSH test machines with the Linux omp for Docker's architecture:
+In `packages/omp_core`, tests that start omp, need Docker or run this computer's ffmpeg are tagged and skipped by default; `dart test -P integration` runs them. In `companion/`, `bun run test:e2e` runs the tests that start omp. These, and `flutter test`'s `test/sessions/sessions_provider_omp_test.dart`, need this computer's omp in `.tools/`; the Docker tests also need the SSH test machines with the Linux omp for Docker's architecture:
 
 ```bash
 scripts/fetch_omp.sh darwin-arm64 linux-arm64       # this Mac and colima; linux-x64 on an x64 Linux host
@@ -225,7 +220,7 @@ flutter drive --profile -d macos --driver=test_driver/integration_test.dart \
 <details>
 <summary>Releasing</summary>
 
-To publish a release, set `version` in `pubspec.yaml`, push it to main, and run Actions → Build → Run workflow on main with every platform selected and the release tag set to that version (e.g. `0.1.0`). Before building anything the run checks the branch, the tag, the platforms and the macOS signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip` and `ompanion-linux-x64.zip` to a draft release. Write the notes and publish the draft; publishing creates the tag on the commit that was built.
+To publish a release, set `version` in `pubspec.yaml`, push it to main, and run Actions → Build → Run workflow on main with every platform selected and the release tag set to that version (e.g. `0.1.0`). Before building anything the run checks the branch, the tag (it must equal `pubspec.yaml`'s version and not exist yet), the platforms, and the macOS and Android signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip` and `ompanion-linux-x64.zip` to a draft release. Write the notes and publish the draft; publishing creates the tag on the commit that was built.
 
 [build.yml](.github/workflows/build.yml), run from Actions → Build → Run workflow, signs the macOS app, notarizes the app and the DMG, and staples the tickets so Gatekeeper accepts the DMG in the artifact named `ompanion-macos-<sha>`. It reads six repository secrets, the same names [Plezy](https://github.com/edde746/plezy) uses:
 
@@ -244,9 +239,9 @@ Export the certificate from Keychain Access: *My Certificates* → "Developer ID
 base64 -i cert.p12 | pbcopy      # MACOS_CERTIFICATE_BASE64
 ```
 
-The app-specific password comes from [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security → App-Specific Passwords → `+`. Apple shows it once; a lost one is replaced, not recovered. The Team ID is on the same page (Membership Details).
+The app-specific password comes from [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security → App-Specific Passwords → `+`. Apple shows it once; a lost one is replaced, not recovered. The Team ID is under Membership details at [developer.apple.com/account](https://developer.apple.com/account).
 
-Without all six secrets the macOS job still builds and uploads an unsigned DMG, and the annotation says so; with only some of them it fails and names the missing ones. Only this repository's secrets work on a fork.
+Without all six secrets the macOS job still builds and uploads an unsigned DMG, and the annotation says so; with only some of them it fails and names the missing ones. A fork's runs read the fork's own secrets.
 
 The Android job signs the APK and the Play bundle with the upload key when four repository secrets are set, again the same names [Plezy](https://github.com/edde746/plezy) uses:
 
@@ -266,7 +261,7 @@ Keep the keystore and its passwords: with [Play App Signing](https://support.goo
 
 ### The stores
 
-The App Store and Google Play uploads run from this Mac, not from CI, through a fastlane lane next to each platform. `.env` in the repository root (gitignored) holds the credentials:
+The App Store and Google Play uploads run from a Mac, not from CI, through a fastlane lane next to each platform. `.env` in the repository root (gitignored) holds the credentials:
 
 | Key | Value |
 |---|---|

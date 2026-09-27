@@ -79,7 +79,7 @@ also accounted for.
 ```sh
 # every hosted package's licence body, with the copyleft ones flagged (needs pyyaml: pip install pyyaml)
 python3 - <<'PY'
-import os, re, yaml
+import os, yaml
 cache = os.path.expanduser('~/.pub-cache/hosted/pub.dev')
 for lock in ['pubspec.lock', 'packages/omp_core/pubspec.lock']:
     for name, spec in sorted(yaml.safe_load(open(lock))['packages'].items()):
@@ -89,9 +89,13 @@ for lock in ['pubspec.lock', 'packages/omp_core/pubspec.lock']:
         body = ''
         for f in sorted(os.listdir(base)):
             if f.upper().startswith(('LICENSE', 'LICENCE', 'COPYING')):
-                body += open(os.path.join(base, f), encoding='utf-8', errors='replace').read()
+                path = os.path.join(base, f)
+                # pointycastle keeps its licences in a `licenses/` directory
+                files = [os.path.join(path, g) for g in sorted(os.listdir(path))] if os.path.isdir(path) else [path]
+                for file in files:
+                    body += open(file, encoding='utf-8', errors='replace').read()
         flags = [k for k in ['GNU General Public', 'GNU Affero', 'GNU Lesser', 'Mozilla Public'] if k in body]
-        if flags:
-            print(name, spec['version'], flags)
+        if flags or not body:
+            print(name, spec['version'], flags or 'no licence file')
 PY
 ```

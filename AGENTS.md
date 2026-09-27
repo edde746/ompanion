@@ -1,19 +1,21 @@
 # ompanion contributor guide
 
 Flutter client for omp. Architecture, decisions and milestones: `docs/PLAN.md`. Feature routes:
-`docs/parity.md`. Wire contracts: `docs/contracts/`.
+`docs/parity.md`. Wire contracts: `docs/contracts/`. UI rules: `docs/design.md`.
 
 ## Repository map
 
 | Path | Contents |
 |---|---|
-| `lib/`, `test/`, platform dirs | Flutter app (`ompanion`) |
+| `lib/`, `test/`, `integration_test/`, platform dirs | Flutter app (`ompanion`) |
 | `packages/omp_core/` | pure Dart: transport (`HostLink`), SSH, host scripts, session channels, RPC client, companion client, session store |
 | `companion/` | TypeScript companion extension loaded into omp with `-e` |
 | `testing/` | fake OpenAI-compatible provider, isolated omp homes, recorded fixtures, SSH test containers |
-| `scripts/` | build the companion, fetch an omp release binary, regenerate icons |
-| `.github/workflows/` | CI (Linux and a Windows host) and the per-platform build |
-| `docs/` | plan, parity contract, research, wire contracts |
+| `scripts/` | build the companion, fetch an omp release binary, regenerate icons, sign and notarize the macOS app |
+| `.github/workflows/` | CI (Linux and a Windows host), the per-platform build and release, the website deploy |
+| `store/` | the store submission checklist and console answers, the review demo host, screenshot captions |
+| `website/` | ompanion.app (SvelteKit, static) |
+| `docs/` | plan, parity contract, UI rules, research, wire contracts |
 | `.tools/` | downloaded omp release binaries (gitignored) |
 
 `packages/omp_core` exposes one library per area (`package:omp_core/transport.dart`, `rpc.dart`, …). No
@@ -60,8 +62,9 @@ barrel file re-exporting everything.
   No tests of markup, plumbing or defaults.
 - Pure Dart: `dart test` in `packages/omp_core`. Flutter: `flutter test`. Companion: `bun test` in
   `companion/`.
-- Integration tests that need omp or Docker are tagged (`@Tags(['omp'])`, `@Tags(['docker'])` in Dart;
-  a separate file suffix in Bun) so the unit suite runs without them.
+- Integration tests are tagged so the unit suite runs without them: `@Tags(['omp'])`, `@Tags(['docker'])` and
+  `ffmpeg` in Dart (`dart test -P integration` runs them), `*.e2e.test.ts` in Bun (`bun run test:e2e`). Tests tagged
+  `windows` need a prepared Windows host and run with `-P windows`.
 - `packages/omp_core/test/ssh/fixtures/` holds throwaway private keys (OpenSSH and PEM, plain and
   passphrase-protected, plus ECDSA) that exist only for the SSH key and known_hosts tests; no other code
   reads them. They are test material, not credentials.

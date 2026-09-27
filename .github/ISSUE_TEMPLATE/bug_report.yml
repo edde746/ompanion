@@ -50,7 +50,7 @@ body:
     id: app-version
     attributes:
       label: ompanion Version
-      description: The version shown in the app's About dialog.
+      description: The version under Settings → About in the app.
       placeholder: e.g., 0.1.0
     validations:
       required: true
@@ -97,7 +97,7 @@ body:
     id: host-os
     attributes:
       label: Host OS and Shell
-      description: The machine that runs omp, and the shell omp uses there.
+      description: The machine that runs omp, and its login shell (on Windows, OpenSSH's default shell).
       multiple: true
       options:
         - macOS (zsh/bash)
@@ -105,7 +105,7 @@ body:
         - Windows (cmd.exe)
         - Windows (PowerShell)
         - Windows (Git Bash)
-        - FreeBSD or another BSD
+        - Another OS
         - Unknown
     validations:
       required: true

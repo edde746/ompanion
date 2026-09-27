@@ -185,8 +185,8 @@ nohup sh -c 'tail -c +1 -f "$0/in.jsonl" & echo $! > "$0/tail.pid"; wait' "$D" 2
 - `in.jsonl` doubles as a durable command log; `tail -c +1` replays it from the start, so it must be rotated together with omp restarts (a restarted omp would otherwise re-run old commands).
 - Stop gracefully: kill `tail` → EOF → drain/dispose/exit 0; fallback SIGTERM (exit 143). Safety net: `--max-time`. GC run dirs whose omp pid is dead.
 - Rotation of `out.jsonl`: truncate between turns (O_APPEND writer continues at 0); clients detect the new generation.
-- Verified since: a detached session survives its launcher's channel closing, on macOS and on Linux over SSH (`research/m0-detached-sessions.md`, `packages/omp_core/test/channel/detached_omp_test.dart`).
-- Caveats: extension UI requests without timeout wait for the next client (re-render unmatched `extension_ui_request` ids from the log); don't register host tools/URI schemes in detached sessions; other clients aren't told when one answers a dialog [INFERENCE].
+- Verified since: a detached session survives its launcher's channel closing, on macOS and on Linux over SSH (`research/m0-detached-sessions.md`; `packages/omp_core/test/channel/detached_omp_test.dart` on this computer, `detached_docker_test.dart` over SSH to Linux).
+- Caveats: extension UI requests without timeout wait for the next client (re-render unmatched `extension_ui_request` ids from the log); don't register host tools/URI schemes in detached sessions; other clients learn that a dialog was answered only by tailing `in.jsonl` (what the app does, PLAN.md D6).
 - Pros: turns survive disconnects and mobile suspension; exact replay; multi-reader; no service (process lifetime = session lifetime); the same scripts work locally on macOS/Linux, so the UI can quit mid-turn.
 - Cons: shell plumbing to own; log growth; lease logic; two per-host launch paths (POSIX and Windows).
 - D2b (not recommended yet): host the rpc process in omp's daemon broker (`start` spec, `send` data, `logs` cursor/follow) — internal token-authenticated protocol, version-coupled; only if upstream publishes it.
@@ -269,4 +269,4 @@ Operational rules:
 - Verified since: D2 survival across SSH channel close, on macOS and Linux (`research/m0-detached-sessions.md`).
 - Still [INFERENCE], need smoke tests: dartssh2 → Tailscale SSH none-auth and check-mode banner, `-R 9224` browser relay, Windows agent pipe, Android background service, TailscaleKit on Android.
 - omp cold start measured locally only: 1.7 s to `ready` plus four introspection commands; over SSH not measured.
-- Terminal widget: decided — `xterm2` 5.2.0 (MIT) in every build, iOS and Android included, so no third-party AGPL/GPL code ships anywhere; ompanion paces PTY output itself (`lib/terminal/frame_writer.dart`, one character budget per frame), the one piece xterm3 had that xterm2 lacks (PLAN.md D17, R11).
+- Terminal widget: decided — `xterm2` 5.2.0 (MIT) in every build, iOS and Android included, so no third-party AGPL/GPL code ships anywhere; ompanion paces PTY output itself (`lib/terminal/frame_writer.dart`, a parsing-time budget per frame), the one piece xterm3 had that xterm2 lacks (PLAN.md D17, R11).
