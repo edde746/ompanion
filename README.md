@@ -62,6 +62,7 @@ signs on install.
 - Compactions show as dividers with their summary and file lists
 - Several devices on one live session: each sees what the others send, and the first answer to a dialog settles it everywhere
 - New sessions start in a recent project or a folder picked on the machine, optionally with a model
+- Notifications when a session asks a question, finishes or fails, each kind switchable: on desktops while the app runs, for the sessions it has open; on phones as push notifications the machine sends itself, with no device connected, end-to-end encrypted through our relay (off until you turn it on); a tap opens the session
 
 ### <img src="assets/readme_icons/machines.svg" height="20" alt="" align="center" /> Machines
 - This computer[^desktop], any SSH host, hosts behind a chain of jump hosts, and Tailscale peers
@@ -153,6 +154,32 @@ flutter run -d macos --dart-define=OMPANION_LOCAL_HOME=/tmp/omp-dev-home \
 ```
 
 The three defines are read in `lib/app/dev_overrides.dart`. Start the app without provider API keys in its environment: with a key set, picking a real model makes a paid call. [harness/README.md](harness/README.md), section "Dev machine", covers the demo scenarios and running several instances at once.
+
+</details>
+
+<details>
+<summary>Push notifications</summary>
+
+Phone push needs a Firebase project and the relay ([docs/contracts/push.md](docs/contracts/push.md), [relay/README.md](relay/README.md)). A build without the two config files below has no push; the settings switch says "not configured". Nothing about Firebase runs on a phone until the user turns push on.
+
+1. Firebase console: add a project (Google Analytics is not needed), then an Android app with package `com.edde746.ompanion` and an iOS app with bundle ID `com.edde746.ompanion` and team `G88U5B5783`. Take the values from the downloaded `google-services.json` and `GoogleService-Info.plist`; neither file goes into the repository.
+2. `android/firebase.properties` (a file missing a key fails the Gradle build):
+   ```properties
+   projectId=<project ID>
+   applicationId=<Android app ID, 1:<number>:android:<hex>>
+   apiKey=<API key>
+   senderId=<project number>
+   ```
+3. `ios/Flutter/Firebase.xcconfig`, included optionally by `Debug.xcconfig` and `Release.xcconfig`:
+   ```
+   FIREBASE_GOOGLE_APP_ID = <GOOGLE_APP_ID, 1:<number>:ios:<hex>>
+   FIREBASE_GCM_SENDER_ID = <GCM_SENDER_ID>
+   FIREBASE_API_KEY = <API_KEY>
+   FIREBASE_PROJECT_ID = <PROJECT_ID>
+   ```
+   The values are public client configuration: commit both files.
+4. APNs: developer.apple.com → Keys → `+` with Apple Push Notifications service; upload the `.p8` with its key ID and the team ID in Firebase → Project settings → Cloud Messaging → Apple app configuration. One key covers sandbox and production.
+5. Signing: the first signed iOS build registers `com.edde746.ompanion.NotificationService` and turns on Push Notifications for `com.edde746.ompanion` through Xcode's automatic signing. If it cannot, do both by hand in the developer portal.
 
 </details>
 
@@ -323,5 +350,6 @@ the scan of every resolved package.
 - SSH by [dartssh2](https://pub.dev/packages/dartssh2); terminal by [xterm2](https://pub.dev/packages/xterm2) (MIT) and [flutter_pty2](https://pub.dev/packages/flutter_pty2)
 - Markdown by [gpt_markdown](https://pub.dev/packages/gpt_markdown); code viewing, editing and highlighting by [re_editor](https://pub.dev/packages/re_editor) and [re_highlight](https://pub.dev/packages/re_highlight)
 - Storage by [drift](https://pub.dev/packages/drift) and [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage); translations by [slang](https://pub.dev/packages/slang); state by [provider](https://pub.dev/packages/provider); desktop windows by [window_manager](https://pub.dev/packages/window_manager)
+- Notifications by [flutter_local_notifications](https://pub.dev/packages/flutter_local_notifications) on desktops and [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging) on phones
 - App icons from [Material Symbols](https://fonts.google.com/icons) through [material_symbols_icons](https://pub.dev/packages/material_symbols_icons) (Apache-2.0)
 - README section icons from [Material Icons](https://github.com/google/material-design-icons) (Apache-2.0)

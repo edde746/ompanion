@@ -31,11 +31,15 @@
       <section aria-labelledby="short-version">
         <h2 id="short-version">The short version</h2>
         <ul>
-          <li>There is no account, no sign-up and no service run by us.</li>
+          <li>
+            There is no account and no sign-up. The one service we run is the notification relay, which is used
+            only if you turn on push notifications on a phone, and which only ever sees encrypted notifications.
+          </li>
           <li>The app has no analytics, no crash reporting, no advertising and no tracking of any kind.</li>
           <li>
-            Nothing is sent to us, because there is nowhere to send it: the app talks to machines you own, over
-            SSH, and to nothing else on its own.
+            The app talks to machines you own, over SSH. With push notifications on, a phone also registers with
+            Google's Firebase Cloud Messaging, and your machines send it notifications through our relay, encrypted
+            with a key only your phone and your machines have.
           </li>
           <li>
             What you type goes to the agent on your machine, which calls the AI providers <strong>you</strong>
@@ -66,6 +70,11 @@
             collapsed in the session list), and a random id the app creates once per install. The app puts that
             id in its requests to omp on your machines, so that when several of your devices share a session,
             each one recognises the replies to its own requests.
+          </li>
+          <li>
+            <strong>Push notifications</strong>, on a phone where you turned them on: the notification key the
+            phone made (the Keychain on iOS, the app's private storage on Android) and the Firebase installation ID
+            Google issued for this install.
           </li>
           <li><strong>Read markers</strong>: per session file, the modification time up to which you have read it.</li>
           <li>
@@ -128,8 +137,27 @@
             never a private key, passphrase or password. It goes to the clipboard or to a file you pick.
           </li>
           <li>
-            <strong>Nowhere else.</strong> The app has no server of ours, no telemetry endpoint, no push service
-            and no third-party SDK that reports anything. The app has no update check of its own either: the
+            <strong>To your machines and to Google, when you turn on push notifications on a phone.</strong> The
+            phone registers this install with Google's Firebase Cloud Messaging, which identifies it by a Firebase
+            installation ID that Google keeps until the install deletes it. Nothing about Firebase runs before you
+            turn push notifications on. The phone then leaves a small file under <code>~/.ompanion/push/</code> on
+            each machine it connects to: the phone's random id, the installation ID, the notification key, the name
+            the app gave that machine and which notifications you want.
+          </li>
+          <li>
+            <strong>From your machines, through our relay, to your phone.</strong> When a session on a machine
+            asks a question, finishes or fails, omp's companion encrypts a notification (the session title, the
+            machine name and a line of text) with the phone's key and sends it to our relay at
+            <code>push.ompanion.app</code>, which hands it to Firebase Cloud Messaging, which delivers it through
+            Google Play services on Android and Apple's push service on iPhone. The relay, Google and Apple see the
+            installation ID and the encrypted bytes, never the text; the relay also sees the machine's IP address, as
+            any web server does. The relay keeps nothing and logs no installation ID, no notification and no address.
+          </li>
+          <li>
+            <strong>Nowhere else.</strong> The app has no other server of ours and no telemetry endpoint. The one
+            third-party SDK that reports anything is Firebase Messaging, and only on a phone with push notifications
+            on: besides the installation ID, it sends Google the diagnostic data about message delivery that
+            Firebase's own privacy disclosures list. The app has no update check of its own either: the
             <code>startup.checkUpdate</code> setting in the app's settings screen belongs to
             <strong>omp on your machine</strong>, and that check, if you turn it on, happens from your machine and
             nowhere else.
@@ -172,7 +200,8 @@
         <ul>
           <li>
             We do not collect, see, sell or share your data. There is no analytics SDK, no crash-reporting SDK, no
-            advertising SDK and no identifier that we could tie to you.
+            advertising SDK and no identifier that we could tie to you: the relay passes each notification on and
+            keeps nothing.
           </li>
           <li>We do not require an account, an email address or a phone number to use the app.</li>
           <li>We do not read your prompts, your files, your keys or your provider credentials.</li>
@@ -204,6 +233,11 @@
             storage.
           </li>
           <li>
+            <strong>Turn off push notifications</strong> on a phone: it deletes its notification key and its Firebase
+            installation, and removes its file from the machines it is connected to; the other machines lose theirs
+            the next time the phone connects to them.
+          </li>
+          <li>
             <strong>Uninstall the app</strong>: on Android, everything the app stored on the device goes with it.
             On iOS, the database and caches go with it, but the Keychain can keep private keys, passphrases and
             saved passwords after the app is deleted; delete your keys and machines in the app first to remove
@@ -212,9 +246,10 @@
           <li>
             <strong>On the machine</strong>: sessions, transcripts and files uploaded for a session live on the
             machine, in your own directories, and are yours to delete there. The app also keeps its own files
-            under <code>~/.ompanion/</code>: the companion extension, one file per omp version, and the input and
-            output streams of each running session, which it deletes once that session's omp has exited. Deleting
-            that directory removes all of it.
+            under <code>~/.ompanion/</code>: the companion extension, one file per omp version, one push
+            registration per phone that turned push notifications on, and the input and output streams of each
+            running session, which it deletes once that session's omp has exited. Deleting that directory removes
+            all of it.
           </li>
           <li>There is no server-side copy for us to delete.</li>
         </ul>

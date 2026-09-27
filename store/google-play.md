@@ -48,19 +48,19 @@ blocks publication ([Prepare your app for review](https://support.google.com/goo
 
 | Declaration | Answer |
 |---|---|
-| Privacy policy | URL above. The app collects nothing and has no account, so this is the only link Play requires. It is reachable from the listing **and** inside the app: **Settings → About → Privacy policy**. |
+| Privacy policy | URL above. The app has no account and collects one optional identifier (section 7), so this is the only link Play requires. It is reachable from the listing **and** inside the app: **Settings → About → Privacy policy**. |
 | Ads | **No.** No ads, no ad SDK, no house ads. |
 | App access (Sign-in details) | **"All or some functionality is restricted"**: the app is useless without an SSH machine. Paste the text in section 4 (canonical version in `store/review-demo/README.md` §"Console answers"). |
 | Target audience and content | **18 and over only.** Reasoning in section 5. Also complete the follow-up questions ("is your app designed for children" → No; do not join the Designed for Families programme). |
 | Content rating | Questionnaire in section 6; category "Utility, Productivity, Communication, or Other". The app has no violent, sexual or gambling content; the one "yes" is mild language, because it shows the user's own agent output unfiltered (the same fact behind the App Store's "Infrequent" profanity answer). |
-| Data safety | **No data collected or shared** — section 7. |
+| Data safety | **Device or other IDs collected, optional, for app functionality; nothing shared** — section 7. |
 | News and magazine apps | **No.** Not a news app, not in the News category, no news in the title or description. |
 | COVID-19 contact tracing and status apps | **No.** |
 | Government apps | **No.** Not developed by or for a government. |
 | Financial features | **No financial features.** |
 | Health apps | **No health features.** |
-| Advertising ID | **No.** The app declares no `AD_ID` permission and has no advertising or attribution SDK; its only user-facing permission is `android.permission.INTERNET` (`android/app/src/main/AndroidManifest.xml`; no plugin in `pubspec.lock` adds one). |
-| Permissions declaration form | Not triggered: no SMS/call log, no location, no background location, no foreground-service type, no `QUERY_ALL_PACKAGES`, no restricted permission. `INTERNET` is not a restricted permission. |
+| Advertising ID | **No.** The app declares no `AD_ID` permission and has no advertising or attribution SDK. The merged manifest's permissions (`aapt2 dump permissions` on the release APK, 2026-09-27) are `INTERNET`, `POST_NOTIFICATIONS`, `VIBRATE` (flutter_local_notifications), `ACCESS_NETWORK_STATE`, `WAKE_LOCK` and `com.google.android.c2dm.permission.RECEIVE` (Firebase Messaging), plus androidx.core's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. |
+| Permissions declaration form | Not triggered: no SMS/call log, no location, no background location, no foreground-service type, no `QUERY_ALL_PACKAGES`, no restricted permission. None of the permissions above is restricted. |
 | DSA / trader status (EEA) | **field for the user** — Play asks each developer account whether it is a trader. A free, open-source app published by an individual with no commercial activity can be a non-trader, but that is a legal statement about you, not about the app. Answer it in the account's compliance section. |
 | AI-generated content | There is no dedicated App content form for this. The in-app AI-Generated Content policy is the likeliest policy question for this app, and the app has no in-app report control (section 8). The per-asset "AI-generated" declaration lives with each store-listing image, and our answer there is **No**. |
 
@@ -148,31 +148,47 @@ who the app is for.
 
 ## 7. Data safety
 
-**First question — "Does your app collect or share any of the required user data types?" → No.**
+**First question — "Does your app collect or share any of the required user data types?" → Yes.** Two data
+types, both only on a phone where the user turned push notifications on:
 
-With No, the form asks nothing about encryption in transit or deletion requests (Play asks those only after
-a Yes); it goes on to the store listing preview, which shows "No data collected" and "No data shared with
-third parties".
+| Question | Device or other IDs | App info and performance → Diagnostics |
+|---|---|---|
+| What it is | the Firebase installation ID | the Firebase user agent: OS version, device name, model, brand and form factor, the installing store, the Firebase SDK versions |
+| Collected / shared | **Collected**, not shared (Google delivers the messages as our service provider) | **Collected**, not shared |
+| Processed ephemerally | **No** (Firebase keeps it until the app deletes the installation) | **No** |
+| Required or optional | **Optional**: users choose to turn push notifications on | **Optional**, the same switch |
+| Purpose | **App functionality** | **Analytics** (Google uses it to see platform and version adoption of Firebase) |
+| Encrypted in transit | **Yes** | **Yes** |
 
-Why "No" is the correct answer, checked against the code
+Deletion ("Do you provide a way for users to request that their data is deleted?", asked once for the app):
+**Yes**. Turning push notifications off deletes the Firebase installation; Firebase never links the user agent to
+a user or device identifier.
+
+Why, checked against the code
 ([Data safety guidance](https://support.google.com/googleplay/android-developer/answer/10787469)):
 
 - Play's "collection" means user data transmitted off the device by the app or its SDKs, whatever server it
-  goes to. There is no server of ours: the app has no backend, and `pubspec.lock` holds no analytics,
-  crash-reporting, advertising or push package.
+  goes to. With push notifications on (off until the user turns them on in Settings), the Firebase Messaging
+  SDK registers the app's Firebase installation ID with Google for messaging, and both it and the Firebase
+  installations SDK send the Firebase user agent
+  ([Firebase's Play disclosure](https://firebase.google.com/docs/android/play-data-disclosure), read
+  2026-09-27). The installation ID also passes through our relay with each notification, which keeps nothing.
+  The SDK's app version goes to Google only for topic subscriptions, which the app does not use; its message
+  delivery metrics go only to a BigQuery export, which the app does not turn on.
 - **End-to-end encrypted data is out of scope**: "User data that is sent off device, but that is unreadable
   by you or anyone other than the sender and recipient as a result of end-to-end encryption does not need to
   be disclosed." Everything the user types, opens or attaches travels over SSH between the device and the
-  user's own machine, and only those two ends hold the session keys.
+  user's own machine, and only those two ends hold the session keys. Notification text is encrypted on the
+  user's machine with a key the phone made; the relay and Google carry ciphertext.
 - Two requests leave SSH, and neither carries a user data type from Play's list: the omp release download
   from `github.com` (only when the target machine has no curl or wget, so the app fetches the public file and
   uploads it), and a web image named in a reply, fetched from its own URL only after the user taps "Load
   image". The developer receives neither. (Play's "user-initiated action" exemption is about *sharing*, not
   collection, so it is not the argument here.)
-- No account, no email, no phone number, no device or advertising ID, no precise or approximate location, no
+- No account, no email, no phone number, no advertising ID, no precise or approximate location, no
   contacts, no calendar, no health data, no crash logs, no diagnostics, no browsing history, no app
   interactions. The random per-install id the app generates goes only to the user's own machines, inside its
-  SSH requests to omp.
+  SSH requests to omp and in the phone's push registration file there.
 - **Judgement call to keep in mind:** photos and files the user attaches do leave the device (over SSH, to
   their own machine), and the file picker is why the iOS build needs `NSPhotoLibraryUsageDescription`. The
   exemption above covers them: the recipient is the user's own machine, and we cannot read them. If a

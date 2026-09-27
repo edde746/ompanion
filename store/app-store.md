@@ -159,24 +159,48 @@ responsibility, and a mis-rated app "could trigger an inquiry from government re
 
 ## 7. App Privacy (General → App Privacy)
 
-**Answer: "No, we do not collect data from this app."** One question, and the data-type questionnaire closes.
+**Answer: "Yes, we collect data from this app"**, with the data types the Firebase SDKs' own privacy manifests
+declare, every one **not linked** to the user's identity and **not used for tracking**:
+
+| Data type | Purposes |
+|---|---|
+| Identifiers → Device ID | App Functionality |
+| Diagnostics → Other Diagnostic Data | App Functionality, Analytics |
+| Other Data → Other Data Types | Analytics |
+
 Then: Privacy Policy URL = `https://ompanion.app/privacy`.
 
 Reasoning, checked against the code:
 
 - Apple counts data as collected when it leaves the device in a way that you or a partner can access or
-  retain it ([App privacy details](https://developer.apple.com/go/?id=info-1)). Nothing leaves the device to
-  us, and there is no us: no backend, no SDK that reports, no identifier of ours
-  (`pubspec.lock`: no analytics, crash-reporting, advertising or push package; the only HTTP clients in the
-  app are `dart:io HttpClient` for the omp release download and `Image.network` for a tapped web image).
-- What does leave the device goes to the user's own machines over SSH (their data, their machines, and
+  retain it ([App privacy details](https://developer.apple.com/go/?id=info-1)). The one such flow is push
+  notifications, which stay off until the user turns them on in Settings: then the Firebase Messaging SDK
+  records the APNs token with Google and registers the app's Firebase installation ID for messaging
+  ([Firebase's App Store disclosure](https://firebase.google.com/docs/ios/app-store-data-collection)).
+  Google is a partner in Apple's sense, so that is a device-level identifier collected. It exists only to
+  deliver notifications; there is no account to link it to; nothing uses it for tracking. The installation ID
+  also passes through our relay with each notification, which keeps nothing. The SDK's device model, language,
+  time zone and OS version go to Google only for topic subscriptions, which the app does not use.
+- The table is the union of the `PrivacyInfo.xcprivacy` bundles the linked Firebase products ship inside the
+  built `Runner.app` (checked 2026-09-27, firebase-ios-sdk 12.19.2): FirebaseMessaging declares Device ID (App
+  Functionality), Other Data Types (Analytics) and Other Diagnostic Data (App Functionality);
+  FirebaseInstallations and GoogleDataTransport declare Other Diagnostic Data (Analytics). Xcode's privacy
+  report for an archive (Product → Archive → Generate Privacy Report) aggregates these manifests; check it
+  against this table before answering. None of it happens before push notifications are on: Firebase is not
+  started until then. GoogleAppMeasurement resolves in the package graph but is not linked.
+- The notification text is encrypted on the user's own machine with a key the phone made and is readable only
+  on that phone; the relay, Google and Apple carry ciphertext. Nothing else of ours reports anything: no
+  analytics, crash-reporting or advertising SDK; the only other HTTP clients in the app are `dart:io
+  HttpClient` for the omp release download and `Image.network` for a tapped web image.
+- What else leaves the device goes to the user's own machines over SSH (their data, their machines, and
   encrypted in transit), to `github.com` when the user installs omp on a machine that has no curl or wget (a
   public file, no user data), and to the host of a web image the user tapped "Load image" on. Links and
   sign-in pages open in the user's browser, outside the app.
-- No account, no email address, no device identifier, no usage data, no crash logs, no location, no contacts
-  and no photos are collected by us. Files the user attaches go to their own machine over SSH. The random
-  per-install id the app generates goes only to the user's own machines, inside its requests to omp.
-- If Apple's reviewer asks how the app can show AI output and collect nothing: the AI runs on the user's
+- No account, no email address, no usage data, no crash logs, no location, no contacts and no photos are
+  collected by us. Files the user attaches go to their own machine over SSH. The random per-install id the app
+  generates goes only to the user's own machines, inside its requests to omp and in the phone's push
+  registration file there.
+- If Apple's reviewer asks how the app can show AI output and collect nothing else: the AI runs on the user's
   machine, calls the user's own provider account, and the app is a client for it — the same answer as an SSH
   client that ships no server. This is the 5.1.2(i) argument in the review notes.
 

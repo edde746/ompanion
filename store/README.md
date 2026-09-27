@@ -32,6 +32,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 | Play upload keystore + 4 GitHub secrets | `keytool -genkeypair -v -keystore upload-keystore.jks -alias ompanion -keyalg RSA -keysize 4096 -validity 10000`; keep the file and both passwords; set `ANDROID_KEYSTORE_BASE64`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS` as repo secrets and in `android/key.properties` for local store builds |
 | Play service-account JSON key | Google Cloud service account with the Play Developer API enabled, invited under Play Console → Users and permissions; point `PLAY_JSON_KEY_PATH` in `.env` at the JSON |
 | App Store Connect API key, or Apple ID | `.env`: `APP_STORE_CONNECT_API_KEY_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH`, or `FASTLANE_USER` + `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD`; without the API key, fastlane asks for the Apple ID password and a two-factor code |
+| Firebase project and push relay | Push notifications need a Firebase project with the Android and iOS apps registered, the APNs auth key uploaded to it, `android/firebase.properties` and `ios/Flutter/Firebase.xcconfig` committed (README, Push notifications), and the relay running at `push.ompanion.app` with a service-account key that may only send FCM messages (`relay/README.md`). A build without the two config files ships without push, and the settings switch says so. |
 
 ## Google Play, in order
 
@@ -43,8 +44,8 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 4. [ ] Store settings: category **Tools**, up to 5 tags from the console's list, contact details, privacy
        policy URL.
 5. [ ] App content: complete **every** declaration, including the "no" ones — see `store/google-play.md` §3.
-       Data safety is "No data collected", target audience is **18 and over only**, ads **No**, news app
-       **No**, government/financial/health **No**, Advertising ID **No**.
+       Data safety: the two optional data types in `store/google-play.md` §7, target audience is **18 and over
+       only**, ads **No**, news app **No**, government/financial/health **No**, Advertising ID **No**.
 6. [ ] Content rating questionnaire: category "Utility, Productivity, Communication, or Other"; the answers
        in `store/google-play.md` §6.
 7. [ ] Sign-in details: choose **"All or some functionality is restricted"** and paste the text from
@@ -72,7 +73,8 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
        rights **Yes, with the necessary rights**, price free — `store/app-store.md` §2, §6.
 3. [ ] Age rating questionnaire: answers in `store/app-store.md` §5; computed 9+, with the 18+ override
        option explained there.
-4. [ ] App Privacy: "No, we do not collect data from this app", plus the privacy policy URL — §7.
+4. [ ] App Privacy: "Yes", with the three data types in §7 (Device ID; Other Diagnostic Data; Other Data
+       Types), none linked, no tracking; plus the privacy policy URL — §7.
 5. [ ] Version 0.1.0: promotional text, description, keywords, support/marketing/privacy URLs, what's new.
 6. [ ] Upload the build (`(cd ios && fastlane deploy_appstore)`).
 7. [ ] Export compliance: encryption **yes**, "an industry standard algorithm, not provided within the Apple
@@ -220,8 +222,10 @@ by 171 bytes: re-run this after any wording change.
 
 ## Build-side facts
 
-- **Data safety and App Privacy:** no data collected — no accounts, no analytics, no crash reporting, no ads,
-  no tracking. Traffic goes to the user's own machines over SSH, plus two requests the user starts: the omp
+- **Data safety and App Privacy:** only after the user turns push notifications on, the Firebase SDKs send
+  Google the Firebase installation ID (to deliver notifications) and the diagnostics their own disclosures list.
+  No accounts, no analytics SDK, no crash reporting, no ads, no tracking. Notification text is end-to-end encrypted between the user's machine and
+  phone. Other traffic goes to the user's own machines over SSH, plus two requests the user starts: the omp
   release from `github.com` when a machine cannot download it itself, and a web image after "Load image".
 - **Export compliance:** `dartssh2` implements SSH in Dart (ChaCha20-Poly1305, AES-GCM and AES-CTR as
   `packages/omp_core/lib/src/ssh/ssh_link.dart` orders them; Curve25519/ECDH/DH key exchange; Ed25519, RSA
@@ -236,10 +240,12 @@ by 171 bytes: re-run this after any wording change.
   microphone, contacts, location, Bluetooth, motion, health, calendar or tracking API is linked.
 - **No tracking manifest:** `ios/Runner/PrivacyInfo.xcprivacy` sets `NSPrivacyTracking` false, no tracking
   domains, no collected data types, and declares `NSPrivacyAccessedAPICategoryFileTimestamp` reason `C617.1`
-  and `NSPrivacyAccessedAPICategoryDiskSpace` reason `E174.1`.
+  and `NSPrivacyAccessedAPICategoryDiskSpace` reason `E174.1`. The Firebase products linked for push bring
+  their own manifests, which declare the data types in `store/app-store.md` §7.
 - **Android target API level:** Flutter 3.47.1 defaults (compileSdk 36, targetSdk 36, minSdk 24) already meet
-  Play's requirement to target API 36 for new apps and updates from 31 August 2026. The app's only
-  user-facing permission is `android.permission.INTERNET`, and `android:allowBackup` is false.
+  Play's requirement to target API 36 for new apps and updates from 31 August 2026. The permissions are
+  `INTERNET`, `POST_NOTIFICATIONS` (asked for when push is turned on) and the normal ones Firebase Messaging and
+  flutter_local_notifications add (`store/google-play.md` §3); `android:allowBackup` is false.
 - **Uploads come from the Mac with fastlane, not CI:** `(cd ios && fastlane deploy_appstore)` and
   `(cd android && fastlane release)`, except Play's first bundle, which goes through the console by hand
   (checklist step 8). A brand-new Play app accepts only a draft release, so the lane's default is a
