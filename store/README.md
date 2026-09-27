@@ -13,8 +13,8 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
       `https://github.com/edde746/ompanion/issues` must load in a private window before submitting; a dead
       privacy-policy URL is an automatic rejection in every store. The site deploys from `website/` through
       Cloudflare Workers Builds (`website/README.md`, Deploy).
-- [ ] Confirm `pubspec.yaml` `version:` is `0.1.0+1` (the Microsoft Store needs 1.0.0 or later: its step 3)
-      and the CI run for that commit is green.
+- [ ] Confirm `pubspec.yaml` `version:` is `1.0.0+1`, the first release in every store, and the CI run for
+      that commit is green.
 - [ ] Fill in the fields in "Fields the user must fill in" below.
 
 ## Fields the user must fill in
@@ -75,7 +75,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
        option explained there.
 4. [ ] App Privacy: "Yes", with the three data types in §7 (Device ID; Other Diagnostic Data; Other Data
        Types), none linked, no tracking; plus the privacy policy URL — §7.
-5. [ ] Version 0.1.0: promotional text, description, keywords, support/marketing/privacy URLs, what's new.
+5. [ ] Version 1.0.0: promotional text, description, keywords, support/marketing/privacy URLs, what's new.
 6. [ ] Upload the build (`(cd ios && fastlane deploy_appstore)`).
 7. [ ] Export compliance: encryption **yes**, "an industry standard algorithm, not provided within the Apple
        operating system" (SSH and TLS in Dart) — §8. Upload nothing unless France is in your territories.
@@ -101,10 +101,10 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
 2. [x] Product management → **Product identity** matches `windows/build-msix.ps1`: `Package/Identity/Name`
        `edde746.ompanion`, the publisher above, package family name `edde746.ompanion_13q3sv6jzathm`. Store
        validation rejects the upload if any of the three differs by one character.
-3. [ ] Set `pubspec.yaml` `version:` to 1.0.0 or later. Partner Center rejects a package version whose first
-       field is 0 ([package version numbering](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements#package-version-numbering));
-       the script maps `major.minor.patch+build` to `major.minor.patch.0`, so `0.1.0+1` becomes `0.1.0.0`, and the
-       Windows job warns about it. The fourth field belongs to the Store, so every submission needs a new
+3. [x] `pubspec.yaml` `version:` is 1.0.0+1, which packs as `1.0.0.0`: the script maps `major.minor.patch+build`
+       to `major.minor.patch.0`, and Partner Center rejects a package version whose first field is 0
+       ([package version numbering](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements#package-version-numbering)),
+       which the Windows job warns about. The fourth field belongs to the Store, so every submission needs a new
        `major.minor.patch`: a build-number bump alone collides.
 4. [ ] Run Actions → Build on main with Windows selected (a release run builds it too). Download the artifact
        `ompanion-windows-msix-<sha>` and unzip it: it holds `ompanion-windows.msixbundle`.

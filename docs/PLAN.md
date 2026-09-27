@@ -4,7 +4,7 @@ Flutter client for [omp](https://github.com/can1357/oh-my-pi) with TUI parity, d
 machines without a host daemon. Reference product: [T3 Code](https://github.com/pingdotgg/t3code),
 limited to omp.
 
-Status: 0.1.0 is built; this file is the plan it was built to and still names surfaces that are not built. What
+Status: 1.0.0 is built; this file is the plan it was built to and still names surfaces that are not built. What
 the app does is the README's feature list; the status paragraph of `parity.md` says which omp features have no
 surface of their own. The companion implements more verbs than the app calls: nothing calls `sessions.list`,
 `session.fork`, `session.clear`, `session.delete`, `context.breakdown`, `history.search`, `btw`,

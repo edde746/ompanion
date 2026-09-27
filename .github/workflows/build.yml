@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Version to release as a draft, e.g. 0.1.0 (must match pubspec.yaml); omit for Actions artifacts only
+        description: Version to release as a draft, e.g. 1.0.0 (must match pubspec.yaml); omit for Actions artifacts only
         default: ""
         type: string
       build_android:

@@ -54,7 +54,7 @@ and `mesh` stand for machines reached over a mesh VPN: the editor's "Reached ove
 of Plezy ("Edvard Wikhall", [Plezy listing](https://apps.apple.com/us/app/plezy-media-server-client/id6754315964)),
 so the copyright line uses the same legal name for consistency. Change it if you publish as a company.
 
-## 3. Version information (the 0.1.0 version page)
+## 3. Version information (the 1.0.0 version page)
 
 | Field | File |
 |---|---|
@@ -65,7 +65,7 @@ so the copyright line uses the same legal name for consistency. Change it if you
 | Marketing URL | `en-US/marketing_url.txt` → `https://ompanion.app` |
 | Privacy Policy URL | `en-US/privacy_url.txt` → `https://ompanion.app/privacy` |
 | What's New | `en-US/release_notes.txt` |
-| Build | the 0.1.0 build uploaded from `flutter build ipa` |
+| Build | the 1.0.0 build uploaded from `flutter build ipa` |
 | Version release | automatic after approval, or manual — your choice |
 
 Check all three URLs in an incognito window before submitting; a dead privacy-policy URL is an automatic

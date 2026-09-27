@@ -1,7 +1,7 @@
 name: ompanion
 description: Flutter client for omp, the oh-my-pi coding agent, on this computer and remote machines.
 publish_to: none
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: ^3.13.0

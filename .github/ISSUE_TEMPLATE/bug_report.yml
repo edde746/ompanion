@@ -51,7 +51,7 @@ body:
     attributes:
       label: ompanion Version
       description: The version under Settings → About in the app.
-      placeholder: e.g., 0.1.0
+      placeholder: e.g., 1.0.0
     validations:
       required: true
 
