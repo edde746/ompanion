@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../app/theme.dart';
@@ -88,7 +89,7 @@ class TranscriptRowView extends StatelessWidget {
     final ExecutionItem item => _Execution(item),
     final CustomItem item => _CustomMessage(item),
     final CompactionItem item => _SummaryMarker(
-      icon: Icons.compress,
+      icon: Symbols.compress,
       title: (t) => item.tokensAfter == null
           ? '${t.compacted} · ${t.compactedFrom(before: formatTokens(item.tokensBefore))}'
           : '${t.compacted} · ${t.compactedTokens(before: formatTokens(item.tokensBefore), after: formatTokens(item.tokensAfter!))}',
@@ -96,20 +97,20 @@ class TranscriptRowView extends StatelessWidget {
       storageKey: item.key,
     ),
     final BranchSummaryItem item => _SummaryMarker(
-      icon: Icons.call_split,
+      icon: Symbols.call_split,
       title: (t) => t.branchSummary,
       summary: item.summary,
       storageKey: item.key,
     ),
     final FileMentionItem item => _FileMentions(item),
     final ModelChangeItem item => _Marker(
-      icon: Icons.swap_horiz,
+      icon: Symbols.swap_horiz,
       text: (t) => item.role == null || item.role == 'default'
           ? t.modelChange(model: item.model)
           : t.modelRoleChange(role: item.role!, model: item.model),
     ),
     final ThinkingChangeItem item => _Marker(
-      icon: Icons.psychology_outlined,
+      icon: Symbols.psychology,
       text: (t) => item.level == null || item.level == 'off' ? t.thinkingOff : t.thinkingLevel(level: item.level!),
     ),
     // Assistant messages and tool results have rows of their own (transcript_rows.dart); a hidden prompt has none.
@@ -127,30 +128,52 @@ bool get _touchFirst => switch (defaultTargetPlatform) {
   _ => false,
 };
 
-/// What a message's menu offers.
-enum _MessageAction { branch, reset, copy }
+/// The actions of one message, each one click, 18 px icons in the menu button's old place: Branch from here on your own
+/// messages, Reset to here, Copy message. Reset follows the run through [TranscriptScope.canResetOf]: omp refuses to
+/// navigate while a turn runs, so the button is disabled then and its tooltip says why.
+class _MessageActions extends StatelessWidget {
+  const _MessageActions({required this.entryId, required this.kind, required this.text});
 
-/// The menu of one message. Built when the menu opens, not when the row is built, so a run that started since still
-/// shows Reset to here disabled.
-List<PopupMenuEntry<_MessageAction>> _messageMenu(
-  BuildContext context, {
-  required String? entryId,
-  required TreeEntryKind kind,
-}) {
-  final t = context.t.transcript;
-  final actions = TranscriptScope.of(context);
-  final canReset = actions.canReset?.call() ?? true;
-  return [
-    if (entryId != null && kind == TreeEntryKind.user && actions.onBranchFrom != null)
-      PopupMenuItem(value: _MessageAction.branch, child: Text(t.branchFromHere)),
-    if (entryId != null && actions.onResetTo != null)
-      PopupMenuItem(
-        value: _MessageAction.reset,
-        enabled: canReset,
-        child: canReset ? Text(t.resetHere) : Tooltip(message: t.resetRunning, child: Text(t.resetHere)),
-      ),
-    PopupMenuItem(value: _MessageAction.copy, child: Text(t.copyMessage)),
-  ];
+  final String? entryId;
+  final TreeEntryKind kind;
+
+  /// What Copy message puts on the clipboard: the text omp received.
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t.transcript;
+    final actions = TranscriptScope.of(context);
+    final entryId = this.entryId;
+    final branch = actions.onBranchFrom;
+    final reset = actions.onResetTo;
+    final style = IconButton.styleFrom(
+      visualDensity: VisualDensity.compact,
+      foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+    // A tooltip names an enabled button for assistive technology; the disabled Reset's tooltip explains instead, so
+    // its name is its icon's label.
+    Widget button(IconData icon, String tooltip, VoidCallback? onPressed, {String? label}) => IconButton(
+      tooltip: tooltip,
+      icon: Icon(icon, semanticLabel: label),
+      iconSize: 18,
+      padding: EdgeInsets.zero,
+      style: style,
+      onPressed: onPressed,
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (entryId != null && kind == TreeEntryKind.user && branch != null)
+          button(Symbols.call_split, t.branchFromHere, () => branch(entryId)),
+        if (entryId != null && reset != null)
+          TranscriptScope.canResetOf(context)
+              ? button(Symbols.restart_alt, t.resetHere, () => reset(entryId, kind))
+              : button(Symbols.restart_alt, t.resetRunning, null, label: t.resetHere),
+        button(Symbols.content_copy, t.copyMessage, () => actions.onCopy(text)),
+      ],
+    );
+  }
 }
 
 class _UserMessage extends StatefulWidget {
@@ -199,9 +222,7 @@ List<MessagePart> _head(List<MessagePart> parts, int end) {
 }
 
 class _UserMessageState extends State<_UserMessage> {
-  final _menu = GlobalKey<PopupMenuButtonState<_MessageAction>>();
   bool _hovered = false;
-  bool _menuOpen = false;
   bool _expanded = false;
   late List<MessagePart> _parts = splitMentions(widget.item.text);
 
@@ -224,29 +245,12 @@ class _UserMessageState extends State<_UserMessage> {
     PageStorage.maybeOf(context)?.writeState(context, _expanded, identifier: _storageId);
   }
 
-  void _open() => _menu.currentState?.showButtonMenu();
-
-  void _act(_MessageAction action) {
-    if (mounted) setState(() => _menuOpen = false);
-    final actions = TranscriptScope.of(context);
-    final entryId = widget.item.entryId;
-    switch (action) {
-      case _MessageAction.branch:
-        if (entryId != null) actions.onBranchFrom?.call(entryId);
-      case _MessageAction.reset:
-        if (entryId != null) actions.onResetTo?.call(entryId, TreeEntryKind.user);
-      case _MessageAction.copy:
-        actions.onCopy(widget.item.text);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final t = context.t.transcript;
     final item = widget.item;
-    final entryId = item.entryId;
     final agent = item.synthetic || item.attribution == 'agent';
     final images = item.images.toList();
     final text = item.text;
@@ -307,7 +311,7 @@ class _UserMessageState extends State<_UserMessage> {
                             Text(_expanded ? t.showLess : t.showAll(n: lines), style: dim),
                             const SizedBox(width: 2),
                             Icon(
-                              _expanded ? Icons.expand_less : Icons.expand_more,
+                              _expanded ? Symbols.expand_less : Symbols.expand_more,
                               size: 16,
                               color: scheme.onSurfaceVariant,
                             ),
@@ -332,33 +336,22 @@ class _UserMessageState extends State<_UserMessage> {
         children: [
           Flexible(
             child: LayoutBuilder(
-              // The button hugs the bubble's left side: the row shrinks to its content, and only the bubble takes
+              // The actions hug the bubble's left side: the row shrinks to its content, and only the bubble takes
               // the 90 % cap of the transcript's width.
               builder: (context, constraints) => Row(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AnimatedOpacity(
-                    opacity: _hovered || _menuOpen || _touchFirst ? 1 : 0,
+                    opacity: _hovered || _touchFirst ? 1 : 0,
                     duration: const Duration(milliseconds: 120),
-                    child: PopupMenuButton<_MessageAction>(
-                      key: _menu,
-                      tooltip: t.messageActions,
-                      icon: Icon(Icons.more_horiz, color: scheme.onSurfaceVariant),
-                      iconSize: 18,
-                      padding: EdgeInsets.zero,
-                      style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
-                      onOpened: () => setState(() => _menuOpen = true),
-                      onCanceled: () => setState(() => _menuOpen = false),
-                      onSelected: _act,
-                      itemBuilder: (context) => _messageMenu(context, entryId: entryId, kind: TreeEntryKind.user),
-                    ),
+                    child: _MessageActions(entryId: item.entryId, kind: TreeEntryKind.user, text: text),
                   ),
                   const SizedBox(width: 4),
                   Flexible(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.9),
-                      child: GestureDetector(onSecondaryTapUp: (details) => _open(), child: bubble),
+                      child: bubble,
                     ),
                   ),
                 ],
@@ -411,7 +404,7 @@ class _ThinkingViewState extends State<_ThinkingView> {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             children: [
-              Icon(Icons.lock_outline, size: 14, color: scheme.onSurfaceVariant),
+              Icon(Symbols.lock, size: 14, color: scheme.onSurfaceVariant),
               const SizedBox(width: toolBodyIndent - 14),
               Text(t.redactedThinking, style: dim),
             ],
@@ -442,13 +435,13 @@ class _ThinkingViewState extends State<_ThinkingView> {
                   if (row.live)
                     const ActivityMark()
                   else
-                    Icon(Icons.psychology_outlined, size: 14, color: scheme.onSurfaceVariant),
+                    Icon(Symbols.psychology, size: 14, color: scheme.onSurfaceVariant),
                   const SizedBox(width: toolBodyIndent - 14),
                   Text(label, style: dim),
                   if (!row.live && reasoning != null && reasoning > 0)
                     Text('  ·  ${t.reasoningTokens(n: reasoning)}', style: dim),
                   const SizedBox(width: 2),
-                  Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 16, color: scheme.onSurfaceVariant),
+                  Icon(_expanded ? Symbols.expand_less : Symbols.expand_more, size: 16, color: scheme.onSurfaceVariant),
                 ],
               ),
             ),
@@ -508,7 +501,7 @@ class _TurnSummary extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 2),
-                  Icon(row.open ? Icons.expand_less : Icons.expand_more, size: 16, color: scheme.onSurfaceVariant),
+                  Icon(row.open ? Symbols.expand_less : Symbols.expand_more, size: 16, color: scheme.onSurfaceVariant),
                 ],
               ),
             ),
@@ -565,8 +558,8 @@ class _AssistantFooter extends StatelessWidget {
       if (item.duration != null) t.seconds(value: _seconds(item.duration!)),
     ];
     final recovery = item.retryRecovery;
-    // The menu lives in the footer: the footer is the tail of an assistant message that ended a turn, so this is where
-    // the message is reachable whatever the turn's folding.
+    // The actions live in the footer: the footer is the tail of an assistant message that ended a turn, so this is
+    // where the message is reachable whatever the turn's folding.
     final actions = item.entryId != null && TranscriptScope.of(context).onResetTo != null;
     final showFacts =
         (item.stopReason != StopReason.error || recovery != null) && (usage != null || item.duration != null);
@@ -596,7 +589,7 @@ class _AssistantFooter extends StatelessWidget {
               if (item.stopReason == StopReason.aborted)
                 Row(
                   children: [
-                    Icon(Icons.stop_circle_outlined, size: 14, color: scheme.onSurfaceVariant),
+                    Icon(Symbols.stop_circle, size: 14, color: scheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Text(t.interrupted, style: dim),
                   ],
@@ -624,33 +617,11 @@ class _AssistantFooter extends StatelessWidget {
                     child: Text.rich(_facts(facts, scheme.onSurfaceVariant), style: dim),
                   ),
                 ),
-              if (actions)
-                PopupMenuButton<_MessageAction>(
-                  tooltip: t.messageActions,
-                  icon: Icon(Icons.more_horiz, color: scheme.onSurfaceVariant),
-                  iconSize: 18,
-                  padding: EdgeInsets.zero,
-                  style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
-                  onSelected: (action) => _actOnAssistant(context, action, item),
-                  itemBuilder: (context) => _messageMenu(context, entryId: item.entryId, kind: TreeEntryKind.assistant),
-                ),
+              if (actions) _MessageActions(entryId: item.entryId, kind: TreeEntryKind.assistant, text: item.text),
             ],
           ),
       ],
     );
-  }
-}
-
-/// What an assistant message's menu does: Reset moves the session's leaf to the message, Copy copies its text.
-void _actOnAssistant(BuildContext context, _MessageAction action, AssistantItem item) {
-  final actions = TranscriptScope.of(context);
-  switch (action) {
-    case _MessageAction.branch:
-      break;
-    case _MessageAction.reset:
-      if (item.entryId case final entryId?) actions.onResetTo?.call(entryId, TreeEntryKind.assistant);
-    case _MessageAction.copy:
-      actions.onCopy(item.text);
   }
 }
 
@@ -716,7 +687,7 @@ class _Execution extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(bash ? Icons.terminal : Icons.data_object, size: 16, color: scheme.onSurfaceVariant),
+                Icon(bash ? Symbols.terminal : Symbols.data_object, size: 16, color: scheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -786,14 +757,14 @@ class _CustomMessage extends StatelessWidget {
         ];
         return _Collapsible(
           storageKey: item.key,
-          icon: Icons.inbox_outlined,
+          icon: Symbols.inbox,
           title: [t.backgroundResult, ...labels].join(' · '),
           body: (context) => TerminalOutput(item.text, max: 40),
         );
       default:
         return _Collapsible(
           storageKey: item.key,
-          icon: item.hook ? Icons.bolt_outlined : Icons.extension_outlined,
+          icon: item.hook ? Symbols.bolt : Symbols.extension,
           title: item.customType,
           initiallyExpanded: item.text.length < 400,
           body: (context) => Column(
@@ -871,7 +842,11 @@ class _CollapsibleState extends State<_Collapsible> {
                         style: theme.textTheme.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                     ),
-                    Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+                    Icon(
+                      _expanded ? Symbols.expand_less : Symbols.expand_more,
+                      size: 18,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ],
                 ),
               ),
@@ -1024,7 +999,7 @@ class _FileMentions extends StatelessWidget {
             for (final file in item.files)
               ActionChip(
                 visualDensity: VisualDensity.compact,
-                avatar: Icon(file.image ? Icons.image_outlined : Icons.description_outlined, size: 16),
+                avatar: Icon(file.image ? Symbols.image : Symbols.description, size: 16),
                 label: Text(
                   [
                     file.path.split('/').last,

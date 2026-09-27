@@ -62,9 +62,7 @@ void main() {
     expect(opened, ['/home/u/.omp/agent/sessions/-p/1/local/meeting notes.txt', 'src/app.ts']);
     expect(find.text('local://paste-1.md'), findsOneWidget, reason: 'a local:// chip shows its path on tap');
 
-    await tester.tap(find.byTooltip('Message actions'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Copy message'));
+    await tester.tap(find.byTooltip('Copy message'));
     await tester.pump();
     expect(copied, [message]);
   });
@@ -81,26 +79,24 @@ void main() {
     await tester.pump();
     expect(find.text('Subagent m1'), findsOneWidget, reason: 'the chip shows its pseudonym on tap');
 
-    await tester.tap(find.byTooltip('Message actions'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Copy message'));
+    await tester.tap(find.byTooltip('Copy message'));
     await tester.pump();
     expect(copied, [message]);
   });
 
-  testWidgets('the message actions button sits beside the bubble, not at the row edge', (tester) async {
+  testWidgets('the message actions sit beside the bubble, not at the row edge', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await pump(tester, 'first question');
-    final button = tester.getRect(find.byTooltip('Message actions'));
+    final button = tester.getRect(find.byTooltip('Copy message'));
     // The bubble's left edge is its text's left edge minus the bubble's 14 px horizontal padding.
     final bubbleLeft = tester.getRect(bubbleText).left - 14;
     expect(button.right, lessThanOrEqualTo(bubbleLeft));
     expect(
       bubbleLeft - button.right,
       lessThan(30),
-      reason: 'the button hugs the bubble: a 4 px gap plus its own padding, not the row edge',
+      reason: 'the actions hug the bubble: a 4 px gap plus their own padding, not the row edge',
     );
   });
 

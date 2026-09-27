@@ -9,7 +9,7 @@ final class TranscriptActions {
   const TranscriptActions({
     this.onBranchFrom,
     this.onResetTo,
-    this.canReset,
+    this.canReset = true,
     required this.onCopy,
     required this.onOpenFile,
     required this.onOpenSubagent,
@@ -24,9 +24,9 @@ final class TranscriptActions {
   /// goes back into the composer, anything else becomes the leaf. [TreeEntryKind] says which the entry is.
   final void Function(String entryId, TreeEntryKind kind)? onResetTo;
 
-  /// Whether omp will navigate now; a turn that runs makes it refuse. Called when the menu is built, so it follows a
-  /// run that starts or ends while the row keeps its widget.
-  final bool Function()? canReset;
+  /// Whether omp will navigate now; a turn that runs makes it refuse. Rows read it through
+  /// [TranscriptScope.canResetOf], which rebuilds them when a run starts or ends.
+  final bool canReset;
 
   /// Put [text] on the clipboard (and confirm it).
   final void Function(String text) onCopy;
@@ -45,8 +45,9 @@ final class TranscriptActions {
   final SessionImages? images;
 }
 
-/// Hands [TranscriptActions] down to the rows. Rows read it when the user acts, not while building, so a screen that
-/// passes new callbacks on every build does not rebuild the transcript.
+/// Hands [TranscriptActions] down to the rows. Rows read the callbacks when the user acts, not while building, and [of]
+/// adds no dependency, so a screen that passes new callbacks on every build does not rebuild the transcript. Only the
+/// rows that read [canResetOf] rebuild, and only when [TranscriptActions.canReset] changes.
 class TranscriptScope extends InheritedWidget {
   const TranscriptScope({super.key, required this.actions, required super.child});
 
@@ -58,6 +59,14 @@ class TranscriptScope extends InheritedWidget {
     return scope!.actions;
   }
 
+  /// [TranscriptActions.canReset], rebuilding [context] when it changes: a Reset to here button follows a run that starts
+  /// or ends while its row keeps its widget.
+  static bool canResetOf(BuildContext context) {
+    final scope = context.dependOnInheritedWidgetOfExactType<TranscriptScope>();
+    assert(scope != null, 'No TranscriptScope above this transcript row');
+    return scope!.actions.canReset;
+  }
+
   @override
-  bool updateShouldNotify(TranscriptScope oldWidget) => false;
+  bool updateShouldNotify(TranscriptScope oldWidget) => actions.canReset != oldWidget.actions.canReset;
 }

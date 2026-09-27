@@ -48,7 +48,8 @@ class ChatScreen extends StatelessWidget {
     TranscriptActions actions(Future<void> Function()? loadEarlier) => TranscriptActions(
       onBranchFrom: writable ? (entryId) => unawaited(branchFrom(context, session, entryId)) : null,
       onResetTo: writable ? (entryId, kind) => unawaited(resetToEntry(context, session, entryId, kind)) : null,
-      canReset: () => !session.view.run.running,
+      // Read on every new view: the builder below runs for each, so the reset buttons follow a run that starts or ends.
+      canReset: !session.view.run.running,
       onCopy: (text) => unawaited(_copy(context, text)),
       onOpenFile: (path, {line}) => context.read<DockController>().openFile(path, line: line),
       onOpenSubagent: (id) => context.read<DockController>().openSubagent(id),
@@ -116,7 +117,8 @@ class ChatScreen extends StatelessWidget {
 
 /// Moves the session's leaf to [entryId] in place (omp's `/tree`, companion `tree.navigate`), as the Tree tab's Go here
 /// does: a user message goes back into the composer, any other entry becomes the leaf and the chat opens its turn. The
-/// abandoned replies stay in the session tree, so the snackbar says where to find them.
+/// abandoned replies stay in the session tree, so the snackbar says where to find them. A user message would replace
+/// the composer's draft, which nothing keeps, so a draft with text or attachments is replaced only once the user agrees.
 Future<void> resetToEntry(BuildContext context, LiveSession session, String entryId, TreeEntryKind kind) async {
   final t = context.t;
   final messenger = ScaffoldMessenger.of(context);
@@ -127,6 +129,21 @@ Future<void> resetToEntry(BuildContext context, LiveSession session, String entr
   }
   final sessions = context.read<SessionsProvider>();
   final dock = context.read<DockController>();
+  final draft = sessions.draftOf(session);
+  if (kind == TreeEntryKind.user && (draft.text.text.trim().isNotEmpty || draft.attachments.isNotEmpty)) {
+    final replace = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t.chat.replaceDraftTitle),
+        content: Text(t.chat.replaceDraftBody),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.common.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t.chat.replaceDraft)),
+        ],
+      ),
+    );
+    if (replace != true) return;
+  }
   try {
     final outcome = await navigateTree(session, sessions, entryId: entryId, kind: kind);
     if (outcome != TreeNavigation.moved) {

@@ -1500,6 +1500,15 @@ class Translations$chat$en {
 
 	/// en: 'Could not reset: $error'
 	String resetFailed({required Object error}) => 'Could not reset: ${error}';
+
+	/// en: 'Replace your draft?'
+	String get replaceDraftTitle => 'Replace your draft?';
+
+	/// en: 'Reset to here puts this message back into the composer. The text and attachments you have not sent are lost.'
+	String get replaceDraftBody => 'Reset to here puts this message back into the composer. The text and attachments you have not sent are lost.';
+
+	/// en: 'Replace'
+	String get replaceDraft => 'Replace';
 }
 
 // Path: attachments
@@ -1907,9 +1916,6 @@ class Translations$transcript$en {
 
 	/// en: 'Load earlier messages'
 	String get loadEarlier => 'Load earlier messages';
-
-	/// en: 'Message actions'
-	String get messageActions => 'Message actions';
 
 	/// en: 'Branch from here'
 	String get branchFromHere => 'Branch from here';
@@ -4243,6 +4249,9 @@ extension on Translations {
 			'chat.resetKept' => 'Earlier replies are kept in the session tree.',
 			'chat.openTree' => 'Open the tree',
 			'chat.resetFailed' => ({required Object error}) => 'Could not reset: ${error}',
+			'chat.replaceDraftTitle' => 'Replace your draft?',
+			'chat.replaceDraftBody' => 'Reset to here puts this message back into the composer. The text and attachments you have not sent are lost.',
+			'chat.replaceDraft' => 'Replace',
 			'attachments.paste' => 'The large paste',
 			'attachments.missing' => ({required Object name}) => '${name} is no longer on this device. Nothing was sent.',
 			'attachments.tooLarge' => ({required Object name, required Object size, required Object limit}) => '${name} is ${size}; attachments can be at most ${limit}. Nothing was sent.',
@@ -4354,7 +4363,6 @@ extension on Translations {
 			'ask.chat' => 'Chat about this',
 			'transcript.jumpToLatest' => 'Jump to latest',
 			'transcript.loadEarlier' => 'Load earlier messages',
-			'transcript.messageActions' => 'Message actions',
 			'transcript.branchFromHere' => 'Branch from here',
 			'transcript.resetHere' => 'Reset to here',
 			'transcript.resetRunning' => 'Wait for the turn to finish, or stop it, before resetting',

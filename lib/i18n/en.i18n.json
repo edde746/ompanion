@@ -644,7 +644,10 @@
     "branchFailed": "Could not branch: $error",
     "resetKept": "Earlier replies are kept in the session tree.",
     "openTree": "Open the tree",
-    "resetFailed": "Could not reset: $error"
+    "resetFailed": "Could not reset: $error",
+    "replaceDraftTitle": "Replace your draft?",
+    "replaceDraftBody": "Reset to here puts this message back into the composer. The text and attachments you have not sent are lost.",
+    "replaceDraft": "Replace"
   },
   "attachments": {
     "paste": "The large paste",
@@ -782,7 +785,6 @@
   "transcript": {
     "jumpToLatest": "Jump to latest",
     "loadEarlier": "Load earlier messages",
-    "messageActions": "Message actions",
     "branchFromHere": "Branch from here",
     "resetHere": "Reset to here",
     "resetRunning": "Wait for the turn to finish, or stop it, before resetting",

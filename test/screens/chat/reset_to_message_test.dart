@@ -19,6 +19,7 @@ import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
 import 'package:ompanion/sessions/composer_attachments.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
+import 'package:ompanion/sessions/session_view_builder.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
@@ -74,10 +75,16 @@ final class _Omp implements LineChannel {
 }
 
 final class _Session implements LiveSession {
-  _Session(this.view, {this.withCompanion = true});
+  _Session(this._view, {this.withCompanion = true});
+
+  SessionView _view;
+  final _views = StreamController<SessionView>.broadcast(sync: true);
 
   @override
-  SessionView view;
+  SessionView get view => _view;
+
+  /// Shows [view] to the chat, as omp's events do.
+  set view(SessionView view) => _views.add(_view = view);
 
   /// Whether the loaded companion is there; without it a companion call would reach the model as a prompt.
   final bool withCompanion;
@@ -120,7 +127,7 @@ final class _Session implements LiveSession {
   Stream<LinkState> get linkStates => const Stream.empty();
 
   @override
-  Stream<SessionView> get views => const Stream.empty();
+  Stream<SessionView> get views => _views.stream;
 
   @override
   void setPendingPrompt(PendingPrompt? prompt) {}
@@ -138,7 +145,7 @@ final class _Session implements LiveSession {
   Future<void> detach() async {}
 
   @override
-  Future<void> stop() async {}
+  Future<void> stop() => _views.close();
 }
 
 TranscriptRow _userRow(String entryId, String text) =>
@@ -190,13 +197,20 @@ void main() {
     await db.close();
   });
 
-  /// One transcript row under the real chat actions: Reset to here goes through `resetToEntry`, as `ChatScreen`
-  /// wires it.
+  /// One transcript row under the real chat actions, rebuilt with every view as `ChatScreen` does: Reset to here goes
+  /// through `resetToEntry` and follows the run.
   Future<void> pump(WidgetTester tester, _Session session, TranscriptRow row) async {
     session.companion;
     final attached = session.rpc.attach();
     await tester.pump();
     await attached;
+    // Built once, as the transcript caches rows by content: a new view reaches the row only through what it reads.
+    final shown = SingleChildScrollView(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: TranscriptRowView(row: row),
+      ),
+    );
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -206,22 +220,18 @@ void main() {
         child: TranslationProvider(
           child: MaterialApp(
             home: Scaffold(
-              body: Builder(
-                builder: (context) => TranscriptScope(
+              body: SessionViewBuilder(
+                session: session,
+                builder: (context, view) => TranscriptScope(
                   actions: TranscriptActions(
                     onBranchFrom: branched.add,
                     onResetTo: (entryId, kind) => unawaited(resetToEntry(context, session, entryId, kind)),
-                    canReset: () => !session.view.run.running,
+                    canReset: !view.run.running,
                     onCopy: copied.add,
                     onOpenFile: (path, {line}) {},
                     onOpenSubagent: (_) {},
                   ),
-                  child: SingleChildScrollView(
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: TranscriptRowView(row: row),
-                    ),
-                  ),
+                  child: shown,
                 ),
               ),
             ),
@@ -233,27 +243,21 @@ void main() {
     await tester.pump();
   }
 
-  Future<void> openMenu(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Message actions'));
-    await tester.pumpAndSettle();
-  }
+  /// Whether the icon button with [tooltip] can be pressed.
+  bool enabled(WidgetTester tester, String tooltip) =>
+      tester
+          .widget<IconButton>(find.ancestor(of: find.byTooltip(tooltip), matching: find.byType(IconButton)))
+          .onPressed !=
+      null;
 
-  /// Whether the menu item showing [label] can be tapped.
-  bool itemEnabled(WidgetTester tester, String label) {
-    final item = find.ancestor(of: find.text(label), matching: find.byType(InkWell)).first;
-    return tester.widget<InkWell>(item).onTap != null;
-  }
+  const resetRunning = 'Wait for the turn to finish, or stop it, before resetting';
 
   testWidgets('Reset to here on a user message navigates to its entry and puts its text and images back', (
     tester,
   ) async {
     final session = _Session(SessionView());
     await pump(tester, session, _userRow('u1', 'first question'));
-    await openMenu(tester);
-    expect(find.text('Reset to here'), findsOneWidget);
-    expect(find.text('Copy message'), findsOneWidget);
-
-    await tester.tap(find.text('Reset to here'));
+    await tester.tap(find.byTooltip('Reset to here'));
     await tester.pump();
     final call = session.omp.companionCalls.single;
     expect(call['verb'], 'tree.navigate');
@@ -286,20 +290,66 @@ void main() {
     expect(revealed, [DockTab.tree]);
   });
 
-  testWidgets('Reset to here on an assistant message makes it the leaf and opens its turn', (tester) async {
+  testWidgets('Reset to here on a user message asks before it replaces a draft, and Cancel moves nothing', (
+    tester,
+  ) async {
+    final session = _Session(SessionView());
+    await pump(tester, session, _userRow('u1', 'first question'));
+    sessions.setDraft(session, 'half-written follow-up');
+    await tester.tap(find.byTooltip('Reset to here'));
+    await tester.pumpAndSettle();
+    expect(find.text('Replace your draft?'), findsOneWidget);
+    expect(session.omp.companionCalls, isEmpty, reason: 'nothing moves before the user agrees');
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(session.omp.companionCalls, isEmpty);
+    expect(sessions.draftOf(session).text.text, 'half-written follow-up');
+
+    await tester.tap(find.byTooltip('Reset to here'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Replace'));
+    await tester.pump();
+    expect(session.omp.companionCalls.single['args'], {'entryId': 'u1'});
+    session.omp.answerCompanion(0, {'cancelled': false, 'editorText': 'first question', 'editorImages': <Object?>[]});
+    await tester.pump();
+    await tester.pump();
+    expect(sessions.draftOf(session).text.text, 'first question');
+  });
+
+  testWidgets('a draft of attachments alone also asks before Reset to here replaces it', (tester) async {
+    final session = _Session(SessionView());
+    await pump(tester, session, _userRow('u1', 'first question'));
+    sessions.setDraft(
+      session,
+      '',
+      attachments: const [ImageAttachment(RpcImage(data: 'AQID', mimeType: 'image/png'))],
+    );
+    await tester.tap(find.byTooltip('Reset to here'));
+    await tester.pumpAndSettle();
+    expect(find.text('Replace your draft?'), findsOneWidget);
+    expect(session.omp.companionCalls, isEmpty);
+  });
+
+  testWidgets('Reset to here on an assistant message makes it the leaf and opens its turn, keeping the draft', (
+    tester,
+  ) async {
     final session = _Session(SessionView());
     await pump(tester, session, _assistantRow('a1', 'first answer'));
-    await openMenu(tester);
-    await tester.tap(find.text('Reset to here'));
+    expect(find.byTooltip('Branch from here'), findsNothing, reason: 'only your own messages branch');
+    sessions.setDraft(session, 'half-written follow-up');
+    await tester.tap(find.byTooltip('Reset to here'));
     await tester.pump();
-    expect(session.omp.companionCalls.single['args'], {'entryId': 'a1'});
+    expect(session.omp.companionCalls.single['args'], {
+      'entryId': 'a1',
+    }, reason: 'a reply puts nothing into the composer, so nothing asks first');
 
     session.omp.answerCompanion(0, {'cancelled': false, 'editorText': null, 'editorImages': <Object?>[]});
     await tester.pump();
     await tester.pump();
     expect(sessions.turnsOf(session).pendingReveal, 'a1');
     expect(sessions.turnsOf(session).takeJumpToEnd(), isTrue, reason: 'the chat scrolls to the kept end');
-    expect(sessions.draftOf(session).text.text, isEmpty, reason: 'an assistant message has no draft');
+    expect(sessions.draftOf(session).text.text, 'half-written follow-up');
     expect(find.text('Earlier replies are kept in the session tree.'), findsOneWidget);
     // It covers the composer's send button, so it must leave by itself.
     await tester.pumpAndSettle();
@@ -307,17 +357,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Earlier replies are kept in the session tree.'), findsNothing);
 
-    await openMenu(tester);
-    await tester.tap(find.text('Copy message'));
+    await tester.tap(find.byTooltip('Copy message'));
     await tester.pump();
     expect(copied, ['first answer']);
+  });
+
+  testWidgets('Branch from here on your own message branches from it', (tester) async {
+    final session = _Session(SessionView());
+    await pump(tester, session, _userRow('u1', 'first question'));
+    await tester.tap(find.byTooltip('Branch from here'));
+    await tester.pump();
+    expect(branched, ['u1']);
+    expect(session.omp.companionCalls, isEmpty, reason: 'branching is not a reset');
   });
 
   testWidgets('a reset an extension cancels says so and moves nothing', (tester) async {
     final session = _Session(SessionView());
     await pump(tester, session, _userRow('u1', 'first question'));
-    await openMenu(tester);
-    await tester.tap(find.text('Reset to here'));
+    await tester.tap(find.byTooltip('Reset to here'));
     await tester.pump();
 
     session.omp.answerCompanion(0, {'cancelled': true, 'aborted': false});
@@ -329,39 +386,37 @@ void main() {
     expect(sessions.turnsOf(session).takeJumpToEnd(), isFalse);
   });
 
-  testWidgets('while a turn runs, Reset to here is disabled and explains why', (tester) async {
-    final session = _Session(SessionView(run: const RunState(running: true)));
+  testWidgets('Reset to here is disabled while a turn runs, says why, and follows the run as it starts and ends', (
+    tester,
+  ) async {
+    final session = _Session(SessionView());
     await pump(tester, session, _userRow('u1', 'first question'));
-    await openMenu(tester);
-    expect(find.text('Reset to here'), findsOneWidget);
-    expect(itemEnabled(tester, 'Reset to here'), isFalse);
-    expect(find.byTooltip('Wait for the turn to finish, or stop it, before resetting'), findsOneWidget);
-    expect(find.text('Copy message'), findsOneWidget);
-    expect(itemEnabled(tester, 'Copy message'), isTrue);
-
-    await tester.tap(find.text('Reset to here'), warnIfMissed: false);
+    // The turn starts while the row keeps its widget (the transcript caches rows by content).
+    session.view = SessionView(run: const RunState(running: true));
+    await tester.pump();
+    expect(find.byTooltip('Reset to here'), findsNothing);
+    expect(enabled(tester, resetRunning), isFalse);
+    expect(enabled(tester, 'Copy message'), isTrue);
+    await tester.tap(find.byTooltip(resetRunning), warnIfMissed: false);
     await tester.pump();
     expect(session.omp.companionCalls, isEmpty);
     expect(sessions.draftOf(session).text.text, isEmpty);
+
+    session.view = SessionView();
+    await tester.pump();
+    expect(enabled(tester, 'Reset to here'), isTrue);
+    await tester.tap(find.byTooltip('Reset to here'));
+    await tester.pump();
+    expect(session.omp.companionCalls.single['args'], {'entryId': 'u1'});
   });
 
   testWidgets('without the companion Reset to here sends no /ompx and says so', (tester) async {
     final session = _Session(SessionView(), withCompanion: false);
     await pump(tester, session, _userRow('u1', 'first question'));
-    await openMenu(tester);
-    await tester.tap(find.text('Reset to here'));
+    await tester.tap(find.byTooltip('Reset to here'));
     await tester.pump();
     expect(session.omp.companionCalls, isEmpty);
     expect(sessions.draftOf(session).text.text, isEmpty);
     expect(find.textContaining('The companion is not loaded'), findsOneWidget);
-  });
-
-  testWidgets('the menu reads the run state when it opens, not when the row was built', (tester) async {
-    final session = _Session(SessionView());
-    await pump(tester, session, _userRow('u1', 'first question'));
-    // The turn starts while the row keeps its widget (the transcript caches rows by content).
-    session.view = SessionView(run: const RunState(running: true));
-    await openMenu(tester);
-    expect(itemEnabled(tester, 'Reset to here'), isFalse);
   });
 }

@@ -67,7 +67,7 @@ double estimateRowExtent(TranscriptRow row, double width, {double body = 14}) {
         AssistantImageRow() => 6 + 200,
         // One tool line; an open body is measured once it is laid out.
         ToolRow() => 2 + 29,
-        // The message menu sits at the end of the facts' line and makes it an icon button tall.
+        // The message actions sit at the end of the facts' line and make it an icon button tall.
         AssistantFooterRow(:final item) => 4 + (item.entryId == null ? 16 : 32),
         AwaitingReplyRow() => 10 + 20,
         TurnSummaryRow() => 6 + 24,
