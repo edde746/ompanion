@@ -48,6 +48,10 @@ final class FakeRun {
   Object? sendError;
 
   int generation = 1;
+
+  /// What a first attach receives when set, as the machine sends a log over `attachWindow`: these frames as its
+  /// compacted replay, then the log from its end. Null: the whole generation.
+  List<Map<String, Object?>>? replay;
   final _out = BytesBuilder(copy: false);
   final _in = BytesBuilder(copy: false);
   int? exitCode;
@@ -105,13 +109,18 @@ final class FakeRun {
   };
 
   /// `DetachedChannel.attach`: from [offset] when [generation] is current and the offset lies within the file,
-  /// otherwise from the start of the current generation; `in.jsonl` from [inboxOffset].
+  /// otherwise the [replay] and then the log from its end, or else the whole current generation; `in.jsonl` from
+  /// [inboxOffset].
   FakeChannel attach({int? generation, int offset = 0, int inboxOffset = 0}) {
     final bytes = _out.toBytes();
-    final start = generation == this.generation && offset <= bytes.length ? offset : 0;
+    final resumes = generation == this.generation && offset <= bytes.length;
+    final frames = resumes ? null : replay;
+    final preamble = utf8.encode([for (final frame in frames ?? const <Object?>[]) '${jsonEncode(frame)}\n'].join());
+    final start = resumes ? offset : (frames == null ? 0 : bytes.length);
     final ended = exitCode == null ? null : (code: exitCode!, size: bytes.length);
-    final channel = FakeChannel._(this, this.generation, start, inboxOffset, ended);
+    final channel = FakeChannel._(this, this.generation, start, inboxOffset, ended, preamble.length);
     _channels.add(channel);
+    channel._output.add(preamble);
     channel._output.add(Uint8List.sublistView(bytes, start));
     if (exitCode != null) channel._output.transportEnded(StateError('the run had ended'));
     return channel;
@@ -193,9 +202,9 @@ final class FakeRun {
 
 /// One device's channel to a [FakeRun].
 final class FakeChannel implements RunChannel {
-  FakeChannel._(this._run, int generation, int offset, int inboxOffset, ({int code, int size})? ended)
+  FakeChannel._(this._run, int generation, int offset, int inboxOffset, ({int code, int size})? ended, int preamble)
     : _inboxFrom = inboxOffset {
-    _output = RunOutput(generation: generation, offset: offset, endedWith: ended, onEnd: () {});
+    _output = RunOutput(generation: generation, offset: offset, preamble: preamble, endedWith: ended, onEnd: () {});
     _inbox = RunInbox(
       onListen: () {
         _inbox.start(_inboxFrom);

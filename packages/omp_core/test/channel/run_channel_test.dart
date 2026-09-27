@@ -157,6 +157,71 @@ void main() {
       });
 
       if (kind == 'exec') {
+        test('a first attach to a long log gets a compacted replay and follows the log from its end', () async {
+          String chunk(int index) =>
+              '{"type":"rpc_chunk","chunkId":"c1","index":$index,"count":3,"byteLength":9,"data":"${'A' * 40}"}\n';
+          String update(String type, String key, int n) => type == 'message_update'
+              ? '{"type":"message_update","message":{"n":$n},"messageId":"$key"}'
+              : '{"type":"tool_execution_update","toolCallId":"$key","partialResult":{"n":$n}}';
+          const widget = '{"type":"extension_ui_request","id":"w1","method":"setWidget","widgetKey":"k"}';
+          const liveStart = '{"type":"tool_execution_start","toolCallId":"live","toolName":"bash","args":{}}';
+          const liveDialog =
+              '{"type":"extension_ui_request","id":"d-live","method":"confirm","title":"B","timeout":5000}';
+          const output = '{"type":"command_output","text":"done"}';
+          final before = [
+            widget,
+            '{"type":"tool_execution_start","toolCallId":"done","toolName":"bash","args":{}}',
+            // Timed, and its only tool call ends: omp resolved it without a frame.
+            '{"type":"extension_ui_request","id":"d-done","method":"input","title":"A","timeout":5000}',
+            '{"type":"tool_execution_end","toolCallId":"done","toolName":"bash","result":{}}',
+            // A terminal agent_end interrupts the tool calls still running.
+            '{"type":"tool_execution_start","toolCallId":"gone","toolName":"bash","args":{}}',
+            '{"type":"agent_end","messages":[]}',
+            liveStart,
+            liveDialog,
+            update('message_update', 'msg-1', 1),
+            '{"type":"subagent_progress","payload":{"progress":{"index":0,"id":"a"}}}',
+            // Only a line that starts with a kept type counts, not one quoting it.
+            r'{"type":"message_end","text":"{\"type\":\"command_output\"}","messageId":"msg-1"}',
+            output,
+            '{"type":"agent_end","isTerminal":false,"messages":[]}',
+          ].map((line) => '$line\n').join();
+          const end5 = '{"type":"message_end","message":{"n":3},"messageId":"msg-5"}';
+          final window = [
+            update('message_update', 'msg-5', 1),
+            update('tool_execution_update', 'live', 1),
+            update('message_update', 'msg-5', 2),
+            end5,
+            update('tool_execution_update', 'live', 2),
+            update('message_update', 'msg-6', 3),
+            update('message_update', 'msg-6', 4),
+          ].map((line) => '$line\n').join();
+          // omp is still writing the last line.
+          const partial = '{"type":"message_update","message":{"n":5},"messageId":"msg-6"';
+          await omp('$before${chunk(0)}${chunk(1)}${chunk(2)}$window$partial');
+          // The window starts inside the sequence's first chunk, so the rest of the sequence is skipped too.
+          final size = window.length + partial.length + 2 * chunk(0).length + chunk(0).length ~/ 2;
+          final channel = await DetachedChannel.attach(link, dir, window: size);
+          final end = File('$dir/out.jsonl').lengthSync() - partial.length;
+          expect(channel.offset, end, reason: 'the log continues after the last complete line');
+          final frames = Frames(channel.lines);
+          await frames.next((f) => (f['message'] as Map?)?['n'] == 4);
+          expect(frames.raw, [
+            liveStart,
+            widget,
+            liveDialog,
+            output,
+            end5,
+            update('tool_execution_update', 'live', 2),
+            update('message_update', 'msg-6', 4),
+          ]);
+          expect(channel.offset, end);
+          await omp('}\n');
+          await frames.next((f) => (f['message'] as Map?)?['n'] == 5);
+          expect(channel.offset, File('$dir/out.jsonl').lengthSync());
+          await channel.close();
+        });
+
         test('a channel closed while its inbox is still starting leaves no follower running', () async {
           Future<List<String>> followers() async {
             final ps = await Process.run('ps', ['-A', '-o', 'command=']);

@@ -105,6 +105,32 @@ void main() {
     expect(live.linkState, isA<LinkClosed>());
   });
 
+  test('a first attach to a long log builds on its compacted replay and follows the log from its end', () async {
+    access = FakeAccess(run, rotateAt: 64);
+    run.replay = [
+      uiRequest('ask-1', 'select', {
+        'title': 'Pick',
+        'options': ['a', 'b'],
+      }),
+      uiRequest('w-1', 'setWidget', {
+        'widgetKey': 'progress',
+        'widgetLines': ['3 of 7'],
+      }),
+      uiRequest('s-1', 'setStatus', {'statusKey': 'lint', 'statusText': 'clean'}),
+    ];
+    final live = session(recordedPath: run.sessionFile);
+    await live.start();
+
+    expect([for (final request in live.view.requests) request.id], ['ask-1']);
+    expect(live.view.widgets.keys, ['progress']);
+    expect(live.view.statuses, {'lint': 'clean'});
+    // The replay is no part of the log: the offset this device read is the log's end, so a settle there rotates it.
+    run.emit(agentEnd(const []));
+    run.emit({'type': 'session_settled'});
+    await until(() => access.rotations == 1);
+    await live.detach();
+  });
+
   test('a first attach takes the history from the session file and asks omp only for the entries after it', () async {
     final e1 = entry('e1', null, user('hi', 1));
     final e2 = entry('e2', 'e1', assistant(2, [text('hello')]));

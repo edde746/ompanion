@@ -72,6 +72,30 @@ void main() {
       },
     );
 
+    test(
+      'preamble lines arrive at the start offset; the log after them keeps file offsets and follows a rotation',
+      () async {
+        const preamble =
+            '{"type":"extension_ui_request","id":"d1"}\n{"type":"tool_execution_start","toolCallId":"t1"}\n';
+        final windowed = RunOutput(generation: 3, offset: 1000, preamble: preamble.length, onEnd: () {});
+        final received = <(String, int)>[];
+        Object? failure;
+        windowed.lines.listen((line) => received.add((line, windowed.offset)), onError: (Object e) => failure = e);
+        const marker = '{"type":"ompanion_rotate","generation":4,"previousSize":1008}\n';
+        windowed.add(bytes(preamble.substring(0, 30)));
+        windowed.add(bytes('${preamble.substring(30)}{"n":7}\n$marker{"n":8}\n'));
+        await pumpEventQueue();
+        expect(failure, isNull, reason: 'the log was read to the rotation: 1000 + 8 bytes');
+        expect(received, [
+          ('{"type":"extension_ui_request","id":"d1"}', 1000),
+          ('{"type":"tool_execution_start","toolCallId":"t1"}', 1000),
+          ('{"n":7}', 1008),
+          ('{"n":8}', marker.length + 8),
+        ]);
+        expect(windowed.generation, 4);
+      },
+    );
+
     test('ends at the exit marker with the exit code, ignoring anything after it', () async {
       output.add(bytes('{"n":1}\n{"broken\n{"type":"ompanion_exit","code":143}\n{"n":2}\n'));
       await done;

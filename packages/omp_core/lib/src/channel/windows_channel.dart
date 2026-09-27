@@ -74,8 +74,8 @@ final class SftpRunChannel implements RunChannel {
   @override
   int get inboxOffset => _inbox.offset;
 
-  /// Same rules as the POSIX attach: the exit file is checked before the size, and a stored offset is used
-  /// only within the same generation and file size.
+  /// As on POSIX, the exit file is checked before the size, and a stored offset is used only within the same generation
+  /// and file size. Without one, the whole generation is read: SFTP has no host-side scan for a preamble.
   Future<void> _start(int? generation, int offset) async {
     final meta = parseRunMeta(utf8.decode(await _files.read('$dir/meta.json'), allowMalformed: true));
     if (meta == null) throw HostLinkException('no run in $dir');

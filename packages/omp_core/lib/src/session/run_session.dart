@@ -31,14 +31,14 @@ abstract interface class RunAccess {
   int? get rotateAt;
 
   /// A channel to the run. `out.jsonl` is read from [generation]/[offset] while [generation] is current, otherwise
-  /// from the start of the current generation; `in.jsonl` from [inboxOffset].
+  /// from a recent frame boundary of the current generation (`attachRun`); `in.jsonl` from [inboxOffset].
   Future<RunChannel> attach({int? generation, int offset = 0, int inboxOffset = 0});
 
   /// Records [sessionPath] as the run's session in its `meta.json`.
   Future<void> recordSession(String sessionPath);
 
-  /// Rotates `out.jsonl` if it is still [generation] and [size] bytes long: where this device read a
-  /// `session_settled`, so nothing was written since.
+  /// Rotates `out.jsonl` if it is still [generation] and [size] bytes long: where this device, settled, had read
+  /// everything, so nothing was written since.
   Future<void> rotate({required int generation, required int size});
 
   /// Stops omp gracefully and returns its exit code.
@@ -320,10 +320,11 @@ final class RunSession implements LiveSession {
       onDone: () => _onFramesDone(attachment),
     );
     attachment.inbox = channel.inbox.listen(_onInbox, onError: attachment.fail);
+    // A channel at the very start of the log sees `ready`; any other point is mid-session.
+    final fromStart = channel.generation == 1 && channel.offset == 0;
     try {
       if (_closed) throw StateError('session $runId closed while attaching');
-      // A channel at the very start of the log sees `ready`; any other point is mid-session.
-      if (channel.generation == 1 && channel.offset == 0) {
+      if (fromStart) {
         await rpc.start();
       } else {
         await rpc.attach();
@@ -339,7 +340,7 @@ final class RunSession implements LiveSession {
       await attachment.close();
       final code = channel.exitCode;
       if (code == null || _closed) rethrow;
-      if (!attachment.sawReady && channel.generation == 1 && (resume == null || resume.offset == 0)) {
+      if (!attachment.sawReady && fromStart) {
         throw OmpStartFailed(code, await _access.errorLog());
       }
       throw RunEnded(runId, code);
@@ -353,12 +354,12 @@ final class RunSession implements LiveSession {
   /// Rebuilds the view from RPC: `get_state`, the append history, subagents and the companion's snapshots.
   ///
   /// Frames before the `get_state` response happened before it, so the state already holds them. A [fresh] seed
-  /// (the first on a process or device) replays them onto an empty view, minus their toasts: the log was read from
-  /// the start of its generation. It also reads the commands, subscribes to subagent progress and looks for the
-  /// companion. Any other seed (a resync, a rotation gap) keeps what RPC cannot list again: open dialogs, statuses,
-  /// widgets, toasts, the goal, the loop and the commands; the companion's snapshot then replaces the goal and the loop.
-  /// Frames after the response apply on top. With [fileEntries], the history starts from the session file
-  /// ([_entriesAfter]).
+  /// (the first on a process or device) replays them onto an empty view, minus their toasts: the recent part of the
+  /// log, after the dialogs, statuses, widgets and tool lifecycle from before it (`attachRun`). It also reads the
+  /// commands, subscribes to subagent progress and looks for the companion. Any other seed (a resync, a rotation gap)
+  /// keeps what RPC cannot list again: open dialogs, statuses, widgets, toasts, the goal, the loop and the commands;
+  /// the companion's snapshot then replaces the goal and the loop. Frames after the response apply on top. With
+  /// [fileEntries], the history starts from the session file ([_entriesAfter]).
   Future<void> _seed(_Attachment attachment, {required bool fresh, Future<_FilePage?>? fileEntries}) async {
     _seeding = true;
     final rpc = attachment.rpc;
@@ -944,7 +945,7 @@ final class RunSession implements LiveSession {
 }
 
 enum _Mode {
-  /// First attach: the log from the start of its generation, a view built from nothing.
+  /// First attach: the recent part of the log (`attachRun`), a view built from nothing.
   fresh,
 
   /// Same generation as before: the frames missed while away apply to the view as it is.

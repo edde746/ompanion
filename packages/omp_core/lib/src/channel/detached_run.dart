@@ -178,9 +178,10 @@ Future<({DetachedRun run, bool launched})> openRun(HostLink link, HostProbe prob
 Future<List<DetachedRun>> listRuns(HostLink link, HostProbe probe) =>
     probe.isWindows ? listWindowsRuns(link, probe) : _listPosixRuns(link, runRoot(probe));
 
-/// Attaches to [run]. `out.jsonl` is read from [offset] when [generation] is still the run's generation,
-/// otherwise from the start of the current generation; `in.jsonl` from [inboxOffset], or from its current
-/// end when null.
+/// Attaches to [run]. `out.jsonl` is read from [offset] when [generation] is still the run's generation. Otherwise a
+/// POSIX host sends its current generation's last `attachWindow` bytes from a frame boundary, after the lines before
+/// them that RPC cannot list again (`DetachedChannel`), and a Windows host the whole generation. `in.jsonl` is read
+/// from [inboxOffset], or from its current end when null.
 Future<RunChannel> attachRun(
   HostLink link,
   HostProbe probe,

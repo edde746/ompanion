@@ -146,11 +146,14 @@ final class LogCursor {
 /// has received.
 final class RunOutput {
   /// [endedWith] describes a run that had already ended when the channel attached: its exit code, and the size of its
-  /// `out.jsonl` then, where its log ends.
-  RunOutput({required this.generation, required int offset, required this.onEnd, this.endedWith})
+  /// `out.jsonl` then, where its log ends. [preamble] bytes of lines picked from before [offset] come first; they are
+  /// delivered at [offset], which the log itself continues from.
+  RunOutput({required this.generation, required int offset, required this.onEnd, this.endedWith, int preamble = 0})
     : offset = offset,
       _parsing = generation,
-      _cursor = LogCursor(offset);
+      _start = offset,
+      _inPreamble = preamble > 0,
+      _cursor = LogCursor(offset - preamble);
 
   /// Called once when the log ended: exit marker, gap, or [finish].
   final void Function() onEnd;
@@ -161,6 +164,8 @@ final class RunOutput {
 
   /// Generation of the bytes [add] parses; ahead of [generation] until the consumer reached the rotation.
   int _parsing;
+  final int _start;
+  bool _inPreamble;
   final LogCursor _cursor;
   final _events = StreamController<_Event>();
   bool _ended = false;
@@ -191,6 +196,12 @@ final class RunOutput {
     if (_ended) return;
     var shift = 0;
     for (final (text, rawEnd) in _cursor.add(chunk)) {
+      if (_inPreamble) {
+        // The cursor started [preamble] bytes early, so it reaches the log's own start with the last preamble line.
+        _inPreamble = rawEnd < _start;
+        _events.add(_Line(text, _start));
+        continue;
+      }
       var end = rawEnd + shift;
       switch (RunMarker.parse(text)) {
         case RunExited(:final code):

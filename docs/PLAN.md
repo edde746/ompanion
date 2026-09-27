@@ -185,9 +185,16 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   the run (`new_session`, `switch_session`, `branch`, fork, `/clear`, tree navigation) is recorded the same
   way. A device opening that file attaches to the run instead of launching a second omp.
 - Attach: `tail -F` from saved offsets on both files; what `out.jsonl` already holds goes out through a plain
-  `tail` first (BSD `tail -F` copies byte by byte). A device's first attach reads `out.jsonl` from the start of its generation and
-  `in.jsonl` from 0 (open dialogs and the answers that closed them), then seeds the view from `get_state`,
-  the session history, `get_available_commands`, `get_subagents` and the companion's `hello`,
+  `tail` first (BSD `tail -F` copies byte by byte). A device's first attach to a generation over 8 MiB
+  (`attachWindow`) gets a compacted replay, then follows the log from the end of its last complete line. From before
+  the last 8 MiB it holds only what RPC cannot list again: `extension_ui_request` (dialogs, statuses, widgets),
+  `command_output`, and the start of each tool call still running; a timed dialog whose tool calls all ended is left
+  out. From the last 8 MiB it drops each `message_update`, `tool_execution_update` and `subagent_progress` that a later
+  frame of the same message, tool call or subagent supersedes. On a live 1.6 GB generation that is 58 lines, 647 KB,
+  ready on the host in 0.7–1.0 s (perl scans the 1.6 GB in 0.27 s, macOS's grep, the fallback, in 3.9 s); replayed
+  whole it took 62 s and 3.1 GB of app memory. Windows hosts still send the whole generation. `in.jsonl` is read from 0
+  (open dialogs and the answers that closed them). The device then seeds the view
+  from `get_state`, the session history, `get_available_commands`, `get_subagents` and the companion's `hello`,
   `state.snapshot` and `agents.list`. The history is the session file `meta.json` names, read while omp
   starts, plus `get_entries(since)` its last entry (a file over 16 MB: its last 2 MB, earlier 2 MB pages as the reader
   scrolls up); plain `get_entries` when there is no file or omp does not
