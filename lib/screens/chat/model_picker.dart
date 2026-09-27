@@ -114,6 +114,7 @@ class ToolbarButton extends StatelessWidget {
     required this.onPressed,
     this.tooltip,
     this.busy = false,
+    this.color,
   });
 
   final IconData icon;
@@ -124,12 +125,15 @@ class ToolbarButton extends StatelessWidget {
   /// Shows a spinner in place of [icon].
   final bool busy;
 
+  /// Icon and label colour when they carry a state (docs/design.md rule 2); `onSurfaceVariant` otherwise.
+  final Color? color;
+
   /// Width with the label shrunk away: the padding, the icon, the gaps and the chevron of [build].
   static const double minWidth = 8 + 16 + 6 + 2 + 16 + 4;
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final muted = color ?? Theme.of(context).colorScheme.onSurfaceVariant;
     final button = TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(foregroundColor: muted, padding: const EdgeInsetsDirectional.only(start: 8, end: 4)),
@@ -138,7 +142,15 @@ class ToolbarButton extends StatelessWidget {
         children: [
           if (busy) const ActivityMark() else Icon(icon, size: 16),
           const SizedBox(width: 6),
-          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Flexible(
+            // As wide as what it shows: a label cut with `…` keeps the chevron right after it.
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textWidthBasis: TextWidthBasis.longestLine,
+            ),
+          ),
           const SizedBox(width: 2),
           const Icon(Icons.expand_more, size: 16),
         ],

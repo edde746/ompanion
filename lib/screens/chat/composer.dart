@@ -27,6 +27,7 @@ import 'composer_intent.dart';
 import 'composer_toolbar.dart';
 import 'mention_spans.dart';
 import 'model_mention_palette.dart';
+import 'mode_controls.dart';
 import 'model_picker.dart';
 import 'queue_list.dart';
 import 'slash_palette.dart';
@@ -39,10 +40,11 @@ const _toolbarIcon = BoxConstraints.tightFor(width: AppSizes.control, height: Ap
 const _keyboardImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 /// The prompt box: one flat block with the queued messages on top, the attachments and the text in the middle and a
-/// toolbar with the model, thinking level and context meter, attach and send at the bottom. Enter sends (Shift+Enter
-/// is a new line); while a run streams Enter steers and Alt/Option+Enter queues a follow-up. `/` opens the palette of
-/// the session's commands, `!`/`!!` run shell commands and `$`/`$$` Python through the companion. A paste of copied
-/// files, an image or a large text becomes an attachment chip, as in the TUI.
+/// toolbar with the model, thinking level and context meter, the goal and the loop while there are any, attach and
+/// send at the bottom. Enter sends (Shift+Enter is a new line); while a run streams Enter steers and Alt/Option+Enter
+/// queues a follow-up. `/` opens the palette of the session's commands, `!`/`!!` run shell commands and `$`/`$$`
+/// Python through the companion. A paste of copied files, an image or a large text becomes an attachment chip, as in
+/// the TUI.
 class Composer extends StatefulWidget {
   const Composer({super.key, required this.session});
 
@@ -651,7 +653,18 @@ class _ComposerState extends State<Composer> {
                             final narrow = constraints.maxWidth < 480;
                             void followUp() => unawaited(_send(followUp: true));
                             void steer() => unawaited(_send(followUp: false));
-                            return Row(
+                            final goal = closed || !showsGoal(session, data.goal) ? null : data.goal;
+                            final loop = closed || !showsLoop(session, data.loop) ? null : data.loop;
+                            final goalControl = goal == null
+                                ? null
+                                : GoalControl(session: session, goal: goal, above: _block);
+                            final loopControl = loop == null
+                                ? null
+                                : LoopControl(session: session, loop: loop, above: _block);
+                            // Phones and narrow panes: the goal and the loop get a row of their own above the toolbar,
+                            // so the model and thinking buttons keep their labels.
+                            final modesRow = constraints.maxWidth < 640 && (goalControl != null || loopControl != null);
+                            final toolbar = Row(
                               children: [
                                 Expanded(
                                   child: closed
@@ -682,6 +695,10 @@ class _ComposerState extends State<Composer> {
                                                 id: _Picker.meter,
                                                 child: ContextMeter(usage: data.context, cost: data.cost),
                                               ),
+                                              if (!modesRow && goalControl != null)
+                                                LayoutId(id: _Picker.goal, child: goalControl),
+                                              if (!modesRow && loopControl != null)
+                                                LayoutId(id: _Picker.loop, child: loopControl),
                                             ],
                                           ),
                                         ),
@@ -748,6 +765,23 @@ class _ComposerState extends State<Composer> {
                                   ),
                               ],
                             );
+                            if (!modesRow) return toolbar;
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(
+                                  height: AppSizes.control,
+                                  child: Row(
+                                    children: [
+                                      if (goalControl != null) Flexible(child: goalControl),
+                                      if (loopControl != null) Flexible(child: loopControl),
+                                    ],
+                                  ),
+                                ),
+                                toolbar,
+                              ],
+                            );
                           },
                         ),
                       ),
@@ -777,25 +811,50 @@ final class _CopyChips extends ContextAction<CopySelectionTextIntent> {
   }
 }
 
-enum _Picker { model, thinking, meter }
+enum _Picker { model, thinking, meter, goal, loop }
 
-/// The toolbar's pickers side by side. The model button gets the width its name needs first, up to what leaves the
-/// thinking button its icon and chevron; the thinking label shrinks next. The rest of the row stays free, so send sits
-/// at the end.
+/// The toolbar's pickers side by side: the model, thinking and meter, then the goal and the loop. The goal and the
+/// loop get the width their labels need first, since their state changes while a run goes and the model's name does
+/// not (its tooltip keeps it); the model and thinking buttons keep their icon and chevron plus [_modelLabelFloor] of
+/// the model's name. The model button gets the width its name needs next, up to what leaves the thinking button its
+/// icon and chevron; the thinking label shrinks last. The rest of the row stays free, so send sits at the end.
 final class _PickersLayout extends MultiChildLayoutDelegate {
+  static const _modelLabelFloor = 40.0;
+
   @override
   void performLayout(Size size) {
+    final modes = [
+      for (final id in [_Picker.goal, _Picker.loop])
+        if (hasChild(id)) id,
+    ];
     final meter = layoutChild(_Picker.meter, BoxConstraints.loose(size));
+    var room = size.width - meter.width - 2 * ToolbarButton.minWidth - _modelLabelFloor;
+    final modeSizes = <(_Picker, Size)>[];
+    for (final (index, id) in modes.indexed) {
+      final after = (modes.length - 1 - index) * ToolbarButton.minWidth;
+      final width = math.max(ToolbarButton.minWidth, room - after);
+      final child = layoutChild(id, BoxConstraints.loose(Size(width, size.height)));
+      modeSizes.add((id, child));
+      room -= child.width;
+    }
+    final modesWidth = modeSizes.fold(0.0, (sum, mode) => sum + mode.$2.width);
     final model = layoutChild(
       _Picker.model,
-      BoxConstraints.loose(Size(math.max(0, size.width - meter.width - ToolbarButton.minWidth), size.height)),
+      BoxConstraints.loose(
+        Size(math.max(0, size.width - meter.width - modesWidth - ToolbarButton.minWidth), size.height),
+      ),
     );
     final thinking = layoutChild(
       _Picker.thinking,
-      BoxConstraints.loose(Size(math.max(0, size.width - meter.width - model.width), size.height)),
+      BoxConstraints.loose(Size(math.max(0, size.width - meter.width - modesWidth - model.width), size.height)),
     );
     var x = 0.0;
-    for (final (id, child) in [(_Picker.model, model), (_Picker.thinking, thinking), (_Picker.meter, meter)]) {
+    for (final (id, child) in [
+      (_Picker.model, model),
+      (_Picker.thinking, thinking),
+      (_Picker.meter, meter),
+      ...modeSizes,
+    ]) {
       positionChild(id, Offset(x, (size.height - child.height) / 2));
       x += child.width;
     }
@@ -814,6 +873,8 @@ typedef _ComposerData = ({
   String? thinking,
   ContextUsage? context,
   double cost,
+  Goal? goal,
+  LoopState? loop,
 });
 
 _ComposerData _select(SessionView view) => (
@@ -824,6 +885,8 @@ _ComposerData _select(SessionView view) => (
   thinking: view.config.thinkingLevel,
   context: view.contextUsage,
   cost: view.usageTotals.cost,
+  goal: view.goal,
+  loop: view.loop,
 );
 
 /// The composer of a session another omp process is writing: there is no run here to send to, so the field and

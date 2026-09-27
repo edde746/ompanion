@@ -317,6 +317,18 @@ void main() {
       expect(shown((folding({})..update(transcript)).rows), ['user a', 'text hi', 'footer stop']);
     });
 
+    test('a prompt omp sent itself starts a turn, so the answer before it stays its own turn\'s last message', () {
+      // The guided goal's interview kickoff: a synthetic developer message the chat does not show.
+      final kickoff = HiddenPromptItem(timestamp: 7000, content: const [TextBlock('Interview the user.')]);
+      final question = assistant(8000, const [TextBlock('What should the goal achieve?')]);
+      expect(shown((folding({})..update([q1, s1, r1, a1, kickoff, question])).rows), [
+        'user a',
+        'summary',
+        'text Done.',
+        'text What should the goal achieve?',
+      ]);
+    });
+
     test('the latest turn shows every row while the session works on it, and folds once it settles', () {
       final model = folding({})..update([q1, s1, r1, a1, q2, s2, r2, a2], live: true);
       expect(shown(model.rows), ['user a', 'summary', 'text Done.', 'user b', 'tool c2', 'text Also done.']);

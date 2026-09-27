@@ -14,6 +14,7 @@ final class SessionView {
     this.tokensPerSecond,
     this.todoPhases = const [],
     this.goal,
+    this.loop,
     this.requests = const [],
     this.statuses = const {},
     this.widgets = const {},
@@ -41,8 +42,11 @@ final class SessionView {
   final double? tokensPerSecond;
   final List<TodoPhase> todoPhases;
 
-  /// Goal mode objective, from `goal_updated`.
+  /// Goal mode objective, from `goal_updated` and the companion's `state.snapshot`.
   final Goal? goal;
+
+  /// Loop mode, from the companion (`loop.changed`, `state.snapshot`); null while it is off.
+  final LoopState? loop;
 
   /// Open extension UI and companion requests, oldest first.
   final List<UiRequest> requests;
@@ -125,6 +129,7 @@ final class SessionView {
     Object? tokensPerSecond = _keep,
     List<TodoPhase>? todoPhases,
     Object? goal = _keep,
+    Object? loop = _keep,
     List<UiRequest>? requests,
     Map<String, String>? statuses,
     Map<String, ExtensionWidget>? widgets,
@@ -149,6 +154,7 @@ final class SessionView {
     tokensPerSecond: identical(tokensPerSecond, _keep) ? this.tokensPerSecond : tokensPerSecond as double?,
     todoPhases: todoPhases ?? this.todoPhases,
     goal: identical(goal, _keep) ? this.goal : goal as Goal?,
+    loop: identical(loop, _keep) ? this.loop : loop as LoopState?,
     requests: requests ?? this.requests,
     statuses: statuses ?? this.statuses,
     widgets: widgets ?? this.widgets,
@@ -422,6 +428,63 @@ final class Goal {
   final int? tokenBudget;
   final int tokensUsed;
   final int timeUsedSeconds;
+}
+
+/// Loop mode (`/loop`). omp runs it in its TUI alone (`interactive-mode.ts`); the companion runs it here, for every
+/// device (docs/contracts/ompx.md).
+final class LoopState {
+  const LoopState({required this.paused, this.prompt, this.limit, this.condition, required this.iterations});
+
+  /// Suspended (Stop, `loop.suspend`); the next prompt sent while the session is idle resumes it.
+  final bool paused;
+
+  /// What every iteration sends again; null while the loop waits for its prompt.
+  final String? prompt;
+  final LoopLimit? limit;
+  final LoopCondition? condition;
+
+  /// Automatic re-submissions so far.
+  final int iterations;
+
+  /// The state word of the TUI's footer (`status-line/segments.ts`).
+  LoopPhase get phase => paused
+      ? LoopPhase.paused
+      : prompt == null
+      ? LoopPhase.waiting
+      : LoopPhase.running;
+}
+
+enum LoopPhase { waiting, running, paused }
+
+/// How long a loop may go on (`LoopLimitRuntime`, `packages/tui/src/status-line/loop.ts`).
+sealed class LoopLimit {
+  const LoopLimit();
+}
+
+final class LoopIterations extends LoopLimit {
+  const LoopIterations({required this.total, required this.remaining});
+
+  final int total;
+  final int remaining;
+}
+
+final class LoopDuration extends LoopLimit {
+  const LoopDuration({required this.duration, required this.deadline});
+
+  final Duration duration;
+
+  /// Epoch milliseconds on the machine's clock: [duration] after the loop was turned on.
+  final int deadline;
+}
+
+/// `--while` or `--until` (`LoopConditionConfig`, `packages/tui/src/status-line/loop.ts`): a shell command whose exit
+/// status decides whether the next iteration runs.
+final class LoopCondition {
+  const LoopCondition({required this.until, required this.command});
+
+  /// `--until`: the loop goes on while [command] fails; `--while`: while it succeeds.
+  final bool until;
+  final String command;
 }
 
 /// An open `extension_ui_request` (`RpcExtensionUIRequest`, `rpc-types.ts`) or companion request. Dialogs close when

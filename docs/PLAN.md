@@ -7,8 +7,9 @@ limited to omp.
 Status: 0.1.0 is built; this file is the plan it was built to and still names surfaces that are not built. What
 the app does is the README's feature list; the status paragraph of `parity.md` says which omp features have no
 surface of their own. The companion implements more verbs than the app calls: nothing calls `sessions.list`,
-`session.fork`, `session.clear`, `session.delete`, `context.breakdown`, `history.search`, `btw` or
-`queue.get`/`queue.pop` (`contracts/ompx.md`). The App Store and Play build lanes exist; nothing is uploaded (§9).
+`session.fork`, `session.clear`, `session.delete`, `context.breakdown`, `history.search`, `btw`,
+`queue.get`/`queue.pop`, `goal.set`, `goal.guided` or `loop.enable` (the app starts a goal or a loop through the typed
+command; `contracts/ompx.md`). The App Store and Play build lanes exist; nothing is uploaded (§9).
 M0's spike results are in `research/`. Numbers were measured on 2026-09-25 (omp 18.3.0 installed, source read at
 tags v18.3.0 and v18.3.1, Flutter 3.47.1, Dart 3.13.1) unless marked [INFERENCE].
 
@@ -56,7 +57,7 @@ decisions.
 | D11 | Port forwards per machine: automatic `-L` for OAuth callback ports during `login` is built; user-defined `-L` for previews and `-R 9224` for the browser relay are not. | RPC `login` redirects to the host's loopback (anthropic 54545, openai-codex 1455, …). Phones fall back to pasting the redirect URL. |
 | D12 | Bootstrap: probe (POSIX `sh -s` script; Windows `powershell -EncodedCommand`), then install with the official installer pinned to a release and `--binary` (`-Binary` on Windows), or upload a release asset and check its SHA-256. Manual mode shows the commands. The absolute omp path is stored. | Auto and manual install were both requested. Without `--binary` the installer prefers `bun install -g`; on Windows `-Ref` alone means a source install. Non-login shells and fresh Windows sessions miss the install dir on PATH. |
 | D13 | TUI sessions on the same machine are listed from disk and opened by resuming them in a new rpc process, unless another omp process still holds the file (D21). | User choice. omp has no liveness marker for a TUI holding a session (`.lock.os` is a per-write gate), so the app probes for one itself (D21, R6). |
-| D14 | The app sends a slash command as prompt text only if the live `get_available_commands` list contains it. The companion registers only its channel command, `ompx`, so a typed TUI-only name (`/pause`, `/tree`, `/btw`, …) is not listed and is not sent; pause and the session tree have controls of their own in the app. | 40 TUI-only builtins are not handled in RPC; sent as text they reach the model as a paid turn (#13281). RPC does not reserve those names, so the companion may claim them. |
+| D14 | The app sends a slash command as prompt text only if the live `get_available_commands` list contains it. The companion registers its channel command, `ompx`, and `goal`, `guided-goal` and `loop`, which it runs itself; any other typed TUI-only name (`/pause`, `/tree`, `/btw`, …) is not listed and is not sent; pause and the session tree have controls of their own in the app. | 40 TUI-only builtins are not handled in RPC; sent as text they reach the model as a paid turn (#13281). RPC does not reserve those names, so the companion may claim them. |
 | D15 | License GPLv3 (`LICENSE`), with no additional permissions. | User choice as the sole copyright holder, who publishes the store builds (R11). Third-party AGPL/GPL code stays out of every build, which is why the terminal is MIT (D17). |
 | D16 | One codebase for every store. Features a store forbids are compiled out with `--dart-define` flags, or worked around. | User choice. Known cases: local omp and `~/.ssh` access inside the Mac App Store sandbox, host access from Flatpak, background execution on iOS, auto-update outside GitHub builds. |
 | D17 | Flutter stack follows Plezy: `provider`, `drift`, `slang`, `window_manager`, `flutter_secure_storage`. Markdown `gpt_markdown` 1.3.0 with a CommonMark code-fence rule (its own parser mishandles nested and `~~~` fences); settled segments cached, only the streaming tail re-parsed. Highlighting `re_highlight` in an isolate. Transcript list: built-in slivers around a center anchor with a stick-to-bottom `ScrollPhysics`, no list package. Terminal `xterm2` 5.2.0 in every build (MIT); PTY `flutter_pty2` 2.0.0, and ompanion paces PTY output into the terminal itself (`lib/terminal/frame_writer.dart`: a parsing-time budget per frame and back-pressure on the PTY or SSH channel), which `xterm3` shipped and `xterm2` does not. Code viewer/editor `re_editor` 0.10.0; diffs rendered from omp's numbered diff format and `git diff`. | Same conventions as the author's other Flutter app. Evidence and rejected options: `research/ui-libraries.md`. |
@@ -192,8 +193,9 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 - Stop: kill the feeding `tail`; omp drains and exits 0. Force: SIGTERM (exit 143).
 - Rotation: every `message_update` carries the whole message, so one 1.5 KB streamed answer wrote 270 KB.
   When a run settles and `out.jsonl` holds 8 MiB, the device that read past that mark truncates it under
-  `in.lock`; devices that had read everything follow, the others rebuild from RPC. A restarted omp gets a
-  new run directory, never an old `in.jsonl`.
+  `in.lock`, unless an active goal or a running loop is about to start the next turn on its own (omp's writes do
+  not take `in.lock`); the next settle without one rotates. Devices that had read everything follow, the others
+  rebuild from RPC. A restarted omp gets a new run directory, never an old `in.jsonl`.
 - Garbage collection: `removeDeadRuns` deletes the directories of runs whose omp is gone. Only `ompctl gc` runs
   it; the app does not.
 - Secrets never go through `in.jsonl`: they reach the companion as 0600 files uploaded over SFTP and
@@ -270,7 +272,8 @@ What it implements, by class (`not built` rows are the plan; details and API pat
 | Class | Items |
 |---|---|
 | Thin wrappers, built (the status paragraph at the top lists those the app does not call) | settings with schema (type, enum, default, tab, group, scope provenance), model roles, session listing, fork, `/clear`, delete, queue list and dequeue, subagent steer/kill/revive, pause and resume, user bash with streaming and `excludeFromContext`, user Python, `/btw`, prompt history search, context breakdown, logout and account lists, account pin, API-key login (`accounts.setKey`), full-fidelity `ask` via `ctx.ui.askDialog` |
-| Rebuilt from session APIs, not built | goal and guided goal (including continuation), loop (including `--while`/`--until` conditions and limits), `/omfg`, `/tan`, provider setup, agents dashboard, extensions control center |
+| Rebuilt from session APIs, built | goal and guided goal (including continuation, completion and restore), loop (including `--while`/`--until` conditions and limits) |
+| Rebuilt from session APIs, not built | `/omfg`, `/tan`, provider setup, agents dashboard, extensions control center |
 | App only, no companion, not built | push-to-talk, reply TTS (§8) |
 | Other routes, built | project-scope settings (edit `.omp/config.yml` over SFTP; rpc-ui watches it) |
 | Other routes, not built | `/cleanse` (`omp cleanse` one-shot; `src/cleanse` is not exported) |
@@ -287,16 +290,21 @@ logic in the app would stop with it.
   one session, so pause is per session, the same scope as the TUI's `/pause`; the app adds "pause all
   sessions on this machine" by sending it to every live run. The gate stays engaged while no device is
   attached; any device can resume.
-- Goal (not built): `session.goalRuntime` (`createGoal`, `resumeGoal`, `pauseGoal`, `dropGoal`,
-  `buildContinuationPrompt`), `getGoalModeState`/`setGoalModeState`, `sendGoalModeContext`. The TUI's
-  continuation (`interactive-mode.ts` 2377-2418) sends `buildContinuationPrompt()` as a hidden
-  `goal-continuation` message 800 ms after the agent settles, when the goal is active and nothing else
-  is queued. The companion does the same on `agent_end`, gated by `goal.continuationModes` containing
-  `interactive` (its default).
-- Loop (not built): `parseLoopArgs` and the limit runtime from `modes/loop-limit`, `evaluateLoopCondition` from
-  `modes/loop-condition`, the `prompt`/`compact`/`reset` action from settings; each iteration waits
-  until the session is not streaming, compacting or finishing post-prompt work (`interactive-mode.ts`
-  2351-2515).
+- Goal (`companion/src/verbs/session/goal.ts`): the `/goal` and `/guided-goal` commands and the `goal.*` verbs over
+  `session.goalRuntime` (`createGoal`, `replaceGoal`, `pauseGoal`, `resumeGoal`, `dropGoal`, `onBudgetMutated`) and
+  `getGoalModeState`/`setGoalModeState`. As the TUI's continuation does (`interactive-mode.ts` 2377-2418), the
+  companion sends `buildContinuationPrompt()` as a hidden `goal-continuation` message (`promptCustomMessage`) 800 ms
+  after each terminal `agent_end` while the goal is active, gated by `goal.continuationModes` containing `interactive`
+  (its default), and holds it after a continuation that repeated or lacked tool activity. It also does what rpc-ui
+  leaves to the TUI: the completion bookkeeping after `goal({op: "complete"})`, and the restore when the process starts
+  or switches sessions. Devices get the state from omp's `goal_updated` frame and `state.snapshot`'s `goal`.
+- Loop (`companion/src/verbs/session/loop.ts`): the `/loop` command and the `loop.*` verbs; `parseLoopArgs` and the
+  limit runtime from `modes/loop-limit`, `evaluateLoopCondition` from `modes/loop-condition`, the
+  `prompt`/`compact`/`reset` action from settings; each iteration waits until the session is not streaming,
+  compacting or finishing post-prompt work (`interactive-mode.ts` 2351-2515). The state is process-wide and not
+  persisted; devices get it from the companion's `loop.changed` event and `state.snapshot`'s `loop`.
+- `packages/omp_core/test/session/goal_loop_omp_test.dart` runs a goal to completion and a loop to its limit on omp
+  18.3.1 with every device detached.
 
 Version policy: the app drives omp 18.3.1 and later (`minimumOmpVersion`, `packages/omp_core/lib/src/host/probe.dart`).
 One companion build serves every such release and feature-checks what it uses (`lib/sessions/companion_asset.dart`);

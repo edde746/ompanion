@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:omp_core/companion.dart' show CompanionException;
 import 'package:omp_core/host.dart' show SessionSummary;
 import 'package:omp_core/session.dart';
-import 'package:omp_core/store.dart' show ExternalWriter;
+import 'package:omp_core/store.dart' show ExternalWriter, LoopState;
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
@@ -16,6 +17,8 @@ import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../widgets/activity_mark.dart';
 import '../sessions/machine_sessions.dart' show shortPath;
+import 'composer_intent.dart' show findCommand;
+import 'mode_controls.dart' show offersVerb;
 import 'queue_list.dart';
 import 'transcript/code_style.dart';
 
@@ -226,7 +229,8 @@ Future<void> togglePause(BuildContext context, LiveSession session) async {
 
 /// Aborts [session]'s run as Esc does in the TUI: the queued messages go back into the composer ahead of the draft
 /// (companion `queue.clear` with `interrupt`, which also drops omp's own queued steers so the run cannot resume by
-/// itself), omp aborts, and a pause gate is released, since nothing is left for it to hold.
+/// itself), a running loop is suspended, omp aborts, and a pause gate is released, since nothing is left for it to
+/// hold. omp itself pauses an active goal on the abort.
 Future<void> abortRun(BuildContext context, LiveSession session) async {
   final t = context.t;
   final messenger = ScaffoldMessenger.of(context);
@@ -242,6 +246,15 @@ Future<void> abortRun(BuildContext context, LiveSession session) async {
     } on Object catch (error) {
       // The run still stops; only the queue stays where it was.
       messenger.showSnackBar(SnackBar(content: Text(t.queue.takeFailed(error: '$error'))));
+    }
+  }
+  // Before the abort: the end of the aborted turn would otherwise start the loop's next iteration.
+  if (session.view.loop case LoopState(paused: false) when offersVerb(session, 'loop.suspend')) {
+    try {
+      await session.companion.call('loop.suspend');
+    } on Object catch (error) {
+      final reason = error is CompanionException ? error.message : '$error';
+      messenger.showSnackBar(SnackBar(content: Text(t.loop.failed(error: reason))));
     }
   }
   try {
@@ -279,6 +292,10 @@ class _StopButton extends StatelessWidget {
   }
 }
 
+/// The session's commands a menu entry starts in the composer: `/goal`, `/guided-goal` and `/loop`, those the session
+/// lists, and `/loop` only while no loop is on, since `/loop` then turns it off whatever follows.
+typedef _MenuCommands = ({bool goal, bool guidedGoal, bool loop});
+
 class _SessionMenu extends StatelessWidget {
   const _SessionMenu({required this.session});
 
@@ -287,32 +304,62 @@ class _SessionMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    return MenuAnchor(
-      menuChildren: [
-        MenuItemButton(
-          leadingIcon: const Icon(Icons.copy),
-          onPressed: session.sessionPath == null
-              ? null
-              : () => unawaited(Clipboard.setData(ClipboardData(text: session.sessionPath!))),
-          child: Text(t.chat.copyPath),
+    void start(String command) => context.read<SessionsProvider>().draftOf(session).startCommand(command);
+    return SessionViewSelector<_MenuCommands>(
+      session: session,
+      select: (view) => (
+        goal: findCommand(view.commands, 'goal') != null,
+        guidedGoal: findCommand(view.commands, 'guided-goal') != null,
+        loop: view.loop == null && findCommand(view.commands, 'loop') != null,
+      ),
+      builder: (context, commands) => MenuAnchor(
+        menuChildren: [
+          if (commands.goal)
+            MenuItemButton(
+              key: const ValueKey('start-goal'),
+              leadingIcon: const Icon(Icons.flag_outlined),
+              onPressed: () => start('goal'),
+              child: Text(t.chat.setGoal),
+            ),
+          if (commands.guidedGoal)
+            MenuItemButton(
+              key: const ValueKey('start-guided-goal'),
+              leadingIcon: const Icon(Icons.forum_outlined),
+              onPressed: () => start('guided-goal'),
+              child: Text(t.chat.guidedGoal),
+            ),
+          if (commands.loop)
+            MenuItemButton(
+              key: const ValueKey('start-loop'),
+              leadingIcon: const Icon(Icons.repeat),
+              onPressed: () => start('loop'),
+              child: Text(t.chat.startLoop),
+            ),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.copy),
+            onPressed: session.sessionPath == null
+                ? null
+                : () => unawaited(Clipboard.setData(ClipboardData(text: session.sessionPath!))),
+            child: Text(t.chat.copyPath),
+          ),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.logout),
+            onPressed: () => unawaited(context.read<SessionsProvider>().detach(session)),
+            child: Text(t.chat.detach),
+          ),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.power_settings_new),
+            // A reader of another process's file has no omp of ours to stop, also once that process is gone.
+            onPressed: session is ExternalSession ? null : () => unawaited(_stop(context, session)),
+            child: Text(t.chat.stopSession),
+          ),
+        ],
+        builder: (context, controller, _) => IconButton(
+          key: const ValueKey('session-menu'),
+          tooltip: t.chat.more,
+          icon: const Icon(Icons.more_vert),
+          onPressed: () => controller.isOpen ? controller.close() : controller.open(),
         ),
-        MenuItemButton(
-          leadingIcon: const Icon(Icons.logout),
-          onPressed: () => unawaited(context.read<SessionsProvider>().detach(session)),
-          child: Text(t.chat.detach),
-        ),
-        MenuItemButton(
-          leadingIcon: const Icon(Icons.power_settings_new),
-          // A reader of another process's file has no omp of ours to stop, also once that process is gone.
-          onPressed: session is ExternalSession ? null : () => unawaited(_stop(context, session)),
-          child: Text(t.chat.stopSession),
-        ),
-      ],
-      builder: (context, controller, _) => IconButton(
-        key: const ValueKey('session-menu'),
-        tooltip: t.chat.more,
-        icon: const Icon(Icons.more_vert),
-        onPressed: () => controller.isOpen ? controller.close() : controller.open(),
       ),
     );
   }

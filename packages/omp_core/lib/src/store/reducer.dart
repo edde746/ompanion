@@ -250,14 +250,17 @@ SessionView withSubagents(SessionView view, List<Map<String, Object?>> snapshots
   );
 }
 
-/// Applies a companion snapshot: the result of `state.snapshot` (`{pause, queue, requests}`) or `agents.list`
-/// (`{agents}`); an absent key leaves that part of [view] alone. `requests` lists every open companion request, so
-/// open companion requests it omits are closed.
+/// Applies a companion snapshot: the result of `state.snapshot` (`{pause, queue, requests, goal, loop}`) or
+/// `agents.list` (`{agents}`); an absent key leaves that part of [view] alone. `requests` lists every open companion
+/// request, so open companion requests it omits are closed. `goal` and `loop` are null while off, and replace what the
+/// view carried over from before a resync, such as the goal of the session it left.
 SessionView withCompanionSnapshot(SessionView view, Map<String, Object?> snapshot) {
   var next = view;
   if (snapshot.optObject('pause') case final pause?) next = _pauseChanged(next, pause);
   if (snapshot.optObject('queue') case final queue?) next = next.copyWith(queue: _decodeQueue(queue));
   if (snapshot.optObjects('agents') case final agents?) next = next.copyWith(agents: _decodeAgents(agents));
+  if (snapshot.containsKey('goal')) next = next.copyWith(goal: _decodeGoal(snapshot.optObject('goal')));
+  if (snapshot.containsKey('loop')) next = next.copyWith(loop: _decodeLoop(snapshot.optObject('loop')));
   if (snapshot.optObjects('requests') case final requests?) {
     final open = [for (final request in requests) _companionRequest(request)];
     final openIds = {for (final request in open) request.id};
@@ -910,6 +913,7 @@ SessionView _companionFrame(SessionView view, Map<String, Object?> frame) {
         'agents.changed' => view.copyWith(agents: _decodeAgents(data().objects('agents'))),
         'request.settled' => dismissRequest(view, data().string('id')),
         'session.changed' => view.copyWith(resyncReason: data().string('reason')),
+        'loop.changed' => view.copyWith(loop: _decodeLoop(data().optObject('loop'))),
         // A message omp appended without a frame, such as a user bash or Python execution.
         'message.appended' => _insertIfAbsent(view, decodeMessage(data().object('message'))),
         // omp has no frame for a manual compaction (`/compact`, RPC `compact`) until it ends; an automatic one
@@ -944,6 +948,36 @@ QueueState _decodeQueue(Map<String, Object?> queue) => QueueState(
   steering: queue.optStrings('steering') ?? const [],
   followUp: queue.optStrings('followUp') ?? const [],
 );
+
+LoopState? _decodeLoop(Map<String, Object?>? loop) => loop == null
+    ? null
+    : LoopState(
+        paused: loop.boolean('paused'),
+        prompt: loop.optString('prompt'),
+        limit: switch (loop.optObject('limit')) {
+          null => null,
+          final limit => switch (limit.string('kind')) {
+            'iterations' => LoopIterations(total: limit.integer('total'), remaining: limit.integer('remaining')),
+            'duration' => LoopDuration(
+              duration: Duration(milliseconds: limit.number('ms').round()),
+              deadline: limit.number('deadline').round(),
+            ),
+            final other => throw FormatException('"kind": unknown loop limit "$other"'),
+          },
+        },
+        condition: switch (loop.optObject('condition')) {
+          null => null,
+          final condition => LoopCondition(
+            until: switch (condition.string('kind')) {
+              'while' => false,
+              'until' => true,
+              final other => throw FormatException('"kind": unknown loop condition "$other"'),
+            },
+            command: condition.string('command'),
+          ),
+        },
+        iterations: loop.integer('iterations'),
+      );
 
 List<AgentRow> _decodeAgents(List<Map<String, Object?>> agents) =>
     UnmodifiableListView([for (final agent in agents) _decodeAgent(agent)]);

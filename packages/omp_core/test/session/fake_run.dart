@@ -28,6 +28,10 @@ final class FakeRun {
   bool companion = true;
   Map<String, Object?> pause = const {'paused': false, 'pausedAt': null};
 
+  /// The goal and the loop `state.snapshot` reports.
+  Map<String, Object?>? goal;
+  Map<String, Object?>? loop;
+
   /// The append history `get_entries` serves.
   final entries = <Map<String, Object?>>[];
 
@@ -172,6 +176,8 @@ final class FakeRun {
               'pause': pause,
               'queue': {'steering': <Object?>[], 'followUp': <Object?>[], 'count': 0},
               'requests': <Object?>[],
+              'goal': goal,
+              'loop': loop,
             },
             'agents.list' => {'agents': <Object?>[]},
             _ => <String, Object?>{},

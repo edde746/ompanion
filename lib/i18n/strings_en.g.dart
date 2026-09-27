@@ -66,6 +66,8 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$attachments$en attachments = Translations$attachments$en.internal(_root);
 	late final Translations$composer$en composer = Translations$composer$en.internal(_root);
 	late final Translations$queue$en queue = Translations$queue$en.internal(_root);
+	late final Translations$goal$en goal = Translations$goal$en.internal(_root);
+	late final Translations$loop$en loop = Translations$loop$en.internal(_root);
 	late final Translations$exec$en exec = Translations$exec$en.internal(_root);
 	late final Translations$requests$en requests = Translations$requests$en.internal(_root);
 	late final Translations$ask$en ask = Translations$ask$en.internal(_root);
@@ -1370,8 +1372,8 @@ class Translations$chat$en {
 	/// en: 'Could not stop the run: $error'
 	String abortFailed({required Object error}) => 'Could not stop the run: ${error}';
 
-	/// en: 'The companion is not loaded in this session, so pause, queue editing and shell or Python runs are unavailable.'
-	String get noCompanion => 'The companion is not loaded in this session, so pause, queue editing and shell or Python runs are unavailable.';
+	/// en: 'The companion is not loaded in this session, so pause, queue editing, shell or Python runs, goals and loops are unavailable.'
+	String get noCompanion => 'The companion is not loaded in this session, so pause, queue editing, shell or Python runs, goals and loops are unavailable.';
 
 	/// en: 'More'
 	String get more => 'More';
@@ -1384,6 +1386,15 @@ class Translations$chat$en {
 
 	/// en: 'Stop the omp process'
 	String get stopSession => 'Stop the omp process';
+
+	/// en: 'Set a goal…'
+	String get setGoal => 'Set a goal…';
+
+	/// en: 'Guided goal…'
+	String get guidedGoal => 'Guided goal…';
+
+	/// en: 'Loop a prompt…'
+	String get startLoop => 'Loop a prompt…';
 
 	/// en: 'Could not stop the omp process: $error'
 	String stopSessionFailed({required Object error}) => 'Could not stop the omp process: ${error}';
@@ -1621,6 +1632,128 @@ class Translations$queue$en {
 
 	/// en: 'Could not change the queue: $error'
 	String takeFailed({required Object error}) => 'Could not change the queue: ${error}';
+}
+
+// Path: goal
+class Translations$goal$en {
+	Translations$goal$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Goal $usage'
+	String label({required Object usage}) => 'Goal ${usage}';
+
+	late final Translations$goal$status$en status = Translations$goal$status$en.internal(_root);
+
+	/// en: 'Goal · $status · $usage'
+	String tooltip({required Object status, required Object usage}) => 'Goal · ${status} · ${usage}';
+
+	/// en: '$used of $budget tokens ($left left)'
+	String usage({required Object used, required Object budget, required Object left}) => '${used} of ${budget} tokens (${left} left)';
+
+	/// en: '$used tokens, no budget'
+	String usageNoBudget({required Object used}) => '${used} tokens, no budget';
+
+	/// en: '$time spent'
+	String spent({required Object time}) => '${time} spent';
+
+	/// en: 'Pause'
+	String get pause => 'Pause';
+
+	/// en: 'Resume'
+	String get resume => 'Resume';
+
+	/// en: 'Token budget'
+	String get budget => 'Token budget';
+
+	/// en: 'A number, or off'
+	String get budgetHint => 'A number, or off';
+
+	/// en: 'Set the budget'
+	String get setBudget => 'Set the budget';
+
+	/// en: 'Goal budget must be a positive integer or `off`.'
+	String get budgetInvalid => 'Goal budget must be a positive integer or `off`.';
+
+	/// en: 'Drop…'
+	String get drop => 'Drop…';
+
+	/// en: 'Drop goal?'
+	String get dropTitle => 'Drop goal?';
+
+	/// en: 'This removes the goal record. Accumulated usage stays in the session log.'
+	String get dropBody => 'This removes the goal record. Accumulated usage stays in the session log.';
+
+	/// en: 'Drop'
+	String get dropConfirm => 'Drop';
+
+	/// en: 'Could not change the goal: $error'
+	String failed({required Object error}) => 'Could not change the goal: ${error}';
+}
+
+// Path: loop
+class Translations$loop$en {
+	Translations$loop$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Loop $remaining/$total'
+	String iterations({required Object remaining, required Object total}) => 'Loop ${remaining}/${total}';
+
+	/// en: 'Loop $time left'
+	String timeLeft({required Object time}) => 'Loop ${time} left';
+
+	/// en: 'Loop running'
+	String get running => 'Loop running';
+
+	/// en: 'Loop waiting'
+	String get waiting => 'Loop waiting';
+
+	/// en: 'Loop paused'
+	String get paused => 'Loop paused';
+
+	/// en: '$remaining of $total iterations left'
+	String iterationsLeft({required Object remaining, required Object total}) => '${remaining} of ${total} iterations left';
+
+	/// en: '$time of $total left'
+	String timeLeftOf({required Object time, required Object total}) => '${time} of ${total} left';
+
+	/// en: 'while `$command` succeeds'
+	String whileCondition({required Object command}) => 'while `${command}` succeeds';
+
+	/// en: 'until `$command` succeeds'
+	String untilCondition({required Object command}) => 'until `${command}` succeeds';
+
+	/// en: 'Goes on while this command succeeds:'
+	String get whileLabel => 'Goes on while this command succeeds:';
+
+	/// en: 'Goes on until this command succeeds:'
+	String get untilLabel => 'Goes on until this command succeeds:';
+
+	/// en: '(one) {$n iteration so far} (other) {$n iterations so far}'
+	String done({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} iteration so far',
+		other: '${n} iterations so far',
+	);
+
+	/// en: 'Waiting for your next prompt, which it repeats after every turn.'
+	String get waitingPrompt => 'Waiting for your next prompt, which it repeats after every turn.';
+
+	/// en: 'Suspended. The next prompt you send resumes it.'
+	String get pausedPrompt => 'Suspended. The next prompt you send resumes it.';
+
+	/// en: 'Suspend'
+	String get suspend => 'Suspend';
+
+	/// en: 'Turn off'
+	String get disable => 'Turn off';
+
+	/// en: 'Could not change the loop: $error'
+	String failed({required Object error}) => 'Could not change the loop: ${error}';
 }
 
 // Path: exec
@@ -2513,6 +2646,30 @@ class Translations$dock$terminals$en {
 	String get exitedBySignal => 'The shell ended.';
 }
 
+// Path: goal.status
+class Translations$goal$status$en {
+	Translations$goal$status$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Active'
+	String get active => 'Active';
+
+	/// en: 'Paused'
+	String get paused => 'Paused';
+
+	/// en: 'Budget reached'
+	String get budgetLimited => 'Budget reached';
+
+	/// en: 'Complete'
+	String get complete => 'Complete';
+
+	/// en: 'Dropped'
+	String get dropped => 'Dropped';
+}
+
 // Path: transcript.tool
 class Translations$transcript$tool$en {
 	Translations$transcript$tool$en.internal(this._root);
@@ -2631,6 +2788,30 @@ class Translations$transcript$tool$en {
 
 	/// en: '$count tokens'
 	String tokens({required Object count}) => '${count} tokens';
+
+	/// en: 'set'
+	String get goalSet => 'set';
+
+	/// en: 'check'
+	String get goalCheck => 'check';
+
+	/// en: 'complete'
+	String get goalComplete => 'complete';
+
+	/// en: 'resume'
+	String get goalResume => 'resume';
+
+	/// en: 'drop'
+	String get goalDrop => 'drop';
+
+	/// en: 'no active goal'
+	String get goalNone => 'no active goal';
+
+	/// en: '$time elapsed'
+	String goalElapsed({required Object time}) => '${time} elapsed';
+
+	/// en: 'Report'
+	String get report => 'Report';
 }
 
 // Path: transcript.execution
@@ -4001,11 +4182,14 @@ extension on Translations {
 			'chat.pauseFailed' => ({required Object error}) => 'Could not pause or resume: ${error}',
 			'chat.stop' => 'Stop',
 			'chat.abortFailed' => ({required Object error}) => 'Could not stop the run: ${error}',
-			'chat.noCompanion' => 'The companion is not loaded in this session, so pause, queue editing and shell or Python runs are unavailable.',
+			'chat.noCompanion' => 'The companion is not loaded in this session, so pause, queue editing, shell or Python runs, goals and loops are unavailable.',
 			'chat.more' => 'More',
 			'chat.copyPath' => 'Copy session file path',
 			'chat.detach' => 'Close on this device',
 			'chat.stopSession' => 'Stop the omp process',
+			'chat.setGoal' => 'Set a goal…',
+			'chat.guidedGoal' => 'Guided goal…',
+			'chat.startLoop' => 'Loop a prompt…',
 			'chat.stopSessionFailed' => ({required Object error}) => 'Could not stop the omp process: ${error}',
 			'chat.reconnecting' => ({required Object attempt, required Object seconds}) => 'Connection lost. Reconnecting (attempt ${attempt}) in ${seconds} s.',
 			'chat.retryNow' => 'Retry now',
@@ -4075,6 +4259,44 @@ extension on Translations {
 			'queue.edit' => 'Edit in the composer',
 			'queue.remove' => 'Remove from the queue',
 			'queue.takeFailed' => ({required Object error}) => 'Could not change the queue: ${error}',
+			'goal.label' => ({required Object usage}) => 'Goal ${usage}',
+			'goal.status.active' => 'Active',
+			'goal.status.paused' => 'Paused',
+			'goal.status.budgetLimited' => 'Budget reached',
+			'goal.status.complete' => 'Complete',
+			'goal.status.dropped' => 'Dropped',
+			'goal.tooltip' => ({required Object status, required Object usage}) => 'Goal · ${status} · ${usage}',
+			'goal.usage' => ({required Object used, required Object budget, required Object left}) => '${used} of ${budget} tokens (${left} left)',
+			'goal.usageNoBudget' => ({required Object used}) => '${used} tokens, no budget',
+			'goal.spent' => ({required Object time}) => '${time} spent',
+			'goal.pause' => 'Pause',
+			'goal.resume' => 'Resume',
+			'goal.budget' => 'Token budget',
+			'goal.budgetHint' => 'A number, or off',
+			'goal.setBudget' => 'Set the budget',
+			'goal.budgetInvalid' => 'Goal budget must be a positive integer or `off`.',
+			'goal.drop' => 'Drop…',
+			'goal.dropTitle' => 'Drop goal?',
+			'goal.dropBody' => 'This removes the goal record. Accumulated usage stays in the session log.',
+			'goal.dropConfirm' => 'Drop',
+			'goal.failed' => ({required Object error}) => 'Could not change the goal: ${error}',
+			'loop.iterations' => ({required Object remaining, required Object total}) => 'Loop ${remaining}/${total}',
+			'loop.timeLeft' => ({required Object time}) => 'Loop ${time} left',
+			'loop.running' => 'Loop running',
+			'loop.waiting' => 'Loop waiting',
+			'loop.paused' => 'Loop paused',
+			'loop.iterationsLeft' => ({required Object remaining, required Object total}) => '${remaining} of ${total} iterations left',
+			'loop.timeLeftOf' => ({required Object time, required Object total}) => '${time} of ${total} left',
+			'loop.whileCondition' => ({required Object command}) => 'while `${command}` succeeds',
+			'loop.untilCondition' => ({required Object command}) => 'until `${command}` succeeds',
+			'loop.whileLabel' => 'Goes on while this command succeeds:',
+			'loop.untilLabel' => 'Goes on until this command succeeds:',
+			'loop.done' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} iteration so far', other: '${n} iterations so far', ), 
+			'loop.waitingPrompt' => 'Waiting for your next prompt, which it repeats after every turn.',
+			'loop.pausedPrompt' => 'Suspended. The next prompt you send resumes it.',
+			'loop.suspend' => 'Suspend',
+			'loop.disable' => 'Turn off',
+			'loop.failed' => ({required Object error}) => 'Could not change the loop: ${error}',
 			'exec.running' => 'running',
 			'exec.exited' => ({required Object code}) => 'exit ${code}',
 			'exec.cancelled' => 'cancelled',
@@ -4184,6 +4406,14 @@ extension on Translations {
 			'transcript.tool.diagnostics' => 'Diagnostics',
 			'transcript.tool.redirectedTo' => ({required Object url}) => 'Redirected to ${url}',
 			'transcript.tool.tokens' => ({required Object count}) => '${count} tokens',
+			'transcript.tool.goalSet' => 'set',
+			'transcript.tool.goalCheck' => 'check',
+			'transcript.tool.goalComplete' => 'complete',
+			'transcript.tool.goalResume' => 'resume',
+			'transcript.tool.goalDrop' => 'drop',
+			'transcript.tool.goalNone' => 'no active goal',
+			'transcript.tool.goalElapsed' => ({required Object time}) => '${time} elapsed',
+			'transcript.tool.report' => 'Report',
 			'transcript.execution.notSent' => 'Not sent to the model',
 			'transcript.execution.cancelled' => 'Cancelled',
 			'transcript.execution.truncated' => 'Output truncated',

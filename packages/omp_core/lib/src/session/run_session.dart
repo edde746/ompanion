@@ -119,7 +119,8 @@ typedef _FilePage = ({List<Map<String, Object?>> entries, int from});
 
 /// A [LiveSession] over a [RunAccess]: attaches, builds the view from the replayed log plus RPC state, applies every
 /// frame and every answer any device appends, keeps the view fresh (`stateStale`, `resyncReason`), records session
-/// switches in `meta.json`, rotates a large log once settled, and reconnects after link loss.
+/// switches in `meta.json`, rotates a large log once settled with no goal or loop turn to follow, and reconnects after
+/// link loss.
 final class RunSession implements LiveSession {
   RunSession({
     required this.runId,
@@ -352,8 +353,9 @@ final class RunSession implements LiveSession {
   /// (the first on a process or device) replays them onto an empty view, minus their toasts: the log was read from
   /// the start of its generation. It also reads the commands, subscribes to subagent progress and looks for the
   /// companion. Any other seed (a resync, a rotation gap) keeps what RPC cannot list again: open dialogs, statuses,
-  /// widgets, toasts, the goal and the commands. Frames after the response apply on top. With [fileEntries], the
-  /// history starts from the session file ([_entriesAfter]).
+  /// widgets, toasts, the goal, the loop and the commands; the companion's snapshot then replaces the goal and the loop.
+  /// Frames after the response apply on top. With [fileEntries], the history starts from the session file
+  /// ([_entriesAfter]).
   Future<void> _seed(_Attachment attachment, {required bool fresh, Future<_FilePage?>? fileEntries}) async {
     _seeding = true;
     final rpc = attachment.rpc;
@@ -558,6 +560,7 @@ final class RunSession implements LiveSession {
   /// What a rebuilt view keeps: the process-level parts RPC cannot list again.
   static SessionView _carryOver(SessionView view) => SessionView(
     goal: view.goal,
+    loop: view.loop,
     requests: view.requests,
     statuses: view.statuses,
     widgets: view.widgets,
@@ -695,7 +698,10 @@ final class RunSession implements LiveSession {
   void _onSettled(_Attachment attachment) {
     final at = _access.rotateAt;
     final tracked = attachment.tracked;
-    if (at != null && !_rotating && tracked.offset >= at) {
+    // The companion starts a goal's continuation or a loop's next iteration 800 ms after the settle, without input the
+    // rotation's lock would hold back: frames omp writes between the size check and the truncation would be lost.
+    final followedUp = _view.goal?.status == GoalStatus.active || _view.loop?.phase == LoopPhase.running;
+    if (at != null && !_rotating && !followedUp && tracked.offset >= at) {
       _rotating = true;
       unawaited(_rotate(tracked.generation, tracked.offset));
     }

@@ -71,6 +71,25 @@ final class UserItem extends TranscriptItem {
   );
 }
 
+/// A prompt omp sent itself to start a run and keeps out of the transcript: a `developer` message marked `synthetic`
+/// (`session.prompt(…, {synthetic: true})`), such as the guided goal's interview kickoff or the continuation after a
+/// compaction. omp's replay treats it as a prompt (`agent-session.ts`, "run-initiating prompt"); the chat shows nothing
+/// for it, and starts a turn there.
+final class HiddenPromptItem extends TranscriptItem {
+  HiddenPromptItem({super.key, super.entryId, required this.timestamp, required this.content});
+
+  /// Epoch milliseconds.
+  final int timestamp;
+  final List<ContentBlock> content;
+
+  @override
+  late final String identity = 'developer:$timestamp:${_fingerprint(content)}';
+
+  @override
+  HiddenPromptItem rekeyed(String key, String? entryId) =>
+      HiddenPromptItem(key: key, entryId: entryId, timestamp: timestamp, content: content);
+}
+
 /// `StopReason` in `packages/ai/src/types.ts`.
 enum StopReason { stop, length, toolUse, error, aborted }
 
@@ -525,8 +544,8 @@ final class ThinkingChangeItem extends TranscriptItem {
       ThinkingChangeItem(key: key, entryId: entryId, level: level, configured: configured);
 }
 
-/// Decodes one `AgentMessage`. Returns null for roles the transcript does not show (`developer`) and roles this build
-/// does not know.
+/// Decodes one `AgentMessage`. Returns null for roles the transcript does not show (a `developer` message that is not
+/// a synthetic prompt) and roles this build does not know.
 TranscriptItem? decodeMessage(
   Map<String, Object?> message, {
   String? entryId,
@@ -542,6 +561,12 @@ TranscriptItem? decodeMessage(
         content: decodeContent(message['content']),
         attribution: message.optString('attribution'),
         synthetic: message.optBool('synthetic') ?? false,
+      );
+    case 'developer' when message.optBool('synthetic') ?? false:
+      return HiddenPromptItem(
+        entryId: entryId,
+        timestamp: message.integer('timestamp'),
+        content: decodeContent(message['content']),
       );
     case 'assistant':
       return decodeAssistant(message, entryId: entryId, messageId: messageId, streaming: streaming);

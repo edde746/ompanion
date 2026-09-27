@@ -108,6 +108,9 @@ String _freeCharacter(String text, Map<String, ModelChip> chips) {
   throw StateError('No private-use character is left for another model chip.');
 }
 
+/// A slash command's word at the start of a draft.
+final _leadingCommand = RegExp(r'^/\S*');
+
 /// What the user is composing for one session: text and attachments. Kept per session, so switching sessions keeps
 /// each composer's draft, and filled from outside by `set_editor_text`, branching and tree navigation, which put
 /// text back into the editor as the TUI does.
@@ -158,6 +161,20 @@ class ComposerDraft extends ChangeNotifier {
     if (text.text.isEmpty) {
       text.value = const TextEditingValue(text: '/', selection: TextSelection.collapsed(offset: 1));
     }
+    _focusRequested = true;
+    notifyListeners();
+  }
+
+  /// Puts the slash command [name] at the start of the draft, in place of a slash command it starts with (the
+  /// palette's `/`, a typed `/goal`, a command picked before), and asks the composer for focus: the command's arguments
+  /// come next, the draft's other text among them.
+  void startCommand(String name) {
+    final rest = text.text.trimLeft().replaceFirst(_leadingCommand, '').trimLeft();
+    final value = '/$name $rest';
+    text.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
     _focusRequested = true;
     notifyListeners();
   }

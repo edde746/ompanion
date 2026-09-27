@@ -6,8 +6,10 @@ import 'package:omp_core/store.dart';
 import '../../../app/theme.dart';
 import '../../../files/file_paths.dart';
 import '../../../i18n/strings.g.dart';
+import '../../../utils/compact_duration.dart';
 import '../../../utils/token_count.dart';
 import '../../../widgets/activity_mark.dart';
+import '../mode_controls.dart' show goalStatusLabel, goalUsage;
 import 'code_block.dart';
 import 'diff.dart';
 import 'highlighter.dart';
@@ -42,6 +44,7 @@ ToolParts toolParts(BuildContext context, ToolData data) => switch (data.kind) {
   ToolKind.ask => _ask(context, data),
   ToolKind.webSearch => _webSearch(context, data),
   ToolKind.eval => _eval(context, data),
+  ToolKind.goal => _goal(context, data),
   ToolKind.generic => _generic(context, data),
 };
 
@@ -952,6 +955,66 @@ ToolParts _eval(BuildContext context, ToolData data) {
       if (liveImages.isNotEmpty && data.images.isEmpty) ...[const SizedBox(height: 8), ImageStrip(liveImages)],
       ..._errorAndImages(context, data, showText: false),
     ]),
+  );
+}
+
+/// The `goal` tool (`packages/tui/src/tools/goal.ts`): what the call did and the goal's status on its line; the
+/// objective, its usage and a completion's report in the body.
+ToolParts _goal(BuildContext context, ToolData data) {
+  final t = context.t.transcript.tool;
+  final details = _object(data.details);
+  final op = _string(details?['op']) ?? _string(data.args['op']);
+  final goal = _object(details?['goal']);
+  final status = switch (_string(goal?['status'])) {
+    'active' => GoalStatus.active,
+    'paused' => GoalStatus.paused,
+    'budget-limited' => GoalStatus.budgetLimited,
+    'complete' => GoalStatus.complete,
+    'dropped' => GoalStatus.dropped,
+    _ => null,
+  };
+  final objective = _string(goal?['objective']) ?? _string(data.args['objective']);
+  final used = _int(goal?['tokensUsed']);
+  final seconds = _int(goal?['timeUsedSeconds']) ?? 0;
+  final report = _string(details?['completionBudgetReport']);
+  return (
+    subject: switch (op) {
+      'create' => t.goalSet,
+      'get' => t.goalCheck,
+      'complete' => t.goalComplete,
+      'resume' => t.goalResume,
+      'drop' => t.goalDrop,
+      _ => op ?? '',
+    },
+    monoSubject: false,
+    // The status, unless the op already says it: `complete` completes, `drop` drops.
+    meta: [
+      if (status == null && data.status == ToolStatus.done)
+        t.goalNone
+      else if (status != null &&
+          !(op == 'complete' && status == GoalStatus.complete) &&
+          !(op == 'drop' && status == GoalStatus.dropped))
+        goalStatusLabel(context, status),
+    ],
+    expanded: false,
+    open: null,
+    body: objective == null && !data.isError
+        ? null
+        : (context) => _column([
+            if (objective != null) TranscriptMarkdown(objective),
+            if (used != null) ...[
+              const SizedBox(height: 6),
+              _dim(
+                context,
+                [
+                  goalUsage(context, used, _int(goal?['tokenBudget'])),
+                  if (seconds > 0) t.goalElapsed(time: compactDuration(Duration(seconds: seconds))),
+                ].join('  ·  '),
+              ),
+            ],
+            if (report != null && report.isNotEmpty) ...[ToolSection(t.report), _dim(context, report)],
+            ..._errorAndImages(context, data),
+          ]),
   );
 }
 

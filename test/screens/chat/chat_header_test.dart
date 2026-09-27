@@ -127,13 +127,16 @@ final class _Omp implements LineChannel {
   Future<void> close() async => _lines.close();
 }
 
-/// A session whose run streams while paused, with messages queued.
+/// A session whose run streams while paused, with messages queued, and [loop] on.
 final class _PausedSession implements LiveSession {
   @override
   Future<void> Function()? get loadEarlier => null;
-  _PausedSession(this.omp);
+  _PausedSession(this.omp, {this.loop, this.verbs = const ['queue.clear', 'pause.set'], this.commands = const []});
 
   final _Omp omp;
+  final LoopState? loop;
+  final List<String> verbs;
+  final List<SlashCommand> commands;
   @override
   late final RpcClient rpc = RpcClient(omp, deviceId: 'test');
   @override
@@ -143,18 +146,20 @@ final class _PausedSession implements LiveSession {
   SessionView get view => SessionView(
     run: const RunState(running: true, paused: true),
     queue: const QueueState(count: 2, steering: ['steer me'], followUp: ['later']),
+    loop: loop,
+    commands: commands,
   );
 
   @override
   Stream<SessionView> get views => const Stream.empty();
 
   @override
-  CompanionHello? get companionHello => CompanionHello.fromJson(const {
+  CompanionHello? get companionHello => CompanionHello.fromJson({
     'companion': {'version': '0.1.0'},
     'omp': {'version': '18.3.1'},
     'channel': 'output',
-    'verbs': ['queue.clear', 'pause.set'],
-    'events': <String>[],
+    'verbs': verbs,
+    'events': const <String>[],
   });
 
   @override
@@ -294,6 +299,164 @@ void main() {
     ]);
     expect(draft.text.text, 'steer me\n\nlater\n\nhalf typed');
     expect([for (final attachment in draft.attachments) (attachment as ImageAttachment).image.data], ['QUEUED']);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() async {
+      machines.dispose();
+      await db.close();
+    });
+  });
+
+  // The TUI's Esc on a loop: the loop is suspended before the abort, whose turn end would start its next iteration.
+  testWidgets('Stop with a running loop suspends it before the abort', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    FlutterSecureStorage.setMockInitialValues({});
+    final db = AppDatabase(NativeDatabase.memory());
+    final secrets = SecretStore();
+    final machines = MachinesProvider(db, secrets);
+    final sessions = SessionsProvider(
+      connector: MachineConnector(secrets, KnownHostsStore(db)),
+      machines: machines,
+      deviceId: 'test',
+      companionBytes: (_) async => const [],
+    );
+    Future<List<Object?>> stop(
+      LoopState loop, {
+      List<String> verbs = const ['queue.clear', 'pause.set', 'loop.suspend'],
+    }) async {
+      final omp = _Omp({
+        'queue.clear': {'steering': <Object?>[], 'followUp': <Object?>[]},
+        'loop.suspend': {'loop': null},
+        'pause.set': {'paused': false, 'pausedAt': null},
+      });
+      final session = _PausedSession(omp, loop: loop, verbs: verbs);
+      final attached = session.rpc.attach();
+      await tester.pump();
+      await attached;
+      omp.log.clear();
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: sessions,
+          child: TranslationProvider(
+            child: MaterialApp(
+              home: Scaffold(
+                body: ChatHeader(key: UniqueKey(), session: session),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('stop')));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+      return omp.log;
+    }
+
+    const running = LoopState(paused: false, prompt: 'fix the next failing test', iterations: 2);
+    expect(await stop(running), [
+      {
+        'verb': 'queue.clear',
+        'args': {'interrupt': true},
+      },
+      {'verb': 'loop.suspend', 'args': <String, Object?>{}},
+      'abort',
+      {
+        'verb': 'pause.set',
+        'args': {'paused': false},
+      },
+    ]);
+    // Already suspended, or a companion without the verb: nothing more than the plain Stop.
+    for (final log in [
+      await stop(const LoopState(paused: true, iterations: 2)),
+      await stop(running, verbs: const ['queue.clear', 'pause.set']),
+    ]) {
+      expect(log, [
+        {
+          'verb': 'queue.clear',
+          'args': {'interrupt': true},
+        },
+        'abort',
+        {
+          'verb': 'pause.set',
+          'args': {'paused': false},
+        },
+      ]);
+    }
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() async {
+      machines.dispose();
+      await db.close();
+    });
+  });
+
+  testWidgets('the session menu starts /goal, /guided-goal and /loop in the composer, /loop only while no loop is on', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    FlutterSecureStorage.setMockInitialValues({});
+    final db = AppDatabase(NativeDatabase.memory());
+    final secrets = SecretStore();
+    final machines = MachinesProvider(db, secrets);
+    final sessions = SessionsProvider(
+      connector: MachineConnector(secrets, KnownHostsStore(db)),
+      machines: machines,
+      deviceId: 'test',
+      companionBytes: (_) async => const [],
+    );
+    const commands = [
+      SlashCommand(name: 'goal', source: 'extension'),
+      SlashCommand(name: 'guided-goal', source: 'extension'),
+      SlashCommand(name: 'loop', source: 'extension'),
+    ];
+    Future<void> pick(LiveSession session, String entry) async {
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: sessions,
+          child: TranslationProvider(
+            child: MaterialApp(
+              home: Scaffold(
+                body: ChatHeader(key: UniqueKey(), session: session),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('session-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey(entry)));
+      await tester.pumpAndSettle();
+    }
+
+    final session = _PausedSession(_Omp(const {}), commands: commands);
+    final draft = sessions.draftOf(session)..replace('fix the flaky test');
+    draft.takeFocusRequest();
+    await pick(session, 'start-goal');
+    expect(draft.text.text, '/goal fix the flaky test');
+    expect(draft.takeFocusRequest(), isTrue);
+
+    draft.replace('');
+    await pick(session, 'start-guided-goal');
+    expect(draft.text.text, '/guided-goal ');
+    draft.replace('');
+    await pick(session, 'start-loop');
+    expect(draft.text.text, '/loop ');
+
+    // `/loop` while a loop is on turns it off, whatever follows.
+    final looping = _PausedSession(
+      _Omp(const {}),
+      commands: commands,
+      loop: const LoopState(paused: false, iterations: 0),
+    );
+    await pick(looping, 'start-goal');
+    await tester.tap(find.byKey(const ValueKey('session-menu')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('start-loop')), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {

@@ -137,6 +137,27 @@ Map<String, Object?> ompxEvent(String event, Map<String, Object?> data) => {
   'data': data,
 };
 
+/// omp's `Goal` (`packages/tui/src/tools/goal.ts`).
+Map<String, Object?> goal(String status, {int? tokenBudget}) => {
+  'id': '1790354150819-0',
+  'objective': 'Make the tests pass',
+  'status': status,
+  'tokenBudget': ?tokenBudget,
+  'tokensUsed': 12400,
+  'timeUsedSeconds': 95,
+  'createdAt': 1790354150819,
+  'updatedAt': 1790354245819,
+};
+
+/// The companion's `LoopState` (docs/contracts/ompx.md).
+Map<String, Object?> loop({
+  bool paused = false,
+  String? prompt = 'fix the next failing test',
+  Map<String, Object?>? limit,
+  Map<String, Object?>? condition,
+  int iterations = 0,
+}) => {'paused': paused, 'prompt': prompt, 'limit': limit, 'condition': condition, 'iterations': iterations};
+
 Map<String, Object?> state({
   String sessionId = 'session-1',
   String modelId = 'fake-1',
@@ -178,6 +199,34 @@ List<String> identities(SessionView view) => [for (final item in view.transcript
 
 void main() {
   group('streaming', () {
+    test('a synthetic developer prompt is a hidden prompt row, once; other developer messages have none', () {
+      // `session.prompt(kickoff, {synthetic: true})`, as the guided goal starts its interview.
+      final kickoff = {
+        'role': 'developer',
+        'content': [text('Interview the user.')],
+        'attribution': 'agent',
+        'timestamp': 300,
+        'synthetic': true,
+      };
+      final reminder = {
+        'role': 'developer',
+        'content': [text('Update the todos.')],
+        'attribution': 'agent',
+        'timestamp': 310,
+      };
+      var view = apply(SessionView(), [
+        running,
+        messageStart(kickoff, 'msg-1'),
+        messageEnd(kickoff, 'msg-1'),
+        messageStart(reminder, 'msg-2'),
+        messageEnd(reminder, 'msg-2'),
+      ]);
+      expect(view.transcript.single, isA<HiddenPromptItem>());
+
+      view = withMessages(view, [kickoff, reminder], entryIds: ['e1', 'e2']);
+      expect([for (final item in view.transcript) (item.runtimeType, item.entryId)], [(HiddenPromptItem, 'e1')]);
+    });
+
     test('message_update renders the accumulated message and message_end finalises the same row', () {
       var view = apply(SessionView(), [
         running,
@@ -968,6 +1017,27 @@ void main() {
     });
   });
 
+  group('goal', () {
+    test('goal_updated sets the goal with its status and usage, and a null goal clears it', () {
+      var view = reduce(SessionView(), {'type': 'goal_updated', 'goal': goal('active', tokenBudget: 50000)});
+      final active = view.goal!;
+      expect(
+        (active.objective, active.status, active.tokensUsed, active.tokenBudget, active.timeUsedSeconds),
+        ('Make the tests pass', GoalStatus.active, 12400, 50000, 95),
+      );
+
+      view = reduce(view, {
+        'type': 'goal_updated',
+        'goal': goal('budget-limited'),
+        'state': {'enabled': true, 'mode': 'active'},
+      });
+      expect((view.goal!.status, view.goal!.tokenBudget), (GoalStatus.budgetLimited, null));
+
+      view = reduce(view, {'type': 'goal_updated', 'goal': null});
+      expect(view.goal, isNull);
+    });
+  });
+
   group('companion', () {
     test('pause, agents, requests and session changes', () {
       var view = apply(SessionView(), [
@@ -1060,6 +1130,68 @@ void main() {
       });
       expect([for (final request in view.requests) request.id], ['new']);
       expect(view.queue.followUp, ['later']);
+    });
+
+    test('loop.changed carries the whole loop, and null turns it off', () {
+      var view = reduce(
+        SessionView(),
+        ompxEvent('loop.changed', {
+          'loop': loop(
+            limit: {'kind': 'iterations', 'total': 10, 'remaining': 7},
+            condition: {'kind': 'until', 'command': 'bun test'},
+            iterations: 3,
+          ),
+        }),
+      );
+      final running = view.loop!;
+      expect(running.phase, LoopPhase.running);
+      expect(running.iterations, 3);
+      expect(running.limit, isA<LoopIterations>().having((limit) => (limit.total, limit.remaining), 'counts', (10, 7)));
+      expect((running.condition!.until, running.condition!.command), (true, 'bun test'));
+
+      view = reduce(
+        view,
+        ompxEvent('loop.changed', {
+          'loop': loop(
+            prompt: null,
+            limit: {'kind': 'duration', 'ms': 600000, 'deadline': 1790354750819},
+            condition: {'kind': 'while', 'command': 'test -f todo.md'},
+          ),
+        }),
+      );
+      expect(view.loop!.phase, LoopPhase.waiting);
+      expect(
+        view.loop!.limit,
+        isA<LoopDuration>().having((limit) => (limit.duration, limit.deadline), 'window', (
+          const Duration(minutes: 10),
+          1790354750819,
+        )),
+      );
+      expect(view.loop!.condition!.until, isFalse);
+
+      view = reduce(view, ompxEvent('loop.changed', {'loop': loop(paused: true, prompt: null)}));
+      expect(view.loop!.phase, LoopPhase.paused);
+
+      view = reduce(view, ompxEvent('loop.changed', {'loop': null}));
+      expect(view.loop, isNull);
+    });
+
+    test('a state snapshot replaces the goal and the loop; one without the keys leaves them alone', () {
+      var view = apply(SessionView(), [
+        {'type': 'goal_updated', 'goal': goal('active')},
+        ompxEvent('loop.changed', {'loop': loop()}),
+      ]);
+
+      view = withCompanionSnapshot(view, {
+        'pause': {'paused': false, 'pausedAt': null},
+      });
+      expect((view.goal?.status, view.loop?.phase), (GoalStatus.active, LoopPhase.running));
+
+      view = withCompanionSnapshot(view, {'goal': goal('paused'), 'loop': loop(paused: true, prompt: null)});
+      expect((view.goal?.status, view.loop?.phase), (GoalStatus.paused, LoopPhase.paused));
+
+      view = withCompanionSnapshot(view, {'goal': null, 'loop': null});
+      expect((view.goal, view.loop), (null, null));
     });
   });
 

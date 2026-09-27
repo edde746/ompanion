@@ -75,6 +75,28 @@ void main() {
     expect(draft.text.chips.values.map((chip) => chip.name).toSet(), {'Fake Think', 'Fake One'});
   });
 
+  test('a picked command takes the place of the command the draft starts with and keeps the text after it', () {
+    final draft = ComposerDraft();
+    addTearDown(draft.dispose);
+    String start(String typed, String name) {
+      draft.text.value = TextEditingValue(
+        text: typed,
+        selection: TextSelection.collapsed(offset: typed.length),
+      );
+      draft.startCommand(name);
+      expect(draft.text.selection, TextSelection.collapsed(offset: draft.text.text.length), reason: typed);
+      return draft.text.text;
+    }
+
+    draft.openPalette();
+    draft.startCommand('goal');
+    expect(draft.text.text, '/goal ', reason: "the palette's slash is no objective");
+    expect(start('/goal', 'goal'), '/goal ');
+    expect(start('/goal ', 'loop'), '/loop ', reason: 'a loop whose body is /goal would open the objective editor');
+    expect(start('/goal ship it', 'loop'), '/loop ship it');
+    expect(start('  write the tests', 'goal'), '/goal write the tests');
+  });
+
   test('a private-use character that is no chip, e.g. a pasted icon glyph, stays as it is', () {
     final text = _typed('\uE000 icon');
     text.value = TextEditingValue(

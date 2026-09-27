@@ -111,8 +111,8 @@ class TranscriptRowView extends StatelessWidget {
       icon: Icons.psychology_outlined,
       text: (t) => item.level == null || item.level == 'off' ? t.thinkingOff : t.thinkingLevel(level: item.level!),
     ),
-    // Assistant messages and tool results have rows of their own (transcript_rows.dart).
-    AssistantItem() || ToolResultItem() => const SizedBox.shrink(),
+    // Assistant messages and tool results have rows of their own (transcript_rows.dart); a hidden prompt has none.
+    AssistantItem() || ToolResultItem() || HiddenPromptItem() => const SizedBox.shrink(),
   };
 }
 

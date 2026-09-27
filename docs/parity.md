@@ -7,11 +7,11 @@ against a real machine. Evidence: `research/omp-surface.md` (RPC, text builtins,
 The tables are the target, not a status. What ships at 0.1 is the README's feature list. Rows without a surface of
 their own:
 
-- Not reachable: goal, guided goal and loop modes; `/btw`, `/fork` and `/clear` (TUI-only names the app does not
-  send; their companion verbs exist, but the app does not call them); `/omfg`, `/tan` and `/cleanse`; the provider
-  setup wizard; Claude Code and Codex import; prompt history search; `@` file completion in the composer; the
-  sidebar's pause badge and pause-all per machine; magic keyword highlighting; user port forwards; voice; the
-  agents dashboard; the extensions control center; editing `keybindings.yml`.
+- Not reachable: `/btw`, `/fork` and `/clear` (TUI-only names the app does not send; their companion verbs exist, but
+  the app does not call them); `/omfg`, `/tan` and `/cleanse`; the provider setup wizard; Claude Code and Codex import;
+  prompt history search; `@` file completion in the composer; the sidebar's pause badge and pause-all per machine;
+  magic keyword highlighting; user port forwards; voice; the agents dashboard; the extensions control center; editing
+  `keybindings.yml`.
 - Only by typing the command omp lists into the composer (sent as prompt text, its output shown in the chat):
   `/todo` edits, `/retry`, `/compact`, `/shake`, `/fresh`, `/handoff`, `/export` (the HTML stays on the machine),
   `/share`, `/move`, `/wt`, `/add-dir`, `/dirs`, `/fast`, `/extended-context`, `/skillful`, `/computer`, `/browser`,
@@ -77,9 +77,9 @@ what stock lacks.
 | Feature | TUI entry | Route | Surface | M |
 |---|---|---|---|---|
 | Pause and resume all agents of a session | `/pause` | CE `agentPauseGate` (`@oh-my-pi/pi-agent-core`): `pause`, `resume`, `paused`, `pausedAt`, `onChange` | toolbar, session badge, pause-all per machine | M2 |
-| Goal mode (set, show, pause, resume, drop, budget) | `/goal` | CE-R (`goalRuntime`, `getGoalModeState`/`setGoalModeState`, `sendGoalModeContext`; continuation in the companion on `agent_end`) | goal panel, composer bar | M6 |
-| Guided goal | `/guided-goal` | CE-R (interview prompt, then `createGoal`) | goal panel | M6 |
-| Loop mode (prompt, limit, `--while`/`--until`) | `/loop` | CE-R (`modes/loop-limit`, `modes/loop-condition`; iterations in the companion) | loop control | M6 |
+| Goal mode (set, show, pause, resume, drop, budget) | `/goal` | CE-R: the companion's `/goal` command (omp's grammar, menus, confirms and notices) and `goal.set`, `goal.pause`, `goal.resume`, `goal.drop`, `goal.budget` over `goalRuntime` and `getGoalModeState`/`setGoalModeState`; continuation, stall hold, completion and restore in the companion; state from RPC `goal_updated` and `state.snapshot`'s `goal` | composer-toolbar control with usage and a menu (pause or resume, inline budget, drop with a confirm); session menu `Set a goal…`; goal tool card | M6 |
+| Guided goal | `/guided-goal` | CE-R: the companion's `/guided-goal` command and `goal.guided` (omp's interview kickoff as a synthetic prompt; the model's `goal({op: "create"})` starts the goal) | session menu `Guided goal…`, then the chat and the goal control | M6 |
+| Loop mode (prompt, limit, `--while`/`--until`) | `/loop` | CE-R: the companion's `/loop` command and `loop.enable`, `loop.suspend`, `loop.disable` (`modes/loop-limit`, `modes/loop-condition`; iterations in the companion); state from the companion's `loop.changed` and `state.snapshot`'s `loop` | composer-toolbar control with iterations or time left and a menu (suspend, turn off); session menu `Loop a prompt…`; Stop suspends a running loop | M6 |
 | Fast, extended context, skillful, computer, browser | slash | RPC `set_fast_mode`; TXT the rest | toggles | M2 |
 | Prewalk | `/prewalk` | TXT; launch flags | toggle | M4 |
 | Advisor | `/advisor` | TXT on/off/status/dump; CE settings for configure | advisor panel | M5 |

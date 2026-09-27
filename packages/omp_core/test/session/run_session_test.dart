@@ -9,7 +9,8 @@ import 'package:omp_core/store.dart';
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
 
-import '../store/reducer_test.dart' show agentEnd, assistant, messageEnd, messageStart, text, uiRequest, user;
+import '../store/reducer_test.dart'
+    show agentEnd, assistant, goal, loop, messageEnd, messageStart, ompxEvent, text, uiRequest, user;
 import 'fake_run.dart';
 
 Map<String, Object?> entry(String id, String? parent, Map<String, Object?> message) => {
@@ -378,6 +379,37 @@ void main() {
     await live.detach();
   });
 
+  test('the companion snapshot sets the goal and the loop, and replaces what a session switch carried over', () async {
+    run
+      ..goal = goal('active', tokenBudget: 50000)
+      ..loop = loop(limit: {'kind': 'iterations', 'total': 5, 'remaining': 4});
+    final live = session(recordedPath: run.sessionFile);
+    await live.start();
+    expect((live.view.goal?.status, live.view.loop?.phase), (GoalStatus.active, LoopPhase.running));
+
+    run.emit({'type': 'goal_updated', 'goal': goal('paused', tokenBudget: 50000)});
+    run.emit(ompxEvent('loop.changed', {'loop': loop(paused: true, prompt: null)}));
+    await until(() => live.view.loop?.phase == LoopPhase.paused && live.view.goal?.status == GoalStatus.paused);
+
+    // The new session has no goal; the loop belongs to the process and goes on, as in the TUI.
+    run
+      ..goal = null
+      ..loop = loop(limit: {'kind': 'iterations', 'total': 5, 'remaining': 3}, iterations: 2)
+      ..sessionFile = '/home/me/.omp/agent/sessions/-work/s2.jsonl'
+      ..sessionId = 's2';
+    run.emit({
+      'id': 'dev-b:1',
+      'type': 'response',
+      'command': 'new_session',
+      'success': true,
+      'data': {'cancelled': false},
+    });
+    await until(() => live.view.config.sessionId == 's2' && live.view.resyncReason == null);
+    expect(live.view.goal, isNull);
+    expect((live.view.loop?.phase, live.view.loop?.iterations), (LoopPhase.running, 2));
+    await live.detach();
+  });
+
   test('a first attach shows only the conversation after the last session change in the log', () async {
     run.emit(messageEnd(user('old question', 1), 'm1'));
     run.emit(messageEnd(assistant(2, [text('old answer')]), 'm2'));
@@ -453,6 +485,32 @@ void main() {
     await pumpEventQueue();
     expect(run.generation, 1);
     expect(access.rotations, 0);
+    await live.detach();
+  });
+
+  test('a settle that a goal continuation or a loop iteration follows leaves the log alone', () async {
+    access = FakeAccess(run, rotateAt: 64);
+    run.goal = goal('active', tokenBudget: 50000);
+    final live = session(recordedPath: run.sessionFile);
+    await live.start();
+    // The companion starts the goal's next turn 800 ms after this settle, with no input the rotation's lock holds back.
+    run.emit({'type': 'session_settled'});
+    await pumpEventQueue();
+    expect(access.rotations, 0);
+
+    run.emit({'type': 'goal_updated', 'goal': goal('paused', tokenBudget: 50000)});
+    run.emit({'type': 'session_settled'});
+    await until(() => access.rotations == 1);
+
+    run.emit(ompxEvent('loop.changed', {'loop': loop()}));
+    run.emit({'type': 'session_settled'});
+    await pumpEventQueue();
+    expect(run.outSize, greaterThanOrEqualTo(64));
+    expect(access.rotations, 1, reason: 'the loop runs its next iteration');
+
+    run.emit(ompxEvent('loop.changed', {'loop': loop(paused: true)}));
+    run.emit({'type': 'session_settled'});
+    await until(() => access.rotations == 2);
     await live.detach();
   });
 

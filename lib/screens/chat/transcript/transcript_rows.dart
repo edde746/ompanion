@@ -283,12 +283,12 @@ typedef _Turn = ({int head, int row, _Fold fold});
 /// rows, not the transcript's. A tool result whose call an earlier assistant message holds is shown in that call's
 /// row, not on its own.
 ///
-/// With [isOpen], turns fold. A turn is a user message and the items after it up to the next one; items before the
-/// first user message are a turn of their own. A settled turn shows its user message, then a [TurnSummaryRow], then
-/// what always shows: the user's executions, dividers and markers, the text and footer of its last assistant message,
-/// and failures; its work (thinking, earlier text, tool calls, images, extension messages) shows once the reader
-/// opens it. The latest turn while the session works ([update]'s `live`) shows every row, and a turn with no work
-/// has no summary row.
+/// With [isOpen], turns fold. A turn is a user message, or a prompt omp sent itself ([HiddenPromptItem]), and the items
+/// after it up to the next one; items before the first are a turn of their own. A settled turn shows its user message,
+/// then a [TurnSummaryRow], then what always shows: the user's executions, dividers and markers, the text and footer
+/// of its last assistant message, and failures; its work (thinking, earlier text, tool calls, images, extension
+/// messages) shows once the reader opens it. The latest turn while the session works ([update]'s `live`) shows every
+/// row, and a turn with no work has no summary row.
 final class TranscriptRowModel {
   TranscriptRowModel({this.isOpen});
 
@@ -396,7 +396,7 @@ final class TranscriptRowModel {
       return false;
     }
     for (var item = from; item < _items.length; item++) {
-      if (_items[item] is UserItem) return false;
+      if (_startsTurn(_items[item])) return false;
     }
     return true;
   }
@@ -436,7 +436,7 @@ final class TranscriptRowModel {
   bool _nextRetryFailed(int index) {
     for (var next = index + 1; next < _items.length; next++) {
       switch (_items[next]) {
-        case UserItem():
+        case UserItem() || HiddenPromptItem():
           return false;
         case final AssistantItem next:
           return next.retryRecovery != null;
@@ -476,7 +476,7 @@ final class TranscriptRowModel {
     _itemRow.length = head;
     while (head < _items.length) {
       var end = head + 1;
-      while (end < _items.length && _items[end] is! UserItem) {
+      while (end < _items.length && !_startsTurn(_items[end])) {
         end++;
       }
       _showTurn(head, end);
@@ -537,10 +537,10 @@ final class TranscriptRowModel {
     return (isOpen(_items[head]) ? _Fold.open : _Fold.closed, facts, answer);
   }
 
-  /// From the user message to the end of the last response or tool result, when that is a second or more.
+  /// From the prompt to the end of the last response or tool result, when that is a second or more.
   Duration? _worked(int head, int end) {
     int? start = switch (_items[head]) {
-      UserItem(:final timestamp) => timestamp,
+      UserItem(:final timestamp) || HiddenPromptItem(:final timestamp) => timestamp,
       _ => null,
     };
     var stop = 0;
@@ -625,10 +625,13 @@ bool _failed(AssistantItem item) =>
     (item.stopReason == StopReason.error || item.stopReason == StopReason.aborted) &&
     item.retryRecovery?.recovered != true;
 
+/// Whether [item] starts a turn: a user message, or a prompt omp sent itself, which starts a run as a user message does.
+bool _startsTurn(TranscriptItem item) => item is UserItem || item is HiddenPromptItem;
+
 List<TranscriptRow> _rowsOf(TranscriptItem item) => switch (item) {
   AssistantItem() => _assistantRows(item),
   ToolResultItem() => [ToolRow.orphan(item)],
-  CustomItem(display: false) => const [],
+  CustomItem(display: false) || HiddenPromptItem() => const [],
   _ => [ItemRow(item)],
 };
 
@@ -673,7 +676,7 @@ bool hasFooter(AssistantItem item) {
 }
 
 /// Which card shows a tool call.
-enum ToolKind { bash, read, fetch, edit, write, todo, task, ask, webSearch, eval, generic }
+enum ToolKind { bash, read, fetch, edit, write, todo, task, ask, webSearch, eval, goal, generic }
 
 /// The card for a call of [toolName]; [args] and [details] pick variants of one tool: `read` of a URL is a fetch
 /// card, and `write` to an `xd://` device is the device tool's call.
@@ -690,6 +693,7 @@ ToolKind toolKindFor(String toolName, {Object? args, Object? details}) => switch
   'ask' => ToolKind.ask,
   'web_search' => ToolKind.webSearch,
   'eval' || 'python' => ToolKind.eval,
+  'goal' => ToolKind.goal,
   _ => ToolKind.generic,
 };
 
