@@ -48,7 +48,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
        only**, ads **No**, news app **No**, government/financial/health **No**, Advertising ID **No**.
 6. [ ] Content rating questionnaire: category "Utility, Productivity, Communication, or Other"; the answers
        in `store/google-play.md` §6.
-7. [ ] Sign-in details: choose **"All or some functionality is restricted"**, one set named `Demo server`
+7. [x] Sign-in details: choose **"All or some functionality is restricted"**, one set named `Demo server`
        with username `root` and the demo password, and in "Any other information" (500 characters at most)
        the text in `store/google-play.md` §4.
 8. [ ] Upload the first AAB by hand. Build it with `flutter build appbundle --release
@@ -79,7 +79,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 6. [ ] Upload the build (`(cd ios && fastlane deploy_appstore)`).
 7. [ ] Export compliance: encryption **yes**, "an industry standard algorithm, not provided within the Apple
        operating system" (SSH and TLS in Dart) — §8. Upload nothing unless France is in your territories.
-8. [ ] App Review Information: contact fields, **Sign-in required = Yes** with user `root` and the demo
+8. [x] App Review Information: contact fields, **Sign-in required = Yes** with user `root` and the demo
        password (`demo_user.txt`, `demo_password.txt`), and the notes from
        `ios/fastlane/metadata/review_information/notes.txt` with the first line deleted and `<PASSWORD>` filled in.
 9. [ ] Screenshots for the iPhone 6.9-inch set (1320×2868) and the iPad set (2048×2732).
