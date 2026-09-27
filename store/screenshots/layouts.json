@@ -1,0 +1,274 @@
+{
+  "_comment": "One composition per store image. Positions and sizes are fractions of the canvas (x of its width, y of its height, `width` of its width); `crop` rectangles are pixels of the raw capture, cut on element or row boundaries; `radius` is in capture pixels. Layers draw in order over the light; the caption draws last. `type` sizes are canvas pixels.",
+  "feature": {
+    "size": [1024, 500],
+    "cell": 4,
+    "light": [{"pi": {"at": [0.778, 0.55], "height": 0.84, "peak": 0.92, "fade": 0.25}}],
+    "wordmark": {"at": [0.07, 0.48], "size": 112},
+    "tagline": {"at": [0.073, 0.66], "size": 36}
+  },
+  "classes": {
+    "ios-phone": {
+      "cell": 9,
+      "type": {"headline": 150, "label": 34, "subline": 46},
+      "device": {"bezel": 0.022, "radius": 0.135, "shadow": 0.06, "zoom_radius": 36, "zoom_shadow": 0.05},
+      "shots": {
+        "01-chat": {
+          "light": [{"pi": {"at": [0.5, 0.425], "height": 0.36, "peak": 0.9, "fade": 0.3}}],
+          "layers": [{"device": {"at": [0.1475, 0.475], "width": 0.705}}],
+          "caption": {"at": [0.5, 0.06], "align": "center", "width": 0.88}
+        },
+        "02-approval": {
+          "light": [{"pool": {"at": [0.5, 0.48], "radius": [1.0, 0.4], "peak": 0.9, "gamma": 1.3}}],
+          "layers": [
+            {"device": {"at": [0.3, -0.02], "width": 0.66, "dim": 0.3}},
+            {"zoom": {"crop": [36, 1908, 1284, 2442], "at": [0.027, 0.3874], "width": 0.945}}
+          ],
+          "caption": {"at": [0.08, 0.935], "anchor": "bottom", "width": 0.84, "scale": 1.2}
+        },
+        "03-tree": {
+          "light": [{"pool": {"at": [0.0, 0.66], "radius": [0.7, 0.7], "peak": 0.5}}],
+          "layers": [{"device": {"at": [0.25, 0.43], "width": 0.7}}],
+          "caption": {"at": [0.08, 0.06], "width": 0.86, "scale": 1.7, "lines": 2}
+        },
+        "04-machines": {
+          "light": [{"pool": {"at": [1.0, 0.19], "radius": [0.75, 0.34], "peak": 0.8}}],
+          "layers": [
+            {"zoom": {"crop": [16, 330, 690, 870], "at": [0.06, 0.085], "width": 0.74, "shadow": 0.03}},
+            {"zoom": {"crop": [16, 1800, 690, 2340], "at": [0.2, 0.405], "width": 0.74, "shadow": 0.03}}
+          ],
+          "caption": {"at": [0.08, 0.935], "anchor": "bottom", "width": 0.84, "scale": 1.1}
+        },
+        "05-terminal": {
+          "light": [{"pool": {"at": [0.5, 1.0], "radius": [1.3, 0.75], "peak": 0.85, "gamma": 1.4}}],
+          "layers": [{"zoom": {"crop": [10, 640, 1300, 1490], "at": [0.073, 0.27], "width": 0.86, "radius": 0, "shadow": 0}}],
+          "caption": {"at": [0.08, 0.075], "width": 0.84, "mono": true, "scale": 0.8, "cursor": true}
+        },
+        "06-files": {
+          "light": [{"pool": {"at": [1.0, 0.86], "radius": [0.8, 0.5], "peak": 0.5}}],
+          "layers": [
+            {"device": {"at": [-0.1, 0.63], "width": 0.8, "dim": 0.15}},
+            {"zoom": {"crop": [0, 1780, 1320, 2700], "at": [0, 0.25], "width": 1.0, "radius": 0, "shadow": 0.03}}
+          ],
+          "caption": {"at": [0.92, 0.055], "align": "right", "width": 0.84}
+        },
+        "07-agents": {
+          "light": [{"pool": {"at": [0.08, 0.82], "radius": [0.75, 0.45], "peak": 0.6}}],
+          "layers": [{"device": {"at": [0.36, 0.44], "width": 0.58}}, {"zoom": {"crop": [24, 540, 640, 1060], "at": [0.05, 0.235], "width": 0.86}}],
+          "caption": {"at": [0.08, 0.06], "width": 0.84}
+        },
+        "08-config": {
+          "light": [{"pool": {"at": [0.5, 0.64], "radius": [1.0, 0.5], "peak": 0.5}}],
+          "layers": [
+            {"device": {"at": [0.11, 0.24], "width": 0.78, "dim": 0.45}},
+            {"zoom": {"crop": [120, 984, 1200, 1968], "at": [0.04, 0.4485], "width": 0.92, "radius": 84}}
+          ],
+          "caption": {"at": [0.5, 0.06], "align": "center", "width": 0.88}
+        }
+      }
+    },
+    "play-phone": {
+      "cell": 7,
+      "type": {"headline": 118, "label": 28, "subline": 38},
+      "device": {"bezel": 0.022, "radius": 0.11, "shadow": 0.06, "zoom_radius": 31, "zoom_shadow": 0.05},
+      "shots": {
+        "01-chat": {
+          "light": [{"pi": {"at": [0.5, 0.445], "height": 0.34, "peak": 0.9, "fade": 0.3}}],
+          "layers": [{"device": {"at": [0.19, 0.535], "width": 0.62}}],
+          "caption": {"at": [0.5, 0.06], "align": "center", "width": 0.9}
+        },
+        "02-approval": {
+          "light": [{"pool": {"at": [0.5, 0.522], "radius": [1.0, 0.42], "peak": 0.9, "gamma": 1.3}}],
+          "layers": [
+            {"device": {"at": [0.32, -0.0733], "width": 0.62, "dim": 0.3}},
+            {"zoom": {"crop": [31, 1610, 1048, 2078], "at": [0.03, 0.4], "width": 0.94}}
+          ],
+          "caption": {"at": [0.08, 0.935], "anchor": "bottom", "width": 0.84, "scale": 1.2}
+        },
+        "03-tree": {
+          "light": [{"pool": {"at": [0.0, 0.68], "radius": [0.7, 0.7], "peak": 0.5}}],
+          "layers": [{"device": {"at": [0.28, 0.42], "width": 0.64}}],
+          "caption": {"at": [0.08, 0.06], "width": 0.86, "scale": 1.7, "lines": 2}
+        },
+        "04-machines": {
+          "light": [{"pool": {"at": [1.0, 0.16], "radius": [0.75, 0.34], "peak": 0.8}}],
+          "layers": [
+            {"zoom": {"crop": [20, 285, 580, 730], "at": [0.06, 0.05], "width": 0.74, "shadow": 0.03}},
+            {"zoom": {"crop": [20, 1680, 580, 2010], "at": [0.2, 0.4], "width": 0.74, "shadow": 0.03}}
+          ],
+          "caption": {"at": [0.08, 0.935], "anchor": "bottom", "width": 0.84}
+        },
+        "05-terminal": {
+          "light": [{"pool": {"at": [0.5, 1.0], "radius": [1.3, 0.75], "peak": 0.85, "gamma": 1.4}}],
+          "layers": [{"zoom": {"crop": [8, 540, 1072, 1280], "at": [0.073, 0.29], "width": 0.86, "radius": 0, "shadow": 0}}],
+          "caption": {"at": [0.08, 0.07], "width": 0.84, "mono": true, "scale": 0.8, "cursor": true}
+        },
+        "06-files": {
+          "light": [{"pool": {"at": [1.0, 0.9], "radius": [0.8, 0.5], "peak": 0.5}}],
+          "layers": [
+            {"device": {"at": [-0.22, 0.7], "width": 0.72, "dim": 0.25}},
+            {"zoom": {"crop": [0, 1540, 1080, 2350], "at": [0, 0.25], "width": 1.0, "radius": 0, "shadow": 0.03}}
+          ],
+          "caption": {"at": [0.92, 0.05], "align": "right", "width": 0.84}
+        },
+        "07-agents": {
+          "light": [{"pool": {"at": [0.3, 0.37], "radius": [0.9, 0.4], "peak": 0.5}}],
+          "layers": [{"device": {"at": [0.4, 0.47], "width": 0.58}}, {"zoom": {"crop": [20, 450, 1060, 790], "at": [0.02, 0.27], "width": 0.96}}],
+          "caption": {"at": [0.08, 0.06], "width": 0.84}
+        },
+        "08-config": {
+          "light": [{"pool": {"at": [0.5, 0.67], "radius": [1.0, 0.5], "peak": 0.5}}],
+          "layers": [
+            {"device": {"at": [0.15, 0.24], "width": 0.7, "dim": 0.45}},
+            {"zoom": {"crop": [105, 821, 975, 1682], "at": [0.07, 0.457], "width": 0.86, "radius": 74}}
+          ],
+          "caption": {"at": [0.5, 0.05], "align": "center", "width": 0.9}
+        }
+      }
+    },
+    "ios-ipad": {
+      "cell": 14,
+      "type": {"headline": 190, "label": 40, "subline": 56},
+      "device": {"bezel": 0.018, "radius": 0.035, "shadow": 0.05, "zoom_radius": 32, "zoom_shadow": 0.04},
+      "shots": {
+        "01-chat": {
+          "light": [{"pi": {"at": [0.5, 0.46], "height": 0.34, "peak": 0.9, "fade": 0.3}}],
+          "layers": [{"device": {"at": [0.15, 0.53], "width": 0.7}}],
+          "caption": {"at": [0.5, 0.07], "align": "center", "width": 0.84}
+        },
+        "03-tree": {
+          "light": [{"pool": {"at": [1.0, 0.3], "radius": [0.6, 0.5], "peak": 0.5}}],
+          "layers": [{"device": {"at": [-0.06, 0.37], "width": 0.84}}],
+          "caption": {"at": [0.07, 0.06], "width": 0.86, "scale": 1.5, "lines": 3}
+        },
+        "04-machines": {
+          "light": [{"pool": {"at": [1.0, 0.36], "radius": [0.6, 0.4], "peak": 0.7}}],
+          "layers": [{"zoom": {"crop": [0, 160, 600, 915], "at": [0.07, 0.06], "width": 0.6, "shadow": 0.03}}],
+          "caption": {"at": [0.07, 0.935], "anchor": "bottom", "width": 0.86}
+        },
+        "05-terminal": {
+          "light": [{"pool": {"at": [0.5, 1.03], "radius": [1.3, 0.32], "peak": 0.9, "gamma": 1.3}}],
+          "layers": [{"zoom": {"crop": [1344, 252, 2064, 822], "at": [0.06, 0.27], "width": 0.86, "radius": 0, "shadow": 0}}],
+          "caption": {"at": [0.07, 0.07], "width": 0.86, "mono": true, "scale": 0.8, "cursor": true}
+        },
+        "06-files": {
+          "light": [{"pool": {"at": [0.0, 1.0], "radius": [0.7, 0.5], "peak": 0.6}}],
+          "layers": [
+            {"device": {"at": [-0.3, 0.32], "width": 0.66, "dim": 0.25}},
+            {"zoom": {"crop": [1344, 1115, 2064, 1780], "at": [0.42, 0.3], "width": 0.52}}
+          ],
+          "caption": {"at": [0.93, 0.06], "align": "right", "width": 0.86}
+        },
+        "07-agents": {
+          "light": [{"pool": {"at": [0.12, 0.85], "radius": [0.7, 0.45], "peak": 0.6}}],
+          "layers": [{"device": {"at": [0.4, 0.52], "width": 0.56}}, {"zoom": {"crop": [1344, 190, 2064, 670], "at": [0.06, 0.33], "width": 0.7}}],
+          "caption": {"at": [0.07, 0.06], "width": 0.86}
+        },
+        "08-config": {
+          "light": [{"pool": {"at": [0.5, 0.68], "radius": [0.9, 0.45], "peak": 0.5}}],
+          "layers": [
+            {"device": {"at": [0.08, 0.3], "width": 0.84, "dim": 0.45}},
+            {"zoom": {"crop": [424, 1060, 1640, 1716], "at": [0.07, 0.55], "width": 0.86, "radius": 56}}
+          ],
+          "caption": {"at": [0.5, 0.06], "align": "center", "width": 0.84}
+        }
+      }
+    },
+    "play-10in": {
+      "cell": 10,
+      "type": {"headline": 150, "label": 32, "subline": 44},
+      "device": {"bezel": 0.014, "radius": 0.03, "shadow": 0.05, "zoom_radius": 24, "zoom_shadow": 0.04},
+      "shots": {
+        "01-chat": {
+          "light": [{"pi": {"at": [0.68, 0.3], "height": 0.5, "peak": 0.9, "fade": 0.3}}],
+          "layers": [{"device": {"at": [0.42, 0.4], "width": 0.52}}],
+          "caption": {"at": [0.06, 0.3], "width": 0.34, "lines": 3}
+        },
+        "03-tree": {
+          "light": [{"pool": {"at": [1.0, 1.0], "radius": [0.45, 0.45], "peak": 0.6}}],
+          "layers": [{"device": {"at": [-0.08, 0.28], "width": 0.56}}],
+          "caption": {"at": [0.55, 0.14], "width": 0.42, "scale": 1.6}
+        },
+        "04-machines": {
+          "light": [{"pool": {"at": [0.98, 0.15], "radius": [0.35, 0.3], "peak": 0.7}}],
+          "layers": [
+            {"zoom": {"crop": [0, 150, 600, 945], "at": [0.05, 0.08], "width": 0.35, "shadow": 0.02}},
+            {"zoom": {"crop": [0, 950, 600, 1215], "at": [0.43, 0.08], "width": 0.35, "shadow": 0.02}}
+          ],
+          "caption": {"at": [0.43, 0.9], "anchor": "bottom", "width": 0.5}
+        },
+        "05-terminal": {
+          "light": [{"pool": {"at": [0.16, 1.04], "radius": [0.34, 0.34], "peak": 0.9, "gamma": 1.3}}],
+          "layers": [{"zoom": {"crop": [1882, 236, 2560, 806], "at": [0.44, 0.11], "width": 0.54, "radius": 0, "shadow": 0}}],
+          "caption": {"at": [0.05, 0.14], "width": 0.34, "mono": true, "scale": 0.8, "lines": 2, "cursor": true}
+        },
+        "06-files": {
+          "light": [{"pool": {"at": [0.0, 1.0], "radius": [0.45, 0.45], "peak": 0.6}}],
+          "layers": [{"device": {"at": [0.5, 0.46], "width": 0.46, "dim": 0.25}}, {"zoom": {"crop": [1882, 628, 2560, 1110], "at": [0.05, 0.1], "width": 0.4}}],
+          "caption": {"at": [0.95, 0.12], "align": "right", "width": 0.44}
+        },
+        "07-agents": {
+          "light": [{"pool": {"at": [0.45, 0.5], "radius": [0.35, 0.45], "peak": 0.5}}],
+          "layers": [{"device": {"at": [0.56, 0.32], "width": 0.4}}, {"zoom": {"crop": [1882, 160, 2560, 985], "at": [0.37, 0.07], "width": 0.28}}],
+          "caption": {"at": [0.05, 0.14], "width": 0.32, "lines": 2}
+        },
+        "08-config": {
+          "light": [{"pool": {"at": [0.5, 1.0], "radius": [0.6, 0.4], "peak": 0.6}}],
+          "layers": [
+            {"device": {"at": [0.22, 0.36], "width": 0.56, "dim": 0.45}},
+            {"zoom": {"crop": [672, 464, 1888, 1120], "at": [0.24, 0.419], "width": 0.52, "radius": 56}}
+          ],
+          "caption": {"at": [0.5, 0.07], "align": "center", "width": 0.8, "lines": 1, "inline": true}
+        }
+      }
+    },
+    "play-7in": {
+      "cell": 7,
+      "type": {"headline": 112, "label": 24, "subline": 33},
+      "device": {"bezel": 0.014, "radius": 0.03, "shadow": 0.05, "zoom_radius": 24, "zoom_shadow": 0.04},
+      "shots": {
+        "01-chat": {
+          "light": [{"pi": {"at": [0.68, 0.3], "height": 0.5, "peak": 0.9, "fade": 0.3}}],
+          "layers": [{"device": {"at": [0.42, 0.4], "width": 0.52}}],
+          "caption": {"at": [0.06, 0.3], "width": 0.34, "lines": 3}
+        },
+        "03-tree": {
+          "light": [{"pool": {"at": [1.0, 1.0], "radius": [0.45, 0.45], "peak": 0.6}}],
+          "layers": [{"device": {"at": [-0.08, 0.28], "width": 0.56}}],
+          "caption": {"at": [0.55, 0.14], "width": 0.42, "scale": 1.6}
+        },
+        "04-machines": {
+          "light": [{"pool": {"at": [0.98, 0.15], "radius": [0.35, 0.3], "peak": 0.7}}],
+          "layers": [
+            {"zoom": {"crop": [0, 150, 600, 700], "at": [0.05, 0.08], "width": 0.35, "shadow": 0.02}},
+            {"zoom": {"crop": [0, 700, 600, 860], "at": [0.43, 0.08], "width": 0.35, "shadow": 0.02}}
+          ],
+          "caption": {"at": [0.43, 0.9], "anchor": "bottom", "width": 0.5}
+        },
+        "05-terminal": {
+          "light": [{"pool": {"at": [0.16, 1.04], "radius": [0.34, 0.34], "peak": 0.9, "gamma": 1.3}}],
+          "layers": [{"zoom": {"crop": [1200, 236, 1920, 806], "at": [0.44, 0.11], "width": 0.54, "radius": 0, "shadow": 0}}],
+          "caption": {"at": [0.05, 0.14], "width": 0.34, "mono": true, "scale": 0.8, "lines": 2, "cursor": true}
+        },
+        "06-files": {
+          "light": [{"pool": {"at": [0.0, 1.0], "radius": [0.45, 0.45], "peak": 0.6}}],
+          "layers": [{"device": {"at": [0.5, 0.46], "width": 0.46, "dim": 0.25}}, {"zoom": {"crop": [1200, 630, 1920, 1110], "at": [0.05, 0.1], "width": 0.4}}],
+          "caption": {"at": [0.95, 0.12], "align": "right", "width": 0.44}
+        },
+        "07-agents": {
+          "light": [{"pool": {"at": [0.25, 0.5], "radius": [0.4, 0.45], "peak": 0.5}}],
+          "layers": [{"device": {"at": [0.46, 0.34], "width": 0.5}}, {"zoom": {"crop": [1200, 150, 1920, 660], "at": [0.05, 0.4], "width": 0.44}}],
+          "caption": {"at": [0.05, 0.08], "width": 0.4}
+        },
+        "08-config": {
+          "light": [{"pool": {"at": [0.5, 1.0], "radius": [0.6, 0.4], "peak": 0.6}}],
+          "layers": [
+            {"device": {"at": [0.22, 0.36], "width": 0.56, "dim": 0.45}},
+            {"zoom": {"crop": [385, 264, 1568, 920], "at": [0.24, 0.419], "width": 0.52, "radius": 56}}
+          ],
+          "caption": {"at": [0.5, 0.07], "align": "center", "width": 0.8, "lines": 1, "inline": true}
+        }
+      }
+    }
+  }
+}

@@ -9,8 +9,9 @@ model turns, photographs the screen from the host and writes the store images in
 | Path | Contents |
 | --- | --- |
 | `capture.sh` | One device class: boots the device, seeds the host, runs `flutter drive`, composes |
-| `compose.py` | Frames the raw captures, draws the captions, renders the icons and the feature graphic |
-| `captions.json` | The mono label, headline and subline of every shot (plain words, no trademarks) |
+| `compose.py` | Composes every store image from its raw capture, renders the icons and the feature graphic |
+| `layouts.json` | One composition per image and class: the light, the device and the magnified crops, the caption's place |
+| `captions.json` | The label, headline (with its lime phrase) and subline of every shot (plain words, no trademarks) |
 | `contact-sheet.sh` | One image of everything that was composed, for a quick review |
 | `demo/turns.ts` | The scripted model turns, queued on the fake provider's control API |
 | `demo/seed-host.sh` | Puts the omp home and the demo projects on the SSH host |
@@ -40,7 +41,7 @@ store/screenshots/capture.sh ios-ipad
 store/screenshots/capture.sh play-phone
 store/screenshots/capture.sh play-7in
 store/screenshots/capture.sh play-10in
-python3 store/screenshots/compose.py --contact-sheet /tmp/ompanion-store/StoreShots/contact-sheet.png
+python3 store/screenshots/compose.py --review /tmp/ompanion-store/StoreShots/review
 testing/sshd/down.sh
 ```
 
@@ -79,49 +80,49 @@ bun store/screenshots/demo/rehearse.ts --session deploy --keep
    test, so the timing is a file channel: the test writes `<system temp>/ompanion-shots/<name>.request` in its
    own sandbox and waits for `<name>.done`, the driver polls that directory (a path on this Mac for a
    simulator) and answers with the PNG.
-6. `compose.py` frames every raw capture, draws the caption from `captions.json` and writes the store images.
+6. `compose.py` composes every raw capture by its entry in `layouts.json`, draws the words from `captions.json`
+   and writes the store images.
 
 ## The look
 
-One colour, the π gradient (lime `#C4F042` → emerald `#22C55E`), used as light rather than ink: a hairline rim
-along the top edge of the frame, one small glow behind that edge, and the signal line. The monochrome greys are
-the app's own (`#000` canvas, `#EDEDED` text, `#8F8F8F` labels). Two voices of type: SF Pro Display with tight
-tracking for the headline, SF Mono uppercase with wide tracking for the label (with `edit`, SFNSMono), plus a
-faint dot grid and film grain that keep the black from reading flat. The website uses the same language, and it
-carries the magnified crops — the exploded details need more room than a store image has — so a listing and the
-site read as one brand; see `website/` for its copy.
+Every image is its own composition, fitted to what its screen is about, and neighbours in a gallery never share
+a layout. What they share is the family, the same as the website's:
 
-Its pieces, per image:
+- **Light.** OLED black and one light: the π gradient as an ordered 4×4 Bayer dither of square cells on a fixed
+  grid, each cell either full colour or black. The colour runs from lime `#C4F042` at the hottest cells through
+  emerald `#22C55E` to deep emerald `#0E4A25` where it dissolves. Wide pools of it are lit on every other row
+  (scanlines) and fray at the edge; the π itself is lit on every row so the mark stays whole. The hero of every
+  class stands the π, built from those cells, behind the device. Where the light falls changes per image, and it
+  fades out around the words, so they always sit on black.
+- **Type.** SF Pro Bold for the headline (-0.04 em, leading 1.02), with one phrase in solid lime (the part in
+  `[brackets]` in `captions.json`); the white part and the lime phrase each start a line. SF Mono uppercase with
+  wide tracking for the numbered label, SF Pro Regular in `#8F8F8F` for the subline. The terminal shot sets its
+  headline in SF Mono with a lime block cursor.
+- **Devices and zooms.** A device is the whole capture in a plain body (near black, one grey outer edge). A zoom
+  is a rectangle of the same capture, cut on element or row boundaries (`crop` in `layouts.json`, capture pixels),
+  magnified with a Lanczos filter, rounded, and lifted on a black shadow. No lines, rims, borders, callouts or
+  gradient text. On tablets the dock (agents, tree, files, terminal) is on the right of the capture, so tablet
+  zooms come from there, and a device that carries a zoomed dock keeps that dock inside the canvas.
 
-- The **frame** is the real capture, rounded, as wide as the class's layout allows (0.84 of the canvas on the
-  iPhone and the iPad, 0.70 on the Play phone, 0.742 on the tablets, where it sits to the right of the caption
-  column). Its height follows its width, so the canvas crops its bottom edge and it reads as a device that
-  continues past the picture.
-- The **signal line** runs across every image of a class at the same height, turns down once with a rounded
-  elbow and ends in one node on the frame's top edge at the frame's right third. On portrait canvases it is
-  carried in the gap between the caption and the frame — the caption is measured first, so the gap is a fixed
-  share of the height; in the landscape it runs in the band above the frame. Either way the run reaches both
-  canvas edges, so a class laid side by side reads as one strip. It stands for the SSH link.
-- The **watermark**: the π as a 6% outline, on the hero only, cropped by a canvas edge and kept clear of the
-  headline.
+`compose.py` fails a class when a caption runs into a device or a zoom. `--review <dir>` writes what to judge a
+class by: the gallery as a contact sheet, the gallery at store-thumbnail size (300 px wide) and the hero at full
+size, plus the feature graphic at full and small size.
 
-`compose.py --review <dir>` writes what to look at while judging that: a contact sheet, the class as a
-side-by-side strip (for the signal line), the set at store-thumbnail size and the hero at full size. A class
-whose capture differs in shape gets its own geometry: the Play phone's canvas is squarer than its capture, so
-its frame is narrower, and the tablets put the caption beside the frame rather than above it.
+The feature graphic is the wordmark and the headline's phrase beside the dithered π, which bleeds off the bottom
+edge.
 
 ## What the shots show
 
-| Shot | Screen |
-| --- | --- |
-| `01-chat` | The finished task: tool cards with the diff and the test run, the markdown answer |
-| `02-approval` | The deploy machine: the applied edit and a tool call waiting for approval |
-| `03-tree` | The session tree of the same session, in the dock |
-| `04-machines` | Machines, projects and sessions in the sidebar |
-| `05-terminal` | An SSH terminal on the machine (`git status`) |
-| `06-files` | The edited file with its diff against HEAD |
-| `07-agents` | The Agent Hub with the review subagent |
-| `08-config` | Machine configuration and the model list the machine serves |
+| Shot | Screen | Composition |
+| --- | --- | --- |
+| `01-chat` | The finished task: tool cards with the diff and the test run, the markdown answer | The dithered π rising behind the device |
+| `02-approval` | The deploy machine: the applied edit and a tool call waiting for approval | The approval card magnified over the device it came from |
+| `03-tree` | The session tree of the same session, in the dock | A headline at display size over an offset device |
+| `04-machines` | Machines, projects and sessions in the sidebar | The machine groups lifted out of the sidebar, no device |
+| `05-terminal` | An SSH terminal on the machine (`git status`) | The terminal output as a field, a mono headline with a cursor |
+| `06-files` | The edited file with its diff against HEAD | The diff magnified, the device bleeding off an edge |
+| `07-agents` | The Agent Hub: the roster, or one subagent's transcript (Play phone, 10-inch) | The roster or transcript magnified beside an offset device |
+| `08-config` | Machine configuration and the model list the machine serves | The model dialog magnified over the dimmed device |
 
 `04-machines` is captured last, so the sidebar shows both machines with their sessions and what each is
 waiting for. The tablet sets have no `02-approval`: from the iPad simulator and the tablet emulators, the
