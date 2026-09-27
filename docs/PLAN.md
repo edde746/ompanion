@@ -10,8 +10,9 @@ surface of their own. The companion implements more verbs than the app calls: no
 `session.fork`, `session.clear`, `session.delete`, `context.breakdown`, `history.search`, `btw`,
 `queue.get`/`queue.pop`, `goal.set`, `goal.guided` or `loop.enable` (the app starts a goal or a loop through the typed
 command; `contracts/ompx.md`). The App Store and Play build lanes exist; nothing is uploaded (§9). Notifications
-are built (M10), but no build has phone push yet: the Firebase project, its config files and the running relay do
-not exist (`contracts/push.md`).
+are built (M10). Phone builds carry the Firebase project's config (`android/firebase.properties`,
+`ios/Flutter/Firebase.xcconfig`) and register for push; the relay does not run at `push.ompanion.app` yet, so no
+notification reaches a phone (`contracts/push.md`).
 M0's spike results are in `research/`. Numbers were measured on 2026-09-25 (omp 18.3.0 installed, source read at
 tags v18.3.0 and v18.3.1, Flutter 3.47.1, Dart 3.13.1) unless marked [INFERENCE].
 

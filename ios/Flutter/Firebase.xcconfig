@@ -1,0 +1,5 @@
+// Firebase's public client config for push (docs/contracts/push.md, README "Push notifications").
+FIREBASE_GOOGLE_APP_ID = 1:713548750289:ios:8cc5a68d57823e6c1514f0
+FIREBASE_GCM_SENDER_ID = 713548750289
+FIREBASE_API_KEY = AIzaSyCW2bxGmSP59zpf1M252QiQ6F4jsg07dzU
+FIREBASE_PROJECT_ID = ompanion-19466
