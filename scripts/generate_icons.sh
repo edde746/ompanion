@@ -122,6 +122,44 @@ done
 "$im" "${ico_pngs[@]}" -strip -define icon:png-compression-size=256 windows/runner/resources/app_icon.ico
 echo "windows/runner/resources/app_icon.ico (16, 20, 24, 32, 40, 48, 64, 256)"
 
+# Microsoft Store (MSIX) assets, the names windows/build-msix.ps1's manifest and its resource index look
+# up. The tiles, the store logo and the plain target sizes are the full icon, full-bleed: the square is
+# its own plate, so the manifest's transparent BackgroundColor never shows. The wide tile and the splash
+# screen extend that square with its own corner colour.
+msix=windows/msix/assets
+rm -f "$msix"/*.png
+mkdir -p "$msix"
+# render_msix SIZE OUT [WIDTHxHEIGHT]
+render_msix() {
+  rsvg-convert -w "$1" -h "$1" "$icon_svg" -o "$tmp/msix.png"
+  local canvas=${3:-${1}x${1}}
+  "$im" "$tmp/msix.png" -background "$("$im" "$tmp/msix.png" -format '%[pixel:p{0,0}]' info:)" \
+    -gravity center -extent "$canvas" -strip "PNG32:$msix/$2"
+  echo "$msix/$2 ($canvas)"
+}
+render_msix 44 Square44x44Logo.png
+render_msix 88 Square44x44Logo.scale-200.png
+render_msix 150 Square150x150Logo.png
+render_msix 300 Square150x150Logo.scale-200.png
+render_msix 310 Square310x310Logo.png
+render_msix 150 Wide310x150Logo.png 310x150
+render_msix 50 StoreLogo.png
+render_msix 300 SplashScreen.png 620x300
+# The taskbar, Start and the app list use the unplated target sizes, dark and light theme alike: the π
+# alone on transparency, trimmed and scaled to fill the canvas bar a 1/16 margin on each side, as a
+# Win32 icon fills its own. Without them Windows shrinks the plated icon onto a system backplate.
+rsvg-convert -w 2048 -h 2048 "$glyph_svg" -o "$tmp/msix-glyph.png"
+for size in 16 24 32 48 256; do
+  render_msix "$size" "Square44x44Logo.targetsize-$size.png"
+  inner=$((size * 7 / 8))
+  for form in unplated lightunplated; do
+    name=Square44x44Logo.targetsize-${size}_altform-$form.png
+    "$im" "$tmp/msix-glyph.png" -trim +repage -resize "${inner}x${inner}" -background none -gravity center \
+      -extent "${size}x${size}" -strip "PNG32:$msix/$name"
+    echo "$msix/$name (glyph, ${size}x${size})"
+  done
+done
+
 # Linux window icon, installed into the bundle's data directory by linux/CMakeLists.txt.
 render_rounded 256 linux/ompanion.png
 

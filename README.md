@@ -284,6 +284,8 @@ gem install fastlane
 
 `deploy_appstore` signs with the Apple Distribution certificate of the Xcode account that can reach `com.edde746.ompanion` (the Runner target signs automatically with team `G88U5B5783`). fastlane rejects screenshots whose pixel size its own list does not know, so `fastlane deploy_appstore skip_screenshots:true` uploads everything else and leaves the screenshots to App Store Connect by hand.
 
+The Microsoft Store upload is by hand in Partner Center, and its package comes from CI: the Windows job runs [windows/build-msix.ps1](windows/build-msix.ps1) on the Release folder it zips and uploads the unsigned `ompanion-windows.msixbundle` as the artifact `ompanion-windows-msix-<sha>`, which no release carries. The Store signs the bundle after certification. Locally, `pwsh windows/build-msix.ps1` packs `build\windows\x64\runner\Release` (and `arm64` when it exists) into `build\windows\msix\` with the Windows SDK's `makeappx` and `makepri`; `-EmitManifestOnly` writes only the manifests, on any system with PowerShell 7. The package identity must match the name reserved in Partner Center: [store/README.md](store/README.md), Microsoft Store.
+
 </details>
 
 ## Contributing

@@ -553,6 +553,21 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
+      # Unsigned on purpose: the Store re-signs the bundle during certification (windows/build-msix.ps1).
+      - name: Build the Store package
+        shell: pwsh
+        run: .\windows\build-msix.ps1
+
+      # A store artifact, not a release asset: without the Store's signature the package does not install, so the
+      # release job drops it before it counts the release's files.
+      - name: Upload the Store package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ompanion-windows-msix-${{ needs.name.outputs.sha }}
+          path: build/windows/msix/ompanion-windows.msixbundle
+          if-no-files-found: error
+          compression-level: 0
+
   build-linux:
     name: Build Linux
     needs: name
@@ -635,10 +650,11 @@ jobs:
           path: release
           merge-multiple: true
 
-      # The Android job also uploads the Play bundle as ompanion-android-aab-<sha>. That one is a store artifact,
-      # not a release asset, so it goes before the count: the release holds the five downloads a user can use.
-      - name: Drop the Play bundle
-        run: rm -f release/*.aab
+      # The Android job also uploads the Play bundle as ompanion-android-aab-<sha>, and the Windows job the Microsoft
+      # Store bundle as ompanion-windows-msix-<sha>. Those are store artifacts, not release assets, so they go before
+      # the count: the release holds the five downloads a user can use.
+      - name: Drop the store bundles
+        run: rm -f release/*.aab release/*.msixbundle
 
       # A draft holds no tag yet: publishing it creates the tag on the commit that was built.
       - name: Create the draft release

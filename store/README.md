@@ -1,8 +1,8 @@
 # Store submission checklist for ompanion
 
-Apple App Store (iPhone + iPad) and Google Play (phone + tablets). The Mac App Store is out of scope: it
-needs a sandboxed build without "this computer", the `ssh` command's `~/.ssh/config` reading and the SSH
-agent, none of which this build has.
+Apple App Store (iPhone + iPad), Google Play (phone + tablets) and the Microsoft Store (Windows). The Mac App
+Store is out of scope: it needs a sandboxed build without "this computer", the `ssh` command's `~/.ssh/config`
+reading and the SSH agent, none of which this build has.
 
 Field-by-field console answers: `store/app-store.md` and `store/google-play.md`. Privacy policy:
 <https://ompanion.app/privacy>, from `website/src/routes/privacy/`. Review demo host: `store/review-demo/`.
@@ -11,9 +11,10 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 
 - [ ] **Check the store URLs.** `https://ompanion.app`, `https://ompanion.app/privacy` and
       `https://github.com/edde746/ompanion/issues` must load in a private window before submitting; a dead
-      privacy-policy URL is an automatic rejection on both stores. The site deploys from `website/` through
+      privacy-policy URL is an automatic rejection in every store. The site deploys from `website/` through
       Cloudflare Workers Builds (`website/README.md`, Deploy).
-- [ ] Confirm `pubspec.yaml` `version:` is `0.1.0+1` and the CI run for that commit is green.
+- [ ] Confirm `pubspec.yaml` `version:` is `0.1.0+1` (the Microsoft Store needs 1.0.0 or later: its step 3)
+      and the CI run for that commit is green.
 - [ ] Fill in the fields in "Fields the user must fill in" below.
 
 ## Fields the user must fill in
@@ -86,6 +87,46 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
         Leave a way to be reached: App Review will ask, and a dead demo host reads as a broken app (2.1).
 12. [ ] Submit for review.
 
+## Microsoft Store, in order
+
+The Store takes an `.msixbundle`: `windows/build-msix.ps1` packs the same `flutter build windows --release`
+output as the GitHub release's zip, unsigned (the Store signs it after certification), and the Windows job
+of Actions → Build uploads it as the artifact `ompanion-windows-msix-<sha>`. The Partner Center account is the one
+that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publisher display name `edde746`.
+
+1. [ ] Partner Center → Apps and games → New product → **MSIX or PWA app**; reserve the name `ompanion`.
+2. [ ] Product management → **Product identity**: copy `Package/Identity/Name` into `$IdentityName` in
+       `windows/build-msix.ps1`. It holds `edde746.ompanion`, the value Partner Center is expected to assign,
+       not one it has shown. Check that `Package/Identity/Publisher` and
+       `Package/Properties/PublisherDisplayName` equal the script's `$Publisher` and `$PublisherDisplayName`.
+       Store validation rejects the upload if any of the three differs by one character. Commit to main.
+3. [ ] Set `pubspec.yaml` `version:` to 1.0.0 or later. Partner Center rejects a package version whose first
+       field is 0 ([package version numbering](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements#package-version-numbering));
+       the script maps `major.minor.patch+build` to `major.minor.patch.0`, so `0.1.0+1` becomes `0.1.0.0`, and the
+       Windows job warns about it. The fourth field belongs to the Store, so every submission needs a new
+       `major.minor.patch`: a build-number bump alone collides.
+4. [ ] Run Actions → Build on main with Windows selected (a release run builds it too). Download the artifact
+       `ompanion-windows-msix-<sha>` and unzip it: it holds `ompanion-windows.msixbundle`.
+5. [ ] Start a submission. Pricing and availability: free, the markets you want.
+6. [ ] Properties: category **Developer tools**; privacy policy URL `https://ompanion.app/privacy` (the one
+       Play and the App Store get); website `https://ompanion.app`; support contact
+       `https://github.com/edde746/ompanion/issues`.
+7. [ ] Age ratings: the IARC questionnaire. If Play's content rating is done, choose the option to enter an
+       existing IARC rating ID and paste Play's, so both stores carry one rating. Otherwise answer as
+       `store/google-play.md` §6: category "Utility, Productivity, Communication, or Other", Language **Yes,
+       mild**, every other question **No**, the same contact email.
+8. [ ] Packages: upload `ompanion-windows.msixbundle`. Partner Center checks the identity and the version on
+       upload.
+9. [ ] Store listings, English (United States): description and at least one Desktop screenshot, 1366×768 or
+       larger. The repository holds no Windows listing text or Windows capture: `store/screenshots/` captures
+       iOS and Android only.
+10. [ ] Submission options → **Restricted capabilities**: `runFullTrust` asks for a reason. Answer: "ompanion
+        is a Flutter Win32 desktop app packaged as MSIX. It runs omp, the coding agent, and the user's
+        shells on this computer as child processes, which needs a full-trust desktop process." **Notes for
+        certification**: the App Review notes from `store/review-demo/README.md` §"Console answers" with
+        `<HOST>` and `<PASSWORD>` filled in, and the demo host up for the whole certification window.
+11. [ ] Submit to the Store.
+
 ## Where every asset lives
 
 | Asset | Path |
@@ -97,6 +138,8 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 | Play listing texts | `android/fastlane/metadata/android/en-US/*.txt` |
 | Play release notes | `android/fastlane/metadata/android/en-US/changelogs/1.txt` |
 | Play images | `android/fastlane/metadata/android/en-US/images/{icon.png,featureGraphic.png,phoneScreenshots/,sevenInchScreenshots/,tenInchScreenshots/}` |
+| Microsoft Store package and manifest | `windows/build-msix.ps1` |
+| Microsoft Store package images | `windows/msix/assets/`, generated by `scripts/generate_icons.sh` |
 | Screenshot capture and compose tooling | `store/screenshots/` |
 | Review demo host | `store/review-demo/` |
 | Console answers | `store/app-store.md`, `store/google-play.md` |
@@ -204,6 +247,15 @@ by 171 bytes: re-run this after any wording change.
 - **iOS screenshots must be a pixel size fastlane knows**; an unknown size aborts that step even when App
   Store Connect would accept it. The sets are 1320×2868 (iPhone 6.9-inch, portrait) and 2048×2732 (iPad
   13-inch, portrait), both on `deliver`'s list.
+- **The Microsoft Store package is the GitHub build, packaged:** the `.msixbundle` holds the same files as
+  `ompanion-windows-x64.zip` (the `direct` channel, nothing gated) plus the manifest, `resources.pri` and the
+  tile and taskbar images from `windows/msix/assets/`. Capabilities: `runFullTrust`, `internetClient` and
+  `privateNetworkClientServer` (SSH to machines on the LAN). Installed with a test signature on the Windows
+  runner, the app starts from its read-only package directory, probes "this computer", and keeps its database
+  in the package's private `LocalCache`. The processes it starts carry no package identity (measured on the
+  probe, the omp install and omp itself; the terminal's ConPTY spawn sets no desktop-app policy either), so they
+  see the real AppData: "Install omp" on "this computer" put omp in the real `%LOCALAPPDATA%\omp`, where a
+  WMI-started process, as a detached run is, ran it. MinVersion is Windows 10 1809 (10.0.17763).
 
 ## Review demo host
 
