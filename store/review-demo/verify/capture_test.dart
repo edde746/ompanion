@@ -1,22 +1,21 @@
-/// Captures the App Review path in the real app against a running store/review-demo stack: add the
-/// machine with the generated password, trust its host key, see it connect with omp 18.3.1, open a session
-/// in the demo project, send a prompt and wait for the demo provider's canned reply. Each step writes a
-/// PNG of the app's widget tree (its own RepaintBoundary, so the shot is the app, not the desktop).
+/// Captures the App Review path in the real app against the review demo server (store/review-demo/
+/// provision.sh): add the machine with root's password, trust its host key, see it connect with omp 18.3.1,
+/// open a session in the demo project, send a prompt and wait for the model's reply. Each step writes a PNG
+/// of the app's widget tree (its own RepaintBoundary, so the shot is the app, not the desktop). The prompt is
+/// a real model call on the demo's key (a fraction of a cent).
 ///
-/// Needs a live stack (store/review-demo/up.sh, then ./reset.sh for a fresh rotation) and the stack's
-/// password, from the repository root:
+/// Needs the server and its password, from the repository root:
 ///
-///   REVIEW_DEMO_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
+///   REVIEW_DEMO_HOST=SERVER REVIEW_DEMO_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
 ///     flutter drive --driver=integration_test/driver/report_driver.dart \
 ///       --target=store/review-demo/verify/capture_test.dart -d macos
 ///
 /// `flutter drive`, not `flutter test`: a `flutter test` run renders the app's text with the test font,
 /// which makes the screenshots unreadable.
 ///
-/// REVIEW_DEMO_HOST (127.0.0.1), REVIEW_DEMO_PORT (22222), REVIEW_DEMO_USER (review),
-/// REVIEW_DEMO_PROJECT (/data/review/work/notes-api) and REVIEW_DEMO_SHOTS
-/// (/tmp/ompanion-store/ReviewDemo) override the rest. The app's own data directory is in memory and its
-/// secure storage is mocked, so nothing lands in the keychain and no real machine is touched.
+/// REVIEW_DEMO_PORT (22), REVIEW_DEMO_USER (root), REVIEW_DEMO_PROJECT (/root/work/notes-api) and
+/// REVIEW_DEMO_SHOTS (/tmp/ompanion-store/ReviewDemo) override the rest. The app's own data directory is in
+/// memory and its secure storage is mocked, so nothing lands in the keychain.
 library;
 
 import 'dart:io';
@@ -51,10 +50,11 @@ void main() {
     final environment = Platform.environment;
     final password = environment['REVIEW_DEMO_PASSWORD'];
     if (password == null || password.isEmpty) throw StateError('REVIEW_DEMO_PASSWORD is required');
-    final host = environment['REVIEW_DEMO_HOST'] ?? '127.0.0.1';
-    final port = environment['REVIEW_DEMO_PORT'] ?? '22222';
-    final user = environment['REVIEW_DEMO_USER'] ?? 'review';
-    final project = environment['REVIEW_DEMO_PROJECT'] ?? '/data/review/work/notes-api';
+    final host = environment['REVIEW_DEMO_HOST'];
+    if (host == null || host.isEmpty) throw StateError('REVIEW_DEMO_HOST is required');
+    final port = environment['REVIEW_DEMO_PORT'] ?? '22';
+    final user = environment['REVIEW_DEMO_USER'] ?? 'root';
+    final project = environment['REVIEW_DEMO_PROJECT'] ?? '/root/work/notes-api';
     final shots = Directory(environment['REVIEW_DEMO_SHOTS'] ?? '/tmp/ompanion-store/ReviewDemo')
       ..createSync(recursive: true);
 
@@ -143,7 +143,7 @@ void main() {
     );
     await _shoot(tester, shots, '3-connected');
 
-    // 4. A new session in the demo project, then a prompt and the demo's canned reply.
+    // 4. A new session in the demo project, then a prompt and the model's reply.
     final row = find.byKey(ValueKey('machine:${machine.id}'));
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: Offset.zero);
@@ -164,7 +164,10 @@ void main() {
     await tester.tap(start);
     await _until(tester, () => find.byKey(const ValueKey('composer')).evaluate().isNotEmpty, what: 'the session');
 
-    await tester.enterText(find.byKey(const ValueKey('composer')), 'Show me what this demo can render.');
+    await tester.enterText(
+      find.byKey(const ValueKey('composer')),
+      'Summarize this project in three short bullet points.',
+    );
     await _pump(tester);
     await tester.tap(find.byKey(const ValueKey('send')));
     await _until(

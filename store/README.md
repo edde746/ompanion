@@ -25,7 +25,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 | Contact email | App Store Connect → App Review Information (`ios/fastlane/metadata/review_information/email_address.txt`) and Play Console → Store settings → Contact details |
 | Contact phone | App Store Connect → App Review Information (`phone_number.txt`); optional on Play |
 | Contact first and last name | App Store Connect → App Review Information (`first_name.txt`, `last_name.txt`) |
-| Demo host, port, password | `ios/fastlane/metadata/review_information/notes.txt` (line 1) and `demo_password.txt` (user `review` in `demo_user.txt`); the Play "Sign-in details" text is in `store/google-play.md` §4. Values come from `store/review-demo/.env`, and the canonical console answers are `store/review-demo/README.md` §"Console answers". |
+| Demo password | `<PASSWORD>` in `ios/fastlane/metadata/review_information/notes.txt` step 1 (delete the file's first line too) and `demo_password.txt`; the user is `root` (`demo_user.txt`) and the host `217.160.119.181` is already in the notes. The Play "Sign-in details" text is in `store/google-play.md` §4. The password is `REVIEW_PASSWORD` in `store/review-demo/.env`, and the canonical console answers are `store/review-demo/README.md` §"Console answers". |
 | Play developer account | Play Console: developer name shown on the listing, contact email, and the account's trader/DSA status for the EEA |
 | Apple Developer Program team | `ios/Runner.xcodeproj` pins `DEVELOPMENT_TEAM = G88U5B5783`; clear it if that id should not be public and pick the team in Xcode once per Mac |
 | Apple Team ID, App Store Connect API key (or Apple ID + app-specific password) | `.env`, see Build below |
@@ -49,8 +49,8 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 6. [ ] Content rating questionnaire: category "Utility, Productivity, Communication, or Other"; the answers
        in `store/google-play.md` §6.
 7. [ ] Sign-in details: choose **"All or some functionality is restricted"** and paste the text from
-       `store/review-demo/README.md` §"Console answers" (or `store/google-play.md` §4) with the demo host and
-       password filled in.
+       `store/review-demo/README.md` §"Console answers" (or `store/google-play.md` §4) with the demo password
+       filled in.
 8. [ ] Upload the first AAB by hand. Build it with `flutter build appbundle --release
        --dart-define=OMPANION_CHANNEL=play` (with `android/key.properties` in place, or the bundle is signed with
        the debug key) and upload `build/app/outputs/bundle/release/app-release.aab` in Play Console → Testing →
@@ -79,14 +79,16 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 6. [ ] Upload the build (`(cd ios && fastlane deploy_appstore)`).
 7. [ ] Export compliance: encryption **yes**, "an industry standard algorithm, not provided within the Apple
        operating system" (SSH and TLS in Dart) — §8. Upload nothing unless France is in your territories.
-8. [ ] App Review Information: contact fields, **Sign-in required = Yes** with user `review` and the demo
+8. [ ] App Review Information: contact fields, **Sign-in required = Yes** with user `root` and the demo
        password (`demo_user.txt`, `demo_password.txt`), and the notes from
-       `ios/fastlane/metadata/review_information/notes.txt` with `<HOST>` and `<PASSWORD>` filled in.
+       `ios/fastlane/metadata/review_information/notes.txt` with the first line deleted and `<PASSWORD>` filled in.
 9. [ ] Screenshots for the iPhone 6.9-inch set (1320×2868) and the iPad set (2048×2732).
 10. [ ] Pricing and Availability: opt out of **iPhone and iPad Apps on Apple Silicon Mac** and **Apple Vision
         Pro**; both are on unless you deselect them — `store/app-store.md` §2.
-11. [ ] **Bring the demo host up and leave it up for the whole review window** (`store/review-demo/up.sh`).
-        Leave a way to be reached: App Review will ask, and a dead demo host reads as a broken app (2.1).
+11. [ ] **Keep the demo server up for the whole review window.** Before submitting, run
+        `ssh root@217.160.119.181 ompanion-demo-reset` and `verify.dart` (`store/review-demo/README.md`,
+        Commands), and check that the OpenRouter key has credit left. Leave a way to be reached: App Review
+        will ask, and a dead demo server reads as a broken app (2.1).
 12. [ ] Submit for review.
 
 ## Microsoft Store, in order
@@ -141,8 +143,8 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
 10. [ ] Submission options → **Restricted capabilities**: `runFullTrust` asks for a reason. Answer: "ompanion
         is a Flutter Win32 desktop app packaged as MSIX. It runs omp, the coding agent, and the user's
         shells on this computer as child processes, which needs a full-trust desktop process." **Notes for
-        certification**: the App Review notes from `store/review-demo/README.md` §"Console answers" with
-        `<HOST>` and `<PASSWORD>` filled in, and the demo host up for the whole certification window.
+        certification**: the Partner Center text from `store/review-demo/README.md` §"Console answers" with
+        `<PASSWORD>` filled in, and the demo server up for the whole certification window.
 11. [ ] Submit to the Store.
 
 ## Where every asset lives
@@ -170,9 +172,9 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
 
 Throwaway script, re-run after any edit to a listing text. It measures the stripped value the way `deliver`
 and `supply` do: characters everywhere, **bytes** for the App Store keyword field and the App Review notes.
-The notes are measured without their fill-in marker line and with a 64-byte host and a 24-character password
-in place of `<HOST>` and `<PASSWORD>`, since that is the text that gets pasted. The Microsoft Store's product
-features and search terms are one per line and measured per line.
+The notes are measured without their fill-in marker line and with a 24-character password in place of
+`<PASSWORD>`, since that is the text that gets pasted. The Microsoft Store's product features and search terms
+are one per line and measured per line.
 
 ```bash
 python3 - <<'PY'
@@ -196,7 +198,7 @@ LIMITS = [
 for label, path, limit, unit in LIMITS:
     s = open(path, encoding="utf-8").read().strip()
     if s.startswith("FILL"):
-        s = s.split("\n", 1)[1].strip().replace("<HOST>", "x" * 64).replace("<PASSWORD>", "x" * 24)
+        s = s.split("\n", 1)[1].strip().replace("<PASSWORD>", "x" * 24)
     n = len(s.encode()) if unit == "bytes" else len(s)
     print(f"{'ok  ' if n <= limit else 'OVER'} {label:<24} {n:>5} {unit:<5} limit {limit}")
 # Partner Center: up to 20 features of 200 characters; up to 7 search terms of 30 with 21 words in all.
@@ -226,7 +228,7 @@ ok   Play title                  20 chars limit 30
 ok   Play short description      70 chars limit 80
 ok   Play full description     3864 chars limit 4000
 ok   Play changelog 1           312 chars limit 500
-ok   App Review notes          3829 bytes limit 4000
+ok   App Review notes          3885 bytes limit 4000
 ok   MS Store description      4394 chars limit 10000
 ok   MS Store what's new        323 chars limit 1500
 ok   MS Store short descr.       85 chars limit 1000
@@ -239,7 +241,7 @@ ok   MS Store term words         12       limit 21
 ```
 
 The App Store and Play descriptions are inside their limit, the App Store one by 59 characters, and the
-filled-in review notes by 171 bytes: re-run this after any wording change.
+filled-in review notes by 115 bytes: re-run this after any wording change.
 
 ## Licence
 
@@ -308,26 +310,27 @@ filled-in review notes by 171 bytes: re-run this after any wording change.
 
 ## Review demo host
 
-`store/review-demo/` is a throwaway SSH host for App Review and Play review: Docker Compose with OpenSSH
-(user `review`, password auth), omp 18.3.1, and `harness/fake-provider` in `--demo` mode as the only model
-provider (neutral models "Fast"/"Reasoning"). `./setup.sh` generates the password into a gitignored `.env`,
-`./up.sh` builds and prints the host/port/credentials, `./reset.sh` puts the reviewer's home back, and
-`./down.sh --clean` deletes the home and host keys. It publishes one port (default 22222) and everything —
-security model, reviewer steps, the exact App Store Connect and Play Console answers — is in
-`store/review-demo/README.md`. Run it on a throwaway VPS shortly before review and destroy that VPS
-afterwards.
+`store/review-demo/` is the server App Review, Play review and Microsoft Store certification sign in to: a
+dedicated Ubuntu server at `217.160.119.181`, user `root` on port 22 with a password, omp 18.3.1, and one
+real model, GLM 5.3 Flash through OpenRouter, on a key with a $10 spending limit that the owner pays for.
+`store/review-demo/provision.sh root@217.160.119.181` sets it up from this Mac and can run again;
+`ssh root@217.160.119.181 ompanion-demo-reset` puts root's home back between reviews. The password and the
+key are in the gitignored `store/review-demo/.env`. Everything else — security and cost, reviewer steps, the
+exact App Store Connect, Play Console and Partner Center answers — is in `store/review-demo/README.md`.
+After the review, revoke the key at OpenRouter and destroy the server.
 
-The App Review notes paragraph and the Play "App access" answer are written out verbatim in
-`store/review-demo/README.md`, section "Console answers" — copy them from there so the host, port and
-password stay in one place (only `<HOST>` and `<PASSWORD>` need filling). What is already in this repository:
-`ios/fastlane/metadata/review_information/notes.txt` (that text plus the guideline paragraphs) and
-`demo_user.txt` / `demo_password.txt` (user `review` and the password).
+The App Review notes, the Play "App access" answer and the Microsoft Store certification notes are written
+out verbatim in `store/review-demo/README.md`, section "Console answers" — copy them from there so the
+host, port and password stay in one place (only `<PASSWORD>` needs filling). What is already in this
+repository: `ios/fastlane/metadata/review_information/notes.txt` (the App Review text plus the guideline
+paragraphs) and `demo_user.txt` / `demo_password.txt` (user `root` and a fill-in line for the password).
 
-Caveats to keep honest in the listings: the demo machine has omp **preinstalled** and answers with canned
-turns only, and its model picker shows the two neutral demo models, so nothing implies a real provider or a
-real subscription. The omp install the listings claim is real (`packages/omp_core/lib/src/host/install.dart`
-and `lib/screens/sessions/install_omp_dialog.dart`: omp 18.3.1 from its GitHub release, SHA-256 checked on
-the machine) but is not what the demo shows.
+Caveats to keep honest in the listings: the demo server has omp **preinstalled** and one model that we pay
+for, so a reviewer sees a real provider on our key. The app itself comes with no model and no subscription:
+users bring their own providers, and the listings must not imply otherwise. The omp install the listings
+claim is real (`packages/omp_core/lib/src/host/install.dart` and
+`lib/screens/sessions/install_omp_dialog.dart`: omp 18.3.1 from its GitHub release, SHA-256 checked on the
+machine) but is not what the demo shows.
 
 ## Screenshots and graphics
 

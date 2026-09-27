@@ -33,7 +33,8 @@ barrel file re-exporting everything.
   user's sessions and credentials, and a running omp's natives cache is deleted by a newer omp.
 - omp refuses to start RPC mode without a model. The isolated home gets a `models.yml` pointing at the
   fake provider in `harness/fake-provider/`; pass `--model fake/<id>`.
-- Never make a paid model call. Real providers are off limits in tests and spikes.
+- Never make a paid model call. Real providers are off limits in tests and spikes. The one exception is the
+  owner's review demo server: `store/review-demo/verify/` sends a prompt to its capped key only when asked.
 - Kill every process you start. Do not kill processes you did not start.
 
 ## Writing

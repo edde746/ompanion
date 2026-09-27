@@ -1,7 +1,0 @@
-# The provider image needs the three fake-provider sources and nothing else from the repository.
-*
-!harness
-harness/**
-!harness/json.ts
-!harness/fake-provider
-!harness/fake-provider/**

@@ -1,18 +1,18 @@
-FILL BEFORE SUBMITTING: <HOST> (the demo VPS's public address) and <PASSWORD> (REVIEW_PASSWORD from store/review-demo/.env). Sign-in required is Yes, with user name `review` and the same password (demo_user.txt / demo_password.txt).
+FILL BEFORE SUBMITTING: <PASSWORD> (REVIEW_PASSWORD in store/review-demo/.env), then delete this line. Sign-in required is Yes, with user name root and the same password (demo_user.txt / demo_password.txt). The host is the demo server, 217.160.119.181; if the server changes, replace it everywhere git grep finds it (store/review-demo/README.md, Console answers).
 
-ompanion is a client for omp, an AI coding agent that runs on the user's own machines. The app has no account of its own: to reach every screen, add the demo machine we run for this review.
+ompanion is a client for omp, an AI coding agent that runs on the user's own machines. The app has no account of its own: to reach every screen, add the demo server we run for this review.
 
-1. In the sidebar, tap Add machine. Enter Name: Demo, Host: <HOST>, Port: 22222, User: review, Authentication: Password, Password: <PASSWORD>. Tap Save.
-2. The machine's page opens. Under System, tap Connect. The app asks "Trust this host?" the first time; tap Trust. The demo machine is a container we run only during this review and destroy afterwards; it holds no personal data.
+1. In the sidebar, tap Add machine. Enter Name: Demo, Host: 217.160.119.181, Port: 22, User: root, Authentication: Password, Password: <PASSWORD>. Tap Save.
+2. The machine's page opens. Under System, tap Connect. The app asks "Trust this host?" the first time; tap Trust. The demo server is a machine we run only for this review and destroy afterwards; it holds no personal data.
 3. The System section then shows omp version 18.3.1 and Companion: Uploaded.
 4. Go back to the list of machines, tap the ⋮ on the machine's row and choose New session. Set Working directory to ~/work/notes-api and tap Start.
-5. Type any message in the composer and send it. The demo machine's model is an offline demo model that answers with canned replies (markdown, a shell command, a file read and edit, a todo list, reasoning, a question, then a long streamed answer). It makes no request to any AI provider and costs nothing.
+5. Type a message in the composer and send it, for example "What does this project do?". The agent answers with GLM 5.3 Flash, a real AI model we pay for through OpenRouter, and can read and edit the project's files and run commands on the server.
 
-Everything else works on the same machine: the Files panel edits files and shows git diffs, the Terminal opens a shell, and Configure browses omp's settings, model roles, MCP servers, plugins and skills. Usage has no limits to show on the demo machine. No account, purchase or external service is needed to reach any of it. App Review may also connect to its own machine with omp 18.3.1 installed.
+Everything else works on the same machine: the Files panel edits files and shows git diffs, the Terminal opens a shell, and Configure browses omp's settings, model roles, MCP servers, plugins and skills. Usage has no limits to show on the demo server. No account, purchase or AI subscription is needed to reach any of it. App Review may also connect to its own machine with omp 18.3.1 installed.
 
 Why the app needs a server (guidelines 2.1 and 4.2)
 
-ompanion is a client for a machine the user owns, like an SSH client: without a machine there is nothing to do in it. The demo host has the agent pre-installed and an offline demo model, so every feature can be tested without a server or AI costs. If it is unreachable during review, send us a note and we will bring it back within a day.
+ompanion is a client for a machine the user owns, like an SSH client: without a machine there is nothing to do in it. The demo server has the agent installed and an AI model we pay for, so every feature can be tested without a machine of your own, an AI account or any cost to you. If it is unreachable during review, send us a note and we will bring it back within a day.
 
 About guideline 2.5.2
 
@@ -20,7 +20,7 @@ The app never runs downloaded code on the device, and no download changes its fe
 
 About guideline 5.1.2(i)
 
-The app shares no user data with any third party or AI provider chosen by us. Prompts go over SSH to omp on the user's own machine, which calls the AI provider the user configured there, with the user's own credentials. A key the user types into the app goes over SSH to omp and is not kept on the device; OAuth sign-in pages open in the user's browser, and the token stays on the user's machine. The app has no analytics, crash reporting, advertising or tracking.
+The app shares no user data with any third party or AI provider chosen by us. Prompts go over SSH to omp on the user's own machine, which calls the AI provider the user configured there, with the user's own credentials. On our demo server, that machine is ours: its omp sends prompts to OpenRouter, which passes them to the model's provider (Z.ai), with our key. A key the user types into the app goes over SSH to omp and is not kept on the device; OAuth sign-in pages open in the user's browser, and the token stays on the user's machine. The app has no analytics, crash reporting, advertising or tracking.
 
 About AI-generated content
 

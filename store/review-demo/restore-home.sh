@@ -1,27 +1,21 @@
 #!/bin/sh
-# Puts the reviewer's home back the way the image ships it: omp's config (the fake provider, the model
-# roles), the demo project with its git history and the shell startup files. Reviewer edits, extra files,
-# sessions and the uploaded companion are removed, and omp processes started from the app are stopped.
-#
-# The host keys in /data/ssh are not touched, so the machine does not look new to the app. The image's
-# template is read-only, so this needs no root and nothing is lost: it runs as `review`, from the
-# entrypoint on first start and from reset.sh during the review.
+# The demo server's reset command, installed by provision.sh as /usr/local/sbin/ompanion-demo-reset. Puts
+# root's home back the way provision.sh built it: omp's config (the model and its key), the demo project with
+# its git history and the reviewer's README. Reviewer edits, sessions and the uploaded companion go, and the
+# omp runs the app started are stopped. SSH keys, shell startup files and everything outside the demo's own
+# paths are left alone, so the server does not look new to the app.
 set -eu
 
-home=/data/review
+template=/opt/ompanion-demo/home
+[ -d "$template" ] || { echo "ompanion-demo-reset: no template at $template: run provision.sh" >&2; exit 1; }
 
-cd /
-for pattern in "$home/.local/bin/omp" "$home/.ompanion" "$home/.omp"; do
-  # A run the app started is a child of an SSH session; killing it releases the session too.
-  pkill -f "$pattern" 2>/dev/null || true
-done
+# A run the app started is omp under a shell script in ~/.ompanion/run; stopping omp ends the run.
+pkill -x omp 2>/dev/null || true
+pkill -f /root/.ompanion 2>/dev/null || true
 sleep 1
 
-rm -rf "$home"
-mkdir -p "$home"
-cp -a /opt/review-demo/home/. "$home"/
-# The home's README tells the reviewer the port their server publishes, which may not be 2222.
-sed -i "s/@PORT@/${REVIEW_SSH_PORT:-2222}/g" "$home/README.md"
-touch /data/.seeded
+cd /root
+rm -rf /root/.omp /root/.ompanion /root/work /root/README.md
+cp -a "$template"/. /root/
 
-echo "review-demo: home restored from the template ($home)"
+echo "ompanion-demo-reset: root's home restored from $template"

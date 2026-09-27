@@ -72,31 +72,30 @@ the app ([Requirements for providing sign in details](https://support.google.com
 - **Select: "All or some functionality is restricted."** The app has no account of its own, but it is useless
   without an SSH machine, so the reviewer needs credentials.
 - **Instructions**: use the canonical text in `store/review-demo/README.md`, section "Console answers" →
-  "Google Play Console → App access", which is written against the verified host. Fill `<HOST>` (the demo
-  VPS's public address) and `<PASSWORD>` (`REVIEW_PASSWORD` in `store/review-demo/.env`); the user is
-  `review`, the port 22222, and the session directory `/data/review/work/notes-api`.
+  "Google Play Console → App access", which is written against the verified server. Fill `<PASSWORD>`
+  (`REVIEW_PASSWORD` in `store/review-demo/.env`); the host is `217.160.119.181`, the port 22, the user
+  `root`, and the session directory `/root/work/notes-api`.
 - The equivalent short form, if you prefer to paste it here:
 
 ```
-ompanion has no sign-in of its own, but it is a client: it needs a machine to connect to. We provide a
-throwaway Linux demo host for review, which is destroyed after the review and holds no personal data.
+ompanion has no sign-in of its own, but it is a client: it needs a machine to connect to. We run a Linux
+demo server for review, which is destroyed after the review and holds no personal data.
 
-1. Open the app and tap Add machine. Name: Demo. Host: <HOST>. Port: 22222. User: review.
+1. Open the app and tap Add machine. Name: Demo. Host: 217.160.119.181. Port: 22. User: root.
    Authentication: Password. Password: <PASSWORD>. Tap Save.
 2. The machine's page opens. Under System, tap Connect. The first connection asks about a host key it has
-   never seen: "Trust this host?" → Trust (we cannot pre-seed the key; it is generated when the host
-   starts).
-3. The same System section then shows the OS, the architecture, Home, omp at /data/review/.local/bin/omp,
+   never seen: "Trust this host?" → Trust.
+3. The same System section then shows the OS, the architecture, Home, omp at /usr/local/bin/omp,
    omp version 18.3.1 and Companion: Uploaded.
 4. Go back to the list of machines and on the machine's row tap ⋮ (More) → New session. Working directory
-   ~/work/notes-api (the same directory as /data/review/work/notes-api); leave Model empty. Tap Start.
-5. Type any message in the composer and send it. The demo host's model is an offline demo model that answers
-   with canned replies (markdown, a shell command, a file read and edit, a todo list, reasoning, a question,
-   then a long streamed answer). It makes no request to any AI provider and costs nothing.
+   ~/work/notes-api (that is /root/work/notes-api); leave Model empty. Tap Start.
+5. Type a message in the composer and send it, for example "What does this project do?". The agent
+   answers with GLM 5.3 Flash, a real AI model we pay for through OpenRouter, and can read and edit the
+   project's files and run commands on the server.
 
 Everything else works on the same machine: Files edits files and shows git diffs, Terminal opens a shell,
 and Configure browses omp's settings, model roles, MCP servers, plugins and skills. Usage has no limits to
-show on the demo machine. The access details work from any location and stay valid while the app is under
+show on the demo server. The access details work from any location and stay valid while the app is under
 review.
 ```
 
@@ -210,8 +209,9 @@ Two separate things
    GitHub tracker in the browser, which leaves the app). Our position: ompanion hosts no model and generates
    nothing; it drives an open-source agent that the user installed and configured on their own machine, with
    the user's own provider accounts, and nothing it shows reaches anyone else. The policy text has no
-   exemption for such a client, so this is **the most likely policy question on Play** for this app. The
-   review demo host uses an offline demo model, so no real provider is involved in review.
+   exemption for such a client, so this is **the most likely policy question on Play** for this app. On the
+   review demo server the agent uses a real model, GLM 5.3 Flash through OpenRouter on our key, so a
+   reviewer who tests the policy there gets real model output, with no filter in the app.
 2. **The store-asset declaration** (a checkbox per image or video in the store listing) asks whether a
    *listing asset* was AI-generated. Our screenshots are real captures of the app; do **not** tick it. If
    an asset is ever composited with a generative tool, tick it for that asset.

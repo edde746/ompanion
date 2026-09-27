@@ -1,253 +1,256 @@
 # Review demo
 
-A throwaway SSH host that runs omp 18.3.1 against a fake model provider. App Review and Google Play review
-add it in ompanion as a machine and use the app end to end — chat, tool cards, the file browser, the
-terminal, machine configuration — with no AI account, no API key and no cost to anyone.
+A dedicated server that App Review, Google Play review and Microsoft Store certification add in ompanion as
+an SSH machine. They sign in as `root` on port 22 with a password and use the app end to end: chat with a
+real model, tool cards, the file browser, the terminal, machine configuration. omp 18.3.1 runs there with one
+model, GLM 5.3 Flash through OpenRouter, on a key with a $10 spending limit that the owner pays for.
 
-Three containers, one private network, one published port:
+Reviewers get root, and whoever has root's password controls the whole machine. So the demo runs on a server
+of its own that holds nothing else and is destroyed after the review.
 
-| Container | What runs | Reaches |
-|---|---|---|
-| `host` | Ubuntu, OpenSSH as the unprivileged user `review`, omp 18.3.1 in `~/.local/bin/omp`, a template home with the demo project | the provider only; sshd listens on 2222 in the firewall's network namespace |
-| `firewall` | Alpine, `firewall.sh`: owns the host's network namespace, rejects its outbound connections | publishes `${REVIEW_SSH_PORT:-22222}` → 2222 |
-| `provider` | `harness/fake-provider/server.ts --demo`: canned turns, neutral models `demo/fast` ("Fast") and `demo/reasoning` ("Reasoning") | nothing; no published port |
+| | Now |
+|---|---|
+| Address | `217.160.119.181`, SSH on port 22 |
+| System | Ubuntu 26.04, x86_64, 1 vCPU, 1.8 GB RAM + 2 GB swap |
+| Sign-in | user `root`, authentication Password, the password is `REVIEW_PASSWORD` in `.env` |
+| Host key | ED25519 `SHA256:4mwcsNjvhhIg85l4XQfYColo5dgLgr+6Z1zVspSC8A0` |
+| omp | 18.3.1 at `/usr/local/bin/omp` |
+| Model | `demo/z-ai/glm-5.3-flash`, "GLM 5.3 Flash", the only model the app's model picker shows |
+| Home | `/root/README.md` (for the reviewer), `/root/work/notes-api` (the demo project), `/root/.omp/agent/{config.yml,models.yml}`, `/root/.gitconfig` |
 
-The reviewer's home and the host keys live in the `review-data` volume. The host image holds the omp
-release and ompanion uploads its companion into the home on the first connect.
+Root's shell startup files and SSH keys are Ubuntu's; the demo does not touch them. ompanion uploads its
+companion into `/root/.ompanion` on the first connect.
+
+`harness/fake-provider` (scripted turns, no model) serves local development (its `--demo` mode) and the store
+screenshots; the review demo does not use it.
 
 ## Requirements
 
-- A **throwaway** VPS, 1 vCPU and 1 GB RAM: 2 GB of swap or 1 GB more RAM is comfortable while omp runs.
-  ~4 GB free disk (the host image carries the 230–280 MB omp binary). Linux **x86_64 or arm64**, Docker
-  Engine 20.10+ with the `docker compose` plugin. The compose file caps the host container at 768 MB,
-  1 CPU and 512 processes, and the provider at 192 MB and 0.5 CPU.
-- Outbound internet while `./up.sh` builds (the build downloads the omp release from GitHub and verifies
-  its SHA-256). Inbound: the published SSH port and your own SSH. The containers need no internet at
-  runtime and the host container gets none: omp's home turns the release and marketplace checks off.
-- The repository checked out on the VPS — the compose build context is the repository root (it only reads
-  a few files from it). Not your main server: the reviewer gets a shell inside the container, and outside
-  it, nothing.
-- `openssh-client` on the VPS is optional (`up.sh` uses `ssh-keyscan` to wait for sshd).
+- A **dedicated, disposable** Ubuntu or Debian server, x86_64 or arm64 (the architectures omp ships Linux
+  builds for). The current one has 1 vCPU and 1.8 GB RAM; `server.sh` adds a 2 GB swapfile when the server
+  has no swap, because omp uses a few hundred MB while it runs.
+- Root SSH with password authentication: `sshd -T` must report `permitrootlogin yes` and
+  `passwordauthentication yes`. `server.sh` checks both and stops if either is off; it does not edit sshd's
+  configuration.
+- Internet egress: apt, GitHub (the omp release) and, while reviewers use it, `openrouter.ai`.
+- SSH access as root from this Mac to run `provision.sh` (a key, or root's password when asked).
 
-## Commands
+## `.env`
 
-```sh
-cd store/review-demo
-./setup.sh            # generates the password into .env and prints it once
-./up.sh               # builds, starts, waits for sshd, prints the address and the credentials
-./reset.sh            # puts the reviewer's home back (they may have edited files)
-./down.sh             # stops the stack, keeps the home and the host keys
-./down.sh --clean     # stops it and deletes the volume: the home and the host keys are gone
-```
+`store/review-demo/.env` is gitignored and written by hand. Never copy either value into a tracked file: the
+repository is public.
 
-`./setup.sh --force` generates a new password (then `./up.sh` rebuilds, which recreates the container).
+| Key | What it is |
+|---|---|
+| `REVIEW_PASSWORD` | root's password on the server; the store consoles give it to reviewers. Random letters and digits (reviewers type it), at least 15 of them. |
+| `OPENROUTER_API_KEY` | the OpenRouter key omp uses; create it with a spending limit ($10 now) |
 
-**Credentials.** `setup.sh` writes them to `store/review-demo/.env` (gitignored) and prints them once:
-`REVIEW_PASSWORD` is 24 random alphanumeric characters (~143 bits) and is the password the reviewer logs in
-with; `REVIEW_SSH_PORT` is the published port (default `22222`). The host image's `/etc/passwd` holds the
-password's hash; the plaintext is also in the image's build history (see Security). Read it again with:
+Read the password with:
 
 ```sh
 sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env
 ```
 
-**Firewall.** Keep everything but your own SSH closed on the VPS, for example:
+## Commands
+
+From the repository root on this Mac:
 
 ```sh
-ufw allow OpenSSH && ufw default deny incoming && ufw enable
+# Set the server up, or bring it up to date. Idempotent; prints the host key's fingerprint.
+store/review-demo/provision.sh root@217.160.119.181
+
+# Put root's home back between reviews (reviewers may have edited files or left sessions running).
+ssh root@217.160.119.181 ompanion-demo-reset
+
+# Smoke check through omp_core, the app's own SSH, probe, companion and session code. No model call.
+REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
+  dart run store/review-demo/verify/verify.dart --host 217.160.119.181
+
+# The same, plus one prompt that makes the model run a command: a real model call on the demo's key.
+REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
+  dart run store/review-demo/verify/verify.dart --host 217.160.119.181 --prompt
+
+# The reviewer's path in the real app (macOS desktop): add machine, trust, connect, new session, one real
+# prompt, the reply. Writes PNGs of the app's widget tree, by default to /tmp/ompanion-store/ReviewDemo.
+REVIEW_DEMO_HOST=217.160.119.181 \
+REVIEW_DEMO_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
+  flutter drive --driver=integration_test/driver/report_driver.dart \
+    --target=store/review-demo/verify/capture_test.dart -d macos
 ```
 
-Allow your own SSH first, or `ufw enable` locks you out. ufw does not govern the demo's port: Docker
-publishes it through its own iptables chains, ahead of ufw's, so it is reachable whatever ufw says.
+`provision.sh` reads `.env`, streams `server.sh`, `restore-home.sh`, the home template,
+`scripts/fetch_omp.sh` and the two secrets over SSH into `/opt/ompanion-demo/src`, and runs `server.sh` there.
+The secrets travel inside that stream, never on a command line, and `server.sh` deletes them once read.
+`server.sh` then:
+
+1. installs `ca-certificates`, `curl`, `git` and `locales` if any is missing, and generates the
+   `en_US.UTF-8` locale (SSH forwards the client's `LANG`);
+2. adds a 2 GB swapfile if the server has no swap;
+3. installs omp 18.3.1 as `/usr/local/bin/omp` through `scripts/fetch_omp.sh`, which checks the release's
+   SHA-256;
+4. sets root's password with `chpasswd` and checks that sshd allows root and passwords;
+5. builds the template home in `/opt/ompanion-demo/home`: the home template with the key written into
+   `models.yml`, and the demo project's three-commit git history (fixed authors and dates);
+6. installs `restore-home.sh` as `/usr/local/sbin/ompanion-demo-reset` and runs it.
+
+`ompanion-demo-reset` stops the omp runs the app started, removes `/root/.omp`, `/root/work`,
+`/root/README.md` and `/root/.ompanion`, and copies the template home back into `/root`.
+
+`verify.dart` defaults to port 22, user `root` and `<home>/work/notes-api`; `--port`, `--user`, `--project`
+and `--companion` override them. Its header lists every step.
 
 ## What the reviewer does
 
 These are the app's own labels. An SSH machine does not dial until the reviewer asks it to, and on a phone
 the session list is behind the machine's row.
 
-1. Sidebar → **Add machine** (the `+` at the top). **Name** anything, e.g. `Demo` (required); **Host** the
-   VPS's public address; **Port** `22222`; **User** `review`; **Authentication** **Password**; **Password**
-   from `.env`. *Save password on this device* is optional (with it, the connect does not ask again). →
-   **Save**. A desktop build that can still add *this computer* shows **Kind** first: pick SSH.
+1. Sidebar → **Add machine** (the `+` at the top). **Name** anything, e.g. `Demo` (required); **Host**
+   `217.160.119.181`; **Port** `22`; **User** `root`; **Authentication** **Password**; **Password** from
+   `.env`. *Save password on this device* is optional (with it, the connect does not ask again). → **Save**. A
+   desktop build that can still add *this computer* shows **Kind** first: pick SSH.
 2. The machine's page opens. Under **System**, tap **Connect**. The first connection asks about a host key
-   it has never seen: **Trust this host?** → **Trust**. `./up.sh` printed that key's fingerprint, and
-   `docker compose --env-file .env exec host ssh-keygen -lf /data/ssh/ssh_host_ed25519_key.pub` prints it
-   again.
-3. The same section now lists **OS**, **Architecture**, **Shell**, **Home**, **omp**
-   (`/data/review/.local/bin/omp`), **omp version** `18.3.1` and **Companion** *Uploaded*.
+   it has never seen: **Trust this host?** → **Trust**. Its fingerprint is the one in the table above.
+3. The same section now lists **OS**, **Architecture**, **Shell**, **Home**, **omp** (`/usr/local/bin/omp`),
+   **omp version** `18.3.1` and **Companion** *Uploaded*.
 4. Back to the list of machines (the back arrow on a phone). On the machine's row, tap **⋮** (More) →
-   **New session** — on desktop, hover the row and use its **+**. **Working directory**
-   `~/work/notes-api` (a small TypeScript service with a git history; leave **Model** empty, the home's
-   default role is the demo's *Fast*), then **Start**.
-5. Type anything in **Message omp** and send. The demo model answers with canned replies; omp's session
-   runs detached, so the phone can be locked and picked up again. Expand the machine in the list (its
-   chevron) to see the session list, and use **⋮** → **Refresh** to reload it.
+   **New session**; on desktop, hover the row and use its **+**. **Working directory** `~/work/notes-api` (a
+   small TypeScript service with a three-commit git history); leave **Model (optional)** empty, every model
+   role is GLM 5.3 Flash. Then **Start**.
+5. Type anything in **Message omp** and send. GLM 5.3 Flash answers and uses omp's tools: it reads and edits
+   the project's files and runs commands on the server. omp's session runs detached, so the phone can be
+   locked and picked up again. Expand the machine in the list (its chevron) to see the session list, and
+   use **⋮** → **Refresh** to reload it.
 
-Worth trying with the reviewer: **Files** (open `README.md`, edit, see the git diff), **Terminal** (a real
-shell on the machine), the transcript's tool cards, and **Configure** on the machine.
+Worth trying with the reviewer: **Files** (open `README.md`, edit, see the git diff), **Terminal** (a root
+shell on the server), the transcript's tool cards, and **Configure** on the machine.
 
-## What the demo answers
+## The model and what it costs
 
-The provider is `harness/fake-provider` in `--demo` mode: one canned scenario per prompt, in this order,
-shared by every session and starting over when the cycle ends. `./reset.sh` restarts it, so a fresh
-reviewer sees the sequence from the top.
+`home-template/.omp/agent/models.yml` defines a provider `demo` with one model: `z-ai/glm-5.3-flash`
+("GLM 5.3 Flash") at `https://openrouter.ai/api/v1`, OpenAI chat completions, reasoning on, text and image
+input, a 262,144-token context window (omp compacts before it) and 16,384 output tokens. It is not omp's
+built-in `openrouter` provider: that one, given a key, makes every OpenRouter model selectable in the app,
+and a reviewer could pick an expensive one. `config.yml` makes the model the `default`, `smol` and `slow`
+role, so a new session needs no model choice.
 
-| # | Reply |
-|---|---|
-| 1 | markdown: headings, lists, a table, a Dart and a shell code block, inline and display math |
-| 2 | a `bash` tool card running `ls -la`, then a short answer |
-| 3 | a `read` of the project's `README.md`, then an `edit` that toggles a marker on its first line |
-| 4 | a `todo` list with three tasks, then a question |
-| 5 | reasoning chunks, then the answer (visible as a thinking block on `demo/reasoning`) |
-| 6 | an `ask` question with two options, then the chosen answer |
-| 7 | a ~20 s streamed answer, long enough to pause, abort or steer |
+OpenRouter charges $0.045 per million input tokens and $0.14 per million output tokens for it. For example,
+a request that sends 50,000 tokens of context and gets 2,000 back costs about $0.0025, so the $10 limit pays
+for about 4,000 such requests. Once the key reaches its limit, OpenRouter refuses its requests and the demo
+stops answering until the limit is raised in OpenRouter's key settings.
 
-Models in the home's `models.yml` are `demo/fast` ("Fast", the default role) and `demo/reasoning`
-("Reasoning"); no vendor's model is named and no request leaves the stack.
+Reviewers' prompts, and the files and command output the agent sends along, go to OpenRouter and the model's
+provider, Z.ai, under their policies.
+
+## Security and cost
+
+- **Root is the reviewer.** Anyone with the password controls the server: they can read the OpenRouter key
+  in `~/.omp/agent/models.yml`, change the password, add or remove SSH keys (including the owner's), install
+  anything and use the server's network. The server holds nothing else, the key's $10 limit bounds what the
+  key can cost, and the server is destroyed after the review.
+- **The password** is in `.env` on this Mac and in the three store consoles (App Store Connect, Play
+  Console, Partner Center). The repository carries `<PASSWORD>` in its place, and `ios/fastlane/Fastfile`
+  refuses to upload review information that still contains it.
+- **sshd runs the server image's configuration**, which allows root and passwords; `provision.sh` does not
+  change it. `sshd -T` on the server reports `port 22`, `permitrootlogin yes`, `passwordauthentication yes`,
+  `maxauthtries 6`, `logingracetime 120`, `maxstartups 10:30:100`, and `persourcepenalties` on (OpenSSH
+  refuses connections for a while from addresses that fail to log in). TCP and X11 forwarding are on, so the
+  password also makes the server an SSH proxy. No firewall (`ufw` inactive) and no fail2ban. Bots try root
+  passwords on every public address, so the password must be long and random.
+- **Rotate the password** by editing `REVIEW_PASSWORD` in `.env`, running `provision.sh` again and pasting
+  the new one into the store consoles.
+- **After the review**: revoke the key at OpenRouter, destroy the server, and delete `.env` or replace both
+  values before the next review.
 
 ## Console answers
 
-Values the user fills in: `<HOST>` is the VPS's public address, `<PASSWORD>` is `REVIEW_PASSWORD` from
-`.env`. Everything else is as written.
+`<PASSWORD>` is `REVIEW_PASSWORD` from `.env`; it is the only value to fill in. Everything else is as
+written. If the server changes, replace `217.160.119.181` everywhere `git grep 217.160.119.181` finds it
+(this file, `ios/fastlane/metadata/review_information/notes.txt`, `store/README.md`, `store/app-store.md`,
+`store/google-play.md`) and the host key fingerprint above.
 
 ### App Store Connect → App Review Information
 
 - **Sign-in required**: yes
-- **User name**: `review`
+- **User name**: `root`
 - **Password**: `<PASSWORD>`
-- **Notes**:
+- **Notes**: the text below. `ios/fastlane/metadata/review_information/notes.txt` holds it plus the guideline
+  paragraphs, and that file is what `deliver` uploads.
 
 > ompanion is a client for omp, an AI coding agent that runs on the user's own machines. The app has no
-> account of its own: to reach every screen, add the demo machine we run for this review.
+> account of its own: to reach every screen, add the demo server we run for this review.
 >
-> 1. In the sidebar, tap Add machine. Enter Name: Demo, Host: `<HOST>`, Port: `22222`, User: `review`,
+> 1. In the sidebar, tap Add machine. Enter Name: Demo, Host: 217.160.119.181, Port: 22, User: root,
 >    Authentication: Password, Password: `<PASSWORD>`. Tap Save.
 > 2. The machine's page opens. Under System, tap Connect. The app asks "Trust this host?" the first time;
->    tap Trust. The demo machine is a container we run only during this review and destroy afterwards; it
->    holds no personal data.
+>    tap Trust. The demo server is a machine we run only for this review and destroy afterwards; it holds
+>    no personal data.
 > 3. The System section then shows omp version 18.3.1 and Companion: Uploaded.
 > 4. Go back to the list of machines, tap the ⋮ on the machine's row and choose New session. Set Working
 >    directory to ~/work/notes-api and tap Start.
-> 5. Type any message in the composer and send it. The demo machine's model is an offline demo model
->    that answers with canned replies (markdown, a shell command, a file read and edit, a todo list,
->    reasoning, a question, then a long streamed answer). It makes no request to any AI provider and
->    costs nothing.
+> 5. Type a message in the composer and send it, for example "What does this project do?". The agent
+>    answers with GLM 5.3 Flash, a real AI model we pay for through OpenRouter, and can read and edit the
+>    project's files and run commands on the server.
 >
-> Everything else works on the same machine: the Files panel edits files and shows git diffs, the
-> Terminal opens a shell, and Configure browses omp's settings, model roles, MCP servers, plugins and
-> skills. Usage has no limits to show on the demo machine. No account, purchase or external service is
-> needed to reach any of it. App Review may also connect to its own machine with omp 18.3.1 installed.
+> Everything else works on the same machine: the Files panel edits files and shows git diffs, the Terminal
+> opens a shell, and Configure browses omp's settings, model roles, MCP servers, plugins and skills. Usage
+> has no limits to show on the demo server. No account, purchase or AI subscription is needed to reach any
+> of it. App Review may also connect to its own machine with omp 18.3.1 installed.
 
 ### Google Play Console → App access
 
-Choose **All or some functionality is restricted** and answer with the same credentials and steps as
-above (Play calls them "sign-in details" and "instructions"), including `/data/review/work/notes-api` as
-the session directory and the note that the demo machine is destroyed after the review.
+Choose **All or some functionality is restricted** and add one set of sign-in details: user name `root`,
+password `<PASSWORD>`, and as instructions the App Store notes above. `store/google-play.md` §4 has a
+version with Play's wording.
 
-## Security
+### Partner Center → Submission options → Notes for certification
 
-- **No root for the reviewer**: the image's user is `review`, `sudo` is not installed, `PermitRootLogin no`
-  and `AllowUsers review`, password authentication only. The container itself runs unprivileged:
-  `cap_drop: [ALL]`, `no-new-privileges`, a read-only root filesystem with tmpfs for `/tmp` and `/run`,
-  `mem_limit`/`cpus`/`pids_limit`, and the `review-data` volume as its only mount. No Docker socket.
-- **No way out**: the host container joins the `firewall` container's network namespace, where
-  `firewall.sh` rejects every new outbound connection except to the compose network, where the provider
-  is the only other container; the network's gateway, which is the VPS itself, is rejected too. The
-  shell, omp and sshd cannot reach the internet, the cloud's metadata address (`169.254.169.254`) or the
-  VPS's own services, so the machine is useless for mining, spam or scanning. The host container has no
-  capability to change the rules; the firewall container has `NET_ADMIN` and nothing else. Only the
-  compose services' names resolve: Docker's DNS forwards the rest to `192.0.2.1`, which the rules reject.
-- **No forwarding**: `DisableForwarding yes` refuses TCP, agent, X11 and socket forwarding, so the demo is
-  no SSH proxy either. The app forwards ports only for a provider's OAuth login on desktop, which the
-  demo's provider does not have.
-- **Unprivileged sshd**: sshd runs as `review` on port 2222 (a privileged port needs root). Password auth
-  works without `/etc/shadow` because the account's hash sits in `/etc/passwd`, so no root process is
-  needed at all. `UsePAM no`. It cannot write the login records, so its log says `Attempt to write login
-  records by non-root user`. Shell sessions and PTYs (the app's Terminal tab) work.
-- **Brute force**: the password has ~143 bits, so guessing it is hopeless; `MaxAuthTries 3` and
-  `LoginGraceTime 30` bound each connection. `MaxStartups`/`PerSourceMaxStartups` are not set: this
-  image's sshd does not count connections waiting at the password prompt against them (`sshd_config`), so
-  a connection flood is bounded only by the container's process and memory limits; it can take the demo
-  down, not the VPS. Optional and not exercised here: fail2ban (or sshguard) on the VPS reading
-  `Failed password for review from <address>` in `docker compose --env-file .env logs host`. On a Linux VPS
-  the client's own address is there (Docker's DNAT preserves it); the ban action has to target Docker's
-  `DOCKER-USER` chain, because published ports bypass the `INPUT` chain.
-- **Logs**: sshd logs every connection (`LogLevel VERBOSE`); the host's log rotates at 3 × 10 MB.
-- **Only sshd is exposed**: the provider publishes no port and is reachable only on the compose network,
-  so its control API (`/control/*`) is not on the internet. The provider serves one canned reply per
-  request and has no credentials.
-- **The reviewer can do what the app does**: read and write files in the demo home, run omp, open a
-  shell. That is the point of the demo; everything they touch is in the volume. That includes the host's
-  private keys in `/data/ssh`: sshd runs as `review`, so anyone with the password can copy them. The
-  trusted host key identifies the demo container only as long as the password stays with the reviewers.
-- **The password's plaintext** is in `.env` and, because it is a build argument, in the build output of
-  `./up.sh` and the host image's build history on the VPS (`docker history`, `docker buildx history`).
-  The history is readable only by whoever controls Docker there. Never push the image.
-- **Afterwards**: `./down.sh --clean` and destroy the VPS. Do not reuse the generated password anywhere,
-  and do not commit `.env`.
-
-## Verifying a running stack
-
-Two scripts here drive the app's own code paths; both are documented in their headers. Run `./reset.sh`
-first: the rotation is a cycle, and both checks expect it to start at its first scenario.
-
-```sh
-# From the repository root. The reviewer's path without the widgets: password SSH, probe, companion,
-# session, three demo scenarios, exec, file browser, session list.
-REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
-  dart run store/review-demo/verify/verify.dart
-
-# The same path in the real app (macOS desktop): add machine, trust, connect, new session, prompt, reply.
-# Writes PNGs of the app's widget tree, by default to /tmp/ompanion-store/ReviewDemo.
-REVIEW_DEMO_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
-  flutter drive --driver=integration_test/driver/report_driver.dart \
-    --target=store/review-demo/verify/capture_test.dart -d macos
-```
-
-By hand: `ssh -p 22222 review@<host>` with the password (a shell running as `review`, no sudo), `docker
-compose --env-file .env logs host` for sshd's own log, and `docker compose --env-file .env exec provider
-bun -e "fetch('http://127.0.0.1:8787/control/requests').then(r => r.json()).then(console.log)"` to read the
-provider's request log from inside the stack.
-
-What was checked here, for the shape of the numbers to expect: `sshd -T` inside the container reports
-`port 2222`, `passwordauthentication yes`, `pubkeyauthentication no`, `permitrootlogin no`, `usepam no`,
-`maxauthtries 3`, `disableforwarding yes`; three wrong passwords in one connection end it with `Too many
-authentication failures`; `ssh -W` and `ssh -R` are refused; from the reviewer's shell `curl` to a public
-address, `169.254.169.254` and the gateway fail with `Couldn't connect to server`, `getent hosts
-example.com` gets no answer, and `http://provider:8787/v1/models` answers; `docker inspect` shows the host
-with `User=review`, `ReadonlyRootfs=true`, `CapDrop=[ALL]`, no added capabilities, `no-new-privileges`,
-`Memory=805306368`, `PidsLimit=512`, one volume (`review-data:/data`) and
-`NetworkMode=container:<firewall>`, the firewall with `CapAdd=[CAP_NET_ADMIN]` and the only port binding,
-and the provider with none.
+> ompanion is a client for omp, an AI coding agent that runs on the user's own machines. The app has no
+> account of its own: to reach every screen, add the demo server we run for this review.
+>
+> 1. In the sidebar, click Add machine. If the form shows Kind, choose SSH. Enter Name: Demo, Host:
+>    217.160.119.181, Port: 22, User: root, Authentication: Password, Password: `<PASSWORD>`. Click Save.
+> 2. The machine's page opens. Under System, click Connect. The app asks "Trust this host?" the first time;
+>    click Trust. The demo server is a machine we run only for this review and destroy afterwards; it holds
+>    no personal data.
+> 3. The System section then shows omp version 18.3.1 and Companion: Uploaded.
+> 4. Hover the machine's row in the sidebar and click its +. Set Working directory to ~/work/notes-api and
+>    click Start.
+> 5. Type a message in the composer and send it, for example "What does this project do?". The agent
+>    answers with GLM 5.3 Flash, a real AI model we pay for through OpenRouter, and can read and edit the
+>    project's files and run commands on the server.
+>
+> Everything else works on the same machine: the Files panel edits files and shows git diffs, the Terminal
+> opens a shell, and Configure browses omp's settings, model roles, MCP servers, plugins and skills. No
+> account, purchase or AI subscription is needed to reach any of it.
 
 ## Files
 
 | Path | What it is |
 |---|---|
-| `docker-compose.yml` | the three services, the network, the limits, the volume |
-| `Dockerfile.host` | Ubuntu + OpenSSH + omp (fetched by `scripts/fetch_omp.sh`, checksum-verified) + the template home with the demo project's git history |
-| `Dockerfile.firewall`, `firewall.sh` | Alpine + iptables: owns the host's network namespace and rejects its outbound connections |
-| `Dockerfile.provider` | Bun + `harness/fake-provider` in `--demo` mode |
-| `Dockerfile.*.dockerignore` | keep the build context to the handful of files each image copies |
-| `sshd_config` | the drop-in `/etc/ssh/sshd_config.d/00-review.conf`: port, host keys, password auth, no forwarding |
-| `entrypoint.sh` | first start: host keys into the volume, seed the home, exec sshd |
-| `restore-home.sh` | restores the template home and stops the app's omp runs (used by the entrypoint and `reset.sh`) |
-| `setup.sh`, `up.sh`, `reset.sh`, `down.sh` | the four commands above |
-| `home-template/` | the home the image ships: `.omp/agent/{models.yml,config.yml}`, shell startup files, `README.md`, `work/notes-api` |
-| `verify/verify.dart`, `verify/capture_test.dart` | the two checks above |
-| `.env` | generated by `setup.sh`, gitignored |
+| `provision.sh` | runs on this Mac: reads `.env`, streams the files and secrets to the server, runs `server.sh` |
+| `server.sh` | runs on the server as root: packages, locale, swap, omp, root's password, the template home, the reset command |
+| `restore-home.sh` | installed as `/usr/local/sbin/ompanion-demo-reset`: stops omp runs and restores root's demo files |
+| `home-template/` | what the reset command puts in `/root`: `README.md`, `.gitconfig`, `.omp/agent/{models.yml,config.yml}` (the key is a placeholder here), `work/notes-api` |
+| `verify/verify.dart` | the omp_core smoke check; `--prompt` adds one real model call |
+| `verify/capture_test.dart` | the reviewer's path in the real macOS app, with screenshots; sends one real prompt |
+| `.env` | `REVIEW_PASSWORD` and `OPENROUTER_API_KEY`, written by hand, gitignored |
 
-## Limits of this setup
+## Verified
 
-- Verified on Docker Desktop for macOS (linux/arm64) only. The x86_64 path uses the same
-  `scripts/fetch_omp.sh` targets and asset names, but was not run here.
-- Not run on a VPS; nothing here depends on Docker Desktop. The firewall needs iptables (nf_tables) in
-  the VPS kernel, as Docker itself does; if its rules fail, `firewall` never turns healthy and `host` does
-  not start.
-- After a reboot of the VPS, run `./up.sh`: Docker may start `host` before `firewall`, whose network it
-  joins, and then leaves it stopped (moby/moby#50326). The demo is down until then, never open.
-- Disk is not capped: the reviewer can fill the VPS's disk from the `review-data` volume.
-- The fail2ban/sshguard suggestion above is not exercised.
-- The provider's demo rotation is per container, not per session: two reviewers prompting at the same
-  time take turns in the same cycle (`harness/README.md`, "Dev machine").
+On 2026-09-27, after `provision.sh`, `verify.dart` passed every step against `217.160.119.181`: probe
+linux/x64 glibc, home `/root`, omp `/usr/local/bin/omp` 18.3.1, companion uploaded and loaded, file browser
+read and write, SSH exec, companion `exec.bash`, session list, `get_available_models` listing only
+`demo/z-ai/glm-5.3-flash` "GLM 5.3 Flash", and the settings schema. With `--prompt` the model ran
+`git log --oneline` through the bash tool and answered "The project has 3 commits".
+
+## Limits
+
+- `capture_test.dart` was not run against this server.
+- The App Store, Google Play and Microsoft Store review flows were not run.
+- Only Ubuntu 26.04 on x86_64 was provisioned; Debian and arm64 were not.
+- The reset command restores only the demo's paths. Packages a reviewer installed, files elsewhere, a changed
+  password or removed SSH keys stay; `provision.sh` sets the password again if the owner can still sign in,
+  and otherwise the server has to be rebuilt from its image and provisioned (with a new host key).
+- Reviewers who sign in at the same time share one home and see each other's sessions.
+- Disk is not capped: a reviewer can fill the server's disk.
 - omp 18.3.1 is preinstalled, so the review never sees the app's "install omp" dialog.
