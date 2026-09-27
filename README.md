@@ -19,13 +19,17 @@ A GUI client for omp, the oh-my-pi coding agent, on this computer and on remote 
 
 ## Download
 
-| Platform | Get it |
-|---|---|
-| iPhone and iPad | [App Store](https://apps.apple.com/app/id6816667970) |
-| Android | [Google Play](https://ompanion.app/#google-play), in a closed test: join the testers first |
-| Windows | [Microsoft Store](https://apps.microsoft.com/detail/9P9DVTKZ3SB9), or `ompanion-windows-x64.zip` from the [latest release](https://github.com/edde746/ompanion/releases/latest) |
-| macOS | `ompanion-macos.dmg` from the [latest release](https://github.com/edde746/ompanion/releases/latest), signed and notarized |
-| Linux | `ompanion-linux-x64.zip` from the [latest release](https://github.com/edde746/ompanion/releases/latest); needs GTK 3 and libsecret |
+<a href='https://apps.apple.com/app/id6816667970'><img height='60' alt='Download on the App Store' src='./assets/app-store-badge.png'/></a>
+<a href='https://ompanion.app/#google-play'><img height='60' alt='Get it on Google Play' src='./assets/play-store-badge.png'/></a>
+<a href='https://apps.microsoft.com/detail/9P9DVTKZ3SB9'><img height='60' alt='Download from the Microsoft Store' src='./assets/microsoft-badge.png'/></a>
+
+Google Play is in a closed test: [join the testers](https://ompanion.app/#google-play) first.
+
+| Platform | Download |
+| --- | --- |
+| macOS | [DMG](https://github.com/edde746/ompanion/releases/latest/download/ompanion-macos.dmg), signed and notarized |
+| Windows x64 | [zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-windows-x64.zip) |
+| Linux x64 | [zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.zip), needs GTK 3 and libsecret |
 
 Or build it yourself: [Building from Source](#building-from-source).
 
