@@ -130,8 +130,8 @@ class MainActivity : FlutterActivity() {
                 ?: Base64.encodeToString(ByteArray(32).also { SecureRandom().nextBytes(it) }, Base64.NO_WRAP)
         prefs.edit().putString(Push.PREF_KEY, key).putString(Push.PREF_DEVICE_ID, pending.deviceId).apply()
         Push.startFirebase(this, pending.options)
-        val messaging = FirebaseMessaging.getInstance()
-        messaging
+        FirebaseMessaging
+            .getInstance()
             .register()
             .onSuccessTask { FirebaseInstallations.getInstance().id }
             .addOnCompleteListener { task ->
@@ -140,16 +140,13 @@ class MainActivity : FlutterActivity() {
                     return@addOnCompleteListener
                 }
                 prefs.edit().putString(Push.PREF_FID, task.result).apply()
-                // From now on FCM keeps the registration fresh on every launch; it stays off while push is off.
-                messaging.isAutoInitEnabled = true
                 result.success(Push.registration(this))
             }
     }
 
     // Unregisters from FCM and deletes the Firebase installation, then forgets the key, so Firebase is not
     // started on the next launch. With no key, push was never turned on and Firebase never ran. A failure leaves push
-    // on, so turning it off can be retried: auto-init goes back to what it was, because the SDK persists it and push
-    // left on without it would stop refreshing its registration.
+    // on, so turning it off can be retried.
     private fun disable(result: MethodChannel.Result) {
         val options = Push.firebaseOptions
         if (options == null || !Push.prefs(this).contains(Push.PREF_KEY)) {
@@ -157,15 +154,12 @@ class MainActivity : FlutterActivity() {
             return result.success(null)
         }
         Push.startFirebase(this, options)
-        val messaging = FirebaseMessaging.getInstance()
-        val autoInit = messaging.isAutoInitEnabled
-        messaging.isAutoInitEnabled = false
-        messaging
+        FirebaseMessaging
+            .getInstance()
             .unregister()
             .onSuccessTask { FirebaseInstallations.getInstance().delete() }
             .addOnCompleteListener { task ->
                 if (!task.isSuccessful) {
-                    messaging.isAutoInitEnabled = autoInit
                     result.error("failed", task.exception?.message ?: "FCM unregistration failed", null)
                     return@addOnCompleteListener
                 }
