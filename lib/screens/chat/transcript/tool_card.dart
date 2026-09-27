@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../app/theme.dart';
@@ -217,7 +218,7 @@ class _ToolCardState extends State<ToolCard> {
                     width: 24,
                     child: body == null
                         ? null
-                        : Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 16, color: muted),
+                        : Icon(expanded ? Symbols.expand_less : Symbols.expand_more, size: 16, color: muted),
                   ),
                 ],
               ),
@@ -258,7 +259,7 @@ class _StatusMark extends StatelessWidget {
         ),
         ToolStatus.background => Tooltip(
           message: t.background,
-          child: Icon(Icons.schedule, size: 14, color: colors.running),
+          child: Icon(Symbols.schedule, size: 14, color: colors.running),
         ),
         ToolStatus.done => dot(colors.success),
         ToolStatus.failed => Tooltip(message: t.error, child: dot(colors.error)),
@@ -314,7 +315,7 @@ class _CappedLinesState extends State<CappedLines> {
         child: TextButton.icon(
           style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
           onPressed: () => setState(() => _all = !_all),
-          icon: Icon(_all ? Icons.unfold_less : Icons.unfold_more, size: 16),
+          icon: Icon(_all ? Symbols.unfold_less : Symbols.unfold_more, size: 16),
           label: Text(_all ? context.t.transcript.showLess : context.t.transcript.showMoreLines(n: hidden)),
         ),
       ),

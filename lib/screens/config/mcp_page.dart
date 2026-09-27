@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 
 import '../../app/theme.dart';
@@ -170,7 +171,7 @@ class _McpPageState extends State<McpPage> {
           actions: [
             FilledButton.icon(
               onPressed: _running ? null : _add,
-              icon: const Icon(Icons.add, size: 18),
+              icon: const Icon(Symbols.add, size: 18),
               label: Text(t.config.mcp.add),
             ),
             RefreshAction(loading: _loading, onPressed: _load),
@@ -280,7 +281,7 @@ class _ServerRow extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              server.transport == 'stdio' ? Icons.terminal : Icons.cloud_outlined,
+              server.transport == 'stdio' ? Symbols.terminal : Symbols.cloud,
               size: 18,
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -313,7 +314,7 @@ class _ServerRow extends StatelessWidget {
             IconButton(
               tooltip: t.common.delete,
               onPressed: running || !editable ? null : onRemove,
-              icon: const Icon(Icons.delete_outline, size: 20),
+              icon: const Icon(Symbols.delete, size: 20),
             ),
           ],
         ),

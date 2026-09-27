@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../i18n/strings.g.dart';
@@ -637,7 +638,7 @@ class _TranscriptViewState extends State<TranscriptView> {
                         shape: const CircleBorder(),
                         tooltip: context.t.transcript.jumpToLatest,
                         onPressed: atBottom ? null : _jumpToLatest,
-                        child: const Icon(Icons.arrow_downward),
+                        child: const Icon(Symbols.arrow_downward),
                       ),
                     ),
                   ),
@@ -694,7 +695,7 @@ class _LoadEarlier extends StatelessWidget {
               ? const ActivityMark(size: 20)
               : TextButton.icon(
                   onPressed: onPressed,
-                  icon: const Icon(Icons.history, size: 18),
+                  icon: const Icon(Symbols.history, size: 18),
                   label: Text(context.t.transcript.loadEarlier),
                 ),
         ),

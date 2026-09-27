@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/companion.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
@@ -332,25 +333,32 @@ class _TreeTabState extends State<TreeTab> {
                 style: IconButton.styleFrom(
                   backgroundColor: _filter == TreeFilter.standard ? null : theme.colorScheme.surfaceContainerHighest,
                 ),
-                icon: const Icon(Icons.filter_list),
+                icon: const Icon(Symbols.filter_list),
                 initialValue: _filter,
                 onSelected: (filter) => setState(() {
                   _filter = filter;
                   _rebuildRows();
                 }),
                 itemBuilder: (_) => [
+                  // CheckedPopupMenuItem's layout; its own check mark is a Material Icons glyph.
                   for (final filter in TreeFilter.values)
-                    CheckedPopupMenuItem(
+                    PopupMenuItem(
                       value: filter,
-                      checked: filter == _filter,
-                      child: Text(_filterLabel(t, filter)),
+                      child: Semantics(
+                        checked: filter == _filter,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(filter == _filter ? Symbols.check : null),
+                          title: Text(_filterLabel(t, filter)),
+                        ),
+                      ),
                     ),
                 ],
               ),
               IconButton(
                 tooltip: t.refresh,
                 onPressed: _loading ? null : _reload,
-                icon: _loading ? const ActivityMark(size: 16) : const Icon(Icons.refresh),
+                icon: _loading ? const ActivityMark(size: 16) : const Icon(Symbols.refresh),
               ),
             ],
           ),
@@ -377,16 +385,16 @@ class _TreeTabState extends State<TreeTab> {
         Expanded(
           child: switch ((tree, _error)) {
             (null, final Object error) => DockEmptyState(
-              icon: Icons.error_outline,
+              icon: Symbols.error,
               message: t.loadFailed(error: error.toString()),
               action: TextButton(onPressed: _reload, child: Text(context.t.common.retry)),
             ),
             (null, _) => const Center(child: ActivityMark(size: 20)),
             (final SessionTree tree, _) when tree.isEmpty => DockEmptyState(
-              icon: Icons.account_tree_outlined,
+              icon: Symbols.account_tree,
               message: t.empty,
             ),
-            (_, _) when _rows.isEmpty => DockEmptyState(icon: Icons.filter_list_off, message: t.noMatches),
+            (_, _) when _rows.isEmpty => DockEmptyState(icon: Symbols.filter_list_off, message: t.noMatches),
             _ => ListView.builder(
               itemExtent: _rowHeight,
               itemCount: _rows.length,
@@ -475,7 +483,7 @@ class _TreeRowTile extends StatelessWidget {
                   : InkResponse(
                       onTap: onToggle,
                       radius: 14,
-                      child: Icon(row.collapsedCount != null ? Icons.chevron_right : Icons.expand_more, size: 18),
+                      child: Icon(row.collapsedCount != null ? Symbols.chevron_right : Symbols.expand_more, size: 18),
                     ),
             ),
             Icon(icon, size: 15, color: color),
@@ -504,7 +512,7 @@ class _TreeRowTile extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 4),
                 child: Tooltip(
                   message: context.t.dock.sessionTree.currentLeaf,
-                  child: Icon(Icons.my_location, size: 14, color: scheme.onSurface),
+                  child: Icon(Symbols.my_location, size: 14, color: scheme.onSurface, fill: 1),
                 ),
               ),
             const SizedBox(width: 8),
@@ -535,19 +543,19 @@ String _rowText(BuildContext context, TreeEntry entry) {
 }
 
 (IconData, Color) _kindIcon(TreeEntryKind kind, ColorScheme scheme) => switch (kind) {
-  TreeEntryKind.user => (Icons.person_outline, scheme.onSurface),
-  TreeEntryKind.assistant => (Icons.smart_toy_outlined, scheme.onSurfaceVariant),
-  TreeEntryKind.toolResult => (Icons.build_outlined, scheme.onSurfaceVariant),
-  TreeEntryKind.bash => (Icons.terminal, scheme.onSurfaceVariant),
-  TreeEntryKind.python => (Icons.code, scheme.onSurfaceVariant),
-  TreeEntryKind.custom => (Icons.extension_outlined, scheme.onSurfaceVariant),
-  TreeEntryKind.advisor => (Icons.rate_review_outlined, scheme.onSurfaceVariant),
-  TreeEntryKind.compaction => (Icons.compress, scheme.onSurfaceVariant),
-  TreeEntryKind.branchSummary => (Icons.call_split, scheme.onSurfaceVariant),
-  TreeEntryKind.modelChange => (Icons.swap_horiz, scheme.onSurfaceVariant),
-  TreeEntryKind.thinkingChange => (Icons.psychology_outlined, scheme.onSurfaceVariant),
-  TreeEntryKind.label => (Icons.label_outline, scheme.onSurfaceVariant),
-  TreeEntryKind.other => (Icons.circle_outlined, scheme.onSurfaceVariant),
+  TreeEntryKind.user => (Symbols.person, scheme.onSurface),
+  TreeEntryKind.assistant => (Symbols.smart_toy, scheme.onSurfaceVariant),
+  TreeEntryKind.toolResult => (Symbols.build, scheme.onSurfaceVariant),
+  TreeEntryKind.bash => (Symbols.terminal, scheme.onSurfaceVariant),
+  TreeEntryKind.python => (Symbols.code, scheme.onSurfaceVariant),
+  TreeEntryKind.custom => (Symbols.extension, scheme.onSurfaceVariant),
+  TreeEntryKind.advisor => (Symbols.rate_review, scheme.onSurfaceVariant),
+  TreeEntryKind.compaction => (Symbols.compress, scheme.onSurfaceVariant),
+  TreeEntryKind.branchSummary => (Symbols.call_split, scheme.onSurfaceVariant),
+  TreeEntryKind.modelChange => (Symbols.swap_horiz, scheme.onSurfaceVariant),
+  TreeEntryKind.thinkingChange => (Symbols.psychology, scheme.onSurfaceVariant),
+  TreeEntryKind.label => (Symbols.label, scheme.onSurfaceVariant),
+  TreeEntryKind.other => (Symbols.circle, scheme.onSurfaceVariant),
 };
 
 class _SelectionBar extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/companion.dart' show CompanionException;
 import 'package:omp_core/host.dart' show SessionSummary;
 import 'package:omp_core/session.dart';
@@ -125,7 +126,7 @@ class ChatHeader extends StatelessWidget {
                         if (external.busy)
                           const ActivityMark()
                         else
-                          Icon(Icons.terminal, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                          Icon(Symbols.terminal, size: 16, color: theme.colorScheme.onSurfaceVariant),
                         const SizedBox(width: 8),
                         Text(external.busy ? t.sessions.working : t.sessions.external, style: muted),
                       ],
@@ -190,7 +191,7 @@ class _PauseButton extends StatelessWidget {
     final t = context.t;
     final scheme = Theme.of(context).colorScheme;
     final label = paused ? t.chat.resume : t.chat.pause;
-    final icon = Icon(paused ? Icons.play_arrow : Icons.pause, size: 18);
+    final icon = Icon(paused ? Symbols.play_arrow : Symbols.pause, size: 18, fill: 1);
     // Paused is a held state: the button stays one tone lighter until released.
     final style = paused ? FilledButton.styleFrom(backgroundColor: scheme.surfaceContainerHighest) : null;
     void onPressed() => unawaited(togglePause(context, session));
@@ -281,13 +282,13 @@ class _StopButton extends StatelessWidget {
       return IconButton.filledTonal(
         key: const ValueKey('stop'),
         tooltip: context.t.chat.stop,
-        icon: const Icon(Icons.stop, size: 18),
+        icon: const Icon(Symbols.stop, size: 18, fill: 1),
         onPressed: onPressed,
       );
     }
     return FilledButton.tonalIcon(
       key: const ValueKey('stop'),
-      icon: const Icon(Icons.stop, size: 18),
+      icon: const Icon(Symbols.stop, size: 18, fill: 1),
       label: Text(context.t.chat.stop),
       onPressed: onPressed,
     );
@@ -323,26 +324,26 @@ class _SessionMenu extends StatelessWidget {
           if (commands.goal)
             MenuItemButton(
               key: const ValueKey('start-goal'),
-              leadingIcon: const Icon(Icons.flag_outlined),
+              leadingIcon: const Icon(Symbols.flag),
               onPressed: () => start('goal'),
               child: Text(t.chat.setGoal),
             ),
           if (commands.guidedGoal)
             MenuItemButton(
               key: const ValueKey('start-guided-goal'),
-              leadingIcon: const Icon(Icons.forum_outlined),
+              leadingIcon: const Icon(Symbols.forum),
               onPressed: () => start('guided-goal'),
               child: Text(t.chat.guidedGoal),
             ),
           if (commands.loop)
             MenuItemButton(
               key: const ValueKey('start-loop'),
-              leadingIcon: const Icon(Icons.repeat),
+              leadingIcon: const Icon(Symbols.repeat),
               onPressed: () => start('loop'),
               child: Text(t.chat.startLoop),
             ),
           MenuItemButton(
-            leadingIcon: const Icon(Icons.copy),
+            leadingIcon: const Icon(Symbols.content_copy),
             onPressed: session.sessionPath == null
                 ? null
                 : () => unawaited(Clipboard.setData(ClipboardData(text: session.sessionPath!))),
@@ -350,7 +351,7 @@ class _SessionMenu extends StatelessWidget {
           ),
           MenuItemButton(
             key: const ValueKey('pin-session'),
-            leadingIcon: const Icon(Icons.push_pin_outlined),
+            leadingIcon: const Icon(Symbols.push_pin),
             onPressed: machine == null || commands.sessionId == null || session.sessionPath == null
                 ? null
                 : () => _togglePin(context, machine, session),
@@ -360,12 +361,12 @@ class _SessionMenu extends StatelessWidget {
             }),
           ),
           MenuItemButton(
-            leadingIcon: const Icon(Icons.logout),
+            leadingIcon: const Icon(Symbols.logout),
             onPressed: () => unawaited(context.read<SessionsProvider>().detach(session)),
             child: Text(t.chat.detach),
           ),
           MenuItemButton(
-            leadingIcon: const Icon(Icons.power_settings_new),
+            leadingIcon: const Icon(Symbols.power_settings_new),
             // A reader of another process's file has no omp of ours to stop, also once that process is gone.
             onPressed: session is ExternalSession ? null : () => unawaited(_stop(context, session)),
             child: Text(t.chat.stopSession),
@@ -374,7 +375,7 @@ class _SessionMenu extends StatelessWidget {
         builder: (context, controller, _) => IconButton(
           key: const ValueKey('session-menu'),
           tooltip: t.chat.more,
-          icon: const Icon(Icons.more_vert),
+          icon: const Icon(Symbols.more_vert),
           onPressed: () => controller.isOpen ? controller.close() : controller.open(),
         ),
       ),

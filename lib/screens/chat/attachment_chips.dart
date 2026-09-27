@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
@@ -119,7 +120,7 @@ class _FileChipState extends State<_FileChip> {
     final attachment = widget.attachment;
     return _Chip(
       tooltip: attachment.path ?? attachment.name,
-      icon: _folder ? Icons.folder_outlined : Icons.insert_drive_file_outlined,
+      icon: _folder ? Symbols.folder : Symbols.draft,
       label: attachment.name,
       detail: _folder ? null : formatBytes(attachment.size),
       onRemove: widget.onRemove,
@@ -143,7 +144,7 @@ class _TextChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Chip(
-      icon: Icons.notes,
+      icon: Symbols.notes,
       label: context.t.composer.pastedText(n: attachment.lineCount),
       onTap: () => unawaited(_preview(context)),
       onRemove: onRemove,
@@ -233,7 +234,7 @@ class _RemoveButton extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       iconSize: 14,
       tooltip: context.t.composer.remove,
-      icon: const Icon(Icons.close),
+      icon: const Icon(Symbols.close),
       onPressed: onPressed,
     );
   }

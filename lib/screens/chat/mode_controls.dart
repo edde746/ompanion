@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/companion.dart' show CompanionException;
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
@@ -185,14 +186,14 @@ class _GoalControlState extends State<GoalControl> {
         if (paused && offersVerb(session, 'goal.resume'))
           MenuItemButton(
             key: const ValueKey('goal-resume'),
-            leadingIcon: const Icon(Icons.play_arrow, size: 18),
+            leadingIcon: const Icon(Symbols.play_arrow, size: 18, fill: 1),
             onPressed: () => unawaited(_goalCall('goal.resume', const {})),
             child: Text(t.resume),
           )
         else if (!paused && offersVerb(session, 'goal.pause'))
           MenuItemButton(
             key: const ValueKey('goal-pause'),
-            leadingIcon: const Icon(Icons.pause, size: 18),
+            leadingIcon: const Icon(Symbols.pause, size: 18, fill: 1),
             onPressed: () => unawaited(_goalCall('goal.pause', const {})),
             child: Text(t.pause),
           ),
@@ -209,7 +210,7 @@ class _GoalControlState extends State<GoalControl> {
         if (offersVerb(session, 'goal.drop'))
           MenuItemButton(
             key: const ValueKey('goal-drop'),
-            leadingIcon: const Icon(Icons.close, size: 18),
+            leadingIcon: const Icon(Symbols.close, size: 18),
             onPressed: () => unawaited(_drop()),
             child: Text(t.drop),
           ),
@@ -217,10 +218,11 @@ class _GoalControlState extends State<GoalControl> {
       builder: (context, controller, _) => ToolbarButton(
         key: const ValueKey('goal-control'),
         icon: switch (goal.status) {
-          GoalStatus.paused => Icons.pause,
-          GoalStatus.budgetLimited => Icons.warning_amber_rounded,
-          _ => Icons.flag_outlined,
+          GoalStatus.paused => Symbols.pause,
+          GoalStatus.budgetLimited => Symbols.warning,
+          _ => Symbols.flag,
         },
+        iconFill: goal.status == GoalStatus.paused ? 1 : 0,
         color: _heldColor(context, goal.status != GoalStatus.active),
         label: t.label(usage: budget == null ? used : '$used/${formatTokens(budget)}'),
         tooltip: t.tooltip(status: status, usage: usage),
@@ -292,7 +294,7 @@ class _BudgetFieldState extends State<_BudgetField> {
                 hintText: t.budgetHint,
                 suffixIcon: IconButton(
                   tooltip: t.setBudget,
-                  icon: const Icon(Icons.check, size: 18),
+                  icon: const Icon(Symbols.check, size: 18),
                   onPressed: _submit,
                 ),
               ),
@@ -419,21 +421,22 @@ class _LoopControlState extends State<LoopControl> {
         if (phase == LoopPhase.running && offersVerb(session, 'loop.suspend'))
           MenuItemButton(
             key: const ValueKey('loop-suspend'),
-            leadingIcon: const Icon(Icons.pause, size: 18),
+            leadingIcon: const Icon(Symbols.pause, size: 18, fill: 1),
             onPressed: () => unawaited(_loopCall('loop.suspend')),
             child: Text(t.suspend),
           ),
         if (offersVerb(session, 'loop.disable'))
           MenuItemButton(
             key: const ValueKey('loop-disable'),
-            leadingIcon: const Icon(Icons.stop, size: 18),
+            leadingIcon: const Icon(Symbols.stop, size: 18, fill: 1),
             onPressed: () => unawaited(_loopCall('loop.disable')),
             child: Text(t.disable),
           ),
       ],
       builder: (context, controller, _) => ToolbarButton(
         key: const ValueKey('loop-control'),
-        icon: phase == LoopPhase.paused ? Icons.pause : Icons.repeat,
+        icon: phase == LoopPhase.paused ? Symbols.pause : Symbols.repeat,
+        iconFill: phase == LoopPhase.paused ? 1 : 0,
         color: _heldColor(context, phase == LoopPhase.paused),
         label: label,
         tooltip: [label, ?limit, ?condition].join('  ·  '),

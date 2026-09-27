@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
@@ -76,13 +77,13 @@ class _StatusStripState extends State<StatusStrip> {
           final live = link is! LinkClosed;
           final stopped = _showStopped(data.status);
           final chips = <Widget>[
-            if (live && data.paused && data.running) _StatusChip(icon: Icons.pause_circle_outline, text: t.chat.parked),
+            if (live && data.paused && data.running) _StatusChip(icon: Symbols.pause_circle, text: t.chat.parked),
             if (live)
               ...switch (data.status) {
-                RunCompacting() => [_StatusChip(icon: Icons.compress, text: t.chat.compacting, busy: true)],
+                RunCompacting() => [_StatusChip(icon: Symbols.compress, text: t.chat.compacting, busy: true)],
                 RunRetrying(:final attempt, :final maxAttempts, :final errorMessage) => [
                   _StatusChip(
-                    icon: Icons.replay,
+                    icon: Symbols.replay,
                     text: t.chat.retrying(attempt: attempt, max: maxAttempts, error: errorMessage),
                     color: colors.warning,
                     busy: true,
@@ -90,12 +91,12 @@ class _StatusStripState extends State<StatusStrip> {
                 ],
                 RunFailed(:final message) => [
                   _StatusChip(
-                    icon: Icons.error_outline,
+                    icon: Symbols.error,
                     text: t.chat.failed(error: message ?? t.chat.failedUnknown),
                     color: colors.error,
                   ),
                 ],
-                RunAborted() => [if (stopped) _StatusChip(icon: Icons.stop_circle_outlined, text: t.chat.aborted)],
+                RunAborted() => [if (stopped) _StatusChip(icon: Symbols.stop_circle, text: t.chat.aborted)],
                 RunStreaming() || RunIdle() => const <Widget>[],
               },
             for (final MapEntry(:key, :value) in data.statuses.entries)
@@ -211,7 +212,7 @@ class _WidgetPanelState extends State<_WidgetPanel> {
               padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
               child: Row(
                 children: [
-                  Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 18),
+                  Icon(_expanded ? Symbols.expand_less : Symbols.expand_more, size: 18),
                   const SizedBox(width: 6),
                   Expanded(child: Text(widget.name, style: theme.textTheme.labelMedium)),
                 ],
@@ -280,7 +281,7 @@ class _CommandOutputsState extends State<CommandOutputs> {
                     Expanded(child: Text(t.chat.commandOutput, style: theme.textTheme.labelMedium)),
                     IconButton(
                       tooltip: t.common.close,
-                      icon: const Icon(Icons.close, size: 18),
+                      icon: const Icon(Symbols.close, size: 18),
                       onPressed: () => setState(() => _dismissedThrough = shown.last.seq),
                     ),
                   ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
 
 import '../../app/theme.dart';
@@ -95,7 +96,7 @@ class _ModelPickerState extends State<_ModelPicker> {
                     if (typed.contains('/') && !matches.any((model) => '${model.provider}/${model.id}' == typed))
                       ListTile(
                         dense: true,
-                        leading: const Icon(Icons.edit_outlined),
+                        leading: const Icon(Symbols.edit),
                         title: Text(t.config.roles.useTyped(selector: typed)),
                         subtitle: Text(t.config.roles.useTypedHint),
                         onTap: () => _choose(typed),
@@ -104,10 +105,7 @@ class _ModelPickerState extends State<_ModelPicker> {
                       ListTile(
                         dense: true,
                         selected: '${model.provider}/${model.id}' == current,
-                        leading: Icon(
-                          model.reasoning ? Icons.psychology_alt_outlined : Icons.smart_toy_outlined,
-                          size: 20,
-                        ),
+                        leading: Icon(model.reasoning ? Symbols.psychology_alt : Symbols.smart_toy, size: 20),
                         title: Text(model.name),
                         subtitle: Text(
                           [

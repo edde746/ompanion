@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../app/theme.dart';
@@ -433,11 +434,11 @@ class _TodoRow extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final (icon, color) = switch (task.status) {
-      TodoStatus.pending => (Icons.radio_button_unchecked, scheme.onSurfaceVariant),
-      TodoStatus.inProgress => (Icons.play_circle_outline, scheme.onSurface),
-      TodoStatus.completed => (Icons.check_circle, AppColors.of(context).success),
-      TodoStatus.abandoned => (Icons.cancel_outlined, scheme.onSurfaceVariant),
-      TodoStatus.blocked => (Icons.block, AppColors.of(context).error),
+      TodoStatus.pending => (Symbols.radio_button_unchecked, scheme.onSurfaceVariant),
+      TodoStatus.inProgress => (Symbols.play_circle, scheme.onSurface),
+      TodoStatus.completed => (Symbols.check_circle, AppColors.of(context).success),
+      TodoStatus.abandoned => (Symbols.cancel, scheme.onSurfaceVariant),
+      TodoStatus.blocked => (Symbols.block, AppColors.of(context).error),
     };
     final crossed = task.status == TodoStatus.completed || task.status == TodoStatus.abandoned;
     return Padding(
@@ -447,7 +448,7 @@ class _TodoRow extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 1),
-            child: Icon(icon, size: 14, color: color),
+            child: Icon(icon, size: 14, color: color, fill: task.status == TodoStatus.completed ? 1 : 0),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -615,7 +616,7 @@ class _AgentRow extends StatelessWidget {
               padding: const EdgeInsets.only(top: 3),
               child: agent.status == SubagentStatus.running
                   ? const ActivityMark()
-                  : Icon(Icons.smart_toy_outlined, size: 14, color: color),
+                  : Icon(Symbols.smart_toy, size: 14, color: color),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -669,7 +670,7 @@ class _AgentRow extends StatelessWidget {
             if (agent.id.isNotEmpty)
               Tooltip(
                 message: t.openAgent,
-                child: Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
+                child: Icon(Symbols.chevron_right, size: 18, color: scheme.onSurfaceVariant),
               ),
           ],
         ),
@@ -788,9 +789,10 @@ class _QuestionView extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Icon(
-                      question.selected.contains(label) ? Icons.check_circle : Icons.circle_outlined,
+                      question.selected.contains(label) ? Symbols.check_circle : Symbols.circle,
                       size: 16,
                       color: question.selected.contains(label) ? scheme.onSurface : scheme.onSurfaceVariant,
+                      fill: question.selected.contains(label) ? 1 : 0,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -829,7 +831,7 @@ class _QuestionView extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.edit_note, size: 16, color: scheme.onSurface),
+                  Icon(Symbols.edit_note, size: 16, color: scheme.onSurface),
                   const SizedBox(width: 8),
                   Expanded(child: Text('“${question.custom}”', style: theme.textTheme.bodySmall)),
                 ],

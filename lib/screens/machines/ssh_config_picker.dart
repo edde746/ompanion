@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/ssh.dart';
 import 'package:provider/provider.dart';
 
@@ -67,7 +68,7 @@ class _SshConfigPickerState extends State<_SshConfigPicker> {
                     children: [
                       for (final alias in aliases)
                         ListTile(
-                          leading: const Icon(Icons.dns_outlined),
+                          leading: const Icon(Symbols.dns),
                           title: Text(alias),
                           trailing: _resolving == alias ? const ActivityMark(size: 16) : null,
                           onTap: _resolving == null ? () => _pick(alias) : null,

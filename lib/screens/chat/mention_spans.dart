@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../i18n/strings.g.dart';
 import '../../sessions/message_mentions.dart';
@@ -15,10 +16,10 @@ List<InlineSpan> mentionSpans(List<MessagePart> parts, {TextStyle? style, void F
         alignment: PlaceholderAlignment.middle,
         child: _Chip(
           icon: mention.folder
-              ? Icons.folder_outlined
+              ? Symbols.folder
               : mention.url && mention.name.startsWith('paste-')
-              ? Icons.notes
-              : Icons.insert_drive_file_outlined,
+              ? Symbols.notes
+              : Symbols.draft,
           label: mention.name,
           tooltip: mention.path,
           style: style,
@@ -35,7 +36,7 @@ InlineSpan modelChipSpan(String name, {TextStyle? style, String? agent}) => Widg
   alignment: PlaceholderAlignment.middle,
   child: Builder(
     builder: (context) => _Chip(
-      icon: Icons.auto_awesome_outlined,
+      icon: Symbols.auto_awesome,
       label: name,
       tooltip: agent == null ? null : context.t.chat.modelAgent(agent: agent),
       style: style,

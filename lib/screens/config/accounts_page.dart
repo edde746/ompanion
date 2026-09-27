@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 
@@ -310,7 +311,7 @@ class _ProviderTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 4),
-              Icon(open ? Icons.expand_less : Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+              Icon(open ? Symbols.expand_less : Symbols.expand_more, size: 18, color: scheme.onSurfaceVariant),
             ],
           ),
         ),
@@ -351,7 +352,7 @@ class _ProviderTile extends StatelessWidget {
                         FilledButton.icon(
                           key: ValueKey('sign-in-${row.id}'),
                           onPressed: onSignIn,
-                          icon: const Icon(Icons.login, size: 18),
+                          icon: const Icon(Symbols.login, size: 18),
                           label: Text(t.config.accounts.signIn),
                         ),
                         const SizedBox(width: 12),
@@ -427,7 +428,7 @@ class _OtherProviderTileState extends State<_OtherProviderTile> {
           child: Row(
             children: [
               Expanded(child: Text(t.config.accounts.other, style: theme.textTheme.bodyMedium)),
-              Icon(widget.open ? Icons.expand_less : Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+              Icon(widget.open ? Symbols.expand_less : Symbols.expand_more, size: 18, color: scheme.onSurfaceVariant),
             ],
           ),
         ),
@@ -502,7 +503,7 @@ class _CredentialRow extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            credential.oauth ? Icons.account_circle_outlined : Icons.vpn_key_outlined,
+            credential.oauth ? Symbols.account_circle : Symbols.vpn_key,
             size: 18,
             color: theme.colorScheme.onSurfaceVariant,
           ),

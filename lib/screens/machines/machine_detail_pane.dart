@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
@@ -106,8 +107,8 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
         Row(
           children: [
             Icon(switch (machine) {
-              LocalMachine() => Icons.computer,
-              SshMachine(:final tailscale) => tailscale ? Icons.lan_outlined : Icons.dns_outlined,
+              LocalMachine() => Symbols.computer,
+              SshMachine(:final tailscale) => tailscale ? Symbols.lan : Symbols.dns,
             }, size: 32),
             const SizedBox(width: 12),
             Expanded(child: Text(machine.name, style: theme.textTheme.headlineSmall)),
@@ -129,16 +130,16 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
           runSpacing: AppSizes.gap,
           children: [
             FilledButton.icon(
-              icon: const Icon(Icons.power_outlined),
+              icon: const Icon(Symbols.power),
               label: Text(t.machines.testConnection),
               onPressed: _test is _Running ? null : _testConnection,
             ),
             FilledButton.tonalIcon(
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(Symbols.edit),
               label: Text(t.common.edit),
               onPressed: () => showMachineEditor(context, machine: machine),
             ),
-            TextButton.icon(icon: const Icon(Icons.delete_outline), label: Text(t.common.delete), onPressed: _delete),
+            TextButton.icon(icon: const Icon(Symbols.delete), label: Text(t.common.delete), onPressed: _delete),
           ],
         ),
         _RunStatus(_test),
@@ -318,8 +319,12 @@ class _RunStatus extends StatelessWidget {
     final (Widget? icon, String? text, Color? color) = switch (state) {
       _Idle() => (null, null, null),
       _Running(:final message) => (const ActivityMark(size: 16), message, null),
-      _Succeeded(:final message) => (Icon(Icons.check_circle, color: colors.success, size: 20), message, null),
-      _Failed(:final message) => (Icon(Icons.error, color: colors.error, size: 20), message, colors.error),
+      _Succeeded(:final message) => (
+        Icon(Symbols.check_circle, color: colors.success, size: 20, fill: 1),
+        message,
+        null,
+      ),
+      _Failed(:final message) => (Icon(Symbols.error, color: colors.error, size: 20, fill: 1), message, colors.error),
     };
     if (icon == null || text == null) return const SizedBox.shrink();
     return Padding(
@@ -360,7 +365,7 @@ class _HopTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(Icons.subdirectory_arrow_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          Icon(Symbols.subdirectory_arrow_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -423,7 +428,7 @@ class _HostKeysState extends State<_HostKeys> {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
-                    Icon(Icons.verified_user_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+                    Icon(Symbols.verified_user, size: 18, color: theme.colorScheme.onSurfaceVariant),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -444,7 +449,7 @@ class _HostKeysState extends State<_HostKeys> {
                     ),
                     IconButton(
                       tooltip: t.machines.forgetHostKey,
-                      icon: const Icon(Icons.delete_outline, size: 20),
+                      icon: const Icon(Symbols.delete, size: 20),
                       onPressed: () => context.read<KnownHostsStore>().forget(row),
                     ),
                   ],

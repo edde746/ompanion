@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 import '../../database/app_database.dart';
@@ -49,12 +50,12 @@ class KeysPane extends StatelessWidget {
           runSpacing: 8,
           children: [
             FilledButton.icon(
-              icon: const Icon(Icons.file_download_outlined),
+              icon: const Icon(Symbols.download),
               label: Text(t.keys.import),
               onPressed: () => showImportKeyDialog(context),
             ),
             FilledButton.tonalIcon(
-              icon: const Icon(Icons.auto_awesome_outlined),
+              icon: const Icon(Symbols.auto_awesome),
               label: Text(t.keys.generate),
               onPressed: () => showGenerateKeyDialog(context),
             ),
@@ -66,7 +67,7 @@ class KeysPane extends StatelessWidget {
           Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
-              leading: const Icon(Icons.key_outlined),
+              leading: const Icon(Symbols.key),
               title: Text(key.name),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,12 +81,12 @@ class KeysPane extends StatelessWidget {
                 children: [
                   IconButton(
                     tooltip: t.keys.copyPublicKey,
-                    icon: const Icon(Icons.copy),
+                    icon: const Icon(Symbols.content_copy),
                     onPressed: () => copyPublicKey(context, key),
                   ),
                   IconButton(
                     tooltip: t.common.delete,
-                    icon: const Icon(Icons.delete_outline),
+                    icon: const Icon(Symbols.delete),
                     onPressed: () => _delete(context, key),
                   ),
                 ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
@@ -21,7 +22,7 @@ class TodosTab extends StatelessWidget {
       builder: (context, phases) {
         final t = context.t.dock.todo;
         if (phases.every((phase) => phase.tasks.isEmpty)) {
-          return DockEmptyState(icon: Icons.checklist, message: t.empty);
+          return DockEmptyState(icon: Symbols.checklist, message: t.empty);
         }
         return ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -79,11 +80,11 @@ class _TaskTile extends StatelessWidget {
     final colors = AppColors.of(context);
     final t = context.t.dock.todo;
     final (icon, color, label) = switch (task.status) {
-      TodoStatus.pending => (Icons.radio_button_unchecked, scheme.onSurfaceVariant, t.pending),
-      TodoStatus.inProgress => (Icons.timelapse, scheme.onSurface, t.inProgress),
-      TodoStatus.completed => (Icons.check_circle, colors.success, t.completed),
-      TodoStatus.abandoned => (Icons.cancel_outlined, scheme.onSurfaceVariant, t.abandoned),
-      TodoStatus.blocked => (Icons.block, colors.error, t.blocked),
+      TodoStatus.pending => (Symbols.radio_button_unchecked, scheme.onSurfaceVariant, t.pending),
+      TodoStatus.inProgress => (Symbols.timelapse, scheme.onSurface, t.inProgress),
+      TodoStatus.completed => (Symbols.check_circle, colors.success, t.completed),
+      TodoStatus.abandoned => (Symbols.cancel, scheme.onSurfaceVariant, t.abandoned),
+      TodoStatus.blocked => (Symbols.block, colors.error, t.blocked),
     };
     final finished = task.status == TodoStatus.completed || task.status == TodoStatus.abandoned;
     final details = [
@@ -100,7 +101,7 @@ class _TaskTile extends StatelessWidget {
             message: label,
             child: Padding(
               padding: const EdgeInsets.only(top: 1),
-              child: Icon(icon, size: 18, color: color),
+              child: Icon(icon, size: 18, color: color, fill: task.status == TodoStatus.completed ? 1 : 0),
             ),
           ),
           const SizedBox(width: 10),

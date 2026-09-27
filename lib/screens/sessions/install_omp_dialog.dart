@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
@@ -230,7 +231,7 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
                       alignment: AlignmentDirectional.centerStart,
                       child: TextButton.icon(
                         onPressed: () => setState(() => _showManual = !_showManual),
-                        icon: Icon(_showManual ? Icons.expand_more : Icons.chevron_right, size: 18),
+                        icon: Icon(_showManual ? Symbols.expand_more : Symbols.chevron_right, size: 18),
                         label: Text(t.install.manual),
                       ),
                     ),
@@ -255,7 +256,7 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
                             ),
                             IconButton(
                               tooltip: t.common.copy,
-                              icon: const Icon(Icons.copy, size: 18),
+                              icon: const Icon(Symbols.content_copy, size: 18),
                               onPressed: () => unawaited(Clipboard.setData(ClipboardData(text: _manualCommand(probe)))),
                             ),
                           ],

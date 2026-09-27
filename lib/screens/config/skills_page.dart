@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
 
 import '../../config/cli_results.dart';
@@ -181,7 +182,9 @@ class _SkillsPageState extends State<SkillsPage> {
         ConfigHeader(
           title: t.config.sections.skills,
           subtitle: t.config.skills.registry,
-          actions: [IconButton(tooltip: t.config.refresh, onPressed: _loadInstalled, icon: const Icon(Icons.refresh))],
+          actions: [
+            IconButton(tooltip: t.config.refresh, onPressed: _loadInstalled, icon: const Icon(Symbols.refresh)),
+          ],
         ),
         Expanded(
           child: ListView(

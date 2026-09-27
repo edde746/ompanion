@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/theme.dart';
@@ -90,7 +91,7 @@ class _AboutSectionState extends State<AboutSection> {
             ),
             _LinkRow(
               label: s.aboutClient,
-              trailing: Icons.open_in_new,
+              trailing: Symbols.open_in_new,
               onTap: () => unawaited(openExternalLink(context, _ompUrl)),
             ),
           ],
@@ -100,28 +101,28 @@ class _AboutSectionState extends State<AboutSection> {
           children: [
             _LinkRow(
               label: s.aboutPrivacy,
-              trailing: Icons.open_in_new,
+              trailing: Symbols.open_in_new,
               onTap: () => unawaited(openExternalLink(context, _privacyPolicyUrl)),
             ),
             _LinkRow(
               label: s.aboutSource,
-              trailing: Icons.open_in_new,
+              trailing: Symbols.open_in_new,
               onTap: () => unawaited(openExternalLink(context, _sourceUrl)),
             ),
             _LinkRow(
               label: s.aboutIssues,
-              trailing: Icons.open_in_new,
+              trailing: Symbols.open_in_new,
               onTap: () => unawaited(openExternalLink(context, _issuesUrl)),
             ),
             _LinkRow(
               label: s.aboutLicense,
               detail: s.aboutLicenseValue,
-              trailing: Icons.open_in_new,
+              trailing: Symbols.open_in_new,
               onTap: () => unawaited(openExternalLink(context, _licenseUrl)),
             ),
             _LinkRow(
               label: s.aboutLicenses,
-              trailing: Icons.chevron_right,
+              trailing: Symbols.chevron_right,
               onTap: () => showLicensePage(
                 context: context,
                 applicationName: t.app.title,

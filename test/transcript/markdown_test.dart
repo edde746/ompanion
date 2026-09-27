@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/screens/chat/transcript/code_block.dart';
 import 'package:ompanion/screens/chat/transcript/markdown.dart';
@@ -148,8 +149,8 @@ void main() {
 
     testWidgets('an item renders its inline markdown beside a box, without a bullet', (tester) async {
       await pumpMarkdown(tester, '- [x] **bold** task\n- [ ] open');
-      expect(find.byIcon(Icons.check_box), findsOneWidget);
-      expect(find.byIcon(Icons.check_box_outline_blank), findsOneWidget);
+      expect(find.byIcon(Symbols.check_box), findsOneWidget);
+      expect(find.byIcon(Symbols.check_box_outline_blank), findsOneWidget);
       expect(find.textContaining('bold task', findRichText: true), findsOneWidget);
     });
   });

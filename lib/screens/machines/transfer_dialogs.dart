@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
@@ -78,8 +79,8 @@ class _ExportDialogState extends State<_ExportDialog> {
       ),
       actions: [
         if (!empty) ...[
-          TextButton.icon(icon: const Icon(Icons.copy), label: Text(t.common.copy), onPressed: _copy),
-          TextButton.icon(icon: const Icon(Icons.save_alt), label: Text(t.transfer.saveFile), onPressed: _save),
+          TextButton.icon(icon: const Icon(Symbols.content_copy), label: Text(t.common.copy), onPressed: _copy),
+          TextButton.icon(icon: const Icon(Symbols.download), label: Text(t.transfer.saveFile), onPressed: _save),
         ],
         FilledButton(onPressed: () => Navigator.pop(context), child: Text(t.common.close)),
       ],
@@ -181,7 +182,7 @@ class _ImportDialogState extends State<_ImportDialog> {
               Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: TextButton.icon(
-                  icon: const Icon(Icons.folder_open_outlined),
+                  icon: const Icon(Symbols.folder_open),
                   label: Text(t.common.chooseFile),
                   onPressed: _busy ? null : _chooseFile,
                 ),
@@ -240,7 +241,7 @@ class _HostKeyChangeTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.gpp_maybe_outlined, size: 18, color: colors.error),
+              Icon(Symbols.gpp_maybe, size: 18, color: colors.error),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

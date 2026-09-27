@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
@@ -269,12 +270,12 @@ class _LinkBlock extends StatelessWidget {
           children: [
             FilledButton.icon(
               onPressed: web ? () => _openInBrowser(link.url) : null,
-              icon: const Icon(Icons.open_in_browser),
+              icon: const Icon(Symbols.open_in_browser),
               label: Text(t.config.accounts.openBrowser),
             ),
             FilledButton.tonalIcon(
               onPressed: () => Clipboard.setData(ClipboardData(text: copyTarget)),
-              icon: const Icon(Icons.copy),
+              icon: const Icon(Symbols.content_copy),
               label: Text(t.config.accounts.copyLink),
             ),
           ],

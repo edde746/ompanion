@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
@@ -203,16 +204,16 @@ class _UsagePaneState extends State<UsagePane> {
                 IconButton(
                   tooltip: t.usage.fetchAgain,
                   onPressed: () => _fetchAll(fresh: true),
-                  icon: const Icon(Icons.cloud_sync_outlined),
+                  icon: const Icon(Symbols.cloud_sync),
                 )
               else
                 TextButton.icon(
                   onPressed: () => _fetchAll(fresh: true),
-                  icon: const Icon(Icons.cloud_sync_outlined),
+                  icon: const Icon(Symbols.cloud_sync),
                   label: Text(t.usage.fetchAgain),
                 ),
               const SizedBox(width: AppSizes.gap),
-              IconButton(tooltip: t.config.refresh, onPressed: _fetchAll, icon: const Icon(Icons.refresh)),
+              IconButton(tooltip: t.config.refresh, onPressed: _fetchAll, icon: const Icon(Symbols.refresh)),
             ],
           ),
         ),
@@ -847,7 +848,7 @@ class _DisabledRow extends StatelessWidget {
     final disabledAt = credential.disabledAt;
     final cause = shortDisableCause(credential.cause);
     return _OtherRow(
-      icon: Icon(Icons.block, size: 14, color: colors.error),
+      icon: Icon(Symbols.block, size: 14, color: colors.error),
       label: [base ?? t.usage.oauthAccount, ?identityOrg(credential.identity, base)].join(' · '),
       text:
           '${disabledAt == null ? t.usage.disabled(cause: cause) : t.usage.disabledAgo(ago: formatUsageDuration(now.difference(disabledAt)), cause: cause)} '

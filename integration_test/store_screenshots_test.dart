@@ -30,6 +30,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:ompanion/app/app.dart';
 import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/models/dock_tab.dart';
@@ -221,7 +222,7 @@ void main() {
         try {
           await _pumpUntil(
             tester,
-            () => find.byIcon(Icons.difference_outlined).evaluate().isNotEmpty,
+            () => find.byIcon(Symbols.difference).evaluate().isNotEmpty,
             timeout: 60,
             what: 'the file editor',
           );
@@ -232,7 +233,7 @@ void main() {
       }
       await _pumpUntil(
         tester,
-        () => find.byIcon(Icons.difference_outlined).evaluate().isNotEmpty,
+        () => find.byIcon(Symbols.difference).evaluate().isNotEmpty,
         timeout: 120,
         what: 'the file editor',
       );
@@ -240,7 +241,7 @@ void main() {
       // flip, and a reload of the document resets the diff, so keep pressing until it stays on.
       for (var attempt = 0; attempt < 6; attempt++) {
         if (find.byTooltip('Show file').evaluate().isNotEmpty) break;
-        await _tap(tester, find.byIcon(Icons.difference_outlined).first);
+        await _tap(tester, find.byIcon(Symbols.difference).first);
         await tester.pump(const Duration(milliseconds: 900));
       }
       _log('files: diff on ${find.byTooltip('Show file').evaluate().isNotEmpty}');
@@ -325,14 +326,14 @@ void main() {
         await tester.runAsync(() => sessions.refresh(machine));
         final chevron = find.descendant(
           of: find.byKey(ValueKey('machine:${machine.id}')),
-          matching: find.byIcon(Icons.chevron_right),
+          matching: find.byIcon(Symbols.chevron_right),
         );
         if (chevron.evaluate().isNotEmpty) await _tap(tester, chevron.first);
       }
       // Project rows hide their sessions the same way, so open whatever is still collapsed.
       for (var attempt = 0; attempt < 6; attempt++) {
         if (find.textContaining('rate limiting').evaluate().isNotEmpty) break;
-        final chevron = find.byIcon(Icons.chevron_right);
+        final chevron = find.byIcon(Symbols.chevron_right);
         if (chevron.evaluate().isEmpty) break;
         await _tap(tester, chevron.first);
         await tester.pump(const Duration(milliseconds: 300));
@@ -469,7 +470,7 @@ Future<void> _newSession(WidgetTester tester, String machineId, String cwd) asyn
   } else {
     await _tap(
       tester,
-      find.descendant(of: find.byKey(ValueKey('machine:$machineId')), matching: find.byIcon(Icons.more_horiz)).first,
+      find.descendant(of: find.byKey(ValueKey('machine:$machineId')), matching: find.byIcon(Symbols.more_horiz)).first,
     );
     await _pumpUntil(
       tester,
@@ -661,9 +662,9 @@ Future<void> _back(WidgetTester tester) async {
   for (final finder in [
     find.byType(BackButton),
     find.byTooltip('Back'),
-    find.byIcon(Icons.arrow_back),
-    find.byIcon(Icons.arrow_back_ios),
-    find.byIcon(Icons.arrow_back_ios_new),
+    find.byIcon(Symbols.arrow_back),
+    find.byIcon(Symbols.arrow_back_ios),
+    find.byIcon(Symbols.arrow_back_ios_new),
     find.byTooltip('Close'),
   ]) {
     if (finder.evaluate().isEmpty) continue;

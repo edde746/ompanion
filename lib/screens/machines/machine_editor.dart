@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/build_channel.dart';
@@ -291,12 +292,12 @@ class _MachineEditorState extends State<MachineEditor> {
                     spacing: 4,
                     children: [
                       TextButton.icon(
-                        icon: const Icon(Icons.description_outlined),
+                        icon: const Icon(Symbols.description),
                         label: Text(t.editor.fromSshConfig),
                         onPressed: _fromSshConfig,
                       ),
                       TextButton.icon(
-                        icon: const Icon(Icons.lan_outlined),
+                        icon: const Icon(Symbols.lan),
                         label: Text(t.editor.fromTailscale),
                         onPressed: _fromTailscale,
                       ),
@@ -319,8 +320,8 @@ class _MachineEditorState extends State<MachineEditor> {
                       child: AppSegmented<MachineKind>(
                         value: _kind,
                         segments: [
-                          (MachineKind.local, t.machines.thisComputer, Icons.computer),
-                          (MachineKind.ssh, t.editor.kindSsh, Icons.dns_outlined),
+                          (MachineKind.local, t.machines.thisComputer, Symbols.computer),
+                          (MachineKind.ssh, t.editor.kindSsh, Symbols.dns),
                         ],
                         onChanged: (kind) => setState(() => _kind = kind),
                       ),
@@ -350,11 +351,10 @@ class _MachineEditorState extends State<MachineEditor> {
                     ),
                     if (_ignoredProxyCommand case final command?)
                       _Note(
-                        icon: Icons.warning_amber,
+                        icon: Symbols.warning,
                         text: t.editor.proxyCommandIgnored(command: command),
                       ),
-                    if (_hostKeys.isNotEmpty)
-                      _Note(icon: Icons.verified_user_outlined, text: t.editor.hostKeysPretrusted),
+                    if (_hostKeys.isNotEmpty) _Note(icon: Symbols.verified_user, text: t.editor.hostKeysPretrusted),
                     const SizedBox(height: 16),
                     Text(t.editor.jumpHosts, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 4),
@@ -377,21 +377,21 @@ class _MachineEditorState extends State<MachineEditor> {
                                   ),
                                   IconButton(
                                     tooltip: t.editor.moveUp,
-                                    icon: const Icon(Icons.arrow_upward),
+                                    icon: const Icon(Symbols.arrow_upward),
                                     onPressed: index == 0
                                         ? null
                                         : () => setState(() => _jumps.insert(index - 1, _jumps.removeAt(index))),
                                   ),
                                   IconButton(
                                     tooltip: t.editor.moveDown,
-                                    icon: const Icon(Icons.arrow_downward),
+                                    icon: const Icon(Symbols.arrow_downward),
                                     onPressed: index == _jumps.length - 1
                                         ? null
                                         : () => setState(() => _jumps.insert(index + 1, _jumps.removeAt(index))),
                                   ),
                                   IconButton(
                                     tooltip: t.editor.remove,
-                                    icon: const Icon(Icons.close),
+                                    icon: const Icon(Symbols.close),
                                     onPressed: () => setState(() => _disposeLater([_jumps.removeAt(index)])),
                                   ),
                                 ],
@@ -412,7 +412,7 @@ class _MachineEditorState extends State<MachineEditor> {
                     Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: TextButton.icon(
-                        icon: const Icon(Icons.add),
+                        icon: const Icon(Symbols.add),
                         label: Text(t.editor.addJumpHost),
                         onPressed: () => setState(() => _jumps.add(_HopFields.blank(newId(), _defaultAuth()))),
                       ),
@@ -511,7 +511,7 @@ class _HopEditor extends StatelessWidget {
             },
           ),
         ),
-        if (hop.auth == AuthMethod.agent) _Note(icon: Icons.info_outline, text: t.editor.agentHelp),
+        if (hop.auth == AuthMethod.agent) _Note(icon: Symbols.info, text: t.editor.agentHelp),
         if (hop.auth == AuthMethod.key) ...[
           const SizedBox(height: 12),
           if (keys.isEmpty)

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
@@ -288,7 +289,7 @@ class _CenterPane extends StatelessWidget {
     final machine = selectedMachine(context, selection);
     final toggle = IconButton(
       tooltip: sidebarOpen ? t.shell.hideSidebar : t.shell.showSidebar,
-      icon: Icon(sidebarOpen ? Icons.menu_open : Icons.menu),
+      icon: Icon(sidebarOpen ? Symbols.menu_open : Symbols.menu),
       onPressed: onToggleSidebar,
     );
     // Without the sidebar the traffic lights sit over this header; the button's glyph lines up after them as the
@@ -305,7 +306,7 @@ class _CenterPane extends StatelessWidget {
           );
     final panelsButton = IconButton(
       tooltip: panelsOpen ? t.shell.hidePanels : t.shell.showPanels,
-      icon: Icon(panelsOpen ? Icons.view_sidebar : Icons.view_sidebar_outlined),
+      icon: Icon(Symbols.view_sidebar, fill: panelsOpen ? 1 : 0),
       onPressed: onTogglePanels,
     );
     final session = shownSession(context);
@@ -344,12 +345,12 @@ class _CenterPane extends StatelessWidget {
                 ),
                 if (machine != null) ...[
                   TextButton.icon(
-                    icon: const Icon(Icons.add_comment_outlined),
+                    icon: const Icon(Symbols.add_comment),
                     label: Text(t.sessions.newSession),
                     onPressed: () => unawaited(showNewSessionDialog(context, machine)),
                   ),
                   TextButton.icon(
-                    icon: const Icon(Icons.tune),
+                    icon: const Icon(Symbols.tune),
                     label: Text(t.sessions.configure),
                     onPressed: () => unawaited(openMachineConfig(context, machine)),
                   ),
@@ -456,7 +457,7 @@ class _NarrowHomePage extends StatelessWidget {
           key: sidebarKey,
           trailing: IconButton(
             tooltip: context.t.shell.showPanels,
-            icon: const Icon(Icons.view_sidebar_outlined),
+            icon: const Icon(Symbols.view_sidebar),
             onPressed: () => context.read<ShellProvider>().setPanelsPageOpen(true),
           ),
         ),
@@ -489,7 +490,7 @@ class _NarrowChatPage extends StatelessWidget {
           ),
           trailing: IconButton(
             tooltip: t.shell.showPanels,
-            icon: const Icon(Icons.view_sidebar_outlined),
+            icon: const Icon(Symbols.view_sidebar),
             onPressed: () => context.read<ShellProvider>().setPanelsPageOpen(true),
           ),
         ),
@@ -564,14 +565,14 @@ class _HomePane extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.dns_outlined, size: 48, color: theme.colorScheme.onSurfaceVariant),
+            Icon(Symbols.dns, size: 48, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
             Text(t.shell.homeTitle, style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(t.shell.homeBody, textAlign: TextAlign.center),
             const SizedBox(height: 24),
             FilledButton.icon(
-              icon: const Icon(Icons.add),
+              icon: const Icon(Symbols.add),
               label: Text(t.sidebar.addMachine),
               onPressed: () => showMachineEditor(context),
             ),

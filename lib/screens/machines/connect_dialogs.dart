@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/ssh.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
@@ -133,7 +134,8 @@ class HostKeyDialog extends StatelessWidget {
     };
     final warning = verdict is! HostKeyUnknown;
     return AlertDialog(
-      icon: Icon(warning ? Icons.gpp_bad_outlined : Icons.verified_user_outlined),
+      // AlertDialog gives its icon a fresh icon theme, without the app's optical size.
+      icon: Icon(warning ? Symbols.gpp_bad : Symbols.verified_user, opticalSize: AppSizes.iconOpticalSize),
       iconColor: warning ? AppColors.of(context).error : null,
       title: Text(title),
       content: SingleChildScrollView(

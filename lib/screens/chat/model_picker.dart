@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
@@ -75,7 +76,7 @@ class _ModelPickerState extends State<ModelPicker> {
       ],
       builder: (context, controller, _) => ToolbarButton(
         key: const ValueKey('model-picker'),
-        icon: Icons.auto_awesome_outlined,
+        icon: Symbols.auto_awesome,
         label: model == null ? t.chat.noModel : (model.name ?? model.id),
         tooltip: model?.selector,
         onPressed: machine == null
@@ -115,6 +116,7 @@ class ToolbarButton extends StatelessWidget {
     this.tooltip,
     this.busy = false,
     this.color,
+    this.iconFill = 0,
   });
 
   final IconData icon;
@@ -128,6 +130,9 @@ class ToolbarButton extends StatelessWidget {
   /// Icon and label colour when they carry a state (docs/design.md rule 2); `onSurfaceVariant` otherwise.
   final Color? color;
 
+  /// Fill of [icon]: 1 for a solid glyph (docs/design.md, Icons).
+  final double iconFill;
+
   /// Width with the label shrunk away: the padding, the icon, the gaps and the chevron of [build].
   static const double minWidth = 8 + 16 + 6 + 2 + 16 + 4;
 
@@ -140,7 +145,7 @@ class ToolbarButton extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (busy) const ActivityMark() else Icon(icon, size: 16),
+          if (busy) const ActivityMark() else Icon(icon, size: 16, fill: iconFill),
           const SizedBox(width: 6),
           Flexible(
             // As wide as what it shows: a label cut with `…` keeps the chevron right after it.
@@ -152,7 +157,7 @@ class ToolbarButton extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 2),
-          const Icon(Icons.expand_more, size: 16),
+          const Icon(Symbols.expand_more, size: 16),
         ],
       ),
     );
@@ -235,7 +240,7 @@ class _ModelListState extends State<_ModelList> {
                 const SizedBox(width: AppSizes.gap),
                 IconButton(
                   tooltip: t.chat.refreshModels,
-                  icon: const Icon(Icons.refresh, size: 18),
+                  icon: const Icon(Symbols.refresh, size: 18),
                   // The field's height, so the search row is 36 px and the list's 8 px inset holds at the top too.
                   constraints: const BoxConstraints.tightFor(width: AppSizes.control, height: AppSizes.control),
                   onPressed: () => setState(() => _models = widget.load(refresh: true)),
@@ -289,7 +294,7 @@ class _ModelListState extends State<_ModelList> {
                                 if (model.reasoning) t.chat.reasoning,
                               ].join(' · '),
                             ),
-                            trailing: isCurrent(model) ? const Icon(Icons.check, size: 18) : null,
+                            trailing: isCurrent(model) ? const Icon(Symbols.check, size: 18) : null,
                             onTap: () => widget.onPick(model),
                           ),
                         ],

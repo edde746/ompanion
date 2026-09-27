@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 /// Monochrome, flat, dense. The contract is docs/design.md; tokens here mirror its tables.
 ThemeData appTheme(Brightness brightness) {
@@ -39,6 +40,18 @@ ThemeData appTheme(Brightness brightness) {
     canvasColor: scheme.surface,
     dividerColor: Colors.transparent,
     splashFactory: InkRipple.splashFactory,
+    // Material Symbols' optical size is 24 (the size its glyphs are drawn for) instead of the 48 Flutter falls back to.
+    iconTheme: IconThemeData(
+      color: dark ? kDefaultIconLightColor : kDefaultIconDarkColor,
+      opticalSize: AppSizes.iconOpticalSize,
+    ),
+    // BackButton's own glyph comes from Material Icons; this draws the same per-platform arrow from Material Symbols.
+    actionIconTheme: ActionIconThemeData(
+      backButtonIconBuilder: (context) => Icon(switch (Theme.of(context).platform) {
+        TargetPlatform.iOS || TargetPlatform.macOS => Symbols.arrow_back_ios_new,
+        _ => Symbols.arrow_back,
+      }),
+    ),
     appBarTheme: AppBarThemeData(
       backgroundColor: scheme.surface,
       foregroundColor: scheme.onSurface,
@@ -145,6 +158,8 @@ ThemeData appTheme(Brightness brightness) {
       disabledColor: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
       checkmarkColor: scheme.onSurface,
       deleteIconColor: scheme.onSurfaceVariant,
+      // A chip's delete icon gets a fresh icon theme from this one or the chip defaults, never the app's.
+      iconTheme: const IconThemeData(opticalSize: AppSizes.iconOpticalSize),
       labelStyle: TextStyle(color: scheme.onSurface),
       side: BorderSide.none,
       // Chips follow the global density; this padding brings their visual height to AppSizes.control.
@@ -256,8 +271,8 @@ ThemeData appTheme(Brightness brightness) {
       elevation: 0,
       indicatorColor: scheme.surfaceContainerHighest,
       indicatorShape: const StadiumBorder(),
-      selectedIconTheme: IconThemeData(color: scheme.onSurface),
-      unselectedIconTheme: IconThemeData(color: scheme.onSurfaceVariant),
+      selectedIconTheme: IconThemeData(color: scheme.onSurface, opticalSize: AppSizes.iconOpticalSize),
+      unselectedIconTheme: IconThemeData(color: scheme.onSurfaceVariant, opticalSize: AppSizes.iconOpticalSize),
       selectedLabelTextStyle: TextStyle(color: scheme.onSurface),
       unselectedLabelTextStyle: TextStyle(color: scheme.onSurfaceVariant),
     ),
@@ -373,6 +388,9 @@ abstract final class AppSizes {
   static const double cardRadius = 12;
   static const double sheetRadius = 16;
   static const double gap = 8;
+
+  /// Material Symbols optical size of every icon (docs/design.md, Icons).
+  static const double iconOpticalSize = 24;
 
   /// Dense list row on desktop.
   static const double rowHeight = 32;

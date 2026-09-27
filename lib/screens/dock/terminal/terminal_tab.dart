@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 import 'package:xterm2/xterm.dart';
@@ -117,25 +118,25 @@ class _TerminalTabState extends State<TerminalTab> {
                   IconButton(
                     tooltip: t.smaller,
                     onPressed: _dock.terminalFontSize <= DockController.minTerminalFontSize ? null : () => _zoom(-1),
-                    icon: const Icon(Icons.text_decrease, size: 20),
+                    icon: const Icon(Symbols.text_decrease, size: 20),
                   ),
                   IconButton(
                     tooltip: t.larger,
                     onPressed: _dock.terminalFontSize >= DockController.maxTerminalFontSize ? null : () => _zoom(1),
-                    icon: const Icon(Icons.text_increase, size: 20),
+                    icon: const Icon(Symbols.text_increase, size: 20),
                   ),
-                  IconButton(tooltip: t.newTerminal, onPressed: _open, icon: const Icon(Icons.add)),
+                  IconButton(tooltip: t.newTerminal, onPressed: _open, icon: const Icon(Symbols.add)),
                 ],
               ),
             ),
             Expanded(
               child: current == null
                   ? DockEmptyState(
-                      icon: Icons.terminal,
+                      icon: Symbols.terminal,
                       message: t.empty(machine: widget.machine.name),
                       action: FilledButton.tonalIcon(
                         onPressed: _open,
-                        icon: const Icon(Icons.add),
+                        icon: const Icon(Symbols.add),
                         label: Text(t.newTerminal),
                       ),
                     )
@@ -203,7 +204,7 @@ class _TerminalTabButton extends StatelessWidget {
                 iconSize: 16,
                 style: IconButton.styleFrom(minimumSize: const Size.square(28), fixedSize: const Size.square(28)),
                 color: foreground,
-                icon: const Icon(Icons.close),
+                icon: const Icon(Symbols.close),
               ),
               const SizedBox(width: 4),
             ],

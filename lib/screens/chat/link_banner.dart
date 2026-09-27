@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
@@ -65,7 +66,7 @@ class _ReconnectingState extends State<_Reconnecting> {
     final seconds = left.isNegative ? 0 : (left.inMilliseconds / 1000).ceil();
     final cause = state.cause;
     return _Banner(
-      icon: Icons.sync_problem,
+      icon: Symbols.sync_problem,
       color: AppColors.of(context).warning,
       text: t.chat.reconnecting(attempt: state.attempt, seconds: seconds),
       detail: cause == null ? null : describeConnectError(t, cause),
@@ -108,7 +109,7 @@ class _ClosedState extends State<_Closed> {
     final exitCode = state.exitCode;
     final idle = widget.session.view.idleExit;
     return _Banner(
-      icon: idle == null ? Icons.link_off : Icons.bedtime_outlined,
+      icon: idle == null ? Symbols.link_off : Symbols.bedtime,
       color: idle == null ? AppColors.of(context).error : Theme.of(context).colorScheme.onSurfaceVariant,
       text: idle != null
           ? t.chat.idleExited(duration: compactDuration(idle))

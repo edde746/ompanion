@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
@@ -746,7 +747,7 @@ class _ComposerState extends State<Composer> {
                                 ),
                                 IconButton(
                                   tooltip: t.composer.attach,
-                                  icon: const Icon(Icons.attach_file, size: 20),
+                                  icon: const Icon(Symbols.attach_file, size: 20),
                                   constraints: _toolbarIcon,
                                   color: theme.colorScheme.onSurfaceVariant,
                                   onPressed: closed && !reopens ? null : () => unawaited(_attachFiles()),
@@ -772,7 +773,7 @@ class _ComposerState extends State<Composer> {
                                   IconButton(
                                     key: const ValueKey('follow-up'),
                                     tooltip: t.composer.followUp,
-                                    icon: const Icon(Icons.schedule, size: 20),
+                                    icon: const Icon(Symbols.schedule, size: 20),
                                     constraints: _toolbarIcon,
                                     onPressed: canSend ? followUp : null,
                                   ),
@@ -780,7 +781,7 @@ class _ComposerState extends State<Composer> {
                                   IconButton.filled(
                                     key: const ValueKey('steer'),
                                     tooltip: t.composer.steer,
-                                    icon: const Icon(Icons.subdirectory_arrow_right, size: 20),
+                                    icon: const Icon(Symbols.subdirectory_arrow_right, size: 20),
                                     constraints: _toolbarIcon,
                                     onPressed: canSend ? steer : null,
                                   ),
@@ -800,7 +801,7 @@ class _ComposerState extends State<Composer> {
                                   IconButton.filled(
                                     key: const ValueKey('send'),
                                     tooltip: t.composer.send,
-                                    icon: const Icon(Icons.arrow_upward, size: 20),
+                                    icon: const Icon(Symbols.arrow_upward, size: 20),
                                     constraints: _toolbarIcon,
                                     onPressed: canSend ? steer : null,
                                   ),
@@ -981,7 +982,7 @@ class _ExternalComposer extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.terminal, size: 18, color: theme.colorScheme.onSurfaceVariant),
+              Icon(Symbols.terminal, size: 18, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(

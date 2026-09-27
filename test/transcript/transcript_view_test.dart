@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/screens/chat/transcript/message_rows.dart';
 import 'package:ompanion/screens/chat/transcript/transcript_view.dart';
@@ -214,7 +215,7 @@ void main() {
         if (last.transcript.isNotEmpty) expect(find.byType(TranscriptRowView), findsWidgets);
         // Open every folded turn, then every collapsed card and summary in it, so every body renders once.
         for (var round = 0; round < 4; round++) {
-          final closed = find.byIcon(Icons.expand_more);
+          final closed = find.byIcon(Symbols.expand_more);
           if (closed.evaluate().isEmpty) break;
           for (final element in closed.evaluate().toList()) {
             await tester.tap(find.byWidget(element.widget).first, warnIfMissed: false);

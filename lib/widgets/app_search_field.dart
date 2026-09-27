@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../app/theme.dart';
 
@@ -68,10 +69,10 @@ class _AppSearchFieldState extends State<AppSearchField> {
     decoration: InputDecoration(
       hintText: widget.hint,
       // The glyph's ink sits 12 px from the field's edge and 12 px from the text, the field's own text inset:
-      // Icons.search draws 2.25 px inside its 18 px box, and the decorator adds 4 px before the text.
+      // Symbols.search draws 2.25 px inside its 18 px box, and the decorator adds 4 px before the text.
       prefixIcon: const Padding(
         padding: EdgeInsetsDirectional.only(start: 10, end: 5),
-        child: Icon(Icons.search, size: 18),
+        child: Icon(Symbols.search, size: 18),
       ),
       prefixIconConstraints: const BoxConstraints(minHeight: AppSizes.control),
       suffixIcon: ValueListenableBuilder(
@@ -79,7 +80,7 @@ class _AppSearchFieldState extends State<AppSearchField> {
         builder: (context, value, _) => value.text.isEmpty
             ? const SizedBox.shrink()
             : IconButton(
-                icon: const Icon(Icons.close, size: 16),
+                icon: const Icon(Symbols.close, size: 16),
                 tooltip: MaterialLocalizations.of(context).clearButtonTooltip,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints.tightFor(width: 32, height: 32),

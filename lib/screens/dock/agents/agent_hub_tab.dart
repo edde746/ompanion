@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/companion.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
@@ -139,7 +140,7 @@ class _Roster extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t.dock.hub;
     final theme = Theme.of(context);
-    if (roster.isEmpty) return DockEmptyState(icon: Icons.hub_outlined, message: t.empty);
+    if (roster.isEmpty) return DockEmptyState(icon: Symbols.hub, message: t.empty);
     final rows = rosterRows(roster, tree: tree);
     final running = roster.where((agent) => agent.status == RosterStatus.running).length;
     return Column(
@@ -159,8 +160,8 @@ class _Roster extends StatelessWidget {
                 tooltip: tree ? t.showList : t.showTree,
                 isSelected: tree,
                 onPressed: onToggleTree,
-                icon: const Icon(Icons.format_list_bulleted),
-                selectedIcon: const Icon(Icons.account_tree_outlined),
+                icon: const Icon(Symbols.format_list_bulleted),
+                selectedIcon: const Icon(Symbols.account_tree),
               ),
             ],
           ),
@@ -297,12 +298,12 @@ class StatusIcon extends StatelessWidget {
     final t = context.t.dock.hub.status;
     final (Widget icon, String label) = switch (status) {
       RosterStatus.running => (ActivityMark(color: colors.running), t.running),
-      RosterStatus.pending => (Icon(Icons.schedule, size: 16, color: muted), t.pending),
-      RosterStatus.idle => (Icon(Icons.pause_circle_outline, size: 16, color: muted), t.idle),
-      RosterStatus.parked => (Icon(Icons.bedtime_outlined, size: 16, color: muted), t.parked),
-      RosterStatus.completed => (Icon(Icons.check_circle, size: 16, color: colors.success), t.completed),
-      RosterStatus.failed => (Icon(Icons.error, size: 16, color: colors.error), t.failed),
-      RosterStatus.aborted => (Icon(Icons.cancel, size: 16, color: muted), t.aborted),
+      RosterStatus.pending => (Icon(Symbols.schedule, size: 16, color: muted), t.pending),
+      RosterStatus.idle => (Icon(Symbols.pause_circle, size: 16, color: muted), t.idle),
+      RosterStatus.parked => (Icon(Symbols.bedtime, size: 16, color: muted), t.parked),
+      RosterStatus.completed => (Icon(Symbols.check_circle, size: 16, color: colors.success, fill: 1), t.completed),
+      RosterStatus.failed => (Icon(Symbols.error, size: 16, color: colors.error, fill: 1), t.failed),
+      RosterStatus.aborted => (Icon(Symbols.cancel, size: 16, color: muted, fill: 1), t.aborted),
     };
     return Tooltip(
       message: label,
@@ -426,7 +427,7 @@ class _AgentDetailState extends State<_AgentDetail> {
           padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
           child: Row(
             children: [
-              IconButton(tooltip: t.back, onPressed: widget.onBack, icon: const Icon(Icons.arrow_back)),
+              IconButton(tooltip: t.back, onPressed: widget.onBack, icon: const Icon(Symbols.arrow_back)),
               StatusIcon(status: agent.status),
               const SizedBox(width: 8),
               Expanded(
@@ -435,6 +436,7 @@ class _AgentDetailState extends State<_AgentDetail> {
               Text(_statusLabel(context, agent.status), style: theme.textTheme.labelMedium),
               PopupMenuButton<String>(
                 tooltip: t.actions,
+                icon: const Icon(Symbols.more_vert),
                 enabled: !_busy,
                 itemBuilder: (context) => [
                   if (withCompanion && agent.canRevive) PopupMenuItem(value: 'revive', child: Text(t.revive)),
@@ -489,7 +491,7 @@ class _AgentDetailState extends State<_AgentDetail> {
               if (!transcript.loaded) return const Center(child: ActivityMark(size: 20));
               if (transcript.view.transcript.isEmpty) {
                 return DockEmptyState(
-                  icon: transcript.error == null ? Icons.forum_outlined : Icons.error_outline,
+                  icon: transcript.error == null ? Symbols.forum : Symbols.error,
                   message: transcript.error == null
                       ? t.noTranscript
                       : t.transcriptFailed(error: transcript.error.toString()),
@@ -568,7 +570,7 @@ class _AgentDetailState extends State<_AgentDetail> {
                 IconButton.filled(
                   tooltip: t.steer,
                   onPressed: _busy ? null : _sendSteer,
-                  icon: const Icon(Icons.arrow_upward, size: 20),
+                  icon: const Icon(Symbols.arrow_upward, size: 20),
                 ),
               ],
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
@@ -124,9 +125,9 @@ String dockTabLabel(Translations t, DockTab tab) => switch (tab) {
 };
 
 IconData dockTabIcon(DockTab tab) => switch (tab) {
-  DockTab.agents => Icons.hub_outlined,
-  DockTab.todos => Icons.checklist,
-  DockTab.tree => Icons.account_tree_outlined,
-  DockTab.files => Icons.folder_outlined,
-  DockTab.terminal => Icons.terminal,
+  DockTab.agents => Symbols.hub,
+  DockTab.todos => Symbols.checklist,
+  DockTab.tree => Symbols.account_tree,
+  DockTab.files => Symbols.folder,
+  DockTab.terminal => Symbols.terminal,
 };

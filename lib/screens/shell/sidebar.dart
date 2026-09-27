@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
@@ -254,19 +255,19 @@ class SidebarState extends State<Sidebar> {
           ),
           const SizedBox(height: 4),
           _NavTile(
-            icon: Icons.key_outlined,
+            icon: Symbols.key,
             label: t.sidebar.keys,
             selected: selection is KeysSelection,
             onTap: () => context.read<ShellProvider>().select(const KeysSelection()),
           ),
           _NavTile(
-            icon: Icons.speed_outlined,
+            icon: Symbols.speed,
             label: t.sidebar.usage,
             selected: selection is UsageSelection,
             onTap: () => context.read<ShellProvider>().select(const UsageSelection()),
           ),
           _NavTile(
-            icon: Icons.settings_outlined,
+            icon: Symbols.settings,
             label: t.sidebar.settings,
             selected: selection is SettingsSelection,
             onTap: () => context.read<ShellProvider>().select(const SettingsSelection()),
@@ -304,7 +305,7 @@ class SidebarState extends State<Sidebar> {
             ] else ...[
               // Empty, so it moves the window like the rest of the row.
               const Spacer(),
-              IconButton(tooltip: t.sidebar.search, icon: const Icon(Icons.search), onPressed: focusSearch),
+              IconButton(tooltip: t.sidebar.search, icon: const Icon(Symbols.search), onPressed: focusSearch),
               const _SidebarActions(),
             ],
             ?trailing,
@@ -339,26 +340,26 @@ class SidebarState extends State<Sidebar> {
       NoticeRowData(:final machine, :final notice) => switch (notice) {
         // The machine row's dot and tooltip carry the status; these say what to do about it.
         SidebarNotice.needsOmp => NoticeRow(
-          icon: Icons.download_outlined,
+          icon: Symbols.download,
           text: t.sessions.needsOmp(reason: (machine.status as MachineNeedsOmp).reason),
           action: t.sessions.install,
           onAction: () => unawaited(showInstallOmpDialog(context, machine.machine)),
         ),
         SidebarNotice.failed => NoticeRow(
-          icon: Icons.error_outline,
+          icon: Symbols.error,
           text: describeConnectError(t, (machine.status as MachineFailed).cause),
           action: t.common.retry,
           onAction: () => unawaited(sessions.refresh(machine.machine)),
           error: true,
         ),
         SidebarNotice.offline => NoticeRow(
-          icon: Icons.power_outlined,
+          icon: Symbols.power,
           text: t.sessions.offline,
           action: t.sessions.connect,
           onAction: () => unawaited(sessions.refresh(machine.machine)),
         ),
         SidebarNotice.listFailed => NoticeRow(
-          icon: Icons.error_outline,
+          icon: Symbols.error,
           text: t.sessions.listFailed(error: describeConnectError(t, machine.listing.error!)),
           action: t.common.retry,
           onAction: () => unawaited(sessions.refresh(machine.machine)),
@@ -432,25 +433,25 @@ class _SidebarActions extends StatelessWidget {
       children: [
         IconButton(
           tooltip: t.sidebar.addMachine,
-          icon: const Icon(Icons.add),
+          icon: const Icon(Symbols.add),
           onPressed: () => showMachineEditor(context),
         ),
         MenuAnchor(
           menuChildren: [
             MenuItemButton(
-              leadingIcon: const Icon(Icons.file_download_outlined),
+              leadingIcon: const Icon(Symbols.download),
               onPressed: () => showImportMachinesDialog(context),
               child: Text(t.sidebar.importMachines),
             ),
             MenuItemButton(
-              leadingIcon: const Icon(Icons.file_upload_outlined),
+              leadingIcon: const Icon(Symbols.upload),
               onPressed: () => showExportMachinesDialog(context),
               child: Text(t.sidebar.exportMachines),
             ),
           ],
           builder: (context, controller, _) => IconButton(
             tooltip: t.sidebar.more,
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(Symbols.more_vert),
             onPressed: () => controller.isOpen ? controller.close() : controller.open(),
           ),
         ),

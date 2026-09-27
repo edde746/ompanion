@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/companion.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
@@ -302,8 +303,8 @@ class _SettingsPageState extends State<SettingsPage> {
       child: AppSegmented<SettingsScope>(
         value: _scope,
         segments: [
-          (SettingsScope.global, t.config.scope.global, Icons.public),
-          (SettingsScope.project, t.config.scope.project, Icons.folder_outlined),
+          (SettingsScope.global, t.config.scope.global, Symbols.public),
+          (SettingsScope.project, t.config.scope.project, Symbols.folder),
         ],
         disabled: {if (project == null) SettingsScope.project},
         onChanged: _setScope,
@@ -506,7 +507,7 @@ class _SettingTile extends StatelessWidget {
                     IconButton(
                       tooltip: t.config.settings.reset,
                       onPressed: onReset,
-                      icon: const Icon(Icons.restart_alt, size: 18),
+                      icon: const Icon(Symbols.restart_alt, size: 18),
                     ),
                   ],
                 ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/widgets/app_search_field.dart';
 
@@ -42,13 +43,13 @@ void main() {
 
   testWidgets('clear empties the query at once', (tester) async {
     final queries = await pump(tester);
-    expect(find.byIcon(Icons.close), findsNothing);
+    expect(find.byIcon(Symbols.close), findsNothing);
     await tester.enterText(find.byType(TextField), 'x');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byIcon(Symbols.close));
     await tester.pump();
     expect(queries, ['']);
-    expect(find.byIcon(Icons.close), findsNothing);
+    expect(find.byIcon(Symbols.close), findsNothing);
     await tester.pump(const Duration(seconds: 1));
     expect(queries, ['']);
   });

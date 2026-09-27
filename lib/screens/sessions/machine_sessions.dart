@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
@@ -155,8 +156,8 @@ class _MachineHeaderState extends State<MachineHeader> {
     final machine = widget.machine;
     final status = widget.status;
     final icon = switch (machine) {
-      LocalMachine() => Icons.computer,
-      SshMachine(:final tailscale) => tailscale ? Icons.lan_outlined : Icons.dns_outlined,
+      LocalMachine() => Symbols.computer,
+      SshMachine(:final tailscale) => tailscale ? Symbols.lan : Symbols.dns,
     };
     final busy = widget.loading || status is MachineConnecting;
     final touch = sidebarTouch(context);
@@ -172,7 +173,7 @@ class _MachineHeaderState extends State<MachineHeader> {
             child: SizedBox.square(
               dimension: _RowButton.size,
               child: Icon(
-                widget.expanded ? Icons.expand_more : Icons.chevron_right,
+                widget.expanded ? Symbols.expand_more : Symbols.chevron_right,
                 size: 16,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -204,14 +205,14 @@ class _MachineHeaderState extends State<MachineHeader> {
           if ((hovered || _menuOpen) && !touch)
             _RowButton(
               key: ValueKey('new-session-${machine.id}'),
-              icon: Icons.add,
+              icon: Symbols.add,
               tooltip: t.sessions.newSession,
               onPressed: () => unawaited(showNewSessionDialog(context, machine)),
             ),
           if (hovered || _menuOpen)
             _RowButton(
               key: ValueKey('machine-page-${machine.id}'),
-              icon: Icons.settings_outlined,
+              icon: Symbols.settings,
               tooltip: t.sessions.machinePage,
               onPressed: widget.onOpen,
             ),
@@ -221,29 +222,29 @@ class _MachineHeaderState extends State<MachineHeader> {
               onClose: () => setState(() => _menuOpen = false),
               menuChildren: [
                 MenuItemButton(
-                  leadingIcon: const Icon(Icons.add),
+                  leadingIcon: const Icon(Symbols.add),
                   onPressed: () => unawaited(showNewSessionDialog(context, machine)),
                   child: Text(t.sessions.newSession),
                 ),
                 MenuItemButton(
-                  leadingIcon: const Icon(Icons.refresh),
+                  leadingIcon: const Icon(Symbols.refresh),
                   onPressed: busy ? null : () => unawaited(sessions.refresh(machine)),
                   child: Text(t.sessions.refresh),
                 ),
                 MenuItemButton(
-                  leadingIcon: const Icon(Icons.tune),
+                  leadingIcon: const Icon(Symbols.tune),
                   onPressed: () => unawaited(openMachineConfig(context, machine)),
                   child: Text(t.sessions.configure),
                 ),
                 if (status is MachineNeedsOmp)
                   MenuItemButton(
-                    leadingIcon: const Icon(Icons.download_outlined),
+                    leadingIcon: const Icon(Symbols.download),
                     onPressed: () => unawaited(showInstallOmpDialog(context, machine)),
                     child: Text(t.sessions.install),
                   ),
               ],
               builder: (context, controller, _) => _RowButton(
-                icon: Icons.more_horiz,
+                icon: Symbols.more_horiz,
                 tooltip: t.sidebar.more,
                 onPressed: () => controller.isOpen ? controller.close() : controller.open(),
               ),
@@ -334,7 +335,7 @@ class PinnedHeader extends StatelessWidget {
       indent: 2 + _RowButton.size + 2,
       builder: (context, _) => Row(
         children: [
-          Icon(Icons.push_pin_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          Icon(Symbols.push_pin, size: 18, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -389,11 +390,11 @@ class ProjectRow extends StatelessWidget {
       builder: (context, hovered) => Row(
         children: [
           _RowButton(
-            icon: collapsed ? Icons.chevron_right : Icons.expand_more,
+            icon: collapsed ? Symbols.chevron_right : Symbols.expand_more,
             tooltip: collapsed ? t.sessions.expand : t.sessions.collapse,
             onPressed: onToggle,
           ),
-          Icon(Icons.folder_outlined, size: _iconSize, color: theme.colorScheme.onSurfaceVariant),
+          Icon(Symbols.folder, size: _iconSize, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: _sessionIndent - _projectIndent - _iconSize),
           Expanded(
             child: Tooltip(
@@ -403,7 +404,7 @@ class ProjectRow extends StatelessWidget {
           ),
           if (collapsed) _ProjectMark(entries: entries),
           if (hovered && newSession != null && cwd.isNotEmpty)
-            _RowButton(icon: Icons.add, tooltip: t.sessions.newSessionHere, onPressed: newSession),
+            _RowButton(icon: Symbols.add, tooltip: t.sessions.newSessionHere, onPressed: newSession),
         ],
       ),
     );
@@ -539,10 +540,13 @@ SessionStatus _liveStatus(SessionView view) {
     SessionStatus.none => null,
     SessionStatus.opening => (ActivityMark(size: _iconSize, color: colors.running), t.sessions.opening),
     SessionStatus.working => (ActivityMark(size: _iconSize, color: colors.running), t.sessions.working),
-    SessionStatus.needsInput => (Icon(Icons.help, size: _iconSize, color: colors.warning), t.sessions.needsInput),
-    SessionStatus.failed => (Icon(Icons.error, size: _iconSize, color: colors.error), t.sessions.failed),
+    SessionStatus.needsInput => (
+      Icon(Symbols.help, size: _iconSize, color: colors.warning, fill: 1),
+      t.sessions.needsInput,
+    ),
+    SessionStatus.failed => (Icon(Symbols.error, size: _iconSize, color: colors.error, fill: 1), t.sessions.failed),
     SessionStatus.disconnected => (
-      Icon(Icons.link_off, size: _iconSize, color: scheme.onSurfaceVariant),
+      Icon(Symbols.link_off, size: _iconSize, color: scheme.onSurfaceVariant),
       t.sessions.disconnected,
     ),
     SessionStatus.runningOnMachine => (_Dot(color: scheme.onSurfaceVariant), t.sessions.runningOnMachine),

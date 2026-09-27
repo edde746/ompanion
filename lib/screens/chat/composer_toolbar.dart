@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 
@@ -83,7 +84,7 @@ class _ThinkingPickerState extends State<ThinkingPicker> {
             key: ValueKey('thinking-$level'),
             leadingIcon: SizedBox.square(
               dimension: 18,
-              child: level == current ? Icon(Icons.check, size: 18, color: scheme.onSurface) : null,
+              child: level == current ? Icon(Symbols.check, size: 18, color: scheme.onSurface) : null,
             ),
             onPressed: () => level == current ? null : unawaited(_set(level)),
             child: Text(level),
@@ -91,7 +92,7 @@ class _ThinkingPickerState extends State<ThinkingPicker> {
       ],
       builder: (context, controller, _) => ToolbarButton(
         key: const ValueKey('thinking-picker'),
-        icon: Icons.psychology_outlined,
+        icon: Symbols.psychology,
         label: current,
         tooltip: t.chat.thinking(level: current),
         busy: _loading,

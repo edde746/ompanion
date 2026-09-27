@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
@@ -70,7 +71,7 @@ class _AttachmentDropTargetState extends State<AttachmentDropTarget> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.attach_file, size: 28, color: theme.colorScheme.onSurfaceVariant),
+                          Icon(Symbols.attach_file, size: 28, color: theme.colorScheme.onSurfaceVariant),
                           const SizedBox(height: AppSizes.gap),
                           Text(context.t.composer.dropToAttach, style: theme.textTheme.titleMedium),
                         ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../config/settings_schema.dart';
 import '../../config/settings_view.dart';
@@ -154,14 +155,14 @@ class _TextFieldState extends State<_TextField> {
         if (dirty)
           IconButton(
             tooltip: context.t.common.save,
-            icon: const Icon(Icons.check),
+            icon: const Icon(Symbols.check),
             onPressed: widget.enabled ? _submit : null,
           ),
         if (widget.presets.isNotEmpty)
           PopupMenuButton<SettingOption>(
             tooltip: context.t.config.settings.presets,
             enabled: widget.enabled,
-            icon: const Icon(Icons.expand_more),
+            icon: const Icon(Symbols.expand_more),
             onSelected: widget.onPreset,
             itemBuilder: (context) => [
               for (final option in widget.presets)
@@ -211,7 +212,7 @@ class _SecretField extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(display.configured ? Icons.lock : Icons.lock_open, size: 16),
+        Icon(display.configured ? Symbols.lock : Symbols.lock_open, size: 16),
         const SizedBox(width: 8),
         Text(display.configured ? t.config.settings.secretSet : t.config.settings.secretUnset),
         const SizedBox(width: 12),
@@ -322,7 +323,11 @@ class _MultiChoice extends StatelessWidget {
           // Values outside the vocabulary stay, so a hand-edited file is not silently rewritten.
           for (final value in values)
             if (!options.any((option) => option.value == value))
-              InputChip(label: Text(value), onDeleted: enabled ? () => onChanged([...values]..remove(value)) : null),
+              InputChip(
+                label: Text(value),
+                deleteIcon: const Icon(Symbols.close),
+                onDeleted: enabled ? () => onChanged([...values]..remove(value)) : null,
+              ),
         ],
       );
     }
@@ -339,13 +344,14 @@ class _MultiChoice extends StatelessWidget {
           InputChip(
             avatar: CircleAvatar(child: Text('${index + 1}')),
             label: Text(_label(value)),
+            deleteIcon: const Icon(Symbols.close),
             onDeleted: enabled ? () => onChanged([...values]..removeAt(index)) : null,
           ),
         if (rest.isNotEmpty)
           PopupMenuButton<String>(
             enabled: enabled,
             tooltip: context.t.config.settings.addItem,
-            icon: const Icon(Icons.add),
+            icon: const Icon(Symbols.add),
             onSelected: (value) => onChanged([...values, value]),
             itemBuilder: (context) => [
               for (final option in rest) PopupMenuItem(value: option.value, child: Text(option.label)),
@@ -399,6 +405,7 @@ class _StringListState extends State<_StringList> {
                 for (final (index, value) in widget.values.indexed)
                   InputChip(
                     label: Text(value),
+                    deleteIcon: const Icon(Symbols.close),
                     onDeleted: widget.enabled ? () => widget.onChanged([...widget.values]..removeAt(index)) : null,
                   ),
               ],
@@ -409,7 +416,7 @@ class _StringListState extends State<_StringList> {
           enabled: widget.enabled,
           decoration: InputDecoration(
             hintText: context.t.config.settings.addItem,
-            suffixIcon: IconButton(icon: const Icon(Icons.add), onPressed: widget.enabled ? _add : null),
+            suffixIcon: IconButton(icon: const Icon(Symbols.add), onPressed: widget.enabled ? _add : null),
           ),
           onSubmitted: (_) => _add(),
         ),

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
@@ -160,7 +161,7 @@ class _Navigation extends StatelessWidget {
         IconButton(
           key: const ValueKey('request-previous'),
           tooltip: t.requests.previous,
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(Symbols.chevron_left),
           onPressed: onPrevious,
         ),
         Text(
@@ -170,7 +171,7 @@ class _Navigation extends StatelessWidget {
         IconButton(
           key: const ValueKey('request-next'),
           tooltip: t.requests.next,
-          icon: const Icon(Icons.chevron_right),
+          icon: const Icon(Symbols.chevron_right),
           onPressed: onNext,
         ),
       ],
@@ -378,7 +379,7 @@ class _RequestContentState extends State<RequestContent> {
         [
           TextButton(onPressed: () => widget.session.dismissRequest(request.id), child: Text(t.common.close)),
           FilledButton.icon(
-            icon: const Icon(Icons.open_in_new, size: 18),
+            icon: const Icon(Symbols.open_in_new, size: 18),
             label: Text(t.requests.openInBrowser),
             onPressed: switch (Uri.tryParse(request.url)) {
               final uri? when isWebLink(uri) => () => unawaited(openWebLink(uri)),
@@ -509,7 +510,7 @@ class _OpenUrlBody extends StatelessWidget {
             Expanded(child: SelectableText(request.url, maxLines: 3, style: codeTextStyle(theme))),
             IconButton(
               tooltip: t.common.copy,
-              icon: const Icon(Icons.copy, size: 18),
+              icon: const Icon(Symbols.content_copy, size: 18),
               onPressed: () => unawaited(Clipboard.setData(ClipboardData(text: request.url))),
             ),
           ],

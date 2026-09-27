@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../../i18n/strings.g.dart';
 import 'code_style.dart';
@@ -90,7 +91,7 @@ class SummaryFiles extends StatelessWidget {
                 child: Row(
                   children: [
                     Icon(
-                      file.operation == SummaryFileOperation.read ? Icons.description_outlined : Icons.edit_note,
+                      file.operation == SummaryFileOperation.read ? Symbols.description : Symbols.edit_note,
                       size: 16,
                       color: scheme.onSurfaceVariant,
                     ),

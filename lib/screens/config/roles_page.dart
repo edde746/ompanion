@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/companion.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
@@ -135,7 +136,7 @@ class _RolesPageState extends State<RolesPage> {
             TextButton.icon(
               onPressed: () =>
                   runReporting(context, () => _models(refresh: true), done: t.config.roles.modelsRefreshed),
-              icon: const Icon(Icons.sync),
+              icon: const Icon(Symbols.sync),
               label: Text(t.config.roles.refreshModels),
             ),
             RefreshAction(loading: _loading, onPressed: _load),
@@ -210,7 +211,7 @@ class _RoleCard extends StatelessWidget {
           tooltip: t.config.roles.clear,
           color: theme.colorScheme.onSurface,
           onPressed: available && !busy && value != null ? () => onClear(project) : null,
-          icon: const Icon(Icons.clear, size: 18),
+          icon: const Icon(Symbols.close, size: 18),
         ),
       ],
     );

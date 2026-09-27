@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/app/window_chrome.dart';
 import 'package:ompanion/database/app_database.dart';
@@ -315,17 +316,17 @@ void main() {
     Finder projectMark(Finder mark) => find.descendant(of: _projectRow(_lib), matching: mark);
     // Expanded, the session's own row carries the mark.
     expect(find.text('Pick a license'), findsOneWidget);
-    expect(projectMark(find.byIcon(Icons.help)), findsNothing);
+    expect(projectMark(find.byIcon(Symbols.help)), findsNothing);
 
     await _toggle(tester, _lib, collapse: true);
     expect(find.text('Pick a license'), findsNothing);
-    expect(projectMark(find.byIcon(Icons.help)), findsOneWidget);
+    expect(projectMark(find.byIcon(Symbols.help)), findsOneWidget);
     expect(projectMark(find.byTooltip(t.sessions.needsInput)), findsOneWidget);
 
     // Answered elsewhere while the run goes on.
     _waiting.emit(SessionView(run: const RunState(running: true)));
     await tester.pump();
-    expect(projectMark(find.byIcon(Icons.help)), findsNothing);
+    expect(projectMark(find.byIcon(Symbols.help)), findsNothing);
     expect(projectMark(find.byTooltip(t.sessions.working)), findsOneWidget);
 
     _waiting.emit(SessionView());

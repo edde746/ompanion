@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 /// Choice from a list: a flat filled button showing the current label and a chevron, opening a flat menu
 /// that marks the current value with a leading check.
@@ -31,7 +32,7 @@ class AppSelect<T> extends StatelessWidget {
           MenuItemButton(
             leadingIcon: SizedBox.square(
               dimension: 18,
-              child: optionValue == value ? Icon(Icons.check, size: 18, color: scheme.onSurface) : null,
+              child: optionValue == value ? Icon(Symbols.check, size: 18, color: scheme.onSurface) : null,
             ),
             onPressed: () => onChanged(optionValue),
             child: Text(optionLabel),
@@ -52,7 +53,7 @@ class AppSelect<T> extends StatelessWidget {
                 child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               const SizedBox(width: 4),
-              Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+              Icon(Symbols.expand_more, size: 18, color: scheme.onSurfaceVariant),
             ],
           ),
         );

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/host.dart';
 import 'package:re_editor/re_editor.dart';
 
@@ -183,7 +184,7 @@ class _FileEditorViewState extends State<FileEditorView> {
                 IconButton(
                   tooltip: t.backToFiles,
                   onPressed: workspace.showBrowser,
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const Icon(Symbols.arrow_back),
                 ),
                 Expanded(
                   child: Tooltip(
@@ -210,17 +211,18 @@ class _FileEditorViewState extends State<FileEditorView> {
                     tooltip: _showDiff ? t.showFile : t.showDiff,
                     isSelected: _showDiff,
                     onPressed: _toggleDiff,
-                    icon: const Icon(Icons.difference_outlined),
-                    selectedIcon: const Icon(Icons.difference),
+                    icon: const Icon(Symbols.difference),
+                    selectedIcon: const Icon(Symbols.difference, fill: 1),
                   ),
                 if (!document.readOnly)
                   IconButton(
                     tooltip: t.save,
                     onPressed: document.dirty && !document.saving ? _save : null,
-                    icon: document.saving ? const ActivityMark(size: 18) : const Icon(Icons.save_outlined),
+                    icon: document.saving ? const ActivityMark(size: 18) : const Icon(Symbols.save),
                   ),
                 PopupMenuButton<_EditorAction>(
                   tooltip: t.more,
+                  icon: const Icon(Symbols.more_vert),
                   onSelected: (action) async {
                     switch (action) {
                       case _EditorAction.find:
@@ -390,7 +392,7 @@ class _FindPanel extends StatelessWidget implements PreferredSizeWidget {
                 IconButton(
                   tooltip: t.replace,
                   onPressed: controller.toggleMode,
-                  icon: Icon(value.replaceMode ? Icons.expand_more : Icons.chevron_right, size: 18),
+                  icon: Icon(value.replaceMode ? Symbols.expand_more : Symbols.chevron_right, size: 18),
                 )
               else
                 const SizedBox(width: 4),
@@ -409,22 +411,22 @@ class _FindPanel extends StatelessWidget implements PreferredSizeWidget {
                 tooltip: t.caseSensitive,
                 isSelected: value.option.caseSensitive,
                 onPressed: controller.toggleCaseSensitive,
-                icon: const Icon(Icons.format_size, size: 18),
+                icon: const Icon(Symbols.format_size, size: 18),
               ),
               IconButton(
                 tooltip: t.previousMatch,
                 onPressed: controller.previousMatch,
-                icon: const Icon(Icons.keyboard_arrow_up, size: 18),
+                icon: const Icon(Symbols.keyboard_arrow_up, size: 18),
               ),
               IconButton(
                 tooltip: t.nextMatch,
                 onPressed: controller.nextMatch,
-                icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                icon: const Icon(Symbols.keyboard_arrow_down, size: 18),
               ),
               IconButton(
                 tooltip: context.t.common.close,
                 onPressed: controller.close,
-                icon: const Icon(Icons.close, size: 18),
+                icon: const Icon(Symbols.close, size: 18),
               ),
             ]),
             if (value.replaceMode && !readOnly)

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/store.dart';
 
@@ -119,7 +120,7 @@ class TranscriptImage extends StatelessWidget {
               gaplessPlayback: true,
               errorBuilder: (context, error, stack) => ColoredBox(
                 color: AppColors.of(context).errorSurface,
-                child: Center(child: Icon(Icons.broken_image_outlined, color: AppColors.of(context).error)),
+                child: Center(child: Icon(Symbols.broken_image, color: AppColors.of(context).error)),
               ),
             ),
           ),
@@ -149,7 +150,7 @@ class ZoomedImage extends StatelessWidget {
             child: IconButton.filledTonal(
               tooltip: context.t.common.close,
               onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close),
+              icon: const Icon(Symbols.close),
             ),
           ),
         ],
@@ -206,7 +207,7 @@ class FittedImage extends StatelessWidget {
                   cacheWidth: known && size.width > 1600 ? 1600 : null,
                   errorBuilder: (context, error, stack) => ColoredBox(
                     color: AppColors.of(context).errorSurface,
-                    child: Center(child: Icon(Icons.broken_image_outlined, color: AppColors.of(context).error)),
+                    child: Center(child: Icon(Symbols.broken_image, color: AppColors.of(context).error)),
                   ),
                 ),
               ),
@@ -238,7 +239,7 @@ class _MachineImageState extends State<MachineImage> {
   Object? _error;
   var _loadingOriginal = false;
 
-  // Read once: TranscriptScope does not notify, and the screen passes new actions on every build.
+  // Read once: this lookup adds no dependency, and the screen passes new actions on every build.
   late final _images = context.getInheritedWidgetOfExactType<TranscriptScope>()?.actions.images;
 
   @override
@@ -299,9 +300,9 @@ class _MachineImageState extends State<MachineImage> {
       ),
       HostImageProblem(:final issue, :final size, :final canLoadOriginal) => _ImageNotice(
         icon: switch (issue) {
-          HostImageIssue.denied => Icons.lock_outline,
-          HostImageIssue.tooLarge => Icons.photo_size_select_large_outlined,
-          _ => Icons.broken_image_outlined,
+          HostImageIssue.denied => Symbols.lock,
+          HostImageIssue.tooLarge => Symbols.photo_size_select_large,
+          _ => Symbols.broken_image,
         },
         text: switch (issue) {
           HostImageIssue.missing => t.imageMissing(path: path),
@@ -321,7 +322,7 @@ class _MachineImageState extends State<MachineImage> {
             : null,
       ),
       null when _error != null => _ImageNotice(
-        icon: Icons.error_outline,
+        icon: Symbols.error,
         text: t.imageFailed(path: path, error: '$_error'),
         action: TextButton(
           onPressed: () => setState(() {
@@ -332,7 +333,7 @@ class _MachineImageState extends State<MachineImage> {
         ),
       ),
       null => _ImageNotice(
-        icon: Icons.image_outlined,
+        icon: Symbols.image,
         text: t.imageLoading(name: _name(path)),
         action: const ActivityMark(size: 16),
       ),
@@ -356,7 +357,7 @@ class _MachineImageState extends State<MachineImage> {
         Text(facts.join(' · '), style: dim),
         TextButton.icon(
           onPressed: () => TranscriptScope.of(context).onOpenFile(widget.path),
-          icon: const Icon(Icons.folder_open_outlined, size: 16),
+          icon: const Icon(Symbols.folder_open, size: 16),
           label: Text(t.openInFiles),
         ),
       ],

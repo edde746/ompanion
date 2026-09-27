@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../app/theme.dart';
 import '../../config/settings_schema.dart';
@@ -116,7 +117,7 @@ class ConfigBanner extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 1),
-            child: Icon(error ? Icons.error_outline : Icons.info_outline, size: 16, color: foreground),
+            child: Icon(error ? Symbols.error : Symbols.info, size: 16, color: foreground),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -239,7 +240,7 @@ class CommandOutputView extends StatelessWidget {
           ),
           IconButton(
             tooltip: context.t.common.copy,
-            icon: const Icon(Icons.copy, size: 16),
+            icon: const Icon(Symbols.content_copy, size: 16),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints.tightFor(width: 28, height: 28),
             onPressed: () =>
@@ -311,7 +312,7 @@ class ConfigError extends StatelessWidget {
             const SizedBox(height: 12),
             FilledButton.tonalIcon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
+              icon: const Icon(Symbols.refresh, size: 18),
               label: Text(context.t.common.retry),
             ),
           ],
@@ -371,7 +372,7 @@ class RefreshAction extends StatelessWidget {
   Widget build(BuildContext context) => IconButton(
     tooltip: context.t.config.refresh,
     onPressed: loading ? null : onPressed,
-    icon: loading ? const ActivityMark(size: 16) : const Icon(Icons.refresh),
+    icon: loading ? const ActivityMark(size: 16) : const Icon(Symbols.refresh),
   );
 }
 

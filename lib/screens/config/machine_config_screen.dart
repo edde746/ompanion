@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
 
@@ -87,7 +88,11 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
         MachineOffline() when _connecting => plain(_progress(t.config.connecting)),
         MachineOffline() => plain(
           Center(
-            child: FilledButton.icon(onPressed: _connect, icon: const Icon(Icons.link), label: Text(t.config.connect)),
+            child: FilledButton.icon(
+              onPressed: _connect,
+              icon: const Icon(Symbols.link),
+              label: Text(t.config.connect),
+            ),
           ),
         ),
       },
@@ -104,13 +109,13 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
   Widget _sections(BuildContext context, Widget title) {
     final t = context.t;
     final labels = {
-      ConfigSection.settings: (t.config.sections.settings, Icons.tune),
-      ConfigSection.roles: (t.config.sections.roles, Icons.psychology_alt_outlined),
-      ConfigSection.accounts: (t.config.sections.accounts, Icons.key_outlined),
-      ConfigSection.mcp: (t.config.sections.mcp, Icons.hub_outlined),
-      ConfigSection.plugins: (t.config.sections.plugins, Icons.extension_outlined),
-      ConfigSection.skills: (t.config.sections.skills, Icons.school_outlined),
-      ConfigSection.stats: (t.config.sections.stats, Icons.bar_chart),
+      ConfigSection.settings: (t.config.sections.settings, Symbols.tune),
+      ConfigSection.roles: (t.config.sections.roles, Symbols.psychology_alt),
+      ConfigSection.accounts: (t.config.sections.accounts, Symbols.key),
+      ConfigSection.mcp: (t.config.sections.mcp, Symbols.hub),
+      ConfigSection.plugins: (t.config.sections.plugins, Symbols.extension),
+      ConfigSection.skills: (t.config.sections.skills, Symbols.school),
+      ConfigSection.stats: (t.config.sections.stats, Symbols.bar_chart),
     };
     final page = KeyedSubtree(
       key: ValueKey(_section),

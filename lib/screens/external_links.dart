@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../app/theme.dart';
 import '../i18n/strings.g.dart';
 import '../utils/app_logger.dart';
 import 'chat/transcript/code_style.dart';
@@ -47,7 +49,8 @@ class _ConfirmLinkDialog extends StatelessWidget {
     final t = context.t;
     final theme = Theme.of(context);
     return AlertDialog(
-      icon: const Icon(Icons.warning_amber_outlined),
+      // AlertDialog gives its icon a fresh icon theme, without the app's optical size.
+      icon: const Icon(Symbols.warning, opticalSize: AppSizes.iconOpticalSize),
       iconColor: theme.colorScheme.error,
       title: Text(t.links.confirmTitle),
       content: Column(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/widgets/app_select.dart';
 
@@ -25,7 +26,7 @@ void main() {
 
     await tester.tap(find.text('High'));
     await tester.pumpAndSettle();
-    final checked = find.ancestor(of: find.byIcon(Icons.check), matching: find.byType(MenuItemButton));
+    final checked = find.ancestor(of: find.byIcon(Symbols.check), matching: find.byType(MenuItemButton));
     expect(find.descendant(of: checked, matching: find.text('High')), findsOneWidget);
 
     await tester.tap(find.text('Low'));

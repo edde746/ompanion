@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/ssh.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
@@ -197,7 +198,7 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
                 Align(
                   alignment: AlignmentDirectional.centerStart,
                   child: TextButton.icon(
-                    icon: const Icon(Icons.folder_open_outlined),
+                    icon: const Icon(Symbols.folder_open),
                     label: Text(t.common.chooseFile),
                     onPressed: _busy ? null : _chooseFile,
                   ),
@@ -290,7 +291,7 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
         ),
         actions: [
           TextButton.icon(
-            icon: const Icon(Icons.copy),
+            icon: const Icon(Symbols.content_copy),
             label: Text(t.keys.copyPublicKey),
             onPressed: () => copyPublicKey(context, generated),
           ),

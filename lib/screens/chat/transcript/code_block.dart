@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
@@ -158,7 +159,7 @@ class _CodeBlockState extends State<CodeBlock> {
                     style: IconButton.styleFrom(backgroundColor: surface, foregroundColor: scheme.onSurfaceVariant),
                     tooltip: _copied ? context.t.common.copied : context.t.transcript.copyCode,
                     onPressed: _copy,
-                    icon: Icon(_copied ? Icons.check : Icons.copy_outlined),
+                    icon: Icon(_copied ? Symbols.check : Symbols.content_copy),
                   ),
                 ),
               ),

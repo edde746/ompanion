@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
@@ -78,7 +79,7 @@ class QueueList extends StatelessWidget {
         final editable = session.companionHello != null;
         Widget row(String mode, int index, String text) => _QueueRow(
           key: ValueKey('queued-$mode-$index'),
-          icon: mode == 'steering' ? Icons.subdirectory_arrow_right : Icons.schedule,
+          icon: mode == 'steering' ? Symbols.subdirectory_arrow_right : Symbols.schedule,
           kind: mode == 'steering' ? t.queue.steer : t.queue.followUp,
           text: text,
           onEdit: editable ? () => unawaited(_take(context, mode: mode, index: index, edit: true)) : null,
@@ -153,8 +154,8 @@ class _QueueRow extends StatelessWidget {
                     style: theme.textTheme.bodyMedium,
                   ),
                 ),
-                _RowButton(tooltip: t.queue.edit, icon: Icons.edit_outlined, onPressed: onEdit),
-                _RowButton(tooltip: t.queue.remove, icon: Icons.close, onPressed: onRemove),
+                _RowButton(tooltip: t.queue.edit, icon: Symbols.edit, onPressed: onEdit),
+                _RowButton(tooltip: t.queue.remove, icon: Symbols.close, onPressed: onRemove),
               ],
             ),
           ),

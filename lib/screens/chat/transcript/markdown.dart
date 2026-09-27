@@ -7,6 +7,7 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 // gpt_markdown's own line tests, so blocks are cut where its parser starts them.
 import 'package:gpt_markdown/plusparse/scanner.dart'
     show checkboxMarker, indentWidth, isBlank, isHeading, isHr, orderedMarker, radioMarker, unorderedMarker;
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
@@ -478,9 +479,10 @@ Widget _task(BuildContext context, TextStyle style, bool checked, Widget label) 
         Padding(
           padding: EdgeInsets.only(top: math.max(0, (line - 16) / 2)),
           child: Icon(
-            checked ? Icons.check_box : Icons.check_box_outline_blank,
+            checked ? Symbols.check_box : Symbols.check_box_outline_blank,
             size: 16,
             color: checked ? scheme.onSurface : scheme.onSurfaceVariant,
+            fill: checked ? 1 : 0,
           ),
         ),
         const SizedBox(width: 8),
@@ -623,7 +625,7 @@ class _RemoteImageState extends State<_RemoteImage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.image_outlined, size: 18, color: scheme.onSurfaceVariant),
+            Icon(Symbols.image, size: 18, color: scheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Flexible(
               child: Column(

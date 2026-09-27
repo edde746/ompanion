@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/screens/sessions/machine_sessions.dart';
 import 'package:ompanion/widgets/activity_mark.dart';
@@ -31,13 +32,13 @@ void main() {
     ('idle', SessionStatus.none, false, null, null),
     ('unread', SessionStatus.none, true, null, t.sessions.unread),
     ('running', SessionStatus.working, false, find.byType(ActivityMark), t.sessions.working),
-    ('needs input', SessionStatus.needsInput, false, find.byIcon(Icons.help), t.sessions.needsInput),
-    ('failed', SessionStatus.failed, false, find.byIcon(Icons.error), t.sessions.failed),
+    ('needs input', SessionStatus.needsInput, false, find.byIcon(Symbols.help), t.sessions.needsInput),
+    ('failed', SessionStatus.failed, false, find.byIcon(Symbols.error), t.sessions.failed),
     (
       'needs input and unread',
       SessionStatus.needsInput,
       true,
-      find.byIcon(Icons.help),
+      find.byIcon(Symbols.help),
       '${t.sessions.needsInput} · ${t.sessions.unread}',
     ),
     (

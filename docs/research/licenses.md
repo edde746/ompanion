@@ -2,7 +2,8 @@
 
 Every package the two lock files resolve — `pubspec.lock` (the app) and `packages/omp_core/pubspec.lock` — with the
 licence file in its `~/.pub-cache/hosted/pub.dev/<name>-<version>/` directory read and classified by its own text,
-not by package metadata. Recorded 2026-09-26, after the terminal moved from `xterm3` (AGPL-3.0) to `xterm2` (MIT).
+not by package metadata. Recorded 2026-09-26, after the terminal moved from `xterm3` (AGPL-3.0) to `xterm2` (MIT);
+`material_symbols_icons` classified on 2026-09-27, when it was added.
 
 **Result: no GPL or AGPL third-party code ships in any build, and no store build needs a licence review beyond the
 project's own GPLv3.** The one copyleft package, `dbus` (MPL-2.0), is reached only by desktop drag-and-drop and the
@@ -19,13 +20,13 @@ licence file of their own (they are the Flutter SDK and `packages/omp_core`).
 
 ## Result
 
-183 resolved packages, by what their licence file is:
+184 resolved packages, by what their licence file is:
 
 | Licence | Packages | Ships in |
 |---|---|---|
 | BSD (3-clause, mostly Flutter/Google packages) | 119 | every target |
 | MIT | 44 | every target |
-| Apache-2.0 | 8 | every target |
+| Apache-2.0 | 9 | every target |
 | MIT + BSD (`node_preamble` 2.0.2, dev-only) | 1 | test runs only |
 | Apache-2.0 + MIT + BSD (`sqlcipher_flutter_libs` 0.7.0+eol: wrapper MIT, OpenSSL Apache-2.0, SQLCipher Zetetic BSD) | 1 | every target |
 | MPL-2.0 (`dbus` 0.7.15) | 1 | desktop only, see below |
@@ -34,6 +35,9 @@ licence file of their own (they are the Flutter SDK and `packages/omp_core`).
 
 Notable packages: `xterm2` 5.2.0 and `flutter_pty2` 2.0.0 (MIT, the terminal), `dartssh2` 4.1.0 (MIT, SSH),
 `drift` 2.35.0, `slang`, `provider`, `re_editor`, `re_highlight`, `gpt_markdown` (MIT/BSD/Apache, all permissive).
+`material_symbols_icons` 4.2960.0 is Apache-2.0 for its code and for the Material Symbols fonts it bundles (its
+`LICENSE`: "Google (material symbols icon fonts) and Tim Maffett (part package code)"); the app's icons are drawn
+from its `MaterialSymbolsOutlined` font.
 
 `companion/` adds nothing: its `package.json` has only `devDependencies` (TypeScript and the `@oh-my-pi/*` type
 packages), and the bundle marks `@oh-my-pi/*` external, so no npm code is vendored into the app.

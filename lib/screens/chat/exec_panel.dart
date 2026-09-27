@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:provider/provider.dart';
@@ -97,9 +98,13 @@ class _ExecCard extends StatelessWidget {
                   ),
                 ),
                 if (run.running)
-                  IconButton(tooltip: t.exec.abort, icon: const Icon(Icons.stop, size: 18), onPressed: onAbort)
+                  IconButton(
+                    tooltip: t.exec.abort,
+                    icon: const Icon(Symbols.stop, size: 18, fill: 1),
+                    onPressed: onAbort,
+                  )
                 else
-                  IconButton(tooltip: t.common.close, icon: const Icon(Icons.close, size: 18), onPressed: onDismiss),
+                  IconButton(tooltip: t.common.close, icon: const Icon(Symbols.close, size: 18), onPressed: onDismiss),
               ],
             ),
             if (output.isNotEmpty)

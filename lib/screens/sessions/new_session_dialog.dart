@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
@@ -241,7 +242,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
                   hintText: t.sessions.directoryHint,
                   suffixIcon: IconButton(
                     tooltip: t.sessions.browse,
-                    icon: const Icon(Icons.folder_open),
+                    icon: const Icon(Symbols.folder_open),
                     onPressed: _probe == null ? null : () => unawaited(_browse()),
                   ),
                 ),
@@ -306,7 +307,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
                       tooltip: t.sessions.modelUseDefault,
                       color: theme.colorScheme.onSurface,
                       onPressed: () => setState(() => _model = null),
-                      icon: const Icon(Icons.clear, size: 18),
+                      icon: const Icon(Symbols.close, size: 18),
                     ),
                   ],
                 ],
@@ -369,7 +370,7 @@ class _RecentProject extends StatelessWidget {
         message: path,
         child: Row(
           children: [
-            Icon(Icons.folder_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+            Icon(Symbols.folder, size: 16, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Expanded(
               child: LayoutBuilder(
@@ -425,7 +426,7 @@ class _ModelField extends StatelessWidget {
         children: [
           Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
           const SizedBox(width: 4),
-          if (busy) const ActivityMark() else Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+          if (busy) const ActivityMark() else Icon(Symbols.expand_more, size: 18, color: scheme.onSurfaceVariant),
         ],
       ),
     );
@@ -554,15 +555,15 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
               children: [
                 IconButton(
                   tooltip: t.sessions.up,
-                  icon: const Icon(Icons.arrow_upward),
+                  icon: const Icon(Symbols.arrow_upward),
                   onPressed: parent == null ? null : () => unawaited(_list(parent)),
                 ),
                 Expanded(child: Text(path == null ? '' : hostPath(path), maxLines: 2, overflow: TextOverflow.ellipsis)),
                 IconButton(
                   tooltip: t.sessions.showHidden,
                   isSelected: _showHidden,
-                  icon: const Icon(Icons.visibility_off_outlined),
-                  selectedIcon: const Icon(Icons.visibility_outlined),
+                  icon: const Icon(Symbols.visibility_off),
+                  selectedIcon: const Icon(Symbols.visibility),
                   onPressed: () => setState(() => _showHidden = !_showHidden),
                 ),
               ],
@@ -578,7 +579,7 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
                         for (final name in shown)
                           ListTile(
                             dense: true,
-                            leading: const Icon(Icons.folder_outlined),
+                            leading: const Icon(Symbols.folder),
                             title: Text(name),
                             onTap: () => unawaited(_list(_join(path!, name))),
                           ),

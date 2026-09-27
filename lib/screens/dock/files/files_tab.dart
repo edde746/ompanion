@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/transport.dart';
@@ -220,24 +221,24 @@ class _Browser extends StatelessWidget {
               IconButton(
                 tooltip: t.up,
                 onPressed: isRootPath(root) ? null : () => workspace.openDir(parentPath(root)),
-                icon: const Icon(Icons.arrow_upward, size: 20),
+                icon: const Icon(Symbols.arrow_upward, size: 20),
               ),
-              IconButton(tooltip: t.refresh, onPressed: workspace.refresh, icon: const Icon(Icons.refresh, size: 20)),
+              IconButton(tooltip: t.refresh, onPressed: workspace.refresh, icon: const Icon(Symbols.refresh, size: 20)),
               IconButton(
                 tooltip: t.newFile,
                 onPressed: () => _create(context, root, folder: false),
-                icon: const Icon(Icons.note_add_outlined, size: 20),
+                icon: const Icon(Symbols.note_add, size: 20),
               ),
               IconButton(
                 tooltip: t.newFolder,
                 onPressed: () => _create(context, root, folder: true),
-                icon: const Icon(Icons.create_new_folder_outlined, size: 20),
+                icon: const Icon(Symbols.create_new_folder, size: 20),
               ),
               const Spacer(),
               if (documents.isNotEmpty)
                 TextButton.icon(
                   onPressed: () => workspace.show(documents.last),
-                  icon: const Icon(Icons.description_outlined, size: 18),
+                  icon: const Icon(Symbols.description, size: 18),
                   label: Text(t.openDocuments(n: documents.length)),
                 ),
             ],
@@ -311,7 +312,7 @@ class _Breadcrumbs extends StatelessWidget {
         reverse: true,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         itemCount: crumbs.length,
-        separatorBuilder: (_, _) => Icon(Icons.chevron_right, size: 16, color: theme.colorScheme.onSurfaceVariant),
+        separatorBuilder: (_, _) => Icon(Symbols.chevron_right, size: 16, color: theme.colorScheme.onSurfaceVariant),
         itemBuilder: (context, index) {
           // Reversed so the deepest directory stays in view.
           final crumb = crumbs[crumbs.length - 1 - index];
@@ -378,7 +379,7 @@ class _EntryTile extends StatelessWidget {
               width: 18,
               child: row.isDirectory
                   ? Icon(
-                      row.expanded ? Icons.expand_more : Icons.chevron_right,
+                      row.expanded ? Symbols.expand_more : Symbols.chevron_right,
                       size: 18,
                       color: scheme.onSurfaceVariant,
                     )
@@ -387,11 +388,11 @@ class _EntryTile extends StatelessWidget {
             if (row.isLink)
               Tooltip(
                 message: context.t.dock.fileBrowser.link,
-                child: Icon(Icons.link, size: 16, color: scheme.onSurfaceVariant),
+                child: Icon(Symbols.link, size: 16, color: scheme.onSurfaceVariant),
               )
             else
               Icon(
-                row.isDirectory ? (row.expanded ? Icons.folder_open : Icons.folder) : _fileIcon(name),
+                row.isDirectory ? (row.expanded ? Symbols.folder_open : Symbols.folder) : _fileIcon(name),
                 size: 16,
                 color: scheme.onSurfaceVariant,
               ),
@@ -412,7 +413,7 @@ class _EntryTile extends StatelessWidget {
                 child: Text(badge.$1, style: theme.textTheme.labelSmall?.copyWith(color: badge.$2)),
               )
             else if (dirty)
-              Icon(Icons.circle, size: 6, color: AppColors.of(context).warning)
+              Icon(Symbols.circle, size: 6, color: AppColors.of(context).warning, fill: 1)
             else if (!row.isDirectory && !row.isLink)
               Text(
                 formatBytes(row.entry.stat.size),
@@ -453,11 +454,11 @@ String _changeLabel(BuildContext context, GitChange change) {
 }
 
 IconData _fileIcon(String name) => switch (extensionOf(name)) {
-  'md' || 'txt' || 'rst' => Icons.article_outlined,
-  'png' || 'jpg' || 'jpeg' || 'gif' || 'webp' || 'svg' || 'ico' => Icons.image_outlined,
-  'json' || 'yaml' || 'yml' || 'toml' || 'ini' || 'lock' => Icons.data_object,
-  'zip' || 'gz' || 'tar' || 'tgz' || 'xz' || '7z' => Icons.archive_outlined,
-  _ => Icons.insert_drive_file_outlined,
+  'md' || 'txt' || 'rst' => Symbols.article,
+  'png' || 'jpg' || 'jpeg' || 'gif' || 'webp' || 'svg' || 'ico' => Symbols.image,
+  'json' || 'yaml' || 'yml' || 'toml' || 'ini' || 'lock' => Symbols.data_object,
+  'zip' || 'gz' || 'tar' || 'tgz' || 'xz' || '7z' => Symbols.archive,
+  _ => Symbols.draft,
 };
 
 class _StatusTile extends StatelessWidget {

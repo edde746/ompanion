@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
@@ -101,9 +102,10 @@ class _PeerTile extends StatelessWidget {
     return ListTile(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radius)),
       leading: Icon(
-        Icons.circle,
+        Symbols.circle,
         size: 10,
         color: peer.online ? AppColors.of(context).success : scheme.onSurfaceVariant,
+        fill: 1,
       ),
       title: Text(peer.hostName.isNotEmpty ? peer.hostName : peer.dialHost),
       subtitle: Text(details.join(' · ')),

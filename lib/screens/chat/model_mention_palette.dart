@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
 
 import '../../app/theme.dart';
@@ -140,7 +141,7 @@ class _ModelMentionPaletteState extends State<ModelMentionPalette> {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Row(
                           children: [
-                            Icon(Icons.auto_awesome_outlined, size: 16, color: muted),
+                            Icon(Symbols.auto_awesome, size: 16, color: muted),
                             const SizedBox(width: AppSizes.gap),
                             Flexible(
                               child: Text(

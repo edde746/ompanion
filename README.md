@@ -304,4 +304,5 @@ the scan of every resolved package.
 - SSH by [dartssh2](https://pub.dev/packages/dartssh2); terminal by [xterm2](https://pub.dev/packages/xterm2) (MIT) and [flutter_pty2](https://pub.dev/packages/flutter_pty2)
 - Markdown by [gpt_markdown](https://pub.dev/packages/gpt_markdown); code viewing, editing and highlighting by [re_editor](https://pub.dev/packages/re_editor) and [re_highlight](https://pub.dev/packages/re_highlight)
 - Storage by [drift](https://pub.dev/packages/drift) and [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage); translations by [slang](https://pub.dev/packages/slang); state by [provider](https://pub.dev/packages/provider); desktop windows by [window_manager](https://pub.dev/packages/window_manager)
-- Section icons from [Material Icons](https://github.com/google/material-design-icons) (Apache-2.0)
+- App icons from [Material Symbols](https://fonts.google.com/icons) through [material_symbols_icons](https://pub.dev/packages/material_symbols_icons) (Apache-2.0)
+- README section icons from [Material Icons](https://github.com/google/material-design-icons) (Apache-2.0)
