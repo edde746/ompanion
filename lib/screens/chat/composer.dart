@@ -31,7 +31,6 @@ import 'model_picker.dart';
 import 'queue_list.dart';
 import 'slash_palette.dart';
 import 'transcript/markdown.dart' show markdownLineHeight;
-import 'transcript/transcript_view.dart' show chatTextTheme;
 
 /// The toolbar's icon buttons: one control tall, as its pickers and text buttons are (docs/design.md rule 4).
 const _toolbarIcon = BoxConstraints.tightFor(width: AppSizes.control, height: AppSizes.control);
@@ -618,8 +617,9 @@ class _ComposerState extends State<Composer> {
                           key: const ValueKey('composer'),
                           controller: _draft.text,
                           focusNode: _focus,
-                          // The size and line height the message takes in its bubble once sent.
-                          style: chatTextTheme(context).textTheme.bodyMedium?.copyWith(height: markdownLineHeight),
+                          // The app's body size (14 px) everywhere: on tablets and desktop windows the transcript's
+                          // 15 px read too large in the input.
+                          style: theme.textTheme.bodyMedium?.copyWith(height: markdownLineHeight),
                           minLines: 1,
                           maxLines: 10,
                           keyboardType: TextInputType.multiline,

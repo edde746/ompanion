@@ -19,7 +19,7 @@ final _roomyThemes = Expando<ThemeData>();
 
 /// The theme the chat's text reads in: the app's on phones, and one step up where the screen's shorter side is at
 /// least 600 px (tablets, desktop windows): 15 px body text (code 13, table cells 14) and 13 px small text. The
-/// transcript uses it, and the composer, so a message reads there as it will in its bubble.
+/// composer keeps the app's 14 px.
 ThemeData chatTextTheme(BuildContext context) {
   final base = Theme.of(context);
   if (MediaQuery.sizeOf(context).shortestSide < 600) return base;
