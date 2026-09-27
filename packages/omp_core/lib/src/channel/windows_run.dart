@@ -5,6 +5,7 @@ import '../host/scripts.dart';
 import '../rpc/json_fields.dart';
 import '../transport/host_link.dart';
 import 'detached_run.dart';
+import 'replay.dart';
 import 'run_log.dart';
 import 'windows_channel.dart';
 
@@ -244,6 +245,7 @@ Future<RunChannel> attachWindowsRun(
   HostLink link,
   HostProbe probe,
   DetachedRun run, {
+  required ReplayTool replay,
   int? generation,
   int offset = 0,
   int? inboxOffset,
@@ -251,6 +253,7 @@ Future<RunChannel> attachWindowsRun(
   link,
   toSftpPath(run.dir),
   shell: probe.commandShell,
+  replay: replay,
   generation: generation,
   offset: offset,
   inboxOffset: inboxOffset,

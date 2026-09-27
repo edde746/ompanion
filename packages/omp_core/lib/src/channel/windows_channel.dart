@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import '../host/scripts.dart';
 import '../transport/host_link.dart';
 import 'detached_run.dart';
+import 'replay.dart';
 import 'run_log.dart';
 
 /// A [RunChannel] for Windows hosts: `out.jsonl` and `in.jsonl` are followed over SFTP by polling their size and
@@ -16,21 +17,23 @@ final class SftpRunChannel implements RunChannel {
   SftpRunChannel._(this._link, this._shell, this._files, this.dir, this._inboxFrom, this.poll);
 
   /// Attaches to the run in [dir] (SFTP path space) on a machine whose SSH exec parses commands with [shell]. See
-  /// `attachRun` for [generation], [offset], [inboxOffset]; [poll] is the interval between size checks while a file
-  /// is not growing.
+  /// `attachRun` for [generation], [offset], [inboxOffset] and [replay]; [window] is [attachWindow]; [poll] is the
+  /// interval between size checks while a file is not growing.
   static Future<SftpRunChannel> attach(
     HostLink link,
     String dir, {
     required CommandShell shell,
+    required ReplayTool replay,
     int? generation,
     int offset = 0,
     int? inboxOffset,
+    int window = attachWindow,
     Duration poll = const Duration(milliseconds: 200),
   }) async {
     final files = await link.files();
     try {
       final channel = SftpRunChannel._(link, shell, files, dir, inboxOffset, poll);
-      await channel._start(generation, offset);
+      await channel._start(generation, offset, replay, window);
       return channel;
     } on Object {
       await files.close();
@@ -75,8 +78,8 @@ final class SftpRunChannel implements RunChannel {
   int get inboxOffset => _inbox.offset;
 
   /// As on POSIX, the exit file is checked before the size, and a stored offset is used only within the same generation
-  /// and file size. Without one, the whole generation is read: SFTP has no host-side scan for a preamble.
-  Future<void> _start(int? generation, int offset) async {
+  /// and file size. Without one, a log over [window] bytes is compacted on the machine by [replayScript].
+  Future<void> _start(int? generation, int offset, ReplayTool replay, int window) async {
     final meta = parseRunMeta(utf8.decode(await _files.read('$dir/meta.json'), allowMalformed: true));
     if (meta == null) throw HostLinkException('no run in $dir');
     int? ended;
@@ -84,13 +87,44 @@ final class SftpRunChannel implements RunChannel {
       ended = int.tryParse(utf8.decode(await _files.read('$dir/exit')).trim());
     }
     final size = (await _files.stat('$dir/out.jsonl'))?.size ?? 0;
+    final resumes = generation == meta.generation && offset <= size;
+    var start = resumes ? offset : 0;
+    var preamble = Uint8List(0);
+    if (!resumes && size > window) {
+      final replayed = await _replay(replay, size, window);
+      final newline = replayed.indexOf(0x0A);
+      start = int.parse(ascii.decode(Uint8List.sublistView(replayed, 0, newline)));
+      preamble = Uint8List.sublistView(replayed, newline + 1);
+    }
     _output = RunOutput(
       generation: meta.generation,
-      offset: generation == meta.generation && offset <= size ? offset : 0,
+      offset: start,
+      preamble: preamble.length,
       endedWith: ended == null ? null : (code: ended, size: size),
       onEnd: () {},
     );
+    if (preamble.isNotEmpty) _output.add(preamble);
     _loops.add(_followOutput());
+  }
+
+  /// [replayScript]'s output for the first [size] bytes of `out.jsonl`. It goes through a file: Windows PowerShell
+  /// 5.1 re-encodes what a native program prints.
+  Future<Uint8List> _replay(ReplayTool replay, int size, int window) async {
+    final result = '$dir/replay.${newMarker()}.out';
+    final run = await runPowerShell(
+      _link,
+      _shell,
+      "\$env:BUN_BE_BUN = '1'\n"
+      '& ${psQuote(replay.omp)} ${psQuote(replay.script)} ${psQuote(hostPath('$dir/out.jsonl'))} $size $window '
+      '${psQuote(hostPath(result))}\n'
+      'exit \$LASTEXITCODE\n',
+    );
+    try {
+      if (run.exit.code != 0) throw run.failure('compacting $dir/out.jsonl failed');
+      return await _files.read(result);
+    } finally {
+      if (await _files.stat(result) != null) await _files.remove(result);
+    }
   }
 
   Future<void> _followOutput() async {

@@ -186,4 +186,5 @@ Limits:
 - RSS of an idle rpc process (cold start measured: 1.7 s to `ready` plus four introspection commands, local macOS).
 - Plan/goal mode APIs for extensions.
 - Rendering pi-tui components to ANSI lines from the companion.
-- `BUN_BE_BUN` behaviour on the omp binary.
+- `BUN_BE_BUN` behaviour on the omp binary: verified since. `BUN_BE_BUN=1 omp script.js` runs the script with omp's
+  Bun (1.4.2 in omp 18.3.1 on macOS and 18.3.2 on Windows), 74 ms to start; the attach replay uses it (PLAN.md §5).

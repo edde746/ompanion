@@ -83,8 +83,8 @@ void main() {
     expect((await runtime.connectAndProbe()).ompVersion, '18.3.1');
     expect(
       Directory('${home.path}/.ompanion/companion/18.3.1').listSync(),
-      hasLength(1),
-      reason: 'the companion was uploaded',
+      hasLength(2),
+      reason: 'the companion and the replay script were uploaded',
     );
   });
 

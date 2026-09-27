@@ -6,6 +6,7 @@ import '../host/scripts.dart';
 import '../rpc/json_fields.dart';
 import '../transport/host_link.dart';
 import 'detached_channel.dart';
+import 'replay.dart';
 import 'run_log.dart';
 import 'windows_run.dart';
 
@@ -178,20 +179,36 @@ Future<({DetachedRun run, bool launched})> openRun(HostLink link, HostProbe prob
 Future<List<DetachedRun>> listRuns(HostLink link, HostProbe probe) =>
     probe.isWindows ? listWindowsRuns(link, probe) : _listPosixRuns(link, runRoot(probe));
 
-/// Attaches to [run]. `out.jsonl` is read from [offset] when [generation] is still the run's generation. Otherwise a
-/// POSIX host sends its current generation's last `attachWindow` bytes from a frame boundary, after the lines before
-/// them that RPC cannot list again (`DetachedChannel`), and a Windows host the whole generation. `in.jsonl` is read
-/// from [inboxOffset], or from its current end when null.
+/// Attaches to [run]. `out.jsonl` is read from [offset] when [generation] is still the run's generation. Otherwise
+/// the current generation is read from its start, or, over [attachWindow] bytes, compacted on the machine by
+/// [replayScript] through [replay] and followed from the offset it names. `in.jsonl` is read from [inboxOffset], or
+/// from its current end when null.
 Future<RunChannel> attachRun(
   HostLink link,
   HostProbe probe,
   DetachedRun run, {
+  required ReplayTool replay,
   int? generation,
   int offset = 0,
   int? inboxOffset,
 }) => probe.isWindows
-    ? attachWindowsRun(link, probe, run, generation: generation, offset: offset, inboxOffset: inboxOffset)
-    : DetachedChannel.attach(link, run.dir, generation: generation, offset: offset, inboxOffset: inboxOffset);
+    ? attachWindowsRun(
+        link,
+        probe,
+        run,
+        replay: replay,
+        generation: generation,
+        offset: offset,
+        inboxOffset: inboxOffset,
+      )
+    : DetachedChannel.attach(
+        link,
+        run.dir,
+        replay: replay,
+        generation: generation,
+        offset: offset,
+        inboxOffset: inboxOffset,
+      );
 
 /// Stops [run] and waits up to [timeout] for omp to exit. A graceful stop closes omp's stdin, after which
 /// omp finishes accepted commands, disposes the session and exits 0; [force] sends SIGTERM (POSIX, exit

@@ -190,9 +190,11 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   the last 8 MiB it holds only what RPC cannot list again: `extension_ui_request` (dialogs, statuses, widgets),
   `command_output`, and the start of each tool call still running; a timed dialog whose tool calls all ended is left
   out. From the last 8 MiB it drops each `message_update`, `tool_execution_update` and `subagent_progress` that a later
-  frame of the same message, tool call or subagent supersedes. On a live 1.6 GB generation that is 58 lines, 647 KB,
-  ready on the host in 0.7–1.0 s (perl scans the 1.6 GB in 0.27 s, macOS's grep, the fallback, in 3.9 s); replayed
-  whole it took 62 s and 3.1 GB of app memory. Windows hosts still send the whole generation. `in.jsonl` is read from 0
+  frame of the same message, tool call or subagent supersedes. One JavaScript script compacts on every host
+  (`replayScript`): the app uploads it next to the companion and runs it with the probe's omp binary as Bun
+  (`BUN_BE_BUN=1`, 74 ms to start). A live 1.6 GB generation compacts to 58 lines, 647 KB, with the header on the
+  device 0.4–0.7 s after the attach starts on macOS; a 1 GB log on a Windows host in 0.9 s, PowerShell included.
+  Replayed whole, the 1.6 GB took 62 s and 3.1 GB of app memory. `in.jsonl` is read from 0
   (open dialogs and the answers that closed them). The device then seeds the view
   from `get_state`, the session history, `get_available_commands`, `get_subagents` and the companion's `hello`,
   `state.snapshot` and `agents.list`. The history is the session file `meta.json` names, read while omp
@@ -256,8 +258,10 @@ end against Win32-OpenSSH on `windows-latest` (`packages/omp_core/test/windows/`
 - Scripts run as `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand
   <base64 UTF-16LE>`, which works under a cmd, PowerShell or bash default shell. cmd caps a line at
   8191 characters, so larger scripts are uploaded over SFTP and run with `-File`.
-- Attach: SFTP stat and offset reads on `out.jsonl` and `in.jsonl`; `meta.json` updates go over SFTP under
-  the launch lock. `out.jsonl` is never rotated: cmd.exe's `>>` keeps its offset.
+- Attach: SFTP stat and offset reads on `out.jsonl` and `in.jsonl`; a first attach to a log over 8 MiB runs the replay
+  script through PowerShell into a file in the run directory, as PowerShell 5.1 re-encodes a native program's output,
+  and reads that over SFTP. `meta.json` updates go over SFTP under the launch lock. `out.jsonl` is never rotated:
+  cmd.exe's `>>` keeps its offset, so a Windows run's log grows until the run ends.
 - Send: one long-running PowerShell appender per channel opens `in.jsonl` per line for writing with `Read,
   Delete` sharing, so a second appender's open fails with a sharing violation and retries: the handle is the
   append lock. SFTP cannot append while omp runs: Win32-OpenSSH's sftp-server opens for writing with
@@ -427,6 +431,7 @@ a real tailnet is still open (§12).
 | R13 | FCM lowers high-priority messages for an Android install that receives them and shows nothing. | the machine sends only the kinds the phone asked for; the phone hides only the message for the session on its screen |
 | R14 | Firebase's Android SDK depends on proprietary Play services libraries. | the sole copyright holder ships it (R11); a Firebase-free build (F-Droid) would need a flavor without it |
 | R15 | Nothing pushes when omp crashes, after a run's idle exit, or for a session no ompanion run holds (a TUI session). | accepted: none of them has a companion to send |
+| R16 | A first attach to a log over 8 MiB runs the omp binary as Bun (`BUN_BE_BUN=1`); an omp release built without that switch would fail every such attach. | measured on omp 18.3.1 (macOS, the CI test) and 18.3.2 (Windows); the attach fails with the script's error rather than replaying the whole log |
 
 ## 12. Open questions
 

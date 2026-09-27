@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import '../channel/attached_channel.dart';
 import '../channel/detached_run.dart' hide listRuns;
 import '../channel/detached_run.dart' as runs show listRuns;
+import '../channel/replay.dart';
 import '../channel/run_log.dart';
 import '../host/companion.dart';
 import '../host/host_image.dart';
@@ -112,9 +113,14 @@ abstract interface class LocalForward {
   Future<void> close();
 }
 
-typedef _Connection = ({HostLink link, HostProbe probe, String? companion, String? problem});
+typedef _Connection = ({
+  HostLink link,
+  HostProbe probe,
+  ({String companion, String replay})? uploaded,
+  String? problem,
+});
 
-typedef _Ready = ({HostLink link, HostProbe probe, String companion});
+typedef _Ready = ({HostLink link, HostProbe probe, String companion, ReplayTool replay});
 
 /// Everything the app does with one machine: the connection, the probe, the companion upload, the session list and
 /// the open sessions. Sessions share one link; after it drops, each reconnects through [connect].
@@ -358,9 +364,15 @@ final class MachineRuntime {
 
   Future<_Ready> _ready() async {
     final connection = await _connected();
-    final companion = connection.companion;
-    if (companion == null) throw OmpUnavailable(connection.problem ?? 'omp is not usable on ${connection.link.label}');
-    return (link: connection.link, probe: connection.probe, companion: companion);
+    final uploaded = connection.uploaded;
+    if (uploaded == null) throw OmpUnavailable(connection.problem ?? 'omp is not usable on ${connection.link.label}');
+    final probe = connection.probe;
+    return (
+      link: connection.link,
+      probe: probe,
+      companion: uploaded.companion,
+      replay: (omp: probe.ompPath!, script: uploaded.replay),
+    );
   }
 
   Future<_Connection> _open() async {
@@ -399,15 +411,15 @@ final class MachineRuntime {
     return connection;
   }
 
-  /// Probes [link] and uploads the companion when the app can drive the omp found there.
+  /// Probes [link] and uploads the companion and the replay script when the app can drive the omp found there.
   Future<_Connection> _probe(HostLink link) async {
     final probe = await probeHost(link, searchSystemPaths: _searchSystemPaths);
     final problem = ompProblem(probe);
     final version = probe.ompVersion;
-    final companion = problem == null && version != null
+    final uploaded = problem == null && version != null
         ? await uploadCompanion(link, ompVersion: version, bytes: await _companionBytes(version))
         : null;
-    return (link: link, probe: probe, companion: companion, problem: problem);
+    return (link: link, probe: probe, uploaded: uploaded, problem: problem);
   }
 
   void _dropped(HostLink link) {
@@ -585,6 +597,7 @@ final class _DetachedAccess implements RunAccess {
         ready.link,
         ready.probe,
         _run,
+        replay: ready.replay,
         generation: generation,
         offset: offset,
         inboxOffset: inboxOffset,

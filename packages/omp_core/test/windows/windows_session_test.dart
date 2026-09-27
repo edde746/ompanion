@@ -162,8 +162,8 @@ void main() {
     )).run;
     final other = await connectWindows();
     addTearDown(other.close);
-    final a = await attachRun(link, probe, run);
-    final b = await attachRun(other, probe, run);
+    final a = await attachRun(link, probe, run, replay: noReplay);
+    final b = await attachRun(other, probe, run, replay: noReplay);
     final aFrames = Frames(a.lines);
     final bFrames = Frames(b.lines);
     final inbox = <InboxLine>[];
@@ -222,7 +222,7 @@ void main() {
         args: const ['--model', 'fake/fake-1'],
       ),
     )).run;
-    final channel = await attachRun(shelled, probed, run);
+    final channel = await attachRun(shelled, probed, run, replay: noReplay);
     final frames = Frames(channel.lines);
     await frames.next((f) => f['type'] == 'ready', timeout: const Duration(seconds: 60));
     await channel.send(getState('ps:1'));

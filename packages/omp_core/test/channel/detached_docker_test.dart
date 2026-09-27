@@ -71,7 +71,7 @@ void main() {
     await runPosixScript(link, 'mkdir -p "\$HOME/work"');
     final launcher = await connect();
     final run = (await openRun(launcher, probe, spec(session: session))).run;
-    final first = await attachRun(launcher, probe, run);
+    final first = await attachRun(launcher, probe, run, replay: noReplay);
     final frames = Frames(first.lines);
     await frames.next((f) => f['type'] == 'ready');
     await first.send(getState('a:1'));
@@ -84,7 +84,14 @@ void main() {
     expect(runs.single.state, RunState.running);
     expect((await openRun(link, probe, spec(session: session))).launched, isFalse);
 
-    final second = await attachRun(link, probe, runs.single, generation: resume.generation, offset: resume.offset);
+    final second = await attachRun(
+      link,
+      probe,
+      runs.single,
+      replay: noReplay,
+      generation: resume.generation,
+      offset: resume.offset,
+    );
     final more = Frames(second.lines);
     await second.send(getState('b:1'));
     await more.response('b:1');
@@ -103,8 +110,8 @@ void main() {
     final run = (await openRun(link, probe, spec())).run;
     final other = await connect();
     addTearDown(other.close);
-    final a = await attachRun(link, probe, run);
-    final b = await attachRun(other, probe, run, inboxOffset: 0);
+    final a = await attachRun(link, probe, run, replay: noReplay);
+    final b = await attachRun(other, probe, run, replay: noReplay, inboxOffset: 0);
     final aFrames = Frames(a.lines);
     final bFrames = Frames(b.lines);
     final bInbox = <InboxLine>[];
@@ -141,7 +148,7 @@ void main() {
 
   test('graceful stop exits 0, force stop exits 143, and dead runs are removed', () async {
     final graceful = (await openRun(link, probe, spec())).run;
-    final channel = await attachRun(link, probe, graceful);
+    final channel = await attachRun(link, probe, graceful, replay: noReplay);
     final frames = Frames(channel.lines);
     await frames.next((f) => f['type'] == 'ready');
     expect(await stopRun(link, probe, graceful), 0);
@@ -158,9 +165,9 @@ void main() {
   // 5 minutes on a GitHub-hosted runner, 231 MB for linux-arm64 about 2 minutes on an Apple silicon Mac with colima.
   test('companion and omp uploads over SFTP land intact', () async {
     final companion = utf8.encode('export default function () {}\n');
-    final path = await uploadCompanion(link, ompVersion: '18.3.1', bytes: companion);
+    final path = (await uploadCompanion(link, ompVersion: '18.3.1', bytes: companion)).companion;
     expect(path, '${probe.home}/.ompanion/companion/18.3.1/${sha256.convert(companion)}.js');
-    expect(await uploadCompanion(link, ompVersion: '18.3.1', bytes: companion), path);
+    expect((await uploadCompanion(link, ompVersion: '18.3.1', bytes: companion)).companion, path);
 
     final asset = ompAsset('omp-linux-$arch');
     final installed = await uploadOmp(

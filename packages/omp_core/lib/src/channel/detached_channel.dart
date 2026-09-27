@@ -4,17 +4,13 @@ import 'dart:typed_data';
 
 import '../host/scripts.dart';
 import '../transport/host_link.dart';
+import 'replay.dart';
 import 'run_log.dart';
 
 /// Lines up to this size are appended through the appender's stdin. `sh`'s `read` takes one byte per system
 /// call from a pipe (64 KiB: 15 ms under dash, 33 ms under macOS bash), so longer lines are uploaded over
 /// SFTP first and appended with `cat`.
 const inlineAppendLimit = 64 * 1024;
-
-/// Above this `out.jsonl` size a first attach gets a compacted replay instead of the log. A generation grows by hundreds
-/// of MB in one turn (every `message_update` carries the whole message, every `subagent_progress` a whole snapshot):
-/// replayed whole, a 1.6 GB log took 62 s and 3.1 GB of memory to open. See [_outputBody].
-const attachWindow = 8 << 20;
 
 /// A [RunChannel] to a run on a POSIX machine, over exec channels: `tail -F out.jsonl` for [lines],
 /// `tail -F in.jsonl` for [inbox] (started on listen), and a long-running appender that adds each sent line
@@ -23,18 +19,19 @@ const attachWindow = 8 << 20;
 final class DetachedChannel implements RunChannel {
   DetachedChannel._(this._link, this.dir, this._inboxFrom);
 
-  /// Attaches to the run in [dir] (host path). See `attachRun` for [generation], [offset], [inboxOffset]; [window]
-  /// is [attachWindow].
+  /// Attaches to the run in [dir] (host path). See `attachRun` for [generation], [offset], [inboxOffset] and [replay];
+  /// [window] is [attachWindow].
   static Future<DetachedChannel> attach(
     HostLink link,
     String dir, {
+    required ReplayTool replay,
     int? generation,
     int offset = 0,
     int? inboxOffset,
     int window = attachWindow,
   }) async {
     final channel = DetachedChannel._(link, dir, inboxOffset);
-    await channel._follow.start(link, _outputScript(dir, generation, offset, window));
+    await channel._follow.start(link, _outputScript(dir, generation, offset, replay, window));
     return channel;
   }
 
@@ -260,21 +257,12 @@ final class _Follower {
 /// precedes its exit file. The bytes already written go out through a plain `tail` before `tail -F` follows: macOS's
 /// `tail -F` copies byte by byte (`getc`/`putchar`), about 15 MB/s, and took 1.4 s to replay a 10 MB log that a plain
 /// `tail` sends in 15 ms.
-String _outputScript(String dir, int? generation, int offset, int window) =>
-    'd=${shQuote(dir)}; g0=${generation ?? -1}; o0=$offset; w=$window\n$posixTailPoll$_outputBody';
+String _outputScript(String dir, int? generation, int offset, ReplayTool replay, int window) =>
+    'd=${shQuote(dir)}; g0=${generation ?? -1}; o0=$offset; w=$window; x=${shQuote(replay.omp)}; '
+    'j=${shQuote(replay.script)}\n$posixTailPoll$_outputBody';
 
-/// Without a usable offset, a log over `$w` bytes is replayed compacted, as a preamble the header counts, and followed
-/// from the end of its last complete line. The replay holds:
-/// - from before the window (the last `$w` bytes, from the first frame that starts in them: awk skips the line the
-///   window cuts into and the rest of an `rpc_chunk` sequence it cuts into, as omp writes a chunk's `index` ahead of its
-///   data): the lines RPC cannot list again, `extension_ui_request` (dialogs, statuses, widgets) and `command_output`,
-///   and the start of each tool call still running. A timed dialog whose tool calls all ended is left out: omp resolved
-///   it without a frame. perl picks those lines out of 1.6 GB in 0.27 s on an M-series Mac; macOS's grep took 3.9 s
-///   (14.6 s under load), so grep is only the fallback for a host without perl.
-/// - the window, minus each `message_update`, `tool_execution_update` and `subagent_progress` a later frame of the same
-///   message, tool call or subagent supersedes (each carries the whole state), and minus the app's markers.
-/// On a live 1.6 GB log that is 58 lines, 647 KB, instead of 13 MB. A window holding no frame start (one frame over
-/// `$w` bytes at the end) falls back to the whole generation.
+/// Without a usable offset, a log over `$w` bytes is compacted by [replayScript] (`$j`, run by omp as Bun): its
+/// replay goes out as a preamble the header counts, and the log is followed from the offset the script names.
 const _outputBody = r'''
 g=$(sed -n 's/.*"generation":\([0-9][0-9]*\).*/\1/p' "$d/meta.json" 2>/dev/null)
 if [ -z "$g" ]; then echo "no run in $d" >&2; exit 3; fi
@@ -286,55 +274,9 @@ p=
 if [ "$g" = "$g0" ] && [ "$o0" -le "$s" ]; then
   o=$o0
 elif [ "$s" -gt "$w" ]; then
-  n=$(tail -c +$((s - w)) "$d/out.jsonl" | head -c $((w + 1)) | LC_ALL=C awk '
-NR == 1 { n = length($0) + 1; next }
-/^\{"type":"rpc_chunk","chunkId":"[^"]*","index":[1-9]/ { n += length($0) + 1; next }
-{ print n; exit }')
-  if [ -n "$n" ]; then
-    k=$((s - w - 1 + n))
-    r=$(tail -c +$((k + 1)) "$d/out.jsonl" | head -c $((s - k)) | LC_ALL=C awk -v k="$k" -v t=$((s - k)) '
-{ line[NR] = $0; tot += length($0) + 1 }
-END {
-  n = NR
-  if (tot > t) { tot -= length(line[n]) + 1; n-- }
-  print k + tot
-  for (i = n; i > 0; i--) {
-    l = line[i]; key = ""
-    if (l ~ /^\{"type":"message_(update|end)"/ && match(l, /"messageId":"[^"]*"\}$/)) key = substr(l, RSTART, RLENGTH)
-    else if (l ~ /^\{"type":"tool_execution_(update|end)","toolCallId":"/ && match(l, /"toolCallId":"[^"]*"/)) key = substr(l, RSTART, RLENGTH)
-    else if (l ~ /^\{"type":"subagent_progress"/ && match(l, /"progress":\{"index":[0-9]+,"id":"[^"]*"/)) key = substr(l, RSTART, RLENGTH)
-    if (key == "") continue
-    if ((key in seen) && l ~ /^\{"type":"(message_update|tool_execution_update|subagent_progress)"/) line[i] = ""
-    seen[key] = 1
-  }
-  for (i = 1; i <= n; i++) if (line[i] != "" && line[i] !~ /^\{"type":"ompanion_/) print line[i]
-}')
-    o=$(printf '%s\n' "$r" | head -n 1)
-    kept() {
-      if command -v perl > /dev/null 2>&1; then
-        perl -e 'open my $f, "<", $ARGV[0] or die "$ARGV[0]: $!"; binmode $f; binmode STDOUT; my $left = $ARGV[1];
-while ($left > 0 && defined(my $l = <$f>)) { $left -= length $l; print $l if $l =~ /^\{"type":"(?:extension_ui_request|command_output|agent_end|tool_execution_start|tool_execution_end)"/ }' "$d/out.jsonl" "$1"
-      else
-        head -c "$1" "$d/out.jsonl" | LC_ALL=C grep -E '^\{"type":"(extension_ui_request|command_output|agent_end|tool_execution_start|tool_execution_end)"'
-      fi
-    }
-    p=$( { kept "$k" | LC_ALL=C awk '
-/^\{"type":"tool_execution_start","toolCallId":"/ { match($0, /"toolCallId":"[^"]*"/); id = substr($0, RSTART, RLENGTH); order[++m] = id; start[id] = $0; next }
-/^\{"type":"tool_execution_end","toolCallId":"/ { match($0, /"toolCallId":"[^"]*"/); delete start[substr($0, RSTART, RLENGTH)]; next }
-/^\{"type":"agent_end"/ { if ($0 !~ /"isTerminal":false/) split("", start); next }
-{
-  ui[++n] = $0
-  if ($0 ~ /^\{"type":"extension_ui_request"/ && $0 ~ /"method":"(select|confirm|input)"/ && $0 ~ /"timeout":[0-9]/)
-    for (id in start) { owner[n, id] = 1; timed[n] = 1 }
-}
-END {
-  for (j = 1; j <= m; j++) if ((order[j] in start) && !(order[j] in shown)) { print start[order[j]]; shown[order[j]] = 1 }
-  for (i = 1; i <= n; i++) {
-    if (i in timed) { live = 0; for (id in start) if ((i, id) in owner) live = 1; if (!live) continue }
-    print ui[i]
-  }
-}'; printf '%s\n' "$r" | tail -n +2; } )
-  fi
+  r=$(BUN_BE_BUN=1 "$x" "$j" "$d/out.jsonl" "$s" "$w") || exit 4
+  o=$(printf '%s\n' "$r" | head -n 1)
+  p=$(printf '%s\n' "$r" | tail -n +2)
 fi
 b=0
 if [ -n "$p" ]; then b=$(printf '%s\n' "$p" | wc -c | tr -d ' '); fi

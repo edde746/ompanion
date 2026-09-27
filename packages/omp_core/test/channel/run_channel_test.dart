@@ -4,9 +4,11 @@ import 'dart:io';
 import 'package:omp_core/channel.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/src/channel/detached_channel.dart' show inlineAppendLimit;
+import 'package:omp_core/src/channel/replay.dart' show attachWindow, replayScript;
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
 
+import '../omp_binary.dart';
 import 'support.dart';
 
 /// Both channel transports against a run directory whose "omp" is the test itself: POSIX exec (`tail -F`
@@ -47,15 +49,31 @@ void main() {
         await root.delete(recursive: true);
       });
 
-      Future<RunChannel> attach({int? generation, int offset = 0, int? inboxOffset}) => kind == 'exec'
-          ? DetachedChannel.attach(link, dir, generation: generation, offset: offset, inboxOffset: inboxOffset)
+      Future<RunChannel> attach({
+        int? generation,
+        int offset = 0,
+        int? inboxOffset,
+        ReplayTool replay = noReplay,
+        int window = attachWindow,
+      }) => kind == 'exec'
+          ? DetachedChannel.attach(
+              link,
+              dir,
+              replay: replay,
+              generation: generation,
+              offset: offset,
+              inboxOffset: inboxOffset,
+              window: window,
+            )
           : SftpRunChannel.attach(
               link,
               dir,
               shell: CommandShell.posix,
+              replay: replay,
               generation: generation,
               offset: offset,
               inboxOffset: inboxOffset,
+              window: window,
               poll: const Duration(milliseconds: 20),
             );
 
@@ -156,8 +174,10 @@ void main() {
         await late.close();
       });
 
-      if (kind == 'exec') {
-        test('a first attach to a long log gets a compacted replay and follows the log from its end', () async {
+      test(
+        'a first attach to a long log gets a compacted replay and follows the log from its end',
+        tags: ['omp'],
+        () async {
           String chunk(int index) =>
               '{"type":"rpc_chunk","chunkId":"c1","index":$index,"count":3,"byteLength":9,"data":"${'A' * 40}"}\n';
           String update(String type, String key, int n) => type == 'message_update'
@@ -201,7 +221,8 @@ void main() {
           await omp('$before${chunk(0)}${chunk(1)}${chunk(2)}$window$partial');
           // The window starts inside the sequence's first chunk, so the rest of the sequence is skipped too.
           final size = window.length + partial.length + 2 * chunk(0).length + chunk(0).length ~/ 2;
-          final channel = await DetachedChannel.attach(link, dir, window: size);
+          final script = File('${root.path}/replay.js')..writeAsStringSync(replayScript);
+          final channel = await attach(replay: (omp: ompBinary, script: script.path), window: size);
           final end = File('$dir/out.jsonl').lengthSync() - partial.length;
           expect(channel.offset, end, reason: 'the log continues after the last complete line');
           final frames = Frames(channel.lines);
@@ -220,8 +241,10 @@ void main() {
           await frames.next((f) => (f['message'] as Map?)?['n'] == 5);
           expect(channel.offset, File('$dir/out.jsonl').lengthSync());
           await channel.close();
-        });
+        },
+      );
 
+      if (kind == 'exec') {
         test('a channel closed while its inbox is still starting leaves no follower running', () async {
           Future<List<String>> followers() async {
             final ps = await Process.run('ps', ['-A', '-o', 'command=']);

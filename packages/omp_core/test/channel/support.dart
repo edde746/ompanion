@@ -14,6 +14,9 @@ final String? pwsh = () {
   return result.exitCode == 0 ? (result.stdout as String).trim() : null;
 }();
 
+/// The replay tool for attaches whose log stays under `attachWindow`, so the replay script never runs.
+const ReplayTool noReplay = (omp: 'omp', script: 'replay.js');
+
 /// A temporary machine for tests on this computer: `home/` is an isolated omp home (harness/omp-home.sh,
 /// fake provider on a port nothing listens on, so no model turn can run) with the release binary linked at
 /// `~/.local/bin/omp`, and `work dir/` is a project directory whose name needs quoting.
