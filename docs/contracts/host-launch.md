@@ -1,9 +1,9 @@
-# host-launch: the PATH omp runs with
+# host-launch: the environment omp runs with
 
-What environment omp gets when the app starts it, per host kind, and how the probe learns the machine's
-login-shell PATH. Code: `packages/omp_core/lib/src/host/probe.dart` (the probe),
-`lib/src/channel/detached_run.dart`, `lib/src/channel/attached_channel.dart` and `lib/config/omp_cli.dart`
-(the launches).
+What environment omp gets when the app starts it, per host kind: the login-shell PATH the probe learns, and the
+variables that turn on a run's idle exit. Code: `packages/omp_core/lib/src/host/probe.dart` (the probe),
+`lib/src/channel/detached_run.dart`, `lib/src/channel/windows_run.dart`, `lib/src/channel/attached_channel.dart` and
+`lib/config/omp_cli.dart` (the launches).
 
 ## Why this contract exists
 
@@ -77,6 +77,22 @@ Homebrew and every directory `~/.zshrc` prepends.
   PATH), which is what a console on that machine sees too; there is no profile-file PATH a session misses.
 - **The terminal tab** already starts the user's login shell (`remoteShellLaunch`,
   `lib/terminal/shell_launch.dart`: `exec "${SHELL:-/bin/sh}" -l`), so it needs no login PATH probe.
+
+## Idle exit (`OMPANION_RUN`, `OMPANION_IDLE_EXIT_MS`)
+
+Every detached run's omp gets its run directory and the idle time the app chose (`MachineRuntime.idleExit`, 1 hour,
+in milliseconds). The companion then ends that omp once the run sat idle that long (`ompx.md`, `run.idleExit`).
+
+- **Detached POSIX run** (`run.sh`): `OMPANION_RUN="$d" OMPANION_IDLE_EXIT_MS=<ms>` in front of the inner `sh -c`
+  that `exec`s omp, so omp gets them and the feeding `tail` does not.
+- **Windows**: the WMI environment block carries `OMPANION_RUN` for `run.cmd` and `feed.ps1` anyway;
+  `OMPANION_IDLE_EXIT_MS` joins it. `OMPANION_*` variables inherited from the SSH session are dropped first.
+- **The control process and one-shot CLI calls** get neither: they end with their exec channel.
+- **Inheritance**: everything omp starts inherits both, including an app run from a session's bash tool and the
+  control process it starts. The companion acts only when omp's own command line holds `<OMPANION_RUN>/overlay.yml`
+  (`\` on Windows), the overlay path the launch passes with `--config`, so no other omp takes itself for the run's.
+- **Malformed**: an `OMPANION_IDLE_EXIT_MS` that is not a positive integer throws in the companion's start, which
+  omp reports as an `extension_error`.
 
 ## Not carried over
 

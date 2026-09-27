@@ -28,6 +28,7 @@ final class SessionView {
     this.stateStale = false,
     this.promptPending = false,
     this.external,
+    this.idleExit,
     this.resyncReason,
     this.nextSeq = 0,
     this.settledRequestIds = const [],
@@ -95,6 +96,10 @@ final class SessionView {
   /// app must not start an omp of its own for the session. Null for a view of a run this app started.
   final ExternalWriter? external;
 
+  /// The companion ended omp after this long without activity (`run.idleExit`, docs/contracts/ompx.md); the run's
+  /// exit follows. Nothing is lost: sending opens the session file in a new run.
+  final Duration? idleExit;
+
   /// The conversation behind this view was replaced (another session id, a `new_session`/`switch_session`/`branch`/
   /// `open_session`/`handoff` response, an auto-handoff, the companion's `session.changed`): rebuild a fresh view
   /// from `get_state` and the messages or entries. The value names the cause.
@@ -143,6 +148,7 @@ final class SessionView {
     bool? stateStale,
     bool? promptPending,
     Object? external = _keep,
+    Object? idleExit = _keep,
     Object? resyncReason = _keep,
     int? nextSeq,
     List<String>? settledRequestIds,
@@ -168,6 +174,7 @@ final class SessionView {
     stateStale: stateStale ?? this.stateStale,
     promptPending: promptPending ?? this.promptPending,
     external: identical(external, _keep) ? this.external : external as ExternalWriter?,
+    idleExit: identical(idleExit, _keep) ? this.idleExit : idleExit as Duration?,
     resyncReason: identical(resyncReason, _keep) ? this.resyncReason : resyncReason as String?,
     nextSeq: nextSeq ?? this.nextSeq,
     settledRequestIds: settledRequestIds ?? this.settledRequestIds,

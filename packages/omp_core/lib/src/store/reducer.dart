@@ -922,6 +922,7 @@ SessionView _companionFrame(SessionView view, Map<String, Object?> frame) {
           run: view.run.copyWith(compacting: view.run.compacting ?? const RunCompacting()),
         ),
         'compaction.ended' => _companionCompactionEnd(view, data().optObject('entry')),
+        'run.idleExit' => view.copyWith(idleExit: Duration(milliseconds: data().integer('idleMs'))),
         // Streaming verb output (`exec.chunk`) belongs to the caller; newer events are ignored.
         _ => view,
       };

@@ -67,17 +67,20 @@ String windowsArg(String arg) {
 
 /// The launch: `Win32_Process.Create` with job breakaway, the SSH session's environment plus the
 /// `OMPANION_*` variables (a WMI child otherwise gets the WMI provider's environment), then a wait of up to
-/// ten seconds for omp to appear, identified by the overlay path in its command line.
+/// ten seconds for omp to appear, identified by the overlay path in its command line. With [idleExit], omp also gets
+/// `OMPANION_IDLE_EXIT_MS` (docs/contracts/host-launch.md).
 String windowsLaunchScript(
   String marker, {
   required String dir,
   required String cwd,
   required String omp,
   required List<String> args,
+  Duration? idleExit,
 }) =>
     '''
 \$m = ${psQuote(marker)}; \$run = ${psQuote(dir)}; \$cwd = ${psQuote(cwd)}; \$omp = ${psQuote(omp)}
 \$argline = ${psQuote(args.map(windowsArg).join(' '))}
+\$idle = ${psQuote(idleExit == null ? '' : '${idleExit.inMilliseconds}')}
 \$flags = [uint32]$_createBreakawayFromJob
 $_windowsLaunchBody''';
 
@@ -86,6 +89,7 @@ $vars = @(Get-ChildItem Env: | Where-Object { -not $_.Name.StartsWith('OMPANION_
 $vars += 'OMPANION_RUN=' + $run
 $vars += 'OMPANION_OMP=' + $omp
 $vars += 'OMPANION_ARGS=' + $argline
+if ($idle) { $vars += 'OMPANION_IDLE_EXIT_MS=' + $idle }
 $startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ CreateFlags = $flags; ShowWindow = [uint16]0; EnvironmentVariables = [string[]]$vars }
 $command = 'cmd.exe /d /v:off /s /c ""' + $run + '\run.cmd""'
 $result = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $command; CurrentDirectory = $cwd; ProcessStartupInformation = $startup }
@@ -223,7 +227,7 @@ Future<({DetachedRun run, bool launched})> openWindowsRun(HostLink link, HostPro
       final result = await runPowerShell(
         link,
         probe.commandShell,
-        windowsLaunchScript(marker, dir: dir, cwd: spec.cwd, omp: spec.omp, args: args),
+        windowsLaunchScript(marker, dir: dir, cwd: spec.cwd, omp: spec.omp, args: args, idleExit: spec.idleExit),
       );
       if (result.exit.code != 0) throw result.failure('launching omp in ${spec.cwd} failed');
       final ompPid = int.parse(result.payload(marker).trim());

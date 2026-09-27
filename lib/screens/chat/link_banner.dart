@@ -8,6 +8,7 @@ import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../utils/compact_duration.dart';
 import '../machines/connect_dialogs.dart';
 
 /// The connection of [session] when it is not live: a progress line while connecting, the retry countdown
@@ -105,11 +106,20 @@ class _ClosedState extends State<_Closed> {
     final state = widget.state;
     final cause = state.cause;
     final exitCode = state.exitCode;
+    final idle = widget.session.view.idleExit;
     return _Banner(
-      icon: Icons.link_off,
-      color: AppColors.of(context).error,
-      text: exitCode == null ? t.chat.closed : t.chat.exited(code: exitCode),
-      detail: cause == null ? null : describeConnectError(t, cause),
+      icon: idle == null ? Icons.link_off : Icons.bedtime_outlined,
+      color: idle == null ? AppColors.of(context).error : Theme.of(context).colorScheme.onSurfaceVariant,
+      text: idle != null
+          ? t.chat.idleExited(duration: compactDuration(idle))
+          : exitCode == null
+          ? t.chat.closed
+          : t.chat.exited(code: exitCode),
+      detail: idle != null
+          ? t.chat.idleExitedDetail
+          : cause == null
+          ? null
+          : describeConnectError(t, cause),
       actions: [
         TextButton(
           onPressed: () => unawaited(context.read<SessionsProvider>().detach(widget.session)),

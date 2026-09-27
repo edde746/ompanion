@@ -88,7 +88,7 @@ final class _Omp implements LineChannel {
 final class _Session implements LiveSession {
   @override
   Future<void> Function()? get loadEarlier => null;
-  _Session(this._view);
+  _Session(this._view, {this.linkState = const LinkLive()});
 
   SessionView _view;
   final _views = StreamController<SessionView>.broadcast();
@@ -128,7 +128,7 @@ final class _Session implements LiveSession {
   String get cwd => '/tmp';
 
   @override
-  LinkState get linkState => const LinkLive();
+  final LinkState linkState;
 
   @override
   Stream<LinkState> get linkStates => const Stream.empty();
@@ -212,6 +212,21 @@ final class _MachineSessions extends SessionsProvider {
 
   @override
   Machine? machineOf(LiveSession session) => _machine;
+}
+
+/// Hands [replacement] back for every reopen, as the runtime does once the new run is attached.
+final class _ReopeningSessions extends SessionsProvider {
+  _ReopeningSessions(this.replacement, {required super.connector, required super.machines})
+    : super(deviceId: 'test', companionBytes: (_) async => const []);
+
+  final LiveSession replacement;
+  final reopened = <LiveSession>[];
+
+  @override
+  Future<LiveSession> reopen(LiveSession session) async {
+    reopened.add(session);
+    return replacement;
+  }
 }
 
 /// Pumps until [done]: file reads complete outside the test's fake clock.
@@ -484,6 +499,31 @@ void main() {
     await session.omp.close();
     await tester.pump();
     expect(session.promptPending, isFalse, reason: 'the next connection shows a run the prompt started by itself');
+
+    await tearDownProviders(tester);
+  });
+
+  testWidgets('after an idle exit a send opens the session again and goes to the new run', (tester) async {
+    final replacement = await attachedSession(tester);
+    final reopening = _ReopeningSessions(
+      replacement,
+      connector: MachineConnector(SecretStore(), KnownHostsStore(db)),
+      machines: machines,
+    );
+    sessions = reopening;
+    final ended = await pumpComposer(
+      tester,
+      _Session(SessionView(idleExit: const Duration(hours: 1)), linkState: const LinkClosed(exitCode: 0)),
+    );
+
+    await tester.enterText(composer, 'still there?');
+    await tester.tap(find.byKey(const ValueKey('send')));
+    await tester.pump();
+    await tester.pump();
+    expect(reopening.reopened, [ended]);
+    expect(replacement.omp.prompts.single['message'], 'still there?');
+    expect(ended.omp.prompts, isEmpty);
+    expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
 
     await tearDownProviders(tester);
   });

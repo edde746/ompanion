@@ -190,14 +190,22 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 - Link loss: a session reconnects with jittered backoff (1 s doubling to 30 s) and continues from the last
   frame boundary it read; a rotation it missed rebuilds the view from RPC. Refused credentials or host
   keys, a removed run and an omp that cannot start end the session.
-- Stop: kill the feeding `tail`; omp drains and exits 0. Force: SIGTERM (exit 143).
+- Stop: kill the feeding `tail`; omp drains and exits 0. Force: SIGTERM (exit 143). Detaching, closing the app and
+  losing the link never stop a run; the user's Stop and the idle exit do.
+- Idle exit: every run's omp gets its run directory and `MachineRuntime.idleExit` (1 h) in its environment
+  (`contracts/host-launch.md`). After that long without a session event, companion call, pause change or roster change,
+  and with nothing an exit would cut short or lose (a turn, queued messages, background jobs, the pause gate, loop
+  mode, an active goal, a running subagent, an open dialog, a call in flight), the companion sends `run.idleExit` and
+  stops omp as Stop does (`contracts/ompx.md`). The chat says why the session ended, and a send opens the session file
+  in a new run: a cold open instead of an attach. A session that ended before its first message opens as a new one.
 - Rotation: every `message_update` carries the whole message, so one 1.5 KB streamed answer wrote 270 KB.
   When a run settles and `out.jsonl` holds 8 MiB, the device that read past that mark truncates it under
   `in.lock`, unless an active goal or a running loop is about to start the next turn on its own (omp's writes do
   not take `in.lock`); the next settle without one rotates. Devices that had read everything follow, the others
   rebuild from RPC. A restarted omp gets a new run directory, never an old `in.jsonl`.
-- Garbage collection: `removeDeadRuns` deletes the directories of runs whose omp is gone. Only `ompctl gc` runs
-  it; the app does not.
+- Garbage collection: `removeDeadRuns` deletes the directories of runs whose omp is gone. The app runs it with every
+  session listing for runs whose `out.jsonl` last changed over 3 days ago (`deadRunLifetime`); `ompctl gc` removes
+  every ended run.
 - Secrets never go through `in.jsonl`: they reach the companion as 0600 files uploaded over SFTP and
   deleted after use.
 

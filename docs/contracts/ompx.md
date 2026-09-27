@@ -246,6 +246,24 @@ Event `roles.changed` with `Roles` whenever the `modelRoles` setting changes.
 Event `{id: string}`, once per companion request, when it is answered, cancelled, times out or is
 aborted.
 
+### run.idleExit
+
+Event `{idleMs: number}`, no `callId`, sent once right before the companion ends the omp of a detached run that sat
+idle for `idleMs`. Only a run's launch turns it on (`OMPANION_RUN` and `OMPANION_IDLE_EXIT_MS`, `host-launch.md`, "Idle
+exit"); the control process never sends it. Code: `companion/src/idle.ts`.
+
+- Idle means no session event, companion call or command, pause change or roster change for `idleMs`, and nothing an
+  exit would cut short or lose: a turn, compaction, retry, handoff, user bash, post-prompt work, an admitted prompt or
+  a session switch; queued steering or follow-up messages; background jobs or their undelivered results; the pause
+  gate engaged; an open companion request; loop mode on, paused or not (it is not persisted); an `active` goal; a
+  subagent `running`; a companion call or command in flight. Any of these starts the idle time again. A paused or
+  budget-limited goal is restored from the session file, so it does not hold the run.
+- After the event the companion closes omp's input the way the app's graceful stop does: on POSIX it kills the feeding
+  `tail` in `tail.pid` (only while that pid's command line names the run's `in.jsonl`), on Windows it creates
+  `in.jsonl.stop`. omp drains and exits 0, and `ompanion_exit` follows in `out.jsonl`.
+- A prompt a device appends while omp stops is lost with the process.
+- A failed stop is logged to omp's log and shown as an error notice, and tried again after another `idleMs`.
+
 ### Session verbs: common rules
 
 Owner: CompanionSession (`companion/src/verbs/session.ts`, `companion/src/verbs/session/*.ts`).

@@ -22,6 +22,14 @@ import 'run_session.dart';
 /// `out.jsonl` size from which a settled run's log is rotated.
 const rotateOutputAt = 8 << 20;
 
+/// How long a run sits idle before its companion ends omp (docs/contracts/host-launch.md, "Idle exit"). Coming back
+/// then costs a cold open instead of an attach: 1.8–3.7 s against 0.2–0.3 s for a 400 MB session over SSH
+/// (docs/research/ui-libraries.md), so a session left for a short break stays attachable.
+const defaultIdleExit = Duration(hours: 1);
+
+/// How long the directory of a run whose omp ended stays on the machine: its `err.log` explains a crash.
+const deadRunLifetime = Duration(days: 3);
+
 /// The model of a bootstrap control process (`MachineRuntime.controlIsBootstrap`). omp's bundled catalog has it, and
 /// its provider has no model manager (`MODEL_MANAGER_FACTORIES` in `catalog/src/provider-models/descriptors.ts`), so
 /// `--model` resolves it offline and omp never runs discovery against minimax. It is a plain API-key provider, so
@@ -115,13 +123,15 @@ final class MachineRuntime {
   /// and namespaces RPC ids. [companionBytes] supplies the companion build for an omp version. [overlay] holds
   /// config keys (dotted paths, values written as YAML) for every run's `--config` overlay, which always forces
   /// `speech.enabled: false`. [searchSystemPaths] false keeps the probe to omp in the machine's home directory
-  /// ([probeHost]), for a machine whose home is an isolated one.
+  /// ([probeHost]), for a machine whose home is an isolated one. Every run this runtime launches ends its omp after
+  /// [idleExit] without activity.
   MachineRuntime({
     required this._connect,
     required this.deviceId,
     required this._companionBytes,
     Map<String, String> overlay = const {},
     this._searchSystemPaths = true,
+    this.idleExit = defaultIdleExit,
   }) : _overlay = renderOverlay(overlay);
 
   final Future<HostLink> Function() _connect;
@@ -129,6 +139,7 @@ final class MachineRuntime {
   final String _overlay;
   final bool _searchSystemPaths;
   final String deviceId;
+  final Duration idleExit;
 
   final _statuses = StreamController<MachineStatus>.broadcast();
   MachineStatus _status = const MachineOffline();
@@ -171,7 +182,8 @@ final class MachineRuntime {
   }
 
   /// Session files on the machine, newest first, each with the live run holding it. Sessions of live runs that omp
-  /// has not written yet (no message so far) are included.
+  /// has not written yet (no message so far) are included. Directories of runs that ended more than
+  /// [deadRunLifetime] ago are removed on the way.
   Future<List<SessionSummary>> listSessions() async {
     final connection = await _connected();
     final results = await Future.wait<Object>([
@@ -179,8 +191,10 @@ final class MachineRuntime {
       runs.listRuns(connection.link, connection.probe),
     ]);
     final sessions = results[0] as List<SessionSummary>;
+    final runList = results[1] as List<DetachedRun>;
+    await removeDeadRuns(connection.link, connection.probe, olderThan: deadRunLifetime, runs: runList);
     final live = <String, DetachedRun>{
-      for (final run in results[1] as List<DetachedRun>)
+      for (final run in runList)
         if (run.state == RunState.running && run.meta?.sessionPath != null) run.meta!.sessionPath!: run,
     };
     return [
@@ -417,6 +431,7 @@ final class MachineRuntime {
     companion: ready.companion,
     overlay: _overlay,
     args: args,
+    idleExit: idleExit,
   );
 
   Future<RunSession> _openRun(DetachedRun run, HostProbe probe) => _opens[run.id] ??= _startRun(run, probe);

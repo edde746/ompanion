@@ -2,11 +2,12 @@ import type { AgentSession, ExtensionAPI, ExtensionCommandContext, ExtensionCont
 import { CallParseError, parseCall } from "./args.ts";
 import { askDialog } from "./ask.ts";
 import { bindChannel, type Channel, channel, errorFrame, eventFrame, replyFrame } from "./channel.ts";
+import { IDLE_EXIT_EVENT, idleRun, installIdleExit, tracked } from "./idle.ts";
 import { type CallRequest, Refusal, VerbError, type VerbTable } from "./protocol.ts";
 import { coreEvents, coreVerbs, helloVerb, watchCore } from "./verbs/core.ts";
 import { installSessionHooks, sessionCommands, sessionEvents, sessionVerbs } from "./verbs/session.ts";
 
-const events: readonly string[] = [...coreEvents, ...sessionEvents];
+const events: readonly string[] = [...coreEvents, ...sessionEvents, IDLE_EXIT_EVENT];
 
 function mergeVerbs(...tables: VerbTable[]): VerbTable {
 	const merged: Record<string, VerbTable[string]> = {};
@@ -47,6 +48,9 @@ async function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> 
 	if (bindChannel(ui).kind === "output") ui.askDialog = askDialog;
 	watchCore(session);
 	await installSessionHooks(pi, session);
+	// Last: a broken launch environment throws here, after everything else is in place.
+	const run = idleRun(process.env, process.argv);
+	if (run) installIdleExit(session, run);
 }
 
 async function dispatch(call: CallRequest, pi: ExtensionAPI, ctx: ExtensionCommandContext, out: Channel): Promise<void> {
@@ -80,20 +84,21 @@ export default function ompx(pi: ExtensionAPI): void {
 	pi.on("session_start", (_event, ctx) => bindMain(pi, ctx));
 	pi.registerCommand("ompx", {
 		description: "ompanion companion channel (docs/contracts/ompx.md)",
-		handler: async (args, ctx) => {
-			// Unbound (omp without an RPC UI) leaves no way to reply: `channel()` throws, omp reports
-			// it as `extension_error`.
-			const out = channel();
-			let call: CallRequest;
-			try {
-				call = parseCall(args);
-			} catch (error) {
-				if (!(error instanceof CallParseError)) throw error;
-				out.send(errorFrame(error.callId, "bad_request", error.message));
-				return;
-			}
-			await dispatch(call, pi, ctx, out);
-		},
+		handler: (args, ctx) =>
+			tracked(async () => {
+				// Unbound (omp without an RPC UI) leaves no way to reply: `channel()` throws, omp reports
+				// it as `extension_error`.
+				const out = channel();
+				let call: CallRequest;
+				try {
+					call = parseCall(args);
+				} catch (error) {
+					if (!(error instanceof CallParseError)) throw error;
+					out.send(errorFrame(error.callId, "bad_request", error.message));
+					return;
+				}
+				await dispatch(call, pi, ctx, out);
+			}),
 	});
 	for (const [name, command] of Object.entries(sessionCommands)) {
 		pi.registerCommand(name, {
@@ -105,7 +110,7 @@ export default function ompx(pi: ExtensionAPI): void {
 				if (!session) throw new Error("the main session is not registered");
 				// Not awaited: the TUI runs these as builtins, outside its prompt path, so a dialog they wait on does
 				// not hold the goal continuation or the loop. omp counts an awaited handler as an admitted submission.
-				command.handler(args, ctx, session).catch(error => {
+				tracked(() => command.handler(args, ctx, session)).catch(error => {
 					// The TUI shows a refused or failed mode command as a notice (builtin-modes.ts runWithDetachedModeDraft).
 					if (error instanceof Refusal) ctx.ui.notify(error.message, error.level);
 					else ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");

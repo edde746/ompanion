@@ -149,11 +149,13 @@ final class DevMachine {
     String deviceId, {
     Map<String, String> overlay = const {},
     Map<String, String> extraEnvironment = const {},
+    Duration idleExit = defaultIdleExit,
   }) => MachineRuntime(
     connect: () async => LocalLink(environment: {...environment, ...extraEnvironment}),
     deviceId: deviceId,
     companionBytes: companionBytes,
     overlay: overlay,
+    idleExit: idleExit,
   );
 
   /// Stops every run still alive, then deletes the machine.

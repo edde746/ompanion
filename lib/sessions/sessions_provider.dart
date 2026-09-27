@@ -174,8 +174,12 @@ class SessionsProvider extends ChangeNotifier {
   Future<LiveSession> reopen(LiveSession session) async {
     final machine = machineOf(session);
     if (machine == null) throw StateError('the machine of this session was deleted');
-    final path = session.sessionPath;
-    final request = path == null ? AttachRun(session.runId) : ResumeSession(path);
+    final request = switch (session.sessionPath) {
+      null => AttachRun(session.runId),
+      // omp writes the session file with the first message: an idle exit before one left no file to resume.
+      _ when session.view.idleExit != null && session.view.transcript.isEmpty => NewSession(session.cwd),
+      final path => ResumeSession(path),
+    };
     final replacement = await runtimeFor(machine).open(request);
     if (identical(replacement, session)) {
       select(session);

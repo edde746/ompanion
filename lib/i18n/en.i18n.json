@@ -615,6 +615,8 @@
     "retryNow": "Retry now",
     "closed": "This session is closed.",
     "exited": "omp exited with code $code.",
+    "idleExited": "omp stopped after $duration without activity.",
+    "idleExitedDetail": "Sending a message starts it again.",
     "reopen": "Reopen",
     "reopenFailed": "Could not reopen the session: $error",
     "parked": "Paused: the run waits before its next step",

@@ -16,8 +16,8 @@ void main() {
   late DevMachine machine;
   final runtimes = <MachineRuntime>[];
 
-  MachineRuntime runtime(String device, {Map<String, String> overlay = const {}}) {
-    final runtime = machine.runtime(device, overlay: overlay);
+  MachineRuntime runtime(String device, {Map<String, String> overlay = const {}, Duration idleExit = defaultIdleExit}) {
+    final runtime = machine.runtime(device, overlay: overlay, idleExit: idleExit);
     runtimes.add(runtime);
     return runtime;
   }
@@ -234,6 +234,33 @@ void main() {
     final again = await runtime('device-a').open(ResumeSession(path));
     expect(answers(again.view), ['Started. Finished while nobody watched.']);
     expect(idle(again.view), isTrue);
+  });
+
+  test('an idle run says why and ends its omp; opening its file again continues in a new run', () async {
+    await fake.enqueue([
+      {
+        'steps': [
+          {'text': 'Noted.'},
+        ],
+      },
+    ]);
+    const idleExit = Duration(seconds: 2);
+    final first = runtime('device-a', idleExit: idleExit);
+    final session = await newSession(first);
+    final path = session.sessionPath!;
+    await session.rpc.prompt('Remember this.');
+    await viewWhere(session, (view) => idle(view) && answers(view).isNotEmpty);
+
+    final closed = await linkWhere(session, (state) => state is LinkClosed) as LinkClosed;
+    expect(closed.exitCode, 0, reason: 'a graceful stop: omp read the end of its input');
+    expect(session.view.idleExit, idleExit);
+    final run = (await first.listRuns()).singleWhere((run) => run.id == session.runId);
+    expect((run.live, run.exitCode), (false, 0));
+
+    final again = await first.open(ResumeSession(path));
+    expect(again.runId, isNot(session.runId));
+    expect(prompts(again.view), ['Remember this.']);
+    expect(answers(again.view), ['Noted.']);
   });
 
   test('the control session serves companion settings', () async {

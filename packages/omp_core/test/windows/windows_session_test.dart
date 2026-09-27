@@ -26,8 +26,13 @@ void main() {
   final project = '$profile\\session project';
   final runtimes = <MachineRuntime>[];
 
-  MachineRuntime runtime(String device) {
-    final runtime = MachineRuntime(connect: connectWindows, deviceId: device, companionBytes: companionBytes);
+  MachineRuntime runtime(String device, {Duration idleExit = defaultIdleExit}) {
+    final runtime = MachineRuntime(
+      connect: connectWindows,
+      deviceId: device,
+      companionBytes: companionBytes,
+      idleExit: idleExit,
+    );
     runtimes.add(runtime);
     return runtime;
   }
@@ -122,6 +127,32 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 3)),
   );
+
+  test('an idle run says why and ends its omp through in.jsonl.stop; its file opens in a new run', () async {
+    await fake.enqueue([
+      {
+        'steps': [
+          {'text': 'Noted on Windows.'},
+        ],
+      },
+    ]);
+    const idleExit = Duration(seconds: 5);
+    final first = runtime('device-a', idleExit: idleExit);
+    final session = await first.open(NewSession(project, model: 'fake/fake-1'));
+    final path = session.sessionPath!;
+    await session.rpc.prompt('Remember this.');
+    await viewWhere(session, (view) => idle(view) && answers(view).isNotEmpty, timeout: const Duration(seconds: 60));
+
+    final closed = await linkWhere(session, (state) => state is LinkClosed) as LinkClosed;
+    expect(closed.exitCode, 0, reason: 'feed.ps1 saw in.jsonl.stop and closed omp stdin');
+    expect(session.view.idleExit, idleExit);
+    final run = (await listRuns(link, probe)).singleWhere((run) => run.id == session.runId);
+    expect((run.state, run.exitCode), (RunState.exited, 0));
+
+    final again = await runtime('device-a').open(ResumeSession(path));
+    expect(again.runId, isNot(session.runId));
+    expect(answers(again.view), ['Noted on Windows.']);
+  }, timeout: const Timeout(Duration(minutes: 3)));
 
   test('two connections append to in.jsonl at once while feed.ps1 holds it open, and each line reaches omp', () async {
     final run = (await openRun(

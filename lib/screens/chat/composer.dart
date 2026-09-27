@@ -21,6 +21,7 @@ import '../../sessions/sessions_provider.dart';
 import '../../utils/byte_size.dart';
 import '../../widgets/activity_mark.dart';
 import '../dock/machine_access.dart';
+import '../machines/connect_dialogs.dart';
 import 'attachment_chips.dart';
 import 'attachment_input.dart';
 import 'composer_intent.dart';
@@ -283,7 +284,24 @@ class _ComposerState extends State<Composer> {
 
   Future<void> _send({required bool followUp}) async {
     if (_sending) return;
-    final session = widget.session;
+    final t = context.t;
+    final messenger = ScaffoldMessenger.of(context);
+    final sessions = context.read<SessionsProvider>();
+    var session = widget.session;
+    // An idle exit ended omp with nothing to lose: the send opens the session in a new run, then goes there.
+    if (session.linkState is LinkClosed && session.view.idleExit != null) {
+      setState(() => _sending = true);
+      try {
+        session = await sessions.reopen(session);
+      } on Object catch (error) {
+        messenger.showSnackBar(SnackBar(content: Text(t.chat.reopenFailed(error: describeConnectError(t, error)))));
+        return;
+      } finally {
+        if (mounted) setState(() => _sending = false);
+      }
+      // Another omp process holds the file now: the reopened session is its read-only reader, which takes no prompt.
+      if (!mounted || session is ExternalSession) return;
+    }
     final view = session.view;
     final typed = _draft.text.text;
     final chips = _draft.text.chips;
@@ -296,9 +314,6 @@ class _ComposerState extends State<Composer> {
       followUp: followUp,
       commands: view.commands,
     );
-    final t = context.t;
-    final messenger = ScaffoldMessenger.of(context);
-    final sessions = context.read<SessionsProvider>();
     switch (intent) {
       case NothingToSend():
         return;
@@ -308,16 +323,12 @@ class _ComposerState extends State<Composer> {
         // Without the companion a `/ompx` call would reach the model as a prompt.
         messenger.showSnackBar(SnackBar(content: Text(t.chat.noCompanion)));
       case RunBash(:final command, :final excludeFromContext):
-        context
-            .read<SessionsProvider>()
+        sessions
             .execRunsOf(session)
             .start(session, ExecutionKind.bash, command, excludeFromContext: excludeFromContext);
         _draft.clear();
       case RunPython(:final code, :final excludeFromContext):
-        context
-            .read<SessionsProvider>()
-            .execRunsOf(session)
-            .start(session, ExecutionKind.python, code, excludeFromContext: excludeFromContext);
+        sessions.execRunsOf(session).start(session, ExecutionKind.python, code, excludeFromContext: excludeFromContext);
         _draft.clear();
       case SendPrompt(text: final message, :final behavior):
         // The draft this text came from; the composer may show another session by the time omp answers.
@@ -557,12 +568,14 @@ class _ComposerState extends State<Composer> {
           if (session is ExternalSession) {
             return _ExternalComposer(session: session, writer: data.external, machine: machine);
           }
-          // A closed session has no omp to talk to; its model, thinking level and context are gone with it.
+          // A closed session has no omp to talk to; its model, thinking level and context are gone with it. After an
+          // idle exit a send opens it again.
           final closed = link is LinkClosed;
+          final reopens = closed && data.idleExit != null;
           final palette = _paletteItems(session.view);
           final mention = palette.isEmpty ? _mention() : null;
           final attachments = _draft.attachments;
-          final canSend = !_sending && !closed;
+          final canSend = !_sending && (!closed || reopens);
           return Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
             child: Column(
@@ -708,7 +721,7 @@ class _ComposerState extends State<Composer> {
                                   icon: const Icon(Icons.attach_file, size: 20),
                                   constraints: _toolbarIcon,
                                   color: theme.colorScheme.onSurfaceVariant,
-                                  onPressed: closed ? null : () => unawaited(_attachFiles()),
+                                  onPressed: closed && !reopens ? null : () => unawaited(_attachFiles()),
                                 ),
                                 const SizedBox(width: 4),
                                 if (_upload case (:final sent, :final total))
@@ -875,6 +888,7 @@ typedef _ComposerData = ({
   double cost,
   Goal? goal,
   LoopState? loop,
+  Duration? idleExit,
 });
 
 _ComposerData _select(SessionView view) => (
@@ -887,6 +901,7 @@ _ComposerData _select(SessionView view) => (
   cost: view.usageTotals.cost,
   goal: view.goal,
   loop: view.loop,
+  idleExit: view.idleExit,
 );
 
 /// The composer of a session another omp process is writing: there is no run here to send to, so the field and

@@ -1411,6 +1411,12 @@ class Translations$chat$en {
 	/// en: 'omp exited with code $code.'
 	String exited({required Object code}) => 'omp exited with code ${code}.';
 
+	/// en: 'omp stopped after $duration without activity.'
+	String idleExited({required Object duration}) => 'omp stopped after ${duration} without activity.';
+
+	/// en: 'Sending a message starts it again.'
+	String get idleExitedDetail => 'Sending a message starts it again.';
+
 	/// en: 'Reopen'
 	String get reopen => 'Reopen';
 
@@ -4195,6 +4201,8 @@ extension on Translations {
 			'chat.retryNow' => 'Retry now',
 			'chat.closed' => 'This session is closed.',
 			'chat.exited' => ({required Object code}) => 'omp exited with code ${code}.',
+			'chat.idleExited' => ({required Object duration}) => 'omp stopped after ${duration} without activity.',
+			'chat.idleExitedDetail' => 'Sending a message starts it again.',
 			'chat.reopen' => 'Reopen',
 			'chat.reopenFailed' => ({required Object error}) => 'Could not reopen the session: ${error}',
 			'chat.parked' => 'Paused: the run waits before its next step',

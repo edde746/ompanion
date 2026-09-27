@@ -22,6 +22,7 @@ final class RunSpec {
     this.companion,
     this.overlay = defaultOverlay,
     this.args = const [],
+    this.idleExit,
   });
 
   /// Absolute path of the omp binary (the probed one).
@@ -40,6 +41,10 @@ final class RunSpec {
 
   /// Further omp arguments, e.g. `['--model', 'fake/fake-1']`.
   final List<String> args;
+
+  /// How long the run may sit idle before the companion ends its omp (`OMPANION_IDLE_EXIT_MS`,
+  /// docs/contracts/host-launch.md); null keeps it running until it is stopped.
+  final Duration? idleExit;
 
   /// omp's arguments after the binary, given the host path of the overlay file. `--cwd` is explicit because
   /// omp started in the home directory otherwise moves itself to `~/tmp` or `/tmp` (`cli/startup-cwd.ts`).
@@ -216,11 +221,17 @@ Future<int?> killRun(
     : _stopPosixRun(link, run, signal: 'KILL', timeout: timeout);
 
 /// Removes the directories of runs that are not live and whose `out.jsonl` was last written more than
-/// [olderThan] ago. Returns the removed run ids.
-Future<List<String>> removeDeadRuns(HostLink link, HostProbe probe, {Duration olderThan = Duration.zero}) async {
+/// [olderThan] ago. [runs] is the machine's run list when the caller just read it; otherwise it is listed here. The
+/// removal checks each run's liveness again under the launch lock. Returns the removed run ids.
+Future<List<String>> removeDeadRuns(
+  HostLink link,
+  HostProbe probe, {
+  Duration olderThan = Duration.zero,
+  List<DetachedRun>? runs,
+}) async {
   final now = DateTime.now();
   final dead = [
-    for (final run in await listRuns(link, probe))
+    for (final run in runs ?? await listRuns(link, probe))
       if (!run.live && (run.lastWrite == null || now.difference(run.lastWrite!) >= olderThan)) run.id,
   ];
   if (dead.isEmpty) return const [];
@@ -371,7 +382,7 @@ String posixLaunchScript(String marker, String root, String id, RunSpec spec, {S
 m=${shQuote(marker)}; R=${shQuote(root)}; D=${shQuote(dir)}; cwd=${shQuote(spec.cwd)}; session=${shQuote(session)}
 overlay=${shQuote(overlay)}
 meta=${shQuote(jsonEncode(meta.toJson()))}
-runsh=${shQuote(posixRunScript(dir, spec.omp, args, loginPath: loginPath))}
+runsh=${shQuote(posixRunScript(dir, spec.omp, args, loginPath: loginPath, idleExit: spec.idleExit))}
 $posixLockFunctions$_processFunctions$_launchBody''';
 }
 
@@ -379,16 +390,19 @@ $posixLockFunctions$_processFunctions$_launchBody''';
 /// as the last line, in `out.jsonl`. The feeding `tail` would only notice omp's death at its next write, so
 /// that side kills it too. (`wait $!` cannot be used: bash and dash wait for the whole background pipeline.)
 /// [loginPath], the login shell's PATH, reaches omp as `$1` of the inner `sh -c` and is prepended there: the
-/// pipeline's own commands keep the PATH sshd gave `run.sh`.
-String posixRunScript(String dir, String omp, List<String> args, {String? loginPath}) =>
-    '''
+/// pipeline's own commands keep the PATH sshd gave `run.sh`. With [idleExit], omp gets the run directory and the idle
+/// time in its environment.
+String posixRunScript(String dir, String omp, List<String> args, {String? loginPath, Duration? idleExit}) {
+  final idle = idleExit == null ? '' : 'OMPANION_RUN="\$d" OMPANION_IDLE_EXIT_MS=${idleExit.inMilliseconds} ';
+  return '''
 d=${shQuote(dir)}
 $_processFunctions
 $posixTailPoll
 sh -c 'echo \$\$ > "\$0/tail.pid"; exec tail \$1 -c +1 -f "\$0/in.jsonl"' "\$d" "\$tailpoll" 2>/dev/null | {
-  sh -c '$_ompExecBody' "\$d" ${shQuote(loginPath ?? '')} ${[omp, ...args].map(shQuote).join(' ')} >> "\$d/out.jsonl" 2>> "\$d/err.log"
+  ${idle}sh -c '$_ompExecBody' "\$d" ${shQuote(loginPath ?? '')} ${[omp, ...args].map(shQuote).join(' ')} >> "\$d/out.jsonl" 2>> "\$d/err.log"
 $_runTail}
 ''';
+}
 
 /// The command the pipeline's right side runs omp with, after `$0` (the run directory) and `$1` (the login
 /// shell's PATH, empty when the probe read none): omp's pid goes into `omp.pid` first, so the pid file names
