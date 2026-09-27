@@ -35,7 +35,7 @@ void main() {
   setUpAll(() async {
     fake = await FakeProvider.start();
     // Git for Windows' sh, on PATH in the CI step's bash.
-    final home = await Process.run('sh', ['$repoRoot/testing/omp-home.sh', profile, '${fake.port}']);
+    final home = await Process.run('sh', ['$repoRoot/harness/omp-home.sh', profile, '${fake.port}']);
     if (home.exitCode != 0) throw StateError('omp-home.sh failed: ${home.stderr}');
     File(
       '$profile\\.omp\\agent\\config.yml',

@@ -2,7 +2,7 @@
  * Runs the fake provider as a child process and drives its control API from Bun tests.
  *
  *   const fake = await FakeProvider.start();
- *   await createOmpHome(home, fake.port);             // testing/omp-home.ts
+ *   await createOmpHome(home, fake.port);             // harness/omp-home.ts
  *   await fake.enqueue({ steps: [{ text: "hi" }] });
  *   ... run omp --model fake/fake-1 ...
  *   const sent = await fake.requests();

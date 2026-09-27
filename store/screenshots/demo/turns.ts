@@ -1,7 +1,7 @@
 /**
  * The scripted model turns behind the store screenshots.
  *
- * The app runs one real omp session per machine against the fake provider (`testing/fake-provider`), and this
+ * The app runs one real omp session per machine against the fake provider (`harness/fake-provider`), and this
  * script plays the model: it queues turns on the provider's control API while the app drives the session, so
  * the transcript shows a real task with real tool cards, a real diff, a subagent and a real test run.
  *

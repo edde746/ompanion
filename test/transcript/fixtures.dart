@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/store.dart';
 
-/// Sessions recorded from omp 18.3.1 (`testing/README.md`); `flutter test` runs in the app root.
-final Directory fixtureDir = Directory('testing/fixtures');
+/// Sessions recorded from omp 18.3.1 (`harness/README.md`); `flutter test` runs in the app root.
+final Directory fixtureDir = Directory('harness/fixtures');
 
 /// Scenario names, from the `<name>.out.jsonl` files.
 List<String> fixtureNames() => [

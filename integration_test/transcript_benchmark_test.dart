@@ -1,6 +1,6 @@
 // Streaming benchmark of the chat transcript, a profile-mode target:
 //
-//   flutter drive --profile -d macos --driver=test_driver/integration_test.dart \
+//   flutter drive --profile -d macos --driver=integration_test/driver/report_driver.dart \
 //     --target=integration_test/transcript_benchmark_test.dart
 //
 // A 2,000-item session, its settled turns folded, is on screen while its run works on the last turn: a 12 KB markdown

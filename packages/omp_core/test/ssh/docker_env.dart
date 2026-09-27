@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:omp_core/ssh.dart';
 
-/// Machines started by `testing/sshd/up.sh`; paths are relative to `packages/omp_core`, where
+/// Machines started by `harness/sshd/up.sh`; paths are relative to `packages/omp_core`, where
 /// `dart test` runs.
 const sshTestDir = '../../.tools/ssh-test';
 const bastionPort = 22220;
@@ -29,7 +29,7 @@ SshTarget targetViaBastion() => SshTarget(
 );
 
 /// The address a server on this computer listens on for the test machines, which reach it as
-/// `host.docker.internal`, Docker's host gateway (testing/sshd/up.sh). Docker on macOS runs in a VM that forwards the
+/// `host.docker.internal`, Docker's host gateway (harness/sshd/up.sh). Docker on macOS runs in a VM that forwards the
 /// gateway to the Mac's loopback; on Linux the gateway is an address of this computer, the default bridge's.
 Future<String> hostGatewayAddress() async {
   if (Platform.isMacOS) return InternetAddress.loopbackIPv4.address;

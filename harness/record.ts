@@ -5,7 +5,7 @@
  * sent, in order). Every scenario ends with `{"id":"final-messages","type":"get_messages"}` once the
  * session is settled.
  *
- *   bun testing/record.ts <scenario|all> <out-dir>
+ *   bun harness/record.ts <scenario|all> <out-dir>
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -267,7 +267,7 @@ interface Context {
 }
 
 interface Scenario {
-	/** One line for testing/README.md. */
+	/** One line for harness/README.md. */
 	summary: string;
 	model?: string;
 	/** Extra config.yml for omp-home.sh. */
@@ -307,7 +307,7 @@ const SCENARIOS: Record<string, Scenario> = {
 					{ delayMs: 20 },
 					{ text: "- `out.jsonl`: omp stdout\n- `in.jsonl`: commands sent\n\n" },
 					{ delayMs: 20 },
-					{ text: "```sh\nbun testing/record.ts all testing/fixtures\n```\n" },
+					{ text: "```sh\nbun harness/record.ts all harness/fixtures\n```\n" },
 				],
 			});
 			await prompt(omp, "prompt-1", "Explain the fixtures in a short markdown note.");
@@ -884,7 +884,7 @@ async function record(name: string, scenario: Scenario, outDir: string): Promise
 if (import.meta.main) {
 	const [name, outDir] = Bun.argv.slice(2);
 	if (name === undefined || outDir === undefined || (name !== "all" && !(name in SCENARIOS))) {
-		console.error("usage: bun testing/record.ts <scenario|all> <out-dir>\n\nscenarios:");
+		console.error("usage: bun harness/record.ts <scenario|all> <out-dir>\n\nscenarios:");
 		for (const [scenarioName, { summary }] of Object.entries(SCENARIOS)) console.error(`  ${scenarioName}: ${summary}`);
 		process.exit(2);
 	}

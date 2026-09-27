@@ -13,8 +13,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import type { Subprocess } from "bun";
-import { FakeProvider } from "../../testing/fake-provider/client.ts";
-import { createOmpHome, ompEnv } from "../../testing/omp-home.ts";
+import { FakeProvider } from "../../harness/fake-provider/client.ts";
+import { createOmpHome, ompEnv } from "../../harness/omp-home.ts";
 import { isRecord } from "../src/args.ts";
 import type { EventFrame, ReplyErrorFrame, ReplyOkFrame, RequestFrame } from "../src/channel.ts";
 import type { ErrorCode } from "../src/protocol.ts";
@@ -33,7 +33,7 @@ export interface StartOptions {
 	home?: string;
 	/** Existing working directory, used as is and never deleted. Otherwise a temp dir. */
 	cwd?: string;
-	/** Extra config.yml keys for a fresh home (`testing/omp-home.sh` semantics). */
+	/** Extra config.yml keys for a fresh home (`harness/omp-home.sh` semantics). */
 	configYaml?: string;
 	/** Runs after a fresh home is written, before omp starts. */
 	prepareHome?: (home: string) => Promise<void>;

@@ -6,7 +6,7 @@ appenders never interleave. Rotation is followed by BSD and GNU `tail`. A gracef
 80 ms. The Windows form runs in CI on Windows Server 2025; appending over SFTP failed there and was replaced
 by a PowerShell appender (see Windows below).
 
-Measured on 2026-09-25 with the omp 18.3.1 release binaries, isolated homes (`testing/omp-home.sh`) and no
+Measured on 2026-09-25 with the omp 18.3.1 release binaries, isolated homes (`harness/omp-home.sh`) and no
 model turn.
 
 | Host | Shell (`/bin/sh`) | `tail` | Reached through |
@@ -17,7 +17,7 @@ model turn.
 
 Code: `packages/omp_core/lib/src/channel/`. Tests: `test/channel/detached_omp_test.dart`
 (`dart test -P integration -t omp`) and `test/channel/detached_docker_test.dart` (`-t docker`, after
-`testing/sshd/up.sh`).
+`harness/sshd/up.sh`).
 
 ## Results
 

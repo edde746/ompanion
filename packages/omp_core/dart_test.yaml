@@ -3,7 +3,7 @@ tags:
     description: Starts a real omp binary from .tools/ with an isolated HOME.
     skip: "integration test; run with -P integration or -t omp"
   docker:
-    description: Needs Docker (colima) and the SSH test containers from testing/sshd.
+    description: Needs Docker (colima) and the SSH test containers from harness/sshd.
     skip: "integration test; run with -P integration or -t docker"
   ffmpeg:
     description: Runs this computer's ffmpeg (PATH or Homebrew's directories); CI installs it for the integration job.

@@ -143,13 +143,13 @@ Run the app against an isolated omp home and the fake provider, never your real 
 
 ```bash
 scripts/fetch_omp.sh darwin-arm64                          # or linux-x64, linux-arm64
-bun testing/fake-provider/server.ts --port 18999 --demo    # keep it running
-testing/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
+bun harness/fake-provider/server.ts --port 18999 --demo    # keep it running
+harness/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
 flutter run -d macos --dart-define=OMPANION_LOCAL_HOME=/tmp/omp-dev-home \
   --dart-define=OMPANION_DATA_DIR=/tmp/ompanion-data --dart-define=OMPANION_SECRET_PREFIX=dev
 ```
 
-The three defines are read in `lib/app/dev_overrides.dart`. Start the app without provider API keys in its environment: with a key set, picking a real model makes a paid call. [testing/README.md](testing/README.md), section "Dev machine", covers the demo scenarios and running several instances at once.
+The three defines are read in `lib/app/dev_overrides.dart`. Start the app without provider API keys in its environment: with a key set, picking a real model makes a paid call. [harness/README.md](harness/README.md), section "Dev machine", covers the demo scenarios and running several instances at once.
 
 </details>
 
@@ -196,10 +196,10 @@ In `packages/omp_core`, tests that start omp, need Docker or run this computer's
 
 ```bash
 scripts/fetch_omp.sh darwin-arm64 linux-arm64       # this Mac and colima; linux-x64 on an x64 Linux host
-testing/sshd/up.sh
+harness/sshd/up.sh
 (cd packages/omp_core && dart test -P integration -j 1)
 (cd companion && bun run test:e2e)
-testing/sshd/down.sh
+harness/sshd/down.sh
 ```
 
 `-j 1` runs one test file at a time: two Docker test files share the target's run directory. [.github/workflows/ci.yml](.github/workflows/ci.yml) runs all of these on Linux for every push and pull request to `main`; [build.yml](.github/workflows/build.yml) builds each platform on demand.
@@ -212,7 +212,7 @@ testing/sshd/down.sh
 The chat transcript has a streaming benchmark, a profile-mode target: a 2,000-item session with a 12 KB reply streamed at 50 updates per second. It prints frame build and raster percentiles and writes them to `build/integration_response_data.json`; results are in [docs/research/ui-libraries.md](docs/research/ui-libraries.md), section "Performance".
 
 ```bash
-flutter drive --profile -d macos --driver=test_driver/integration_test.dart \
+flutter drive --profile -d macos --driver=integration_test/driver/report_driver.dart \
   --target=integration_test/transcript_benchmark_test.dart
 ```
 

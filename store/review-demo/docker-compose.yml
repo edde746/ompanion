@@ -4,7 +4,7 @@
 #
 # Three services on one private network: `host` (OpenSSH + omp, the machine the reviewer adds),
 # `firewall` (owns the host's network namespace: the published port and the egress rules) and `provider`
-# (testing/fake-provider in --demo mode). Only the SSH port is published.
+# (harness/fake-provider in --demo mode). Only the SSH port is published.
 name: ompanion-review
 
 services:

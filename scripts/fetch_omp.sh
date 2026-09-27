@@ -1,5 +1,5 @@
 #!/bin/sh
-# Downloads omp release binaries into .tools/omp/<version>/, where the tests and testing/ scripts find
+# Downloads omp release binaries into .tools/omp/<version>/, where the tests and harness/ scripts find
 # them, and checks each against the release's SHA256SUMS.txt:
 #
 #   scripts/fetch_omp.sh <platform-arch>...     e.g. darwin-arm64 linux-x64 linux-arm64 windows-x64

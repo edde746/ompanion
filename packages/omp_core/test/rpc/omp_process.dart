@@ -8,7 +8,7 @@ import '../omp_binary.dart';
 
 String shellQuote(String value) => "'${value.replaceAll("'", r"'\''")}'";
 
-/// An isolated omp home (testing/omp-home.sh) plus a working directory outside the repository.
+/// An isolated omp home (harness/omp-home.sh) plus a working directory outside the repository.
 /// Nothing listens on the fake provider's port: these tests never run a model turn.
 final class OmpHome {
   OmpHome._(this.root);
@@ -23,7 +23,7 @@ final class OmpHome {
     final root = await Directory.systemTemp.createTemp('omp-rpc-');
     final ompHome = OmpHome._(root);
     await Directory(ompHome.work).create();
-    final result = await Process.run('sh', ['$repoRoot/testing/omp-home.sh', ompHome.home, '9']);
+    final result = await Process.run('sh', ['$repoRoot/harness/omp-home.sh', ompHome.home, '9']);
     if (result.exitCode != 0) throw StateError('omp-home.sh failed: ${result.stderr}');
     return ompHome;
   }

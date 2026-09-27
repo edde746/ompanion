@@ -10,11 +10,11 @@ Flutter client for omp. Architecture, decisions and milestones: `docs/PLAN.md`. 
 | `lib/`, `test/`, `integration_test/`, platform dirs | Flutter app (`ompanion`) |
 | `packages/omp_core/` | pure Dart: transport (`HostLink`), SSH, host scripts, session channels, RPC client, companion client, session store |
 | `companion/` | TypeScript companion extension loaded into omp with `-e` |
-| `testing/` | fake OpenAI-compatible provider, isolated omp homes, recorded fixtures, SSH test containers |
+| `harness/` | fake OpenAI-compatible provider, isolated omp homes, recorded fixtures, SSH test containers |
 | `scripts/` | build the companion, fetch an omp release binary, regenerate icons, sign and notarize the macOS app |
-| `.github/workflows/` | CI (Linux and a Windows host), the per-platform build and release, the website deploy |
+| `.github/workflows/` | CI (Linux and a Windows host), the per-platform build and release |
 | `store/` | the store submission checklist and console answers, the review demo host, screenshot captions |
-| `website/` | ompanion.app (SvelteKit, static) |
+| `website/` | ompanion.app (SvelteKit, static), deployed by Cloudflare Workers Builds (`website/README.md`) |
 | `docs/` | plan, parity contract, UI rules, research, wire contracts |
 | `.tools/` | downloaded omp release binaries (gitignored) |
 
@@ -31,7 +31,7 @@ barrel file re-exporting everything.
 - Always run omp with an isolated `HOME` (a temp dir). Never touch the real `~/.omp`: it holds the
   user's sessions and credentials, and a running omp's natives cache is deleted by a newer omp.
 - omp refuses to start RPC mode without a model. The isolated home gets a `models.yml` pointing at the
-  fake provider in `testing/fake-provider/`; pass `--model fake/<id>`.
+  fake provider in `harness/fake-provider/`; pass `--model fake/<id>`.
 - Never make a paid model call. Real providers are off limits in tests and spikes.
 - Kill every process you start. Do not kill processes you did not start.
 

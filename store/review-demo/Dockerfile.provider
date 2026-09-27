@@ -1,11 +1,11 @@
-# The fake model provider of the review demo: testing/fake-provider/server.ts in --demo mode. It listens
+# The fake model provider of the review demo: harness/fake-provider/server.ts in --demo mode. It listens
 # inside the compose network only (no `ports` in docker-compose.yml), so the reviewer's omp reaches it as
 # `provider:8787` and nothing outside the stack can.
 FROM oven/bun:1.4.2
 
-# server.ts imports `../json.ts` and `./demo.ts`, so the three files keep their testing/ layout.
-COPY testing/fake-provider/server.ts testing/fake-provider/demo.ts /app/fake-provider/
-COPY testing/json.ts /app/json.ts
+# server.ts imports `../json.ts` and `./demo.ts`, so the three files keep their harness/ layout.
+COPY harness/fake-provider/server.ts harness/fake-provider/demo.ts /app/fake-provider/
+COPY harness/json.ts /app/json.ts
 
 USER bun
 # A read-only root filesystem has no writable home; Bun needs one only for a cache it does not use here.

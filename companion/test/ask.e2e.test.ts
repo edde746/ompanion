@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
-import type { Turn } from "../../testing/fake-provider/client.ts";
+import type { Turn } from "../../harness/fake-provider/client.ts";
 import { type Frame, OmpDriver } from "./driver.ts";
 
 setDefaultTimeout(60_000);

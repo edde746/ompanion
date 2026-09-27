@@ -1,4 +1,4 @@
-# The review demo's only model provider. It is testing/fake-provider/server.ts in --demo mode, running on
+# The review demo's only model provider. It is harness/fake-provider/server.ts in --demo mode, running on
 # the compose network as `provider`: no API key leaves the stack, no request costs anything, and any
 # prompt gets a canned reply.
 #

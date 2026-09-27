@@ -24,7 +24,7 @@ import 'package:omp_core/transport.dart';
 /// Tests run from the repository root.
 final String _root = Directory.current.path;
 
-/// This computer with the isolated home of `testing/dev-machine.sh`: the pinned omp, the fake provider, no user omp.
+/// This computer with the isolated home of `harness/dev-machine.sh`: the pinned omp, the fake provider, no user omp.
 final class _Connector extends MachineConnector {
   _Connector(super.secrets, super.knownHosts, this.environment);
 
@@ -64,7 +64,7 @@ void main() {
   String project() => '${environment['HOME']}/demo-project';
 
   setUpAll(() async {
-    provider = await Process.start('bun', ['$_root/testing/fake-provider/server.ts', '--port', '0']);
+    provider = await Process.start('bun', ['$_root/harness/fake-provider/server.ts', '--port', '0']);
     final port = Completer<int>();
     provider.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
       final match = RegExp(r'^listening (\d+)$').firstMatch(line);
@@ -74,7 +74,7 @@ void main() {
     root = await Directory.systemTemp.createTemp('ompanion-sessions-omp-');
     final home = '${root.path}/home';
     final result = await Process.run('sh', [
-      '$_root/testing/dev-machine.sh',
+      '$_root/harness/dev-machine.sh',
       home,
       '${await port.future.timeout(const Duration(seconds: 30))}',
     ]);

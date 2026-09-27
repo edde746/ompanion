@@ -15,7 +15,7 @@ import '../omp_binary.dart';
 import '../ssh/docker_env.dart';
 import 'support.dart';
 
-/// MachineRuntime over SSH: the Linux target reached through the bastion (`testing/sshd/up.sh`). The target's omp
+/// MachineRuntime over SSH: the Linux target reached through the bastion (`harness/sshd/up.sh`). The target's omp
 /// talks to the fake provider on this computer at `host.docker.internal`, Docker's host gateway, so model traffic does
 /// not depend on the SSH link a test drops.
 void main() {
@@ -42,7 +42,7 @@ void main() {
     // The target's omp home: omp-home.sh's files, pointed at the host gateway.
     final local = await Directory.systemTemp.createTemp('ompanion-target-home-');
     try {
-      final result = await Process.run('sh', ['$repoRoot/testing/omp-home.sh', local.path, '${fake.port}']);
+      final result = await Process.run('sh', ['$repoRoot/harness/omp-home.sh', local.path, '${fake.port}']);
       if (result.exitCode != 0) throw StateError('omp-home.sh failed: ${result.stderr}');
       final agent = '${local.path}/.omp/agent';
       final models = File('$agent/models.yml').readAsStringSync().replaceAll('127.0.0.1', 'host.docker.internal');

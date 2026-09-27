@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/config/config_yaml.dart';
 
-// What testing/omp-home.sh writes, with a comment a user added: the edits must keep both.
+// What harness/omp-home.sh writes, with a comment a user added: the edits must keep both.
 const base = '''
 # project settings
 startup:

@@ -16,7 +16,7 @@ import '../ssh/docker_env.dart';
 import 'support.dart';
 
 /// An omp the app launches runs with the PATH of the machine's login shell, not sshd's default: a tool the
-/// user's profile files put on PATH is found by omp's bash tool (`testing/sshd/up.sh` machines).
+/// user's profile files put on PATH is found by omp's bash tool (`harness/sshd/up.sh` machines).
 void main() {
   late FakeProvider fake;
   const project = '/home/omp/path-project';
@@ -36,7 +36,7 @@ void main() {
     fake = await FakeProvider.start(host: await hostGatewayAddress());
     final local = await Directory.systemTemp.createTemp('ompanion-path-home-');
     try {
-      final result = await Process.run('sh', ['$repoRoot/testing/omp-home.sh', local.path, '${fake.port}']);
+      final result = await Process.run('sh', ['$repoRoot/harness/omp-home.sh', local.path, '${fake.port}']);
       if (result.exitCode != 0) throw StateError('omp-home.sh failed: ${result.stderr}');
       final agent = '${local.path}/.omp/agent';
       final models = File('$agent/models.yml').readAsStringSync().replaceAll('127.0.0.1', 'host.docker.internal');

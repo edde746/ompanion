@@ -28,7 +28,7 @@ final HostProbe thisComputer = HostProbe(
 String get ompBinary => ompAsset(thisComputer.releaseAsset!);
 
 /// The architecture of the Docker test machines as omp names it: Docker's server architecture, mapped as
-/// testing/sshd/up.sh maps it.
+/// harness/sshd/up.sh maps it.
 Future<String> dockerArch() async {
   final result = await Process.run('docker', ['version', '--format', '{{.Server.Arch}}']);
   if (result.exitCode != 0) throw StateError('docker version failed: ${result.stderr}');

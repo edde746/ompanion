@@ -16,7 +16,7 @@ analyzer:
     # Separate packages with their own analysis options and tooling.
     - packages/**
     - companion/**
-    - testing/**
+    - harness/**
     - web/**
 
 linter:

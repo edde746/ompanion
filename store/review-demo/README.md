@@ -10,7 +10,7 @@ Three containers, one private network, one published port:
 |---|---|---|
 | `host` | Ubuntu, OpenSSH as the unprivileged user `review`, omp 18.3.1 in `~/.local/bin/omp`, a template home with the demo project | the provider only; sshd listens on 2222 in the firewall's network namespace |
 | `firewall` | Alpine, `firewall.sh`: owns the host's network namespace, rejects its outbound connections | publishes `${REVIEW_SSH_PORT:-22222}` → 2222 |
-| `provider` | `testing/fake-provider/server.ts --demo`: canned turns, neutral models `demo/fast` ("Fast") and `demo/reasoning` ("Reasoning") | nothing; no published port |
+| `provider` | `harness/fake-provider/server.ts --demo`: canned turns, neutral models `demo/fast` ("Fast") and `demo/reasoning` ("Reasoning") | nothing; no published port |
 
 The reviewer's home and the host keys live in the `review-data` volume. The host image holds the omp
 release and ompanion uploads its companion into the home on the first connect.
@@ -88,7 +88,7 @@ shell on the machine), the transcript's tool cards, and **Configure** on the mac
 
 ## What the demo answers
 
-The provider is `testing/fake-provider` in `--demo` mode: one canned scenario per prompt, in this order,
+The provider is `harness/fake-provider` in `--demo` mode: one canned scenario per prompt, in this order,
 shared by every session and starting over when the cycle ends. `./reset.sh` restarts it, so a fresh
 reviewer sees the sequence from the top.
 
@@ -200,7 +200,7 @@ REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
 # The same path in the real app (macOS desktop): add machine, trust, connect, new session, prompt, reply.
 # Writes PNGs of the app's widget tree, by default to /tmp/ompanion-store/ReviewDemo.
 REVIEW_DEMO_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
-  flutter drive --driver=test_driver/integration_test.dart \
+  flutter drive --driver=integration_test/driver/report_driver.dart \
     --target=store/review-demo/verify/capture_test.dart -d macos
 ```
 
@@ -227,7 +227,7 @@ and the provider with none.
 | `docker-compose.yml` | the three services, the network, the limits, the volume |
 | `Dockerfile.host` | Ubuntu + OpenSSH + omp (fetched by `scripts/fetch_omp.sh`, checksum-verified) + the template home with the demo project's git history |
 | `Dockerfile.firewall`, `firewall.sh` | Alpine + iptables: owns the host's network namespace and rejects its outbound connections |
-| `Dockerfile.provider` | Bun + `testing/fake-provider` in `--demo` mode |
+| `Dockerfile.provider` | Bun + `harness/fake-provider` in `--demo` mode |
 | `Dockerfile.*.dockerignore` | keep the build context to the handful of files each image copies |
 | `sshd_config` | the drop-in `/etc/ssh/sshd_config.d/00-review.conf`: port, host keys, password auth, no forwarding |
 | `entrypoint.sh` | first start: host keys into the volume, seed the home, exec sshd |
@@ -249,5 +249,5 @@ and the provider with none.
 - Disk is not capped: the reviewer can fill the VPS's disk from the `review-data` volume.
 - The fail2ban/sshguard suggestion above is not exercised.
 - The provider's demo rotation is per container, not per session: two reviewers prompting at the same
-  time take turns in the same cycle (`testing/README.md`, "Dev machine").
+  time take turns in the same cycle (`harness/README.md`, "Dev machine").
 - omp 18.3.1 is preinstalled, so the review never sees the app's "install omp" dialog.

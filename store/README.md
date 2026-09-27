@@ -195,7 +195,7 @@ change.
 ## Review demo host
 
 `store/review-demo/` is a throwaway SSH host for App Review and Play review: Docker Compose with OpenSSH
-(user `review`, password auth), omp 18.3.1, and `testing/fake-provider` in `--demo` mode as the only model
+(user `review`, password auth), omp 18.3.1, and `harness/fake-provider` in `--demo` mode as the only model
 provider (neutral models "Fast"/"Reasoning"). `./setup.sh` generates the password into a gitignored `.env`,
 `./up.sh` builds and prints the host/port/credentials, `./reset.sh` puts the reviewer's home back, and
 `./down.sh --clean` deletes the home and host keys. It publishes one port (default 22222) and everything —
@@ -231,7 +231,7 @@ Paths and sizes, all PNG; no alpha except the Play icon, which Play takes as a 3
 
 `store/screenshots/capture.sh <ios-phone|ios-ipad|play-phone|play-7in|play-10in>` boots the simulator or
 emulator headlessly, seeds the demo host, runs `flutter drive`
-(`integration_test/store_screenshots_test.dart`, driver `test_driver/store_driver.dart`; screenshots are taken
+(`integration_test/store_screenshots_test.dart`, driver `integration_test/driver/store_driver.dart`; screenshots are taken
 from the host so the real status bar is in the picture), then `store/screenshots/compose.py` composes the
 store images from `store/screenshots/captions.json`. The app's own SSH session goes to a Linux host with a real
 omp 18.3.1 and the fake provider; the model list is neutral ("Fast", "Reasoning"), no vendor names.

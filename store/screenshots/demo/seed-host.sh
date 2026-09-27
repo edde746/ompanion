@@ -14,7 +14,7 @@
 #   ~/work/pipeline           deploy glue; .omp/config.yml asks for tool approval (the approval screenshot)
 #
 # The machine needs git, node and npm (the seed runs `npm install` for typescript); without one, the seed stops
-# and names it. In the `testing/sshd` target container capture.sh installs them over docker exec; on any other
+# and names it. In the `harness/sshd` target container capture.sh installs them over docker exec; on any other
 # machine install them yourself.
 set -eu
 

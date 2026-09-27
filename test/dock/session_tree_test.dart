@@ -43,7 +43,7 @@ List<String> ids(List<TreeRow> rows) => [for (final row in rows) row.entry.id];
 void main() {
   group('decode', () {
     test('a recorded get_tree hides bookkeeping and marks the visible ancestor of a session_exit leaf', () {
-      final line = File('testing/fixtures/session-resume.out.jsonl').readAsLinesSync()[10];
+      final line = File('harness/fixtures/session-resume.out.jsonl').readAsLinesSync()[10];
       final data = (jsonDecode(line) as Map<String, Object?>)['data']! as Map<String, Object?>;
       final tree = SessionTree.decode([
         for (final node in data['tree']! as List<Object?>) node! as Map<String, Object?>,

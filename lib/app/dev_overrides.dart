@@ -2,7 +2,7 @@
 library;
 
 /// `OMPANION_LOCAL_HOME=<dir>`: "this computer" runs every command with `HOME=<dir>`, so development builds
-/// and UI tests drive an isolated omp home (`testing/dev-machine.sh`) and never the user's real `~/.omp`.
+/// and UI tests drive an isolated omp home (`harness/dev-machine.sh`) and never the user's real `~/.omp`.
 String? get devLocalHome => _nonEmpty(const String.fromEnvironment('OMPANION_LOCAL_HOME'));
 
 /// The environment of every process "this computer" starts while [devLocalHome] is set, else null. `PATH` holds

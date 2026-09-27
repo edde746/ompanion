@@ -7,7 +7,7 @@
 /// password, from the repository root:
 ///
 ///   REVIEW_DEMO_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
-///     flutter drive --driver=test_driver/integration_test.dart \
+///     flutter drive --driver=integration_test/driver/report_driver.dart \
 ///       --target=store/review-demo/verify/capture_test.dart -d macos
 ///
 /// `flutter drive`, not `flutter test`: a `flutter test` run renders the app's text with the test font,

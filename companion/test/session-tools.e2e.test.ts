@@ -335,7 +335,7 @@ describe("accounts", () => {
 	});
 
 	test("accounts.pin names the models.yml key that overrides the model provider's OAuth accounts", async () => {
-		// testing/omp-home.sh gives the model's provider, fake, a models.yml apiKey.
+		// harness/omp-home.sh gives the model's provider, fake, a models.yml apiKey.
 		const store = await SqliteAuthCredentialStore.open(path.join(omp.home, ".omp", "agent", "agent.db"));
 		let credentialId: number | undefined;
 		try {

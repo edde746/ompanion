@@ -15,7 +15,7 @@ import '../ssh/docker_env.dart';
 import 'support.dart';
 
 /// The same run lifecycle as detached_omp_test.dart, on the Linux test machine (GNU coreutils, dash) over
-/// dartssh2. Start the machines with testing/sshd/up.sh first.
+/// dartssh2. Start the machines with harness/sshd/up.sh first.
 void main() {
   late SshLink link;
   late HostProbe probe;
@@ -26,7 +26,7 @@ void main() {
   setUpAll(() async {
     link = await connect();
     // omp refuses RPC mode without a model: give the machine's omp the fake-provider home the Mac tests use.
-    final home = await File('$repoRoot/testing/omp-home.sh').readAsString();
+    final home = await File('$repoRoot/harness/omp-home.sh').readAsString();
     final setup = await runPosixScript(link, 'rm -rf "\$HOME/.ompanion" "\$HOME/.omp"\nset -- "\$HOME" 9\n$home');
     expect(setup.exit.code, 0, reason: setup.stderr);
     probe = await probeHost(link);

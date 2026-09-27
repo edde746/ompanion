@@ -1,4 +1,4 @@
-// Store screenshots: drives the real app against real SSH machines (the `testing/sshd` target container, the
+// Store screenshots: drives the real app against real SSH machines (the `harness/sshd` target container, the
 // second machine through the bastion) with a real omp and the fake provider, and asks the host to photograph
 // the screen at each step.
 //
@@ -7,14 +7,14 @@
 // By hand:
 //
 //   flutter drive -d <device> \
-//     --driver=test_driver/store_driver.dart \
+//     --driver=integration_test/driver/store_driver.dart \
 //     --target=integration_test/store_screenshots_test.dart \
 //     --dart-define=OMPANION_SHOT_CLASS=ios-phone \
 //     --dart-define=OMPANION_SHOT_KEY_B64=<base64 of .tools/ssh-test/id_ed25519> \
 //     --dart-define=OMPANION_SHOT_HOSTKEYS=<host|port|type|base64 blob;…>
 //
 // Machines, the key and the trusted host keys are seeded through the app's own providers; everything else is
-// tapped, typed and swiped. Screenshots come from the host (`test_driver/store_driver.dart`), so the real
+// tapped, typed and swiped. Screenshots come from the host (`integration_test/driver/store_driver.dart`), so the real
 // status bar is in the picture. Progress: `<system temp>/ompanion-shots.log` on the device, which is
 // `<app data container>/tmp/ompanion-shots.log` on this Mac for a simulator and
 // `/data/user/0/com.edde746.ompanion/cache/ompanion-shots.log` for an emulator.
@@ -615,7 +615,7 @@ Future<void> _hideKeyboard(WidgetTester tester) async {
 }
 
 /// Asks the host to photograph the screen and waits for it, through a file channel in this app's own temporary
-/// directory: `test_driver/store_driver.dart` watches it and runs `xcrun simctl`/`adb` there. A screenshot the
+/// directory: `integration_test/driver/store_driver.dart` watches it and runs `xcrun simctl`/`adb` there. A screenshot the
 /// app takes itself renders only the Flutter view, without the system status bar.
 Future<void> _shot(WidgetTester tester, String name) async {
   await _hideKeyboard(tester);

@@ -1,4 +1,4 @@
-# omp's config for the review demo's home. The base settings are the ones testing/omp-home.sh uses for
+# omp's config for the review demo's home. The base settings are the ones harness/omp-home.sh uses for
 # isolated homes: no release or marketplace checks, no host side effects, no language servers, no stream
 # rules that could interrupt canned output. modelRoles picks the demo provider's Fast model, so a new
 # session needs no model choice at all.

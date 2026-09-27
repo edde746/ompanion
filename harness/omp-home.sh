@@ -1,7 +1,7 @@
 #!/bin/sh
 # Creates an isolated omp home whose only provider is the fake server on 127.0.0.1:<port>.
 #
-#   testing/omp-home.sh <home-dir> <port> [extra-config.yml]
+#   harness/omp-home.sh <home-dir> <port> [extra-config.yml]
 #
 # Writes <home-dir>/.omp/agent/models.yml (provider `fake`: `fake-1`, `fake-think` with reasoning) and
 # <home-dir>/.omp/agent/config.yml. A top-level key of extra-config.yml replaces the same top-level key

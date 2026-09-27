@@ -461,7 +461,7 @@ Time from a click on a session in the sidebar to the first frame of its transcri
 (M-series), sessions against the fake provider: "Small" is 36 items (229 KB file), "Big" 1,836 items with
 thinking, `bash` and `read` calls with 16 KB results, markdown with code and tables (7.6 MB file, a recorded session
 repeated). Cold: no run holds the session, so the click launches omp. Attach: a run holds it, and the device replays
-its `out.jsonl`, which holds one earlier open. SSH: the `testing/sshd` target container.
+its `out.jsonl`, which holds one earlier open. SSH: the `harness/sshd` target container.
 
 | | Before | After |
 |---|---|---|

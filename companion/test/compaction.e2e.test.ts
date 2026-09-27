@@ -6,7 +6,7 @@ setDefaultTimeout(60_000);
 let omp: OmpDriver;
 
 beforeAll(async () => {
-	// 40 kept tokens and tiny scripted usage make two short turns compactable (testing/record.ts `compaction`).
+	// 40 kept tokens and tiny scripted usage make two short turns compactable (harness/record.ts `compaction`).
 	omp = await OmpDriver.start({ configYaml: "compaction:\n  keepRecentTokens: 40\n" });
 	const usage = { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 };
 	const detail = "Each fixture pairs the lines omp printed with the commands that caused them. ";

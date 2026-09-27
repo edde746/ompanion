@@ -22,7 +22,7 @@ Raw captures stay in `/tmp/ompanion-store/StoreShots/raw/<class>/` and are never
 
 ## Requirements
 
-- The SSH demo host: `testing/sshd/up.sh`, then its keys in `.tools/ssh-test/` and the `omp` user on
+- The SSH demo host: `harness/sshd/up.sh`, then its keys in `.tools/ssh-test/` and the `omp` user on
   127.0.0.1:22221 with the bastion on 22220. The container needs `git`, `node` and `npm` for the demo projects;
   `capture.sh` installs them over `docker exec` when the host is `omp-sshd-target`.
 - `flutter` on PATH with an iOS simulator runtime (iPhone 17 Pro Max, iPad Pro 13-inch M5) or the Android SDK
@@ -35,14 +35,14 @@ Raw captures stay in `/tmp/ompanion-store/StoreShots/raw/<class>/` and are never
 ## Refresh
 
 ```sh
-testing/sshd/up.sh
+harness/sshd/up.sh
 store/screenshots/capture.sh ios-phone
 store/screenshots/capture.sh ios-ipad
 store/screenshots/capture.sh play-phone
 store/screenshots/capture.sh play-7in
 store/screenshots/capture.sh play-10in
 python3 store/screenshots/compose.py --review /tmp/ompanion-store/StoreShots/review
-testing/sshd/down.sh
+harness/sshd/down.sh
 ```
 
 Each run takes ten to twenty minutes: the app builds, uploads the companion to the host and runs a real omp
@@ -63,7 +63,7 @@ bun store/screenshots/demo/rehearse.ts --session deploy --keep
 
 ## How a capture works
 
-1. `capture.sh` starts the fake provider (`testing/fake-provider`) on port 18991 unless one is listening.
+1. `capture.sh` starts the fake provider (`harness/fake-provider`) on port 18991 unless one is listening.
 2. `demo/seed-host.sh` writes `~/.omp/agent/{models.yml,config.yml}` (provider `local`, models `Fast` and
    `Reasoning`, `modelRoles.default`) and the projects `~/code/api-server`, `~/code/dashboard-web` and
    `~/work/pipeline` into the demo host's home, each with a small git history.
@@ -73,7 +73,7 @@ bun store/screenshots/demo/rehearse.ts --session deploy --keep
 4. `flutter drive` runs `integration_test/store_screenshots_test.dart`. The test builds the real app graph,
    seeds the machines through `MachinesProvider`/`KeysProvider` (so no form typing can go wrong), taps through
    the UI, and calls `binding.takeScreenshot(<shot>)`.
-5. `test_driver/store_driver.dart` photographs the screen when the test asks for it, from the host:
+5. `integration_test/driver/store_driver.dart` photographs the screen when the test asks for it, from the host:
    `xcrun simctl io <udid> screenshot` or `adb exec-out screencap -p` — the only capture that carries the real
    status bar (`9:41`, full battery, full signal, System UI demo mode on Android). A screenshot the app takes
    itself renders only the Flutter view, and `integration_test`'s `onScreenshot` callback only runs after the

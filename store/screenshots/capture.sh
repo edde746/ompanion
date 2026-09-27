@@ -6,7 +6,7 @@
 #
 # The script owns everything it starts: the fake provider (unless one is already listening), the scripted
 # turns, the simulator or emulator, and the temporary Android AVDs of the tablet classes. It needs the SSH
-# demo host up (`testing/sshd/up.sh`: the `omp` user on 127.0.0.1:22221, the bastion on 22220), `flutter`,
+# demo host up (`harness/sshd/up.sh`: the `omp` user on 127.0.0.1:22221, the bastion on 22220), `flutter`,
 # `bun`, `python3` with Pillow, and `docker` while the demo host is the container.
 #
 # Raw captures land in <raw>/<class>/; the composed images go straight into the fastlane directories of
@@ -63,7 +63,7 @@ if [ -z "$class" ]; then
   exit 2
 fi
 [ -n "$ssh_key" ] || ssh_key="$out/.tools/ssh-test/id_ed25519"
-[ -f "$ssh_key" ] || { echo "missing SSH key $ssh_key: run testing/sshd/up.sh first" >&2; exit 1; }
+[ -f "$ssh_key" ] || { echo "missing SSH key $ssh_key: run harness/sshd/up.sh first" >&2; exit 1; }
 [ -n "$provider_url" ] || provider_url="http://host.docker.internal:$provider_port/v1"
 ANDROID_HOME=${ANDROID_HOME:-$HOME/Library/Android/sdk}
 export ANDROID_HOME
@@ -104,13 +104,13 @@ if curl -fsS "http://127.0.0.1:$provider_port/control/health" >/dev/null 2>&1; t
   say "fake provider already listening on $provider_port"
 else
   say "starting the fake provider on $provider_port"
-  start_bg "$shots/provider.log" bun "$repo/testing/fake-provider/server.ts" --port "$provider_port" --host 0.0.0.0 >/dev/null
+  start_bg "$shots/provider.log" bun "$repo/harness/fake-provider/server.ts" --port "$provider_port" --host 0.0.0.0 >/dev/null
   until curl -fsS "http://127.0.0.1:$provider_port/control/health" >/dev/null 2>&1; do sleep 1; done
 fi
 
 # --- demo host ----------------------------------------------------------------------------------------
 if [ -n "$seed_container" ] && command -v docker >/dev/null 2>&1; then
-  docker inspect "$seed_container" >/dev/null 2>&1 || { echo "$seed_container is not running: run testing/sshd/up.sh" >&2; exit 1; }
+  docker inspect "$seed_container" >/dev/null 2>&1 || { echo "$seed_container is not running: run harness/sshd/up.sh" >&2; exit 1; }
   missing=$(docker exec "$seed_container" sh -c 'for tool in git node npm; do command -v $tool >/dev/null || echo $tool; done' 2>/dev/null || true)
   if [ -n "$missing" ]; then
     say "installing$missing in $seed_container"
@@ -239,7 +239,7 @@ rm -f "$shots"/*.png "$shots/driver.log"
 say "capturing $class on $device"
 drive_status=0
 (cd "$repo" && OMPANION_SHOT_TARGET="$target" OMPANION_SHOT_DIR="$shots" flutter drive -d "$device" \
-  --driver=test_driver/store_driver.dart \
+  --driver=integration_test/driver/store_driver.dart \
   --target=integration_test/store_screenshots_test.dart \
   --dart-define=OMPANION_SHOT_CLASS="$class" \
   --dart-define=OMPANION_SHOT_SSH_HOST="$ssh_define" \

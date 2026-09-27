@@ -14,7 +14,7 @@ final String? pwsh = () {
   return result.exitCode == 0 ? (result.stdout as String).trim() : null;
 }();
 
-/// A temporary machine for tests on this computer: `home/` is an isolated omp home (testing/omp-home.sh,
+/// A temporary machine for tests on this computer: `home/` is an isolated omp home (harness/omp-home.sh,
 /// fake provider on a port nothing listens on, so no model turn can run) with the release binary linked at
 /// `~/.local/bin/omp`, and `work dir/` is a project directory whose name needs quoting.
 final class TestHost {
@@ -25,7 +25,7 @@ final class TestHost {
     final host = TestHost._(root);
     await Directory(host.home).create();
     await Directory(host.work).create();
-    final result = await Process.run('sh', ['$repoRoot/testing/omp-home.sh', host.home, '9']);
+    final result = await Process.run('sh', ['$repoRoot/harness/omp-home.sh', host.home, '9']);
     if (result.exitCode != 0) throw StateError('omp-home.sh failed: ${result.stderr}');
     await Directory('${host.home}/.local/bin').create(recursive: true);
     await Link('${host.home}/.local/bin/omp').create(ompBinary);

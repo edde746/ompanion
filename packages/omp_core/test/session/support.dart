@@ -17,13 +17,13 @@ Future<List<int>> companionBytes(String ompVersion) async {
   return file.readAsBytes();
 }
 
-/// `testing/fake-provider/server.ts` on a free port of [host]: scripted turns only, never a paid model.
+/// `harness/fake-provider/server.ts` on a free port of [host]: scripted turns only, never a paid model.
 final class FakeProvider {
   FakeProvider._(this._process, this.host, this.port);
 
   static Future<FakeProvider> start({String host = '127.0.0.1'}) async {
     final process = await Process.start('bun', [
-      '$repoRoot/testing/fake-provider/server.ts',
+      '$repoRoot/harness/fake-provider/server.ts',
       '--host',
       host,
       '--port',
@@ -48,7 +48,7 @@ final class FakeProvider {
   final String host;
   final int port;
 
-  /// Appends turns; each answers one model request, in order (testing/README.md).
+  /// Appends turns; each answers one model request, in order (harness/README.md).
   Future<void> enqueue(List<Map<String, Object?>> turns) => _call('POST', '/control/enqueue', turns);
 
   /// Clears the queue and the request log.
@@ -111,7 +111,7 @@ final class ProxyRecorder {
   Future<void> close() => _server.close();
 }
 
-/// A machine on this computer: an isolated omp home from `testing/dev-machine.sh` (the fake provider, the pinned omp
+/// A machine on this computer: an isolated omp home from `harness/dev-machine.sh` (the fake provider, the pinned omp
 /// at `~/.local/bin/omp`, `modelRoles.default: fake/fake-1`, `~/demo-project`).
 final class DevMachine {
   DevMachine._(this.root);
@@ -119,7 +119,7 @@ final class DevMachine {
   static Future<DevMachine> create(int port) async {
     final root = await Directory.systemTemp.createTemp('ompanion-session-');
     final machine = DevMachine._(root);
-    final result = await Process.run('sh', ['$repoRoot/testing/dev-machine.sh', machine.home, '$port']);
+    final result = await Process.run('sh', ['$repoRoot/harness/dev-machine.sh', machine.home, '$port']);
     if (result.exitCode != 0) throw StateError('dev-machine.sh failed: ${result.stderr}');
     return machine;
   }

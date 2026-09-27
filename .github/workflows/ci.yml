@@ -63,7 +63,7 @@ jobs:
       - name: Check Dart formatting
         run: |
           git ls-files '*.dart' |
-            grep -v -e '\.g\.dart$' -e '^test/drift/.*/generated/' -e '^packages/' -e '^companion/' -e '^testing/' |
+            grep -v -e '\.g\.dart$' -e '^test/drift/.*/generated/' -e '^packages/' -e '^companion/' -e '^harness/' |
             xargs -r dart format --output=none --set-exit-if-changed
 
       - name: Verify generated files are committed
@@ -236,7 +236,7 @@ jobs:
         run: scripts/build_companion.sh
 
       - name: Start the SSH test machines
-        run: testing/sshd/up.sh
+        run: harness/sshd/up.sh
 
       # -P integration runs the whole suite, so the PowerShell group needs csh here too (see the core job).
       - name: Install csh
@@ -266,7 +266,7 @@ jobs:
 
       - name: Stop the SSH test machines
         if: always()
-        run: testing/sshd/down.sh
+        run: harness/sshd/down.sh
 
   # The Windows machine support end to end: this runner's own Win32-OpenSSH server, reached over dartssh2 with key
   # authentication, runs the omp_core tests tagged windows (test/windows/) with the pinned omp and the fake provider.
@@ -336,7 +336,7 @@ jobs:
         working-directory: packages/omp_core
         run: dart pub get --enforce-lockfile
 
-      # Git Bash puts Git for Windows' sh on PATH, which the tests use for testing/omp-home.sh.
+      # Git Bash puts Git for Windows' sh on PATH, which the tests use for harness/omp-home.sh.
       - name: Windows host tests
         working-directory: packages/omp_core
         run: dart test -P windows -j 1 test/windows

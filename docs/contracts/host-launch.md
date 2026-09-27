@@ -17,7 +17,7 @@ session even though the same omp finds it in a terminal.
 The same holds for "this computer" on macOS: an app started from Finder or the Dock gets launchd's minimal
 PATH, not the one the user's terminal has.
 
-Measured (2026-09-26, macOS 25.6 and the `testing/sshd` Ubuntu container): exec-channel PATH
+Measured (2026-09-26, macOS 25.6 and the `harness/sshd` Ubuntu container): exec-channel PATH
 `/usr/bin:/bin:/usr/sbin:/sbin` and `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin`;
 `bash -lc 'echo $PATH'` on the container adds `/home/omp/.local/bin`, `zsh -lic 'echo $PATH'` on the Mac adds
 Homebrew and every directory `~/.zshrc` prepends.
@@ -25,7 +25,7 @@ Homebrew and every directory `~/.zshrc` prepends.
 ## The probe reads the login PATH (`HostProbe.loginPath`)
 
 - Part of the POSIX probe script, so one connection probe costs one extra login shell, not one extra round
-  trip: about 0.1 s (measured on the `testing/sshd` container, and on a Mac with Homebrew and a `.zshrc`).
+  trip: about 0.1 s (measured on the `harness/sshd` container, and on a Mac with Homebrew and a `.zshrc`).
   Windows probes do not do this (see below), and neither does the POSIX probe on a Windows POSIX shell
   (MSYS, Cygwin), which the Windows probe replaces.
 - **Shell**: `$SHELL` when it is executable, else the account's login shell from the passwd entry

@@ -1,4 +1,4 @@
-# testing
+# harness
 
 A deterministic model backend for real omp processes: a fake OpenAI-compatible provider, isolated omp
 homes that point at it, and RPC fixtures recorded from omp 18.3.1. No test here reaches a paid
@@ -14,13 +14,13 @@ provider. `sshd/` (SSH test containers) is documented separately.
 | `record.ts` | records a scenario from a real omp into `fixtures/` |
 | `fixtures/` | `<scenario>.out.jsonl` (omp stdout) and `<scenario>.in.jsonl` (lines sent) |
 
-Typecheck: `companion/node_modules/.bin/tsc -p testing` (borrows the companion's Bun types).
+Typecheck: `companion/node_modules/.bin/tsc -p harness` (borrows the companion's Bun types).
 
 ## Fake provider
 
 ```sh
-bun testing/fake-provider/server.ts --port 0           # first stdout line: listening <port>
-bun testing/fake-provider/server.ts --port 0 --demo    # unscripted requests get the demo rotation
+bun harness/fake-provider/server.ts --port 0           # first stdout line: listening <port>
+bun harness/fake-provider/server.ts --port 0 --demo    # unscripted requests get the demo rotation
 ```
 
 It listens on 127.0.0.1; `--host <address>` picks another address. The Docker session tests on Linux
@@ -65,8 +65,8 @@ type Step =
 Bun tests:
 
 ```ts
-import { FakeProvider } from "../testing/fake-provider/client.ts";
-import { createOmpHome, ompEnv } from "../testing/omp-home.ts";
+import { FakeProvider } from "../harness/fake-provider/client.ts";
+import { createOmpHome, ompEnv } from "../harness/omp-home.ts";
 
 const fake = await FakeProvider.start();          // fake.port, fake.baseUrl
 await createOmpHome(home, fake.port);             // optional third argument: extra config YAML
@@ -92,7 +92,7 @@ What omp 18.3.1 does with scripted output:
 ## Isolated omp home
 
 ```sh
-testing/omp-home.sh <home-dir> <port> [extra-config.yml]
+harness/omp-home.sh <home-dir> <port> [extra-config.yml]
 ```
 
 Writes `<home-dir>/.omp/agent/models.yml` (provider `fake` at `http://127.0.0.1:<port>/v1`, models
@@ -123,8 +123,8 @@ A local machine for running the app without a model: the demo provider plus an i
 pinned omp.
 
 ```sh
-bun testing/fake-provider/server.ts --port 18999 --demo    # keep it running
-testing/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
+bun harness/fake-provider/server.ts --port 18999 --demo    # keep it running
+harness/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
 flutter run -d macos --dart-define=OMPANION_LOCAL_HOME=/tmp/omp-dev-home \
   --dart-define=OMPANION_DATA_DIR=/tmp/ompanion-data --dart-define=OMPANION_SECRET_PREFIX=dev
 ```
@@ -172,7 +172,7 @@ shared by all sessions:
 ## Recording fixtures
 
 ```sh
-bun testing/record.ts <scenario|all> testing/fixtures
+bun harness/record.ts <scenario|all> harness/fixtures
 ```
 
 Needs `.tools/omp/18.3.1/omp-<platform>-<arch>` (`scripts/fetch_omp.sh`). Each scenario gets its own

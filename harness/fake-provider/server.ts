@@ -2,7 +2,7 @@
  * OpenAI-compatible chat-completions server that answers from scripted turns, so a real omp can run
  * agent turns without a paid provider.
  *
- *   bun testing/fake-provider/server.ts --port <port> [--host <address>] [--demo]
+ *   bun harness/fake-provider/server.ts --port <port> [--host <address>] [--demo]
  *
  * Port 0 picks a free port. The host defaults to 127.0.0.1; Docker test machines on Linux need the
  * address of Docker's host gateway instead.
@@ -87,7 +87,7 @@ export interface RecordedRequest {
 
 const DEFAULT_TURN: StreamTurn = { steps: [{ text: "ok" }] };
 
-/** Model ids `testing/omp-home.sh` registers; listed by `GET /v1/models`. */
+/** Model ids `harness/omp-home.sh` registers; listed by `GET /v1/models`. */
 const MODEL_IDS = ["fake-1", "fake-think"];
 
 function parseStep(value: unknown, where: string): Step {
@@ -452,7 +452,7 @@ export function startServer(port: number, options: { demo?: boolean; hostname?: 
 
 if (import.meta.main) {
 	const argv = Bun.argv.slice(2);
-	const usage = "usage: bun testing/fake-provider/server.ts --port <0-65535> [--host <address>] [--demo]";
+	const usage = "usage: bun harness/fake-provider/server.ts --port <0-65535> [--host <address>] [--demo]";
 	const flag = argv.indexOf("--port");
 	const raw = flag === -1 ? "0" : argv[flag + 1];
 	const port = Number(raw);

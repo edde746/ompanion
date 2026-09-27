@@ -84,7 +84,7 @@ void main() {
   late SessionsProvider sessions;
 
   setUpAll(() async {
-    provider = await Process.start('bun', ['$_root/testing/fake-provider/server.ts', '--port', '0']);
+    provider = await Process.start('bun', ['$_root/harness/fake-provider/server.ts', '--port', '0']);
     final listening = Completer<int>();
     provider.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
       final match = RegExp(r'^listening (\d+)$').firstMatch(line);
@@ -94,7 +94,7 @@ void main() {
     port = await listening.future.timeout(const Duration(seconds: 30));
     root = await Directory.systemTemp.createTemp('ompanion-attachments-omp-');
     final home = '${root.path}/home';
-    final result = await Process.run('sh', ['$_root/testing/dev-machine.sh', home, '$port']);
+    final result = await Process.run('sh', ['$_root/harness/dev-machine.sh', home, '$port']);
     expect(result.exitCode, 0, reason: '${result.stderr}');
     // The fake models take text only, and omp sends no image to such a model; fake-1 takes images here.
     final models = File('$home/.omp/agent/models.yml');

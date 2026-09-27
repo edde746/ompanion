@@ -14,9 +14,9 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Subprocess } from "bun";
-import { FakeProvider } from "../../../testing/fake-provider/client.ts";
-import { isRecord } from "../../../testing/json.ts";
-import { createOmpHome, ompEnv } from "../../../testing/omp-home.ts";
+import { FakeProvider } from "../../../harness/fake-provider/client.ts";
+import { isRecord } from "../../../harness/json.ts";
+import { createOmpHome, ompEnv } from "../../../harness/omp-home.ts";
 
 const ROOT = path.join(import.meta.dir, "..", "..", "..");
 const OMP = path.join(ROOT, ".tools", "omp", "18.3.1", `omp-${process.platform}-${process.arch}`);

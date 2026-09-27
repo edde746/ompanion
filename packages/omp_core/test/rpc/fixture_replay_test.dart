@@ -7,9 +7,9 @@ import 'package:test/test.dart';
 
 import 'scripted_channel.dart';
 
-/// Recorded omp 18.3.1 sessions (testing/fixtures): `<scenario>.out.jsonl` is omp's stdout from
+/// Recorded omp 18.3.1 sessions (harness/fixtures): `<scenario>.out.jsonl` is omp's stdout from
 /// byte 0, `<scenario>.in.jsonl` the commands that produced it.
-final Directory fixtures = Directory('${Directory.current.parent.parent.path}/testing/fixtures');
+final Directory fixtures = Directory('${Directory.current.parent.parent.path}/harness/fixtures');
 
 void main() {
   final outputs = fixtures.existsSync()

@@ -6,7 +6,7 @@ import * as path from "node:path";
 
 const SCRIPT = path.join(import.meta.dir, "omp-home.sh");
 
-/** Runs `testing/omp-home.sh`; `extraConfigYaml` becomes its third argument. */
+/** Runs `harness/omp-home.sh`; `extraConfigYaml` becomes its third argument. */
 export async function createOmpHome(home: string, port: number, extraConfigYaml?: string): Promise<void> {
 	const args = [SCRIPT, home, String(port)];
 	if (extraConfigYaml !== undefined) {
