@@ -28,4 +28,4 @@ The chat shows replies from the user's own agent and providers. The app adds no 
 
 About source and licence
 
-The app is free and open source (GPLv3): github.com/edde746/ompanion, whose issue tracker is the support URL. Nothing in it requires a purchase or a subscription. Settings → About shows the version, the privacy policy, the source, the issue tracker and the licences.
+The app is open source (GPLv3): github.com/edde746/ompanion, whose issue tracker is the support URL. It has no in-app purchases or subscriptions. Settings → About shows the version, the privacy policy, the source, the issue tracker and the licences.

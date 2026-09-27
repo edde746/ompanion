@@ -36,7 +36,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 
 ## Google Play, in order
 
-1. [ ] Play Console: create the app, name `ompanion: omp client`, English (US), app, free.
+1. [ ] Play Console: create the app, name `ompanion: omp client`, English (US), app, paid (US$4.99).
 2. [ ] Accept Play App Signing; the keystore you generated is the **upload** key. Losing it means asking
        Google to reset it.
 3. [ ] Store listing: paste `android/fastlane/metadata/android/en-US/{title,short_description,full_description}.txt`;
@@ -70,7 +70,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 1. [ ] App Store Connect: create the app record, bundle id `com.edde746.ompanion`, SKU of your choice
        (suggest `ompanion-ios-001`), English (US).
 2. [ ] App information: name, subtitle, categories `DEVELOPER_TOOLS` + `PRODUCTIVITY`, copyright, content
-       rights **Yes, with the necessary rights**, price free — `store/app-store.md` §2, §6.
+       rights **Yes, with the necessary rights**, price US$4.99 — `store/app-store.md` §2, §6.
 3. [ ] Age rating questionnaire: answers in `store/app-store.md` §5; computed 9+, with the 18+ override
        option explained there.
 4. [ ] App Privacy: "Yes", with the three data types in §7 (Device ID; Other Diagnostic Data; Other Data
@@ -110,9 +110,9 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
        `major.minor.patch`: a build-number bump alone collides.
 4. [ ] Run Actions → Build on main with Windows selected (a release run builds it too). Download the artifact
        `ompanion-windows-msix-<sha>` and unzip it: it holds `ompanion-windows.msixbundle`.
-5. [ ] Start a submission. Pricing and availability: **US$4.99** (the owner's choice; the other stores and the
-       GitHub build are free), no free trial, every market including future ones, public and discoverable,
-       published automatically after certification. The listing therefore never says "free".
+5. [ ] Start a submission. Pricing and availability: **US$4.99** (the owner's choice, as on the App Store and Play;
+       the GitHub build is free), no free trial, every market including future ones, public and discoverable,
+       published automatically after certification. No store listing says "free".
 6. [ ] Properties: category **Developer tools**; privacy policy URL `https://ompanion.app/privacy` (the one
        Play and the App Store get); website `https://ompanion.app`; support contact
        `https://github.com/edde746/ompanion/issues`. Product declarations:
@@ -221,14 +221,14 @@ Run it from the repository root. Output on this revision (2026-09-27):
 ok   App Store name              20 chars limit 30
 ok   App Store subtitle          21 chars limit 30
 ok   App Store keywords          97 bytes limit 100
-ok   App Store promo text       161 chars limit 170
-ok   App Store description     3941 chars limit 4000
-ok   App Store release notes    660 chars limit 4000
+ok   App Store promo text       152 chars limit 170
+ok   App Store description     3932 chars limit 4000
+ok   App Store release notes    651 chars limit 4000
 ok   Play title                  20 chars limit 30
 ok   Play short description      70 chars limit 80
-ok   Play full description     3864 chars limit 4000
-ok   Play changelog 1           312 chars limit 500
-ok   App Review notes          3885 bytes limit 4000
+ok   Play full description     3855 chars limit 4000
+ok   Play changelog 1           303 chars limit 500
+ok   App Review notes          3868 bytes limit 4000
 ok   MS Store description      4394 chars limit 10000
 ok   MS Store what's new        323 chars limit 1500
 ok   MS Store short descr.       85 chars limit 1000
@@ -240,8 +240,8 @@ ok   MS Store longest term       19       limit 30
 ok   MS Store term words         12       limit 21
 ```
 
-The App Store and Play descriptions are inside their limit, the App Store one by 59 characters, and the
-filled-in review notes by 115 bytes: re-run this after any wording change.
+The App Store and Play descriptions are inside their limit, the App Store one by 68 characters, and the
+filled-in review notes by 132 bytes: re-run this after any wording change.
 
 ## Licence
 

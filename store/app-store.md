@@ -33,7 +33,7 @@ Evidence for each of our files is in section 11 (byte and character counts).
 | Secondary category | Productivity (`PRODUCTIVITY`) — `secondary_category.txt` |
 | Content rights | **Yes, it contains, shows or accesses third-party content, and I have the necessary rights** (see section 6) |
 | Age rating | see section 5; computed 9+, and you may override higher |
-| Price | Free (no in-app purchases, no subscriptions) |
+| Price | US$4.99, the owner's choice (the GitHub build is free); no in-app purchases, no subscriptions. The listing texts therefore never say "free". |
 | Copyright | `2026 Edvard Wikhall` — `ios/fastlane/metadata/copyright.txt` |
 | License agreement | Apple's standard EULA. The app is GPLv3 and published by its sole copyright holder (`store/README.md`, "Licence"). |
 | Routing app coverage file | none |
@@ -108,7 +108,7 @@ Capabilities:
 | Unrestricted Web Access | **No** | There is no browser and no WebView. Links open in the system browser (Safari), outside the app. A model reply can name a web image, and the app fetches it only when the user taps "Load image" — that is a single fetch of a named URL, not browsing. |
 | User-Generated Content | **No** | Nothing the app shows is broadly distributed. Prompts and replies stay between the user and their own machine; there is no feed, no profile page, no publishing, no sharing with other users. |
 | Social Media | **No** | No redistribution, amplification or discovery of anyone's content; no likes, comments, shares or views. |
-| Social Media Disabled for Users Under 13 | not asked (Social Media is No) | |
+| Social Media Disabled for Users Under 13 | **No** | App Store Connect asks it even with Social Media No (seen 2026-09-27). The app has no social media to disable and no age gate (Parental Controls and Age Assurance are No). |
 | Messaging and Chat | **No** | The chat is with the user's own agent on the user's own machine. Two devices of the same user can watch one live session of their own agent; users cannot reach each other through the app, and there are no messages between accounts, no contact list and no way to find another person. **Judgement call** — if App Review reads "several of my devices see one session" as messaging, answer Yes; the computed rating does not change (messaging alone is 4+). |
 | Advertising | **No** | No ads, no ad SDK, no house ads, no ad identifiers. |
 

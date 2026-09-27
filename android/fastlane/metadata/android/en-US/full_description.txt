@@ -50,4 +50,4 @@ Privacy
 - Your data stays on your device or goes over SSH to your own machines; the app reaches GitHub only to download omp for a machine, and a web image in a reply only when you tap it
 - Prompts go to omp on your machine, which calls the providers you configured there, under their policies
 
-ompanion is free and open source (GPLv3): github.com/edde746/ompanion
+ompanion is open source (GPLv3): github.com/edde746/ompanion

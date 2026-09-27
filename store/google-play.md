@@ -37,7 +37,7 @@ Our texts use sentence-case headings, no emoji anywhere, and no superlatives.
 | Contact details — phone | optional; **field for the user** | — |
 | Privacy policy | `https://ompanion.app/privacy` | — |
 | Store listing language | English (United States), default | — |
-| Store settings → App type | Application; free; no in-app purchases | — |
+| App pricing | Paid, US$4.99, the owner's choice (the GitHub build is free); no in-app purchases. The listing texts therefore never say "free". | — |
 
 Release notes for versionCode 1 are in `changelogs/1.txt`.
 
@@ -61,7 +61,7 @@ blocks publication ([Prepare your app for review](https://support.google.com/goo
 | Health apps | **No health features.** |
 | Advertising ID | **No.** The app declares no `AD_ID` permission and has no advertising or attribution SDK. The merged manifest's permissions (`aapt2 dump permissions` on the release APK, 2026-09-27) are `INTERNET`, `POST_NOTIFICATIONS`, `VIBRATE` (flutter_local_notifications), `ACCESS_NETWORK_STATE`, `WAKE_LOCK` and `com.google.android.c2dm.permission.RECEIVE` (Firebase Messaging), plus androidx.core's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. |
 | Permissions declaration form | Not triggered: no SMS/call log, no location, no background location, no foreground-service type, no `QUERY_ALL_PACKAGES`, no restricted permission. None of the permissions above is restricted. |
-| DSA / trader status (EEA) | **field for the user** — Play asks each developer account whether it is a trader. A free, open-source app published by an individual with no commercial activity can be a non-trader, but that is a legal statement about you, not about the app. Answer it in the account's compliance section. |
+| DSA / trader status (EEA) | **field for the user** — Play asks each developer account whether it is a trader. Selling the app is commercial activity, which points to trader status, but that is a legal statement about you, not about the app. Answer it in the account's compliance section. |
 | AI-generated content | There is no dedicated App content form for this. The in-app AI-Generated Content policy is the likeliest policy question for this app, and the app has no in-app report control (section 8). The per-asset "AI-generated" declaration lives with each store-listing image, and our answer there is **No**. |
 
 ## 4. App access — what to select, and the text to paste
@@ -122,7 +122,7 @@ Store's computed 9+ rating: Play's target audience is who the app is *for*, Appl
 - Horror, discrimination, drugs, alcohol, tobacco: **No**.
 - Interactive elements: **Unrestricted Internet — No** (no browser, no WebView; links open in the user's
   browser outside the app). **Users Interact — No** (no messaging, no UGC, no social features between
-  users). **Shares Location — No** (the app never reads location). **Digital Purchases — No** (free, no IAP).
+  users). **Shares Location — No** (the app never reads location). **Digital Purchases — No** (no in-app purchases).
 
 The Summary page shows the calculated ratings before you submit; because of the language answer, expect
 them above the lowest tier. Misrepresenting an app's content is itself a policy violation, so answer what the

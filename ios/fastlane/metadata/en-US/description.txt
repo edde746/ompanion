@@ -51,4 +51,4 @@ Privacy
 - Prompts go to omp on your machine, which calls the providers you configured there, under their policies
 - Private keys and passwords are kept in the platform's secure storage
 
-ompanion is free and open source (GPLv3): github.com/edde746/ompanion
+ompanion is open source (GPLv3): github.com/edde746/ompanion
