@@ -28,5 +28,14 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- Sparkle (AppDelegate.swift, release builds). Nothing in Dart checks for updates, so Sparkle checks on its own
+	     schedule without asking first. The feed is the latest published GitHub release's appcast.xml, whose DMG
+	     carries an EdDSA signature from the key this is the public half of (README, Releasing). -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/edde746/ompanion/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>jGZQuB9KSmTJdadmZ6Z050AW6rLKdDpTRPRfJI8fSms=</string>
 </dict>
 </plist>

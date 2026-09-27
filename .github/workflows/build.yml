@@ -67,6 +67,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
           ALL_PLATFORMS: ${{ inputs.build_android && inputs.build_ios && inputs.build_macos && inputs.build_windows && inputs.build_linux }}
           MACOS_SIGNING: ${{ secrets.MACOS_CERTIFICATE_BASE64 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.KEYCHAIN_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
+          SPARKLE_SIGNING: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
           ANDROID_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && secrets.ANDROID_STORE_PASSWORD != '' && secrets.ANDROID_KEY_PASSWORD != '' && secrets.ANDROID_KEY_ALIAS != '' }}
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -77,6 +78,7 @@ jobs:
           [ "$GITHUB_REF" = refs/heads/main ] || fail "Releases are built from main, not $GITHUB_REF."
           [ "$ALL_PLATFORMS" = true ] || fail "A release needs all five platforms: select every build input."
           [ "$MACOS_SIGNING" = true ] || fail "A release ships a signed, notarized DMG: set the six signing secrets (README, Releasing)."
+          [ "$SPARKLE_SIGNING" = true ] || fail "A release ships the appcast installed Mac apps update from: set SPARKLE_PRIVATE_KEY (README, Releasing)."
           [ "$ANDROID_SIGNING" = true ] || fail "A release ships an APK signed with the upload key: set the four Android secrets (README, Releasing)."
           version=$(sed -n 's/^version: *\([^+ ]*\).*/\1/p' pubspec.yaml)
           [ "$RELEASE_TAG" = "$version" ] || fail "The release tag $RELEASE_TAG is not pubspec.yaml's version $version."
@@ -214,7 +216,7 @@ jobs:
       - name: Name the bundle
         run: cp build/app/outputs/bundle/release/app-release.aab ompanion-android.aab
 
-      # A store artifact, not a release asset: the release job drops it before it counts the five files.
+      # A store artifact, not a release asset: the release job drops it before it counts the release's files.
       - name: Upload the bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -488,11 +490,79 @@ jobs:
           if [ -f "$KEYCHAIN_PATH" ]; then security delete-keychain "$KEYCHAIN_PATH"; fi
           rm -f "$CERTIFICATE_PATH"
 
-      - name: Upload the DMG
+      # Installed copies update through Sparkle (macos/Runner/Info.plist): its feed is appcast.xml on the latest
+      # published release, and it installs the DMG only if the enclosure's EdDSA signature verifies against the
+      # app's SUPublicEDKey. The signature covers the DMG's final bytes, so it comes after the stapled ticket.
+      - name: Write the appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          # The tools of the Sparkle package the app links (macos/Runner.xcodeproj).
+          SPARKLE_VERSION: "2.10.0"
+          SPARKLE_SHA256: c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c
+        run: |
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "::warning title=No appcast::SPARKLE_PRIVATE_KEY is not set, so there is no appcast.xml: installed copies cannot update to this build."
+            exit 0
+          fi
+
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/Sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          echo "$SPARKLE_SHA256  $RUNNER_TEMP/Sparkle.tar.xz" | shasum -a 256 -c -
+          mkdir "$RUNNER_TEMP/sparkle"
+          tar -xJf "$RUNNER_TEMP/Sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle" ./bin/sign_update
+
+          # The key reaches sign_update on stdin, never on disk.
+          signature=$(printf '%s' "$SPARKLE_PRIVATE_KEY" | "$RUNNER_TEMP/sparkle/bin/sign_update" --ed-key-file - -p ompanion-macos.dmg)
+
+          # The app in the DMG. Its version is pubspec.yaml's (CFBundleShortVersionString, the release tag) and its
+          # build number (CFBundleVersion) is what Sparkle compares.
+          plist=build/macos/Build/Products/Release/ompanion.app/Contents/Info.plist
+          read_plist() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist"; }
+          version=$(read_plist CFBundleShortVersionString)
+
+          # The check each Mac makes before installing: a secret that is not the private half of the app's
+          # SUPublicEDKey fails here instead of in every installed copy.
+          cat > "$RUNNER_TEMP/verify.swift" <<'EOF'
+          import CryptoKit
+          import Foundation
+
+          let arguments = CommandLine.arguments
+          let key = try Curve25519.Signing.PublicKey(rawRepresentation: Data(base64Encoded: arguments[1])!)
+          let file = try Data(contentsOf: URL(fileURLWithPath: arguments[3]))
+          exit(key.isValidSignature(Data(base64Encoded: arguments[2])!, for: file) ? 0 : 1)
+          EOF
+          if ! swift "$RUNNER_TEMP/verify.swift" "$(read_plist SUPublicEDKey)" "$signature" ompanion-macos.dmg; then
+            echo "::error title=Wrong update key::SPARKLE_PRIVATE_KEY is not the private half of SUPublicEDKey (macos/Runner/Info.plist), so installed copies would reject this DMG."
+            exit 1
+          fi
+
+          cat > appcast.xml <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+            <channel>
+              <title>ompanion</title>
+              <item>
+                <title>ompanion $version</title>
+                <sparkle:version>$(read_plist CFBundleVersion)</sparkle:version>
+                <sparkle:shortVersionString>$version</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>$(read_plist LSMinimumSystemVersion)</sparkle:minimumSystemVersion>
+                <sparkle:releaseNotesLink>https://gh-html.edde746.dev/$GITHUB_REPOSITORY/$version</sparkle:releaseNotesLink>
+                <enclosure url="https://github.com/$GITHUB_REPOSITORY/releases/download/$version/ompanion-macos.dmg"
+                  length="$(stat -f%z ompanion-macos.dmg)" type="application/octet-stream"
+                  sparkle:edSignature="$signature"/>
+              </item>
+            </channel>
+          </rss>
+          EOF
+          cat appcast.xml
+
+      - name: Upload the DMG and the appcast
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.ARTIFACT }}
-          path: ompanion-macos.dmg
+          path: |
+            ompanion-macos.dmg
+            appcast.xml
           if-no-files-found: error
           compression-level: 0
 
@@ -652,7 +722,7 @@ jobs:
 
       # The Android job also uploads the Play bundle as ompanion-android-aab-<sha>, and the Windows job the Microsoft
       # Store bundle as ompanion-windows-msix-<sha>. Those are store artifacts, not release assets, so they go before
-      # the count: the release holds the five downloads a user can use.
+      # the count: the release holds the five downloads a user can use and the appcast Mac apps update from.
       - name: Drop the store bundles
         run: rm -f release/*.aab release/*.msixbundle
 
@@ -663,8 +733,8 @@ jobs:
         run: |
           ls -l release
           count=$(find release -maxdepth 1 -type f | wc -l)
-          if [ "$count" -ne 5 ]; then
-            echo "::error::Expected the five platform files, found $count." >&2
+          if [ "$count" -ne 6 ]; then
+            echo "::error::Expected the five platform files and appcast.xml, found $count." >&2
             exit 1
           fi
           # Drafts are visible only to a token that can write, so this check lives here, not before the builds.

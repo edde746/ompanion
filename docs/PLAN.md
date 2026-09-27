@@ -358,14 +358,14 @@ following is built yet (M8). The app owns audio instead:
 
 | Channel | Constraint | Handling |
 |---|---|---|
-| GitHub releases (desktop) | none | full feature set; auto-update planned (M9), not built |
+| GitHub releases (desktop) | none | full feature set; the macOS app updates itself through Sparkle from the latest release's `appcast.xml` (README, Releasing); Windows and Linux do not update themselves |
 | Mac App Store | sandbox: no child processes outside the container, no `~/.ssh` | flag off "this computer"; `~/.ssh` via a user-granted folder bookmark |
 | iOS App Store | no background sockets | detached sessions make this safe; reconnect on resume |
 | Google Play | foreground-service policy | no background service; reconnect on resume |
 | Microsoft Store | MSIX package: read-only install directory; files the app process itself creates under AppData go to a per-package folder only the app sees | the `direct` build, packed by `windows/build-msix.ps1`. The processes it starts carry no package identity (measured on the probe, the omp install and omp; the terminal's ConPTY spawn sets no desktop-app policy either), so they see the real file system, as in the zip: omp installed on "this computer" lands in the real `%LOCALAPPDATA%\omp`, where WMI-started runs find it. The app's database and cache land in the package folder, which uninstall removes; so does a file or folder the Files panel creates under AppData on this computer |
 | Flathub | sandbox | "this computer" through `flatpak-spawn --host` with the permission, or flagged off |
 
-The build flags exist (`lib/app/build_channel.dart`). The App Store and Play builds come from the fastlane lane next to each platform (`ios/fastlane/Fastfile`, `android/fastlane/Fastfile`), which build with the `appstore` and `play` channels and upload the listing from the repository; the Android release build is signed from `android/key.properties` when it is there and with the debug key when it is not. The Microsoft Store bundle is the Windows job's artifact `ompanion-windows-msix-<sha>`, uploaded by hand in Partner Center. The submission steps, the console answers and the fields only the user can fill in are in `store/README.md`. No build has been uploaded to any store yet. Not built: desktop auto-update, and the Mac App Store and Flathub builds (neither has a lane, and the Mac App Store's `~/.ssh` folder bookmark does not exist).
+The build flags exist (`lib/app/build_channel.dart`). The App Store and Play builds come from the fastlane lane next to each platform (`ios/fastlane/Fastfile`, `android/fastlane/Fastfile`), which build with the `appstore` and `play` channels and upload the listing from the repository; the Android release build is signed from `android/key.properties` when it is there and with the debug key when it is not. The Microsoft Store bundle is the Windows job's artifact `ompanion-windows-msix-<sha>`, uploaded by hand in Partner Center. The submission steps, the console answers and the fields only the user can fill in are in `store/README.md`. No build has been uploaded to any store yet. Not built: auto-update on Windows and Linux, and the Mac App Store and Flathub builds (neither has a lane, and the Mac App Store's `~/.ssh` folder bookmark does not exist).
 
 ## 10. Milestones
 

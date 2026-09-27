@@ -224,7 +224,7 @@ flutter drive --profile -d macos --driver=integration_test/driver/report_driver.
 <details>
 <summary>Releasing</summary>
 
-To publish a release, set `version` in `pubspec.yaml`, push it to main, and run Actions → Build → Run workflow on main with every platform selected and the release tag set to that version (e.g. `0.1.0`). Before building anything the run checks the branch, the tag (it must equal `pubspec.yaml`'s version and not exist yet), the platforms, and the macOS and Android signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip` and `ompanion-linux-x64.zip` to a draft release. Write the notes and publish the draft; publishing creates the tag on the commit that was built.
+To publish a release, set `version` in `pubspec.yaml`, push it to main, and run Actions → Build → Run workflow on main with every platform selected and the release tag set to that version (e.g. `0.1.0`). Before building anything the run checks the branch, the tag (it must equal `pubspec.yaml`'s version and not exist yet), the platforms, and the macOS signing secrets, the update key and the Android signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip`, `ompanion-linux-x64.zip` and `appcast.xml` to a draft release. Write the notes and publish the draft; publishing creates the tag on the commit that was built, and offers the release to installed Mac apps.
 
 [build.yml](.github/workflows/build.yml), run from Actions → Build → Run workflow, signs the macOS app, notarizes the app and the DMG, and staples the tickets so Gatekeeper accepts the DMG in the artifact named `ompanion-macos-<sha>`. It reads six repository secrets, the same names [Plezy](https://github.com/edde746/plezy) uses:
 
@@ -246,6 +246,23 @@ base64 -i cert.p12 | pbcopy      # MACOS_CERTIFICATE_BASE64
 The app-specific password comes from [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security → App-Specific Passwords → `+`. Apple shows it once; a lost one is replaced, not recovered. The Team ID is under Membership details at [developer.apple.com/account](https://developer.apple.com/account).
 
 Without all six secrets the macOS job still builds and uploads an unsigned DMG, and the annotation says so; with only some of them it fails and names the missing ones. A fork's runs read the fork's own secrets.
+
+Installed Mac apps update themselves through [Sparkle](https://sparkle-project.org) 2.10.0, a Swift package of the Runner target started in `macos/Runner/AppDelegate.swift`. A release build reads `appcast.xml` from the latest published release (`SUFeedURL` in `macos/Runner/Info.plist`) at launch once a day has passed since its last check, and every day while it runs; "Check for Updates…" in the app menu checks at once. A draft is not the latest release, so a release reaches installed apps when its draft is published. Sparkle shows the release notes (the release's page as [gh-html.edde746.dev](https://gh-html.edde746.dev) renders it), downloads `ompanion-macos.dmg`, and replaces the app only if the DMG's EdDSA signature verifies against `SUPublicEDKey` in `Info.plist` and the new app's code signature is valid. Debug builds never start the updater.
+
+The macOS job signs the stapled DMG with the update key, checks that signature against the built app's `SUPublicEDKey`, and writes `appcast.xml` next to the DMG in `ompanion-macos-<sha>`: one item with the version, the build number Sparkle compares, the minimum macOS version, the release notes link, and the DMG's download URL, size and signature. The key is one more repository secret:
+
+| Secret | Value |
+|---|---|
+| `SPARKLE_PRIVATE_KEY` | the private half of `SUPublicEDKey`: a base64 32-byte Ed25519 seed, the format Sparkle's `generate_keys -x` exports |
+
+Without it the job skips the appcast and warns, and a release does not start. GitHub never shows a secret again, so keep the key in your keychain or password manager as well: it was generated into `~/ompanion-sparkle-private-key.txt` on the maintainer's Mac, so store that file's line there and delete the file. A lost key cannot be replaced for installed apps: a new key means a new `SUPublicEDKey`, which reaches users only through a manual download. To sign by hand, import the key into the login keychain with the tools in the `bin` folder of Sparkle's [release archive](https://github.com/sparkle-project/Sparkle/releases/tag/2.10.0), from a Terminal window on that Mac (the keychain asks for permission in a dialog, so not over SSH):
+
+```bash
+./bin/generate_keys --account ompanion -f ompanion-sparkle-private-key.txt   # prints the public key: it must equal SUPublicEDKey
+./bin/sign_update --account ompanion ompanion-macos.dmg
+```
+
+`--account ompanion` keeps the key apart from another app's key under Sparkle's default account.
 
 The Android job signs the APK and the Play bundle with the upload key when four repository secrets are set, again the same names [Plezy](https://github.com/edde746/plezy) uses:
 
