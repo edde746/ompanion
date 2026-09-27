@@ -13,6 +13,7 @@ import '../../sessions/session_name.dart';
 import '../../sessions/session_reads.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../widgets/activity_mark.dart';
 import '../config/machine_config_screen.dart';
 import '../shell/sidebar_tree.dart';
 import 'install_omp_dialog.dart';
@@ -100,16 +101,6 @@ class _RowButton extends StatelessWidget {
   );
 }
 
-class _Spinner extends StatelessWidget {
-  const _Spinner();
-
-  @override
-  Widget build(BuildContext context) => SizedBox.square(
-    dimension: 10,
-    child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.of(context).running),
-  );
-}
-
 /// A machine's row: its chevron, status dot and name, and on hover a new session button and its menu.
 class MachineHeader extends StatefulWidget {
   const MachineHeader({
@@ -183,7 +174,11 @@ class _MachineHeaderState extends State<MachineHeader> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (busy) const Padding(padding: EdgeInsets.symmetric(horizontal: 7), child: _Spinner()),
+          if (busy)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: ActivityMark(size: _iconSize, color: AppColors.of(context).running),
+            ),
           if ((hovered || _menuOpen) && !touch)
             _RowButton(
               key: ValueKey('new-session-${machine.id}'),
@@ -485,8 +480,8 @@ SessionStatus _liveStatus(SessionView view) {
   final colors = AppColors.of(context);
   return switch (status) {
     SessionStatus.none => null,
-    SessionStatus.opening => (const _Spinner(), t.sessions.opening),
-    SessionStatus.working => (const _Spinner(), t.sessions.working),
+    SessionStatus.opening => (ActivityMark(size: _iconSize, color: colors.running), t.sessions.opening),
+    SessionStatus.working => (ActivityMark(size: _iconSize, color: colors.running), t.sessions.working),
     SessionStatus.needsInput => (Icon(Icons.help, size: _iconSize, color: colors.warning), t.sessions.needsInput),
     SessionStatus.failed => (Icon(Icons.error, size: _iconSize, color: colors.error), t.sessions.failed),
     SessionStatus.disconnected => (

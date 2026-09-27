@@ -8,6 +8,7 @@ import '../../config/config_target.dart';
 import '../../config/mcp_config.dart';
 import '../../config/txt_command.dart';
 import '../../i18n/strings.g.dart';
+import '../../widgets/activity_mark.dart';
 import '../../widgets/app_search_field.dart';
 import '../../widgets/app_segmented.dart';
 import '../../widgets/labeled_field.dart';
@@ -202,7 +203,7 @@ class _McpPageState extends State<McpPage> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
             children: [
               if (_error != null) ConfigError(_error!, onRetry: _load),
-              if (servers == null && _error == null) const Center(child: CircularProgressIndicator()),
+              if (servers == null && _error == null) const Center(child: ActivityMark(size: 20)),
               if (servers != null && servers.isEmpty)
                 Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(t.config.mcp.none)),
               for (final server in servers ?? const <McpServer>[])
@@ -222,7 +223,11 @@ class _McpPageState extends State<McpPage> {
                 debounce: const Duration(milliseconds: 500),
                 onChanged: (text) => unawaited(_searchSmithery(text)),
               ),
-              if (_smitherySearching) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
+              if (_smitherySearching)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Align(alignment: AlignmentDirectional.centerStart, child: ActivityMark()),
+                ),
               if (_smitheryOutput case final output?)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),

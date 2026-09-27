@@ -12,6 +12,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../utils/token_count.dart';
+import '../../widgets/activity_mark.dart';
 import '../../widgets/app_search_field.dart';
 
 /// The composer's model button: opens a searchable list of the machine's models above the composer and switches
@@ -135,10 +136,7 @@ class ToolbarButton extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (busy)
-            const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2))
-          else
-            Icon(icon, size: 16),
+          if (busy) const ActivityMark() else Icon(icon, size: 16),
           const SizedBox(width: 6),
           Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
           const SizedBox(width: 2),
@@ -149,6 +147,18 @@ class ToolbarButton extends StatelessWidget {
     final tooltip = this.tooltip;
     return tooltip == null ? button : Tooltip(message: tooltip, child: button);
   }
+}
+
+/// [models] holding every whitespace-separated word of [query] in `provider/id` or their name (case-insensitive),
+/// by provider, then name: the model list and the `^` mention list.
+List<RpcModel> filterModels(List<RpcModel> models, String query) {
+  final words = query.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+  final matching = [
+    for (final model in models)
+      if (words.every((word) => '${model.provider}/${model.id} ${model.name}'.toLowerCase().contains(word))) model,
+  ];
+  matching.sort((a, b) => a.provider != b.provider ? a.provider.compareTo(b.provider) : a.name.compareTo(b.name));
+  return matching;
 }
 
 class _ModelList extends StatefulWidget {
@@ -168,16 +178,6 @@ class _ModelList extends StatefulWidget {
 class _ModelListState extends State<_ModelList> {
   late Future<List<RpcModel>> _models = widget.load(refresh: false);
   String _query = '';
-
-  List<RpcModel> _filter(List<RpcModel> models) {
-    final words = _query.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
-    final matching = [
-      for (final model in models)
-        if (words.every((word) => '${model.provider}/${model.id} ${model.name}'.toLowerCase().contains(word))) model,
-    ];
-    matching.sort((a, b) => a.provider != b.provider ? a.provider.compareTo(b.provider) : a.name.compareTo(b.name));
-    return matching;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -238,8 +238,8 @@ class _ModelListState extends State<_ModelList> {
                     return message(Text(t.chat.modelsFailed(error: '${snapshot.error}')));
                   }
                   final models = snapshot.data;
-                  if (models == null) return message(const CircularProgressIndicator());
-                  final shown = _filter(models);
+                  if (models == null) return message(const ActivityMark(size: 20));
+                  final shown = filterModels(models, _query);
                   if (shown.isEmpty) return message(Text(t.chat.noModels));
                   final current = widget.current;
                   bool isCurrent(RpcModel model) =>

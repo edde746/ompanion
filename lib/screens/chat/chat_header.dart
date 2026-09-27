@@ -14,15 +14,20 @@ import '../../models/machine.dart';
 import '../../sessions/session_name.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../widgets/activity_mark.dart';
+import '../sessions/machine_sessions.dart' show shortPath;
 import 'queue_list.dart';
+import 'transcript/code_style.dart';
 
 /// What the header shows; compared field by field so streamed tokens do not rebuild it.
-typedef _HeaderData = ({String name, bool paused, bool running, ExternalWriter? external});
+typedef _HeaderData = ({String name, bool titled, bool paused, bool running, ExternalWriter? external});
 
-/// Session title, directory and machine, with the pause toggle while a run goes or waits paused, Stop while a run
-/// goes, and the session menu. A closed session shows its state instead of the run controls, and a session another
-/// omp process writes says so instead of offering controls that would need a run of ours. [leading] and [trailing]
-/// carry the shell's sidebar and panel toggles.
+/// Where the session runs (its directory with `~` and its machine; under its title when it has one, since an
+/// untitled session is named after the first prompt, shown right below), then what the session is doing: the activity
+/// mark with "Connecting…" or "Working" (the mark alone on phones), the pause toggle while a run goes or waits
+/// paused, Stop while a run goes, and the session menu. A closed session shows its state instead of the run controls,
+/// and a session another omp process writes says so instead of offering controls that would need a run of ours.
+/// [leading] and [trailing] carry the shell's sidebar and panel toggles.
 class ChatHeader extends StatelessWidget {
   const ChatHeader({super.key, required this.session, this.leading, this.trailing, this.compact = false});
 
@@ -39,13 +44,18 @@ class ChatHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final machine = context.select<SessionsProvider, Machine?>((sessions) => sessions.machineOf(session));
     final summary = context.select<SessionsProvider, SessionSummary?>((sessions) => sessions.summaryOf(session));
+    final home = context.select<SessionsProvider, String?>((sessions) => _home(sessions, session));
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    // A path, so the code font, at the size of the muted line it replaces.
+    final placeStyle = codeTextStyle(theme)
+        .copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: theme.colorScheme.onSurfaceVariant);
     return LinkStateBuilder(
       session: session,
       builder: (context, link) => SessionViewSelector<_HeaderData>(
         session: session,
         select: (view) => (
           name: liveSessionName(t, view, summary),
+          titled: view.config.sessionName?.trim().isNotEmpty ?? false,
           paused: view.run.paused,
           running: view.run.running,
           external: view.external,
@@ -53,19 +63,39 @@ class ChatHeader extends StatelessWidget {
         builder: (context, data) {
           final closed = link is LinkClosed;
           final external = data.external;
-          final title = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(data.name, style: theme.textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text(
-                machine == null ? session.cwd : '${session.cwd} · ${machine.name}',
-                style: muted,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          );
+          final cwd = shortPath(session.cwd, home);
+          final place = machine == null ? cwd : '$cwd · ${machine.name}';
+          // The first prompt is right under the header: an untitled session goes by where it runs (the directory,
+          // then its machine in the muted tone), a titled one (a rename, a generated title) by its title over that
+          // place.
+          final title = data.titled
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(data.name, style: theme.textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    Text(place, style: placeStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                )
+              : Text.rich(
+                  TextSpan(
+                    text: cwd,
+                    children: [
+                      if (machine != null)
+                        TextSpan(
+                          text: ' · ${machine.name}',
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                    ],
+                  ),
+                  style: placeStyle.copyWith(
+                    fontSize: theme.textTheme.bodyMedium?.fontSize,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                );
           final leading = this.leading;
           final trailing = this.trailing;
           // The header reaches the window's top edge: its empty parts and its title move the window on macOS.
@@ -87,16 +117,31 @@ class ChatHeader extends StatelessWidget {
                       key: const ValueKey('external-state'),
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          external.busy ? Icons.sync : Icons.terminal,
-                          size: 16,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 6),
+                        if (external.busy)
+                          const ActivityMark()
+                        else
+                          Icon(Icons.terminal, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 8),
                         Text(external.busy ? t.sessions.working : t.sessions.external, style: muted),
                       ],
                     )
                   else ...[
+                    // What the session is doing, beside its controls; the mark alone where the header is short of
+                    // room.
+                    if (link is LinkConnecting || (data.running && !data.paused)) ...[
+                      Row(
+                        key: const ValueKey('run-state'),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const ActivityMark(),
+                          if (!compact) ...[
+                            const SizedBox(width: 8),
+                            Text(link is LinkConnecting ? t.sessions.connecting : t.sessions.working, style: muted),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     if (data.running || data.paused)
                       _PauseButton(session: session, paused: data.paused, iconOnly: compact),
                     if (data.running) ...[
@@ -116,6 +161,16 @@ class ChatHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The home directory of [session]'s machine once it is probed, which the header's path shortens to `~`.
+String? _home(SessionsProvider sessions, LiveSession session) {
+  final machine = sessions.machineOf(session);
+  if (machine == null) return null;
+  return switch (sessions.runtimeFor(machine).status) {
+    MachineOnline(:final probe) || MachineNeedsOmp(:final probe) => probe.home,
+    _ => null,
+  };
 }
 
 class _PauseButton extends StatelessWidget {
@@ -206,15 +261,16 @@ class _StopButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     void onPressed() => unawaited(abortRun(context, session));
+    // Tonal like Pause: the composer's send or steer is the one filled button while a run goes.
     if (iconOnly) {
-      return IconButton.filled(
+      return IconButton.filledTonal(
         key: const ValueKey('stop'),
         tooltip: context.t.chat.stop,
         icon: const Icon(Icons.stop, size: 18),
         onPressed: onPressed,
       );
     }
-    return FilledButton.icon(
+    return FilledButton.tonalIcon(
       key: const ValueKey('stop'),
       icon: const Icon(Icons.stop, size: 18),
       label: Text(context.t.chat.stop),

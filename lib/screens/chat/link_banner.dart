@@ -22,8 +22,8 @@ class LinkBanner extends StatelessWidget {
     return LinkStateBuilder(
       session: session,
       builder: (context, state) => switch (state) {
-        LinkLive() => const SizedBox.shrink(),
-        LinkConnecting() => const LinearProgressIndicator(minHeight: 2),
+        // Connecting shows in the header's state, where it moves nothing.
+        LinkLive() || LinkConnecting() => const SizedBox.shrink(),
         LinkReconnecting() => _Reconnecting(session: session, state: state),
         LinkClosed() => _Closed(session: session, state: state),
       },

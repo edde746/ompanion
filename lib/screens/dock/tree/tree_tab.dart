@@ -12,6 +12,7 @@ import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/sessions_provider.dart';
 import '../../../utils/token_count.dart';
+import '../../../widgets/activity_mark.dart';
 import '../../../widgets/app_search_field.dart';
 import '../../../widgets/labeled_field.dart';
 import '../dock_empty_state.dart';
@@ -346,11 +347,14 @@ class _TreeTabState extends State<TreeTab> {
                     ),
                 ],
               ),
-              IconButton(tooltip: t.refresh, onPressed: _loading ? null : _reload, icon: const Icon(Icons.refresh)),
+              IconButton(
+                tooltip: t.refresh,
+                onPressed: _loading ? null : _reload,
+                icon: _loading ? const ActivityMark(size: 16) : const Icon(Icons.refresh),
+              ),
             ],
           ),
         ),
-        if (_loading) const LinearProgressIndicator(minHeight: 2) else const SizedBox(height: 2),
         if (widget.session.companionHello == null)
           Container(
             margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
@@ -367,7 +371,7 @@ class _TreeTabState extends State<TreeTab> {
         if (_summarizing)
           MaterialBanner(
             content: Text(t.summarizing),
-            leading: const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            leading: const ActivityMark(size: 20),
             actions: [TextButton(onPressed: _abortSummary, child: Text(t.abort))],
           ),
         Expanded(
@@ -377,7 +381,7 @@ class _TreeTabState extends State<TreeTab> {
               message: t.loadFailed(error: error.toString()),
               action: TextButton(onPressed: _reload, child: Text(context.t.common.retry)),
             ),
-            (null, _) => const Center(child: CircularProgressIndicator()),
+            (null, _) => const Center(child: ActivityMark(size: 20)),
             (final SessionTree tree, _) when tree.isEmpty => DockEmptyState(
               icon: Icons.account_tree_outlined,
               message: t.empty,

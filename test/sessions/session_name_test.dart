@@ -54,6 +54,14 @@ void main() {
     );
   });
 
+  test('a tagged model names itself in a title from the first message; a tag the listing cut short drops', () {
+    expect(
+      sessionName(t, firstMessage: 'Have <model agent="m1" name="Fake Think"/> review this change'),
+      'Have Fake Think review this change',
+    );
+    expect(sessionName(t, firstMessage: 'Have <model agent="m1" name="Fake Th'), 'Have');
+  });
+
   test('a session with neither is a new session', () {
     expect(sessionName(t), 'New session');
     expect(sessionName(t, firstMessage: ' \n '), 'New session');

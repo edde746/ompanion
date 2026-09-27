@@ -35,6 +35,7 @@ signs on install.
 - `/` command palette from the session's own command list; a slash command omp does not list is never sent to the model
 - Model and thinking-level pickers, and a context and cost meter
 - `!` shell and `$` Python runs on the machine, streamed into the chat
+- `^` tags a model for delegation, as in omp: a list of the machine's models opens as you type, and the pick becomes a chip with the model's name; omp names it `m1`, `m2`, … for the `task` tool, and the chat shows the tag as a chip
 - Pause and resume every agent of a session; Stop aborts the run and puts queued messages back into the composer
 - Attach by pasting, dropping or picking: files copied in Finder or Explorer, screenshots and copied images, and files and folders dropped on the chat (macOS, Windows, Linux) become chips above the text; a paste over 10 lines or 1000 characters becomes a "Pasted text" chip with a preview and "Paste inline", as in omp's terminal UI
 - Attached images go to the model as images; a pasted text chip goes into the message after the typed text, and one over 256 KB into the session's `local://` store as `local://paste-N.md`; files, 100 MB at most each, reach omp as `@` mentions it reads itself (text, images, videos as a contact sheet): on this computer where they are, on another machine uploaded over SSH into the session's `local://` directory with progress, deleted with the session; folders attach on this computer only, as a listing

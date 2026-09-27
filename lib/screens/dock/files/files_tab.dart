@@ -15,6 +15,7 @@ import '../../../i18n/strings.g.dart';
 import '../../../models/machine.dart';
 import '../../../sessions/sessions_provider.dart';
 import '../../../utils/byte_size.dart';
+import '../../../widgets/activity_mark.dart';
 import '../../../widgets/labeled_field.dart';
 import '../dock_controller.dart';
 import '../machine_access.dart';
@@ -205,7 +206,7 @@ class _Browser extends StatelessWidget {
     final t = context.t.dock.fileBrowser;
     final theme = Theme.of(context);
     final root = workspace.root;
-    if (root == null) return const Center(child: CircularProgressIndicator());
+    if (root == null) return const Center(child: ActivityMark(size: 20));
     final rows = workspace.rows();
     final documents = workspace.documents;
     return Column(
@@ -256,10 +257,7 @@ class _Browser extends StatelessWidget {
                 onDoubleTap: row.isDirectory ? () => workspace.openDir(row.path) : null,
                 onMenu: (position) => _menu(context, row, position),
               ),
-              LoadingRow(:final depth) => _StatusTile(
-                depth: depth,
-                child: const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
+              LoadingRow(:final depth) => _StatusTile(depth: depth, child: const ActivityMark()),
               EmptyRow(:final depth) => _StatusTile(
                 depth: depth,
                 child: Text(

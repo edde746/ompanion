@@ -13,6 +13,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../widgets/activity_mark.dart';
 import '../../widgets/labeled_field.dart';
 import '../config/model_picker.dart';
 import '../machines/connect_dialogs.dart';
@@ -215,14 +216,18 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
     final ready = !_connecting && _probe != null && !_creating;
     final error = _error;
     return AlertDialog(
-      title: Text(t.sessions.newSessionOn(machine: widget.machine.name)),
+      title: Row(
+        children: [
+          Expanded(child: Text(t.sessions.newSessionOn(machine: widget.machine.name))),
+          if (_connecting) Tooltip(message: t.sessions.connecting, child: const ActivityMark()),
+        ],
+      ),
       content: SizedBox(
         width: 520,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_connecting) const LinearProgressIndicator(),
             LabeledField(
               label: t.sessions.directory,
               child: TextField(
@@ -324,9 +329,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
         FilledButton(
           key: const ValueKey('new-session-create'),
           onPressed: ready ? () => unawaited(_create()) : null,
-          child: _creating
-              ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(t.sessions.create),
+          child: _creating ? const ActivityMark(size: 16) : Text(t.sessions.create),
         ),
       ],
     );
@@ -398,8 +401,8 @@ class _RecentProject extends StatelessWidget {
   }
 }
 
-/// The model form field: a flat control showing the chosen model and opening the model picker, with a spinner
-/// while the machine's models load.
+/// The model form field: a flat control showing the chosen model and opening the model picker, with the activity
+/// mark while the machine's models load.
 class _ModelField extends StatelessWidget {
   const _ModelField({required this.label, required this.tooltip, required this.busy, required this.onPressed});
 
@@ -422,10 +425,7 @@ class _ModelField extends StatelessWidget {
         children: [
           Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
           const SizedBox(width: 4),
-          if (busy)
-            const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2))
-          else
-            Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+          if (busy) const ActivityMark() else Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
         ],
       ),
     );
@@ -572,7 +572,7 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
               child: error != null
                   ? Center(child: Text(error))
                   : shown == null
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: ActivityMark(size: 20))
                   : ListView(
                       children: [
                         for (final name in shown)

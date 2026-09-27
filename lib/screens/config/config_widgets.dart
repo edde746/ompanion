@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../config/settings_schema.dart';
 import '../../i18n/strings.g.dart';
 import '../../utils/app_logger.dart';
+import '../../widgets/activity_mark.dart';
 import '../chat/transcript/ansi.dart';
 import '../chat/transcript/code_style.dart';
 
@@ -250,7 +251,7 @@ class CommandOutputView extends StatelessWidget {
   }
 }
 
-/// The command a page ran, a spinner while it runs, and its output.
+/// The command a page ran, the activity mark while it runs, and its output.
 class CommandRun extends StatelessWidget {
   const CommandRun({super.key, required this.command, required this.running, this.output});
 
@@ -277,7 +278,7 @@ class CommandRun extends StatelessWidget {
                   ),
                 ),
               ),
-              if (running) const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+              if (running) const ActivityMark(),
             ],
           ),
           if (output != null) ...[
@@ -359,7 +360,7 @@ class ConfigHeader extends StatelessWidget {
   }
 }
 
-/// The refresh button of a page; a spinner takes the icon's place while the page loads.
+/// The refresh button of a page; the activity mark takes the icon's place while the page loads.
 class RefreshAction extends StatelessWidget {
   const RefreshAction({super.key, required this.loading, required this.onPressed});
 
@@ -370,9 +371,7 @@ class RefreshAction extends StatelessWidget {
   Widget build(BuildContext context) => IconButton(
     tooltip: context.t.config.refresh,
     onPressed: loading ? null : onPressed,
-    icon: loading
-        ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-        : const Icon(Icons.refresh),
+    icon: loading ? const ActivityMark(size: 16) : const Icon(Icons.refresh),
   );
 }
 

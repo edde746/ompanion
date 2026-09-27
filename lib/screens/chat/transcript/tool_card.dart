@@ -1,10 +1,12 @@
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
+import '../../../widgets/activity_mark.dart';
 import 'ansi.dart';
 import 'code_style.dart';
 import 'tool_bodies.dart';
@@ -97,8 +99,9 @@ typedef ToolParts = ({
   WidgetBuilder? body,
 });
 
-/// A tool call with its result: a header (status, tool name, subject, facts) that toggles a tool-specific body.
-/// Streaming partial results render through the same body as final ones.
+/// A tool call with its result: one flat line (status, tool name, subject, intent, facts) that toggles a
+/// tool-specific body under it, indented to the tool's name. Streaming partial results render through the same body
+/// as final ones.
 class ToolCard extends StatefulWidget {
   const ToolCard({super.key, required this.data});
 
@@ -108,8 +111,12 @@ class ToolCard extends StatefulWidget {
   State<ToolCard> createState() => _ToolCardState();
 }
 
+/// Where a tool card's body starts: past the status mark and its gap, under the tool's name.
+const toolBodyIndent = 22.0;
+
 class _ToolCardState extends State<ToolCard> {
   bool? _expanded;
+  final _open = TapGestureRecognizer();
 
   String get _storageId => 'transcript-tool-expanded:${widget.data.row.key}';
 
@@ -117,6 +124,12 @@ class _ToolCardState extends State<ToolCard> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _expanded ??= PageStorage.maybeOf(context)?.readState(context, identifier: _storageId) as bool?;
+  }
+
+  @override
+  void dispose() {
+    _open.dispose();
+    super.dispose();
   }
 
   void _toggle(bool expanded) {
@@ -133,105 +146,95 @@ class _ToolCardState extends State<ToolCard> {
     final expanded = _expanded ?? (parts.expanded || data.status == ToolStatus.failed);
     final body = parts.body;
     final intent = data.intent;
-    final subjectStyle = parts.monoSubject
-        ? codeTextStyle(theme).copyWith(fontSize: theme.textTheme.bodySmall?.fontSize)
-        : theme.textTheme.bodyMedium;
-    return TranscriptCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SelectionContainer.disabled(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppSizes.cardRadius),
-              onTap: body == null ? null : () => _toggle(expanded),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _StatusIcon(data.status),
-                        const SizedBox(width: 8),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 160),
-                          child: Text(
-                            data.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: parts.open == null
-                              ? Text(parts.subject, maxLines: 1, overflow: TextOverflow.ellipsis, style: subjectStyle)
-                              : InkWell(
-                                  onTap: parts.open,
-                                  child: Text(
-                                    parts.subject,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: subjectStyle?.copyWith(
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: scheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                        for (final fact in parts.meta)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Text(
-                              fact,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: data.status == ToolStatus.failed
-                                    ? AppColors.of(context).error
-                                    : scheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        SizedBox(
-                          width: 28,
-                          child: body == null
-                              ? null
-                              : Icon(
-                                  expanded ? Icons.expand_less : Icons.expand_more,
-                                  size: 18,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                        ),
-                      ],
+    final small = theme.textTheme.bodySmall;
+    final mono = codeTextStyle(theme).copyWith(fontSize: small?.fontSize);
+    final muted = scheme.onSurfaceVariant;
+    final subjectStyle = (parts.monoSubject ? mono : small)?.copyWith(color: muted);
+    _open.onTap = parts.open;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SelectionContainer.disabled(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: body == null ? null : () => _toggle(expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  _StatusMark(data.status),
+                  const SizedBox(width: toolBodyIndent - 14),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 160),
+                    child: Text(
+                      data.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: mono.copyWith(fontWeight: FontWeight.w600),
                     ),
-                    if (intent != null && intent.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 22, top: 2),
-                        child: Text(
-                          intent,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontStyle: FontStyle.italic,
-                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  // The subject, then the harness intent in what room is left: one line, cut at its end.
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          if (parts.subject.isNotEmpty)
+                            TextSpan(
+                              text: parts.subject,
+                              style: parts.open == null
+                                  ? subjectStyle
+                                  : subjectStyle?.copyWith(
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: muted.withValues(alpha: 0.5),
+                                    ),
+                              recognizer: parts.open == null ? null : _open,
+                              mouseCursor: parts.open == null ? null : SystemMouseCursors.click,
+                            ),
+                          if (intent != null && intent.isNotEmpty)
+                            TextSpan(
+                              text: parts.subject.isEmpty ? intent : '   $intent',
+                              style: small?.copyWith(color: muted.withValues(alpha: 0.7)),
+                            ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  for (final fact in parts.meta)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        fact,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: data.status == ToolStatus.failed ? AppColors.of(context).error : muted,
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                  SizedBox(
+                    width: 24,
+                    child: body == null
+                        ? null
+                        : Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 16, color: muted),
+                  ),
+                ],
               ),
             ),
           ),
-          if (expanded && body != null)
-            Padding(padding: const EdgeInsets.fromLTRB(10, 0, 10, 10), child: body(context)),
-        ],
-      ),
+        ),
+        if (expanded && body != null)
+          Padding(padding: const EdgeInsets.fromLTRB(toolBodyIndent, 2, 0, 6), child: body(context)),
+      ],
     );
   }
 }
 
-class _StatusIcon extends StatelessWidget {
-  const _StatusIcon(this.status);
+/// The start of a tool line: the activity mark while the call runs, else a 6 px dot, `success` when it is done,
+/// `error` when it failed, `onSurfaceVariant` when it was interrupted.
+class _StatusMark extends StatelessWidget {
+  const _StatusMark(this.status);
 
   final ToolStatus status;
 
@@ -240,26 +243,26 @@ class _StatusIcon extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final colors = AppColors.of(context);
     final t = context.t.transcript.tool;
+    Widget dot(Color color) => Center(
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        child: const SizedBox.square(dimension: 6),
+      ),
+    );
     return SizedBox.square(
       dimension: 14,
       child: switch (status) {
         ToolStatus.pending || ToolStatus.running => Tooltip(
           message: t.running,
-          child: CircularProgressIndicator(strokeWidth: 2, color: colors.running),
+          child: ActivityMark(color: colors.running),
         ),
         ToolStatus.background => Tooltip(
           message: t.background,
           child: Icon(Icons.schedule, size: 14, color: colors.running),
         ),
-        ToolStatus.done => Icon(Icons.check_circle, size: 14, color: colors.success),
-        ToolStatus.failed => Tooltip(
-          message: t.error,
-          child: Icon(Icons.error, size: 14, color: colors.error),
-        ),
-        ToolStatus.interrupted => Tooltip(
-          message: t.interrupted,
-          child: Icon(Icons.do_not_disturb_on_outlined, size: 14, color: scheme.onSurfaceVariant),
-        ),
+        ToolStatus.done => dot(colors.success),
+        ToolStatus.failed => Tooltip(message: t.error, child: dot(colors.error)),
+        ToolStatus.interrupted => Tooltip(message: t.interrupted, child: dot(scheme.onSurfaceVariant)),
       },
     );
   }
@@ -353,7 +356,7 @@ class TerminalOutput extends StatelessWidget {
     final lines = linesOf(text);
     final base = codeTextStyle(theme).copyWith(color: error ? AppColors.of(context).error : scheme.onSurface);
     return DecoratedBox(
-      decoration: BoxDecoration(color: codeSurface(context), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: codeSurface(context), borderRadius: BorderRadius.circular(AppSizes.radius)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: CappedLines(
@@ -382,7 +385,7 @@ class JsonView extends StatelessWidget {
     final theme = Theme.of(context);
     final lines = linesOf(_encoder.convert(value));
     return DecoratedBox(
-      decoration: BoxDecoration(color: codeSurface(context), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: codeSurface(context), borderRadius: BorderRadius.circular(AppSizes.radius)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: CappedLines(

@@ -15,6 +15,7 @@ import '../../../sessions/machine_images.dart';
 import '../../../sessions/session_view_builder.dart';
 import '../../../sessions/sessions_provider.dart';
 import '../../../utils/token_count.dart';
+import '../../../widgets/activity_mark.dart';
 import '../../chat/transcript/transcript_view.dart';
 import '../dock_controller.dart';
 import '../dock_empty_state.dart';
@@ -283,7 +284,7 @@ class _Tag extends StatelessWidget {
   }
 }
 
-/// An agent's state as an icon, spinning while it runs.
+/// An agent's state as an icon, the activity mark while it runs.
 class StatusIcon extends StatelessWidget {
   const StatusIcon({super.key, required this.status});
 
@@ -295,10 +296,7 @@ class StatusIcon extends StatelessWidget {
     final colors = AppColors.of(context);
     final t = context.t.dock.hub.status;
     final (Widget icon, String label) = switch (status) {
-      RosterStatus.running => (
-        SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2, color: colors.running)),
-        t.running,
-      ),
+      RosterStatus.running => (ActivityMark(color: colors.running), t.running),
       RosterStatus.pending => (Icon(Icons.schedule, size: 16, color: muted), t.pending),
       RosterStatus.idle => (Icon(Icons.pause_circle_outline, size: 16, color: muted), t.idle),
       RosterStatus.parked => (Icon(Icons.bedtime_outlined, size: 16, color: muted), t.parked),
@@ -488,7 +486,7 @@ class _AgentDetailState extends State<_AgentDetail> {
             listenable: widget.transcript,
             builder: (context, _) {
               final transcript = widget.transcript;
-              if (!transcript.loaded) return const Center(child: CircularProgressIndicator());
+              if (!transcript.loaded) return const Center(child: ActivityMark(size: 20));
               if (transcript.view.transcript.isEmpty) {
                 return DockEmptyState(
                   icon: transcript.error == null ? Icons.forum_outlined : Icons.error_outline,

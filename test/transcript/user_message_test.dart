@@ -69,6 +69,25 @@ void main() {
     expect(copied, [message]);
   });
 
+  testWidgets('a tagged model shows as a chip with its name and pseudonym, and Copy gives the tag omp got', (
+    tester,
+  ) async {
+    const message = 'Have <model agent="m1" name="Fake Think"/> review this change';
+    await pump(tester, message);
+
+    expect(find.text('Fake Think'), findsOneWidget);
+    expect(shownText(tester), isNot(contains('<model')));
+    await tester.tap(find.text('Fake Think'));
+    await tester.pump();
+    expect(find.text('Subagent m1'), findsOneWidget, reason: 'the chip shows its pseudonym on tap');
+
+    await tester.tap(find.byTooltip('Message actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Copy message'));
+    await tester.pump();
+    expect(copied, [message]);
+  });
+
   testWidgets('the message actions button sits beside the bubble, not at the row edge', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;

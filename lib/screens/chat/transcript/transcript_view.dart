@@ -7,12 +7,30 @@ import 'package:omp_core/store.dart';
 
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/turn_expansion.dart';
+import '../../../widgets/activity_mark.dart';
 import 'message_rows.dart';
 import 'row_extents.dart';
 import 'transcript_actions.dart';
 import 'transcript_rows.dart';
 
 export 'transcript_actions.dart' show TranscriptActions;
+
+final _roomyThemes = Expando<ThemeData>();
+
+/// The theme the chat's text reads in: the app's on phones, and one step up where the screen's shorter side is at
+/// least 600 px (tablets, desktop windows): 15 px body text (code 13, table cells 14) and 13 px small text. The
+/// transcript uses it, and the composer, so a message reads there as it will in its bubble.
+ThemeData chatTextTheme(BuildContext context) {
+  final base = Theme.of(context);
+  if (MediaQuery.sizeOf(context).shortestSide < 600) return base;
+  return _roomyThemes[base] ??= base.copyWith(
+    textTheme: base.textTheme.copyWith(
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(fontSize: 15),
+      bodySmall: base.textTheme.bodySmall?.copyWith(fontSize: 13),
+      labelSmall: base.textTheme.labelSmall?.copyWith(fontSize: 12),
+    ),
+  );
+}
 
 /// Keeps the transcript at its bottom edge while it grows, as long as the reader has not scrolled away from it. The
 /// adjustment happens inside layout (`ScrollPosition.applyContentDimensions` → `correctForNewDimensions`), so a
@@ -68,7 +86,9 @@ final class _BottomAnchoredController extends ScrollController {
 /// With `anchor: 1.0`, offset 0 puts the top of the center sliver at the bottom edge, and the viewport never lets the
 /// top limit go past 0. Once the rows above the center sliver are shorter than the viewport, scrolling to that limit
 /// would show them at the bottom edge under a blank viewport. The top limit is where the first row meets the top edge
-/// instead, but never past the bottom limit, so a transcript that fits does not scroll.
+/// instead. A transcript that fits has that limit for both ends: it starts at the top edge with the space it leaves
+/// below it, and does not scroll. Its offset then moves with its first row as it grows; [StickToBottomPhysics] takes
+/// the only offset there is for the bottom, so the transcript follows its growth from the layout it overflows in.
 final class _BottomAnchoredPosition extends ScrollPositionWithSingleContext {
   _BottomAnchoredPosition({
     required super.physics,
@@ -84,6 +104,12 @@ final class _BottomAnchoredPosition extends ScrollPositionWithSingleContext {
 
   bool _holding = false;
 
+  /// The metrics of the last layout. [ScrollPosition] hands [correctForNewDimensions] its own copy, which it refreshes
+  /// only when the extents before, inside or after the viewport change: a transcript that fits keeps them at 0, the
+  /// viewport and 0 while its offset and limits move with its first row. [StickToBottomPhysics] would compare the
+  /// offset with a bottom several updates old, and a reply growing in a short transcript would fall off the bottom.
+  ScrollMetrics? _laidOut;
+
   /// Moves to [pixels] and keeps that offset through the next layout, which would otherwise follow the bottom: the
   /// reader toggled a turn and the toggled row stays where it was.
   void keepAt(double pixels) {
@@ -93,15 +119,21 @@ final class _BottomAnchoredPosition extends ScrollPositionWithSingleContext {
 
   @override
   bool correctForNewDimensions(ScrollMetrics oldPosition, ScrollMetrics newPosition) {
-    if (!_holding) return super.correctForNewDimensions(oldPosition, newPosition);
+    if (!_holding) return super.correctForNewDimensions(_laidOut ?? oldPosition, newPosition);
     _holding = false;
     return true;
   }
 
   @override
   bool applyContentDimensions(double minScrollExtent, double maxScrollExtent) {
-    final top = math.min(viewportDimension - extentAbove(), maxScrollExtent);
-    return super.applyContentDimensions(math.max(minScrollExtent, top), maxScrollExtent);
+    final top = viewportDimension - extentAbove();
+    // The first layout corrects nothing (an offset out of range would spring into it over the next frames): a
+    // transcript that fits starts at its top there.
+    final start = !haveDimensions && maxScrollExtent < top && pixels != top;
+    if (start) correctPixels(top);
+    final settled = super.applyContentDimensions(top, math.max(maxScrollExtent, top)) && !start;
+    if (settled) _laidOut = copyWith();
+    return settled;
   }
 }
 
@@ -109,15 +141,15 @@ final class _BottomAnchoredPosition extends ScrollPositionWithSingleContext {
 ///
 /// The list is a [CustomScrollView] around a center sliver with `anchor: 1.0`, so scroll offset 0 is the bottom edge.
 /// Rows that existed while the transcript still fit the viewport, and older pages inserted before them, sit in a
-/// sliver that grows upward from the center: loading earlier history never moves what is on screen, and a short
-/// transcript sits at the bottom without scrolling. Items that arrive once the transcript overflows go in the center
-/// sliver, which grows downward: a reply streaming below does not move what the reader scrolled up to. At the bottom,
-/// [StickToBottomPhysics] follows the growth; at the top, the first row meets the top edge (see
-/// [_BottomAnchoredPosition]).
+/// sliver that grows upward from the center: loading earlier history above a transcript that overflows moves nothing
+/// on screen. A transcript that fits starts at the top edge and does not scroll. Items that arrive once the transcript
+/// overflows go in the center sliver, which grows downward: a reply streaming below does not move what the reader
+/// scrolled up to. At the bottom, [StickToBottomPhysics] follows the growth (a transcript that fits is at its bottom);
+/// at the top, the first row meets the top edge (see [_BottomAnchoredPosition]).
 ///
-/// With [alignTop] every row sits in the center sliver at `anchor: 0.0`: a short transcript starts at the top and
-/// grows downward, and once it overflows, [StickToBottomPhysics] follows the growth as before. Earlier pages then
-/// insert above what is on screen, so it suits transcripts that load whole (a subagent's).
+/// With [alignTop] every row sits in the center sliver at `anchor: 0.0` and grows downward, and once it overflows,
+/// [StickToBottomPhysics] follows the growth as before. Earlier pages then insert above what is on screen, so it suits
+/// transcripts that load whole (a subagent's).
 ///
 /// With [foldTurns], a settled turn folds its work under a summary row (see [TranscriptRowModel]); the latest turn
 /// shows every row while the session works on it: while it streams, compacts, retries or is paused, and while a
@@ -520,85 +552,90 @@ class _TranscriptViewState extends State<TranscriptView> {
     final rows = _model.rows;
     final split = _splitRow;
     final canLoad = widget.actions.onLoadEarlier != null;
+    final theme = chatTextTheme(context);
+    _extents.bodySize = theme.textTheme.bodyMedium?.fontSize ?? 14;
     return TranscriptScope(
       actions: widget.actions,
-      child: Material(
-        type: MaterialType.transparency,
-        child: Stack(
-          children: [
-            NotificationListener<ScrollMetricsNotification>(
-              onNotification: (notification) => _onMetrics(notification.depth, notification.metrics),
-              child: NotificationListener<ScrollUpdateNotification>(
+      child: Theme(
+        data: theme,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            children: [
+              NotificationListener<ScrollMetricsNotification>(
                 onNotification: (notification) => _onMetrics(notification.depth, notification.metrics),
-                child: SelectionArea(
-                  child: CustomScrollView(
-                    controller: _scroll,
-                    center: _centerKey,
-                    anchor: widget.alignTop ? 0.0 : 1.0,
-                    physics: const StickToBottomPhysics(),
-                    slivers: [
-                      if (canLoad)
-                        SliverToBoxAdapter(
-                          child: _LoadEarlier(loading: _loadingEarlier, onPressed: () => _loadEarlier(retry: true)),
-                        ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                      SliverList(
-                        delegate: _EstimatedDelegate(
-                          (context, index) => _row(rows[split - 1 - index]),
-                          childCount: split,
-                          findChildIndexCallback: (key) => _childIndex(key, upper: true),
-                          extentOf: (index) => _extents.of(rows[split - 1 - index]),
-                        ),
-                      ),
-                      SliverPadding(
-                        key: _centerKey,
-                        padding: const EdgeInsets.only(bottom: _bottomGap),
-                        sliver: SliverList(
-                          // A new first item makes a new list. Toggling a turn moves rows between the slivers; an old
-                          // list would lay its rows out from the offsets their indexes had before, and correct the
-                          // scroll offset once they do not add up, moving the toggled row.
-                          key: ValueKey(_firstLiveItem),
+                child: NotificationListener<ScrollUpdateNotification>(
+                  onNotification: (notification) => _onMetrics(notification.depth, notification.metrics),
+                  child: SelectionArea(
+                    child: CustomScrollView(
+                      controller: _scroll,
+                      center: _centerKey,
+                      anchor: widget.alignTop ? 0.0 : 1.0,
+                      physics: const StickToBottomPhysics(),
+                      slivers: [
+                        if (canLoad)
+                          SliverToBoxAdapter(
+                            child: _LoadEarlier(loading: _loadingEarlier, onPressed: () => _loadEarlier(retry: true)),
+                          ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                        SliverList(
                           delegate: _EstimatedDelegate(
-                            (context, index) => _row(rows[split + index]),
-                            childCount: rows.length - split,
-                            findChildIndexCallback: (key) => _childIndex(key, upper: false),
-                            extentOf: (index) => _extents.of(rows[split + index]),
+                            (context, index) => _row(rows[split - 1 - index]),
+                            childCount: split,
+                            findChildIndexCallback: (key) => _childIndex(key, upper: true),
+                            extentOf: (index) => _extents.of(rows[split - 1 - index]),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 12,
-              child: Center(
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: _atBottom,
-                  builder: (context, atBottom, _) => AnimatedScale(
-                    scale: atBottom ? 0 : 1,
-                    duration: const Duration(milliseconds: 150),
-                    child: FloatingActionButton.small(
-                      heroTag: null,
-                      elevation: 0,
-                      focusElevation: 0,
-                      hoverElevation: 0,
-                      highlightElevation: 0,
-                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      foregroundColor: Theme.of(context).colorScheme.onSurface,
-                      shape: const CircleBorder(),
-                      tooltip: context.t.transcript.jumpToLatest,
-                      onPressed: atBottom ? null : _jumpToLatest,
-                      child: const Icon(Icons.arrow_downward),
+                        SliverPadding(
+                          key: _centerKey,
+                          padding: const EdgeInsets.only(bottom: _bottomGap),
+                          sliver: SliverList(
+                            // A new first item makes a new list. Toggling a turn moves rows between the slivers; an old
+                            // list would lay its rows out from the offsets their indexes had before, and correct the
+                            // scroll offset once they do not add up, moving the toggled row.
+                            key: ValueKey(_firstLiveItem),
+                            delegate: _EstimatedDelegate(
+                              (context, index) => _row(rows[split + index]),
+                              childCount: rows.length - split,
+                              findChildIndexCallback: (key) => _childIndex(key, upper: false),
+                              extentOf: (index) => _extents.of(rows[split + index]),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 12,
+                child: Center(
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: _atBottom,
+                    builder: (context, atBottom, _) => AnimatedScale(
+                      scale: atBottom ? 0 : 1,
+                      duration: const Duration(milliseconds: 150),
+                      child: FloatingActionButton.small(
+                        heroTag: null,
+                        elevation: 0,
+                        focusElevation: 0,
+                        hoverElevation: 0,
+                        highlightElevation: 0,
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        foregroundColor: Theme.of(context).colorScheme.onSurface,
+                        shape: const CircleBorder(),
+                        tooltip: context.t.transcript.jumpToLatest,
+                        onPressed: atBottom ? null : _jumpToLatest,
+                        child: const Icon(Icons.arrow_downward),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -645,7 +682,7 @@ class _LoadEarlier extends StatelessWidget {
         padding: const EdgeInsets.only(top: 8),
         child: Center(
           child: loading
-              ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const ActivityMark(size: 20)
               : TextButton.icon(
                   onPressed: onPressed,
                   icon: const Icon(Icons.history, size: 18),

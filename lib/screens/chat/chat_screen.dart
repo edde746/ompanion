@@ -21,6 +21,7 @@ import 'exec_panel.dart';
 import 'link_banner.dart';
 import 'request_panel.dart';
 import 'status_strip.dart';
+import 'transcript/message_rows.dart' show TranscriptRowView;
 import 'transcript/transcript_view.dart';
 
 /// One open session: header, transcript, the panels above the composer, the open requests inline, and the
@@ -55,6 +56,18 @@ class ChatScreen extends StatelessWidget {
       images: images,
     );
     final turns = sessions.turnsOf(session);
+    // The strips and panels around the transcript, and the composer, share its column: their edges line up with the
+    // rows' however wide the pane.
+    Widget column(List<Widget> children) => Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: TranscriptRowView.transcriptColumn),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
+      ),
+    );
     return NoticeHost(
       session: session,
       child: AttachmentDropTarget(
@@ -64,7 +77,7 @@ class ChatScreen extends StatelessWidget {
           children: [
             ChatHeader(session: session, leading: leading, trailing: trailing, compact: compact),
             LinkBanner(session: session),
-            StatusStrip(session: session),
+            column([StatusStrip(session: session)]),
             Expanded(
               child: LinkStateBuilder(
                 session: session,
@@ -79,12 +92,14 @@ class ChatScreen extends StatelessWidget {
                 ),
               ),
             ),
-            CommandOutputs(key: ObjectKey(session), session: session),
-            ExecPanel(session: session),
-            ExtensionWidgets(session: session, placement: WidgetPlacement.aboveEditor),
-            RequestPanel(session: session),
-            SafeArea(top: false, child: Composer(session: session)),
-            ExtensionWidgets(session: session, placement: WidgetPlacement.belowEditor),
+            column([
+              CommandOutputs(key: ObjectKey(session), session: session),
+              ExecPanel(session: session),
+              ExtensionWidgets(session: session, placement: WidgetPlacement.aboveEditor),
+              RequestPanel(session: session),
+              SafeArea(top: false, child: Composer(session: session)),
+              ExtensionWidgets(session: session, placement: WidgetPlacement.belowEditor),
+            ]),
           ],
         ),
       ),

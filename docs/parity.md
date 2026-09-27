@@ -63,6 +63,7 @@ what stock lacks.
 | Magic keywords | typed | passed through | composer highlight | M2 |
 | User bash `!`, `!!` | `!` | CE `executeBash` (streamed, `excludeFromContext`), `abortBash` | composer | M2 |
 | User Python `$`, `$$` | `$` | CE `executePython` | composer | M2 |
+| Model mention `^` (tag a model for delegation) | `^` | RPC `prompt` carries `^provider/id`; omp expands it (pseudonym `m<N>`, `<model agent name/>` tag, `model_mention` entry, session agent for `task`). APP: the `^` list from `get_available_models`, filtered like the model picker; none in `!`/`$` drafts | composer chip, transcript and queue chips | M2 |
 | Side question | `/btw` | CE `runEphemeralTurn` | side panel | M6 |
 | `/omfg` | slash | CE-R (`runEphemeralTurn` + TTSR rule) | dialog | M6 |
 | `/tan` | slash | CE-R | dialog | M6 |

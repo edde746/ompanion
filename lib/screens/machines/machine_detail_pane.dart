@@ -16,6 +16,7 @@ import '../../services/known_hosts_store.dart';
 import '../../services/machine_connector.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../utils/app_logger.dart';
+import '../../widgets/activity_mark.dart';
 import '../chat/transcript/code_style.dart';
 import '../sessions/machine_status.dart';
 import 'connect_dialogs.dart';
@@ -316,11 +317,7 @@ class _RunStatus extends StatelessWidget {
     final colors = AppColors.of(context);
     final (Widget? icon, String? text, Color? color) = switch (state) {
       _Idle() => (null, null, null),
-      _Running(:final message) => (
-        const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-        message,
-        null,
-      ),
+      _Running(:final message) => (const ActivityMark(size: 16), message, null),
       _Succeeded(:final message) => (Icon(Icons.check_circle, color: colors.success, size: 20), message, null),
       _Failed(:final message) => (Icon(Icons.error, color: colors.error, size: 20), message, colors.error),
     };

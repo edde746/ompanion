@@ -8,6 +8,7 @@ import 'package:omp_core/session.dart';
 import '../../config/accounts.dart';
 import '../../config/config_target.dart';
 import '../../i18n/strings.g.dart';
+import '../../widgets/activity_mark.dart';
 import '../chat/transcript/code_style.dart';
 import 'config_widgets.dart';
 import 'model_picker.dart';
@@ -143,7 +144,7 @@ class _RolesPageState extends State<RolesPage> {
         Expanded(
           child: switch ((roles, _error)) {
             (null, final error?) => Center(child: ConfigError(error, onRetry: _load)),
-            (null, _) => const Center(child: CircularProgressIndicator()),
+            (null, _) => const Center(child: ActivityMark(size: 20)),
             (final roles?, _) => ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
               children: [
@@ -231,7 +232,7 @@ class _RoleCard extends StatelessWidget {
                   ).copyWith(fontSize: theme.textTheme.labelSmall?.fontSize, color: theme.colorScheme.onSurfaceVariant),
                 ),
                 const Spacer(),
-                if (busy) const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                if (busy) const ActivityMark(size: 16),
               ],
             ),
             const SizedBox(height: 4),

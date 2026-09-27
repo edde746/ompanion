@@ -1331,6 +1331,9 @@ class Translations$chat$en {
 	/// en: 'Could not switch the model: $error'
 	String modelFailed({required Object error}) => 'Could not switch the model: ${error}';
 
+	/// en: 'Subagent $agent'
+	String modelAgent({required Object agent}) => 'Subagent ${agent}';
+
 	/// en: '$tokens context'
 	String contextWindow({required Object tokens}) => '${tokens} context';
 
@@ -3983,10 +3986,11 @@ extension on Translations {
 			'chat.noModels' => 'No models match.',
 			'chat.modelsFailed' => ({required Object error}) => 'Could not load models: ${error}',
 			'chat.modelFailed' => ({required Object error}) => 'Could not switch the model: ${error}',
+			'chat.modelAgent' => ({required Object agent}) => 'Subagent ${agent}',
 			'chat.contextWindow' => ({required Object tokens}) => '${tokens} context',
-			'chat.reasoning' => 'reasoning',
 			_ => null,
 		} ?? switch (path) {
+			'chat.reasoning' => 'reasoning',
 			'chat.thinking' => ({required Object level}) => 'Thinking: ${level}',
 			'chat.noThinking' => 'This model has no thinking levels.',
 			'chat.thinkingFailed' => ({required Object error}) => 'Could not change the thinking level: ${error}',

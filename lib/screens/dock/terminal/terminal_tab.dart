@@ -15,6 +15,7 @@ import '../../../sessions/sessions_provider.dart';
 import '../../../terminal/shell_launch.dart';
 import '../../../terminal/terminal_deck.dart';
 import '../../../terminal/terminal_session.dart';
+import '../../../widgets/activity_mark.dart';
 import '../../chat/transcript/code_style.dart';
 import '../../external_links.dart';
 import '../dock_controller.dart';
@@ -315,7 +316,6 @@ class _TerminalPaneState extends State<_TerminalPane> {
                   TextButton(onPressed: widget.onRestart, child: Text(t.restart)),
                 ],
               ),
-            if (phase is TerminalStarting) const LinearProgressIndicator(minHeight: 2),
             Expanded(
               child: CallbackShortcuts(
                 bindings: {
@@ -324,22 +324,29 @@ class _TerminalPaneState extends State<_TerminalPane> {
                   const SingleActivator(LogicalKeyboardKey.equal, control: true, shift: true): () => widget.onZoom(1),
                   const SingleActivator(LogicalKeyboardKey.minus, control: true, shift: true): () => widget.onZoom(-1),
                 },
-                child: TerminalView(
-                  session.terminal,
-                  controller: session.controller,
-                  focusNode: _focus,
-                  autofocus: true,
-                  theme: terminalTheme(theme),
-                  textStyle: TerminalStyle(fontSize: widget.fontSize, fontFamily: code.fontFamily!),
-                  padding: const EdgeInsets.all(6),
-                  keyboardAppearance: theme.brightness,
-                  deleteDetection: Platform.isAndroid || Platform.isIOS,
-                  readOnly: phase is! TerminalRunning && phase is! TerminalStarting,
-                  onSecondaryTapDown: (details, _) => _menu(details.globalPosition),
-                  onHyperlinkTap: (link) {
-                    final uri = Uri.tryParse(link);
-                    if (uri != null) unawaited(openExternalLink(context, uri));
-                  },
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    TerminalView(
+                      session.terminal,
+                      controller: session.controller,
+                      focusNode: _focus,
+                      autofocus: true,
+                      theme: terminalTheme(theme),
+                      textStyle: TerminalStyle(fontSize: widget.fontSize, fontFamily: code.fontFamily!),
+                      padding: const EdgeInsets.all(6),
+                      keyboardAppearance: theme.brightness,
+                      deleteDetection: Platform.isAndroid || Platform.isIOS,
+                      readOnly: phase is! TerminalRunning && phase is! TerminalStarting,
+                      onSecondaryTapDown: (details, _) => _menu(details.globalPosition),
+                      onHyperlinkTap: (link) {
+                        final uri = Uri.tryParse(link);
+                        if (uri != null) unawaited(openExternalLink(context, uri));
+                      },
+                    ),
+                    // Where the prompt appears once the shell is up.
+                    if (phase is TerminalStarting) const Positioned(left: 6, top: 6, child: ActivityMark()),
+                  ],
                 ),
               ),
             ),

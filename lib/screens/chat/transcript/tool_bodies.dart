@@ -7,6 +7,7 @@ import '../../../app/theme.dart';
 import '../../../files/file_paths.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../utils/token_count.dart';
+import '../../../widgets/activity_mark.dart';
 import 'code_block.dart';
 import 'diff.dart';
 import 'highlighter.dart';
@@ -101,7 +102,7 @@ ToolParts _bash(BuildContext context, ToolData data) {
     open: null,
     body: (context) => _column([
       if (command.contains('\n')) ...[
-        CodeBlock(code: command, language: 'bash', header: false),
+        CodeBlock(code: command, language: 'bash', copyable: false),
         const SizedBox(height: 6),
       ],
       if (output.trim().isNotEmpty)
@@ -183,7 +184,7 @@ ToolParts _read(BuildContext context, ToolData data) {
             code: lines.sublist(start, end).join('\n'),
             language: languageForPath(_withoutSelector(path)),
             lineNumbers: gutter.sublist(start, end),
-            header: false,
+            copyable: false,
           ),
         )
       else if (images.isEmpty && !data.isError && data.text.trim().isNotEmpty)
@@ -331,7 +332,7 @@ ToolParts _write(BuildContext context, ToolData data) {
             code: lines.sublist(start, end).join('\n'),
             language: languageForPath(path),
             lineNumbers: [for (var line = start + 1; line <= end; line++) line],
-            header: false,
+            copyable: false,
           ),
         ),
       if (diagnostics.isNotEmpty) ...[
@@ -403,7 +404,9 @@ ToolParts _todo(BuildContext context, ToolData data) {
     subject: subject.join(' · '),
     monoSubject: false,
     meta: [if (tasks.isNotEmpty) t.todoProgress(done: done, total: tasks.length)],
-    expanded: true,
+    // The plan shows once, where it is made; each update after it is one line: what changed and the count. Images
+    // the call returned show whatever the op.
+    expanded: op == 'init' || data.images.isNotEmpty,
     open: null,
     body: phases.isEmpty && data.images.isEmpty
         ? null
@@ -440,18 +443,19 @@ class _TodoRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(icon, size: 16, color: color),
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 14, color: color),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // The small text of the tool bodies around it: a plan is a list of work, not prose.
                 Text(
                   task.content,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: crossed ? scheme.onSurfaceVariant : null,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: crossed ? scheme.onSurfaceVariant : scheme.onSurface,
                     decoration: crossed ? TextDecoration.lineThrough : null,
                     fontWeight: task.status == TodoStatus.inProgress ? FontWeight.w600 : null,
                   ),
@@ -607,7 +611,7 @@ class _AgentRow extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 3),
               child: agent.status == SubagentStatus.running
-                  ? const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const ActivityMark()
                   : Icon(Icons.smart_toy_outlined, size: 14, color: color),
             ),
             const SizedBox(width: 8),
@@ -640,7 +644,12 @@ class _AgentRow extends StatelessWidget {
                     style: theme.textTheme.bodySmall,
                   ),
                   if (agent.task.isNotEmpty)
-                    Text(agent.task, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
+                    Text(
+                      agent.task,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
                   if (agent.activity != null && agent.status == SubagentStatus.running)
                     Text(
                       agent.activity!,
@@ -928,11 +937,7 @@ ToolParts _eval(BuildContext context, ToolData data) {
       if (cells.isNotEmpty)
         for (final cell in cells) ...[
           if (_string(cell['title']) case final title?) ToolSection(title),
-          CodeBlock(
-            code: _string(cell['code']) ?? '',
-            language: _evalLanguage(_string(cell['language'])) ?? language,
-            label: _string(cell['language']) ?? _string(data.args['language']),
-          ),
+          CodeBlock(code: _string(cell['code']) ?? '', language: _evalLanguage(_string(cell['language'])) ?? language),
           if ((_string(cell['output']) ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 6),
             TerminalOutput(_string(cell['output'])!, error: cell['status'] == 'error'),
@@ -940,7 +945,7 @@ ToolParts _eval(BuildContext context, ToolData data) {
           const SizedBox(height: 6),
         ]
       else ...[
-        if (code.isNotEmpty) CodeBlock(code: code, language: language, label: _string(data.args['language'])),
+        if (code.isNotEmpty) CodeBlock(code: code, language: language),
         if (output.trim().isNotEmpty) ...[const SizedBox(height: 6), TerminalOutput(output, error: data.isError)],
       ],
       if (jsonOutputs.isNotEmpty) ...[const SizedBox(height: 6), for (final value in jsonOutputs) JsonView(value)],

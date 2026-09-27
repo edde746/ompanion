@@ -110,6 +110,28 @@ void main() {
       expect(parseBlocks('| a | b |\n|---|:').first, isNot(isA<MdCustomBlock>()));
       expect(parseBlocks('| a | b |').first, isNot(isA<MdCustomBlock>()));
     });
+
+    testWidgets('a code span in a cell stays on one line while the other columns can wrap for it', (tester) async {
+      tester.view.physicalSize = const Size(500, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      // The path is over half the table's width; the change beside it wraps.
+      await pumpMarkdown(
+        tester,
+        '| File | Change |\n|---|---|\n| `src/lib/rate-limit.ts` | token bucket per client, 60 requests a minute |',
+      );
+      final path = tester.renderObject<RenderParagraph>(
+        find.textContaining('src/lib/rate-limit.ts', findRichText: true).last,
+      );
+      final boxes = path.getBoxesForSelection(
+        TextSelection(baseOffset: 0, extentOffset: path.text.toPlainText().length),
+      );
+      expect({for (final box in boxes) box.top}, hasLength(1), reason: 'the path is not broken at its hyphen');
+      final sideways = tester.state<ScrollableState>(
+        find.byWidgetPredicate((widget) => widget is Scrollable && widget.axisDirection == AxisDirection.right),
+      );
+      expect(sideways.position.maxScrollExtent, 0, reason: 'the table fits its column');
+    });
   });
 
   group('TaskList', () {

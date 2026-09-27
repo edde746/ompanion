@@ -9,6 +9,7 @@ import '../../config/accounts.dart';
 import '../../config/config_target.dart';
 import '../../i18n/strings.g.dart';
 import '../../utils/app_logger.dart';
+import '../../widgets/activity_mark.dart';
 import '../../widgets/app_search_field.dart';
 import '../chat/transcript/code_style.dart';
 import 'config_widgets.dart';
@@ -185,7 +186,7 @@ class _AccountsPageState extends State<AccountsPage> {
         Expanded(
           child: switch ((accounts, _error)) {
             (null, final error?) => Center(child: ConfigError(error, onRetry: _load)),
-            (null, _) => const Center(child: CircularProgressIndicator()),
+            (null, _) => const Center(child: ActivityMark(size: 20)),
             _ => ListView(
               // The rows' fill lines up with the search field above.
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
@@ -595,9 +596,7 @@ class _KeyFieldState extends State<_KeyField> {
         FilledButton.tonal(
           key: const ValueKey('api-key-save'),
           onPressed: _saving || !widget.ready || _key.text.trim().isEmpty ? null : _save,
-          child: _saving
-              ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(t.config.accounts.saveKey),
+          child: _saving ? const ActivityMark(size: 16) : Text(t.config.accounts.saveKey),
         ),
       ],
     );

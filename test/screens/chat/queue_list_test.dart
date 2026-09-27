@@ -243,4 +243,21 @@ void main() {
     expect(draft.text.text, '$message\n\nhalf typed');
     await tearDownProviders(tester);
   });
+
+  testWidgets('a queued message shows its tagged model as a chip; editing it puts the chip back, sending the tag', (
+    tester,
+  ) async {
+    const message = 'Ask <model agent="m1" name="Fake Think"/> too';
+    final (_, draft) = await pumpQueue(tester, steering: message);
+    final row = find.byKey(const ValueKey('queued-steering-0'));
+    expect(find.descendant(of: row, matching: find.text('Fake Think')), findsOneWidget);
+    expect(find.descendant(of: row, matching: find.textContaining('<model')), findsNothing);
+
+    await tester.tap(find.descendant(of: row, matching: find.byTooltip('Edit in the composer')));
+    await tester.pump();
+    await tester.pump();
+    expect(draft.text.text, isNot(contains('<model')));
+    expect(draft.text.expand(draft.text.text), '$message\n\nhalf typed');
+    await tearDownProviders(tester);
+  });
 }

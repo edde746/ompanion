@@ -8,6 +8,7 @@ import '../../config/config_target.dart';
 import '../../config/omp_cli.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../widgets/activity_mark.dart';
 import '../../widgets/app_segmented.dart';
 import '../chat/transcript/code_style.dart';
 import 'config_widgets.dart';
@@ -161,7 +162,7 @@ class _PluginsPageState extends State<PluginsPage> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
             children: [
               if (_error != null) ConfigError(_error!, onRetry: _load),
-              if (plugins == null && _error == null) const Center(child: CircularProgressIndicator()),
+              if (plugins == null && _error == null) const Center(child: ActivityMark(size: 20)),
               if (plugins != null) ...[
                 ConfigSectionTitle(t.config.plugins.installed),
                 if (plugins.isEmpty) Text(t.config.plugins.none, style: muted),

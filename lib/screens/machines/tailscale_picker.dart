@@ -7,6 +7,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/machine_draft.dart';
 import '../../models/tailscale_status.dart';
 import '../../services/tailscale_cli.dart';
+import '../../widgets/activity_mark.dart';
 import '../../widgets/app_search_field.dart';
 
 /// Lists the tailnet's devices from the desktop's Tailscale client; pops a draft for the chosen one.
@@ -46,7 +47,7 @@ class _TailscalePickerState extends State<_TailscalePicker> {
           builder: (context, snapshot) {
             if (snapshot.hasError) return Text(t.tailscale.failed(message: '${snapshot.error}'));
             final lookup = snapshot.data;
-            if (lookup == null) return const Center(heightFactor: 3, child: CircularProgressIndicator());
+            if (lookup == null) return const Center(heightFactor: 3, child: ActivityMark(size: 20));
             return switch (lookup) {
               TailscaleNotInstalled() => Text(t.tailscale.notInstalled),
               TailscaleFailed(:final message) => Text(t.tailscale.failed(message: message)),

@@ -12,6 +12,7 @@ import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../widgets/activity_mark.dart';
 import '../chat/transcript/code_style.dart';
 import '../machines/connect_dialogs.dart';
 import '../machines/machine_detail_pane.dart';
@@ -204,7 +205,14 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
                     const SizedBox(height: 12),
                     switch (phase) {
                       _Ready() => const SizedBox.shrink(),
-                      _Running(:final message, :final fraction) => Column(
+                      _Running(:final message, fraction: null) => Row(
+                        children: [
+                          const ActivityMark(),
+                          const SizedBox(width: AppSizes.gap),
+                          Expanded(child: Text(message)),
+                        ],
+                      ),
+                      _Running(:final message, :final double fraction) => Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           LinearProgressIndicator(value: fraction),

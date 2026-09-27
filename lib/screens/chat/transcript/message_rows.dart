@@ -8,6 +8,7 @@ import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/message_mentions.dart';
 import '../../../utils/token_count.dart';
+import '../../../widgets/activity_mark.dart';
 import '../../dock/tree/session_tree.dart';
 import '../mention_spans.dart';
 import 'code_style.dart';
@@ -48,11 +49,12 @@ class TranscriptRowView extends StatelessWidget {
       ),
       final ThinkingRow row => (_ThinkingView(row, thought: thought), 6.0),
       AssistantImageRow(:final block) => (Align(alignment: Alignment.centerLeft, child: TranscriptImage(block)), 6.0),
+      // A tool line pads itself: consecutive calls read as one list.
       final ToolRow row => (
         ToolCard(
           data: ToolData(row: row, result: result, subagents: subagents),
         ),
-        6.0,
+        2.0,
       ),
       final AssistantFooterRow row => (_AssistantFooter(row.item, retryFailed: row.retryFailed), 4.0),
       final AwaitingReplyRow row => (_AwaitingReply(row), 10.0),
@@ -61,7 +63,7 @@ class TranscriptRowView extends StatelessWidget {
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 880),
+        constraints: const BoxConstraints(maxWidth: transcriptColumn),
         // Full column width: rows lay themselves out left to right (user messages align themselves right).
         child: SizedBox(
           width: double.infinity,
@@ -71,8 +73,11 @@ class TranscriptRowView extends StatelessWidget {
     );
   }
 
+  /// The widest the transcript's rows get, side padding included: about 100 characters of body text a line.
+  static const transcriptColumn = 760.0;
+
   static double _gapBefore(TranscriptItem item) => switch (item) {
-    UserItem() => 18,
+    UserItem() => 24,
     ModelChangeItem() || ThinkingChangeItem() => 6,
     _ => 10,
   };
@@ -257,7 +262,7 @@ class _UserMessageState extends State<_UserMessage> {
         borderRadius: BorderRadius.circular(AppSizes.cardRadius),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -401,12 +406,15 @@ class _ThinkingViewState extends State<_ThinkingView> {
     final dim = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     if (block is! ThinkingBlock) {
       return SelectionContainer.disabled(
-        child: Row(
-          children: [
-            Icon(Icons.lock_outline, size: 14, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 6),
-            Text(t.redactedThinking, style: dim),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Icon(Icons.lock_outline, size: 14, color: scheme.onSurfaceVariant),
+              const SizedBox(width: toolBodyIndent - 14),
+              Text(t.redactedThinking, style: dim),
+            ],
+          ),
         ),
       );
     }
@@ -426,17 +434,19 @@ class _ThinkingViewState extends State<_ThinkingView> {
             onTap: _toggle,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
+              // The mark column and text edge of the tool lines around it.
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (row.live)
-                    const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 1.5))
+                    const ActivityMark()
                   else
-                    Icon(Icons.psychology_outlined, size: 16, color: scheme.onSurfaceVariant),
-                  const SizedBox(width: 6),
-                  Text(label, style: dim?.copyWith(fontWeight: FontWeight.w600)),
+                    Icon(Icons.psychology_outlined, size: 14, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: toolBodyIndent - 14),
+                  Text(label, style: dim),
                   if (!row.live && reasoning != null && reasoning > 0)
                     Text('  ·  ${t.reasoningTokens(n: reasoning)}', style: dim),
+                  const SizedBox(width: 2),
                   Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 16, color: scheme.onSurfaceVariant),
                 ],
               ),
@@ -445,7 +455,7 @@ class _ThinkingViewState extends State<_ThinkingView> {
         ),
         if (_expanded)
           Padding(
-            padding: const EdgeInsets.only(left: 22, top: 2),
+            padding: const EdgeInsets.only(left: toolBodyIndent, top: 2),
             child: TranscriptMarkdown(
               block.thinking,
               style: dim?.copyWith(fontSize: theme.textTheme.bodyMedium?.fontSize),
@@ -489,8 +499,8 @@ class _TurnSummary extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Flexible(
-                    child: Text(
-                      parts.isEmpty ? t.worked : parts.join('  ·  '),
+                    child: Text.rich(
+                      _facts(parts.isEmpty ? [t.worked] : parts, scheme.onSurfaceVariant),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
@@ -516,6 +526,19 @@ class _TurnSummary extends StatelessWidget {
   }
 }
 
+/// [facts] of a quiet line, joined by a `·` half as strong as their [color].
+TextSpan _facts(List<String> facts, Color color) {
+  final separator = TextSpan(
+    text: '  ·  ',
+    style: TextStyle(color: color.withValues(alpha: color.a * 0.5)),
+  );
+  return TextSpan(
+    children: [
+      for (final (index, fact) in facts.indexed) ...[if (index > 0) separator, TextSpan(text: fact)],
+    ],
+  );
+}
+
 class _AssistantFooter extends StatelessWidget {
   const _AssistantFooter(this.item, {required this.retryFailed});
 
@@ -530,7 +553,7 @@ class _AssistantFooter extends StatelessWidget {
     final scheme = theme.colorScheme;
     final t = context.t.transcript;
     final colors = AppColors.of(context);
-    final dim = theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant);
+    final dim = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     final usage = item.usage;
     final facts = [
       item.model,
@@ -544,6 +567,8 @@ class _AssistantFooter extends StatelessWidget {
     // The menu lives in the footer: the footer is the tail of an assistant message that ended a turn, so this is where
     // the message is reachable whatever the turn's folding.
     final actions = item.entryId != null && TranscriptScope.of(context).onResetTo != null;
+    final showFacts =
+        (item.stopReason != StopReason.error || recovery != null) && (usage != null || item.duration != null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -558,7 +583,10 @@ class _AssistantFooter extends StatelessWidget {
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 4),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(color: colors.errorSurface, borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                    color: colors.errorSurface,
+                    borderRadius: BorderRadius.circular(AppSizes.radius),
+                  ),
                   child: Text(
                     item.errorMessage ?? t.failed,
                     style: theme.textTheme.bodySmall?.copyWith(color: colors.error),
@@ -583,26 +611,29 @@ class _AssistantFooter extends StatelessWidget {
                       : t.retrySuperseded(attempt: recovery.attempt),
                   style: dim,
                 ),
-              if ((item.stopReason != StopReason.error || recovery != null) && (usage != null || item.duration != null))
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(facts.join('  ·  '), style: dim),
-                ),
             ],
           ),
         ),
-        if (actions)
-          Align(
-            alignment: Alignment.centerRight,
-            child: PopupMenuButton<_MessageAction>(
-              tooltip: t.messageActions,
-              icon: Icon(Icons.more_horiz, color: scheme.onSurfaceVariant),
-              iconSize: 18,
-              padding: EdgeInsets.zero,
-              style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
-              onSelected: (action) => _actOnAssistant(context, action, item),
-              itemBuilder: (context) => _messageMenu(context, entryId: item.entryId, kind: TreeEntryKind.assistant),
-            ),
+        if (showFacts || actions)
+          Row(
+            children: [
+              if (showFacts)
+                Flexible(
+                  child: SelectionContainer.disabled(
+                    child: Text.rich(_facts(facts, scheme.onSurfaceVariant), style: dim),
+                  ),
+                ),
+              if (actions)
+                PopupMenuButton<_MessageAction>(
+                  tooltip: t.messageActions,
+                  icon: Icon(Icons.more_horiz, color: scheme.onSurfaceVariant),
+                  iconSize: 18,
+                  padding: EdgeInsets.zero,
+                  style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+                  onSelected: (action) => _actOnAssistant(context, action, item),
+                  itemBuilder: (context) => _messageMenu(context, entryId: item.entryId, kind: TreeEntryKind.assistant),
+                ),
+            ],
           ),
       ],
     );
@@ -627,8 +658,7 @@ const _awaitingSecondsAfter = 3;
 
 /// The turn is working on an answer and has produced nothing to show yet: one quiet line in the place the reply will
 /// take, so the wait is visible and the transcript does not jump when the reply arrives. The seconds appear once the
-/// wait is long enough to be worth counting, and the dots step one per second; a device that asks for less motion
-/// gets the three dots still.
+/// wait is long enough to be worth counting.
 class _AwaitingReply extends StatelessWidget {
   const _AwaitingReply(this.row);
 
@@ -644,47 +674,12 @@ class _AwaitingReply extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _WaitingDots(seconds: seconds, still: MediaQuery.disableAnimationsOf(context)),
-          const SizedBox(width: 6),
+          const ActivityMark(),
+          const SizedBox(width: toolBodyIndent - 14),
           Text(
             seconds < _awaitingSecondsAfter ? t.waiting : t.waitingElapsed(seconds: seconds),
             style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Three 3 px dots in `onSurfaceVariant`, the leading one dimmed and stepped once a second while the wait goes on.
-/// They are the whole of the row's mark: one 14 px block, centred on the text's line.
-class _WaitingDots extends StatelessWidget {
-  const _WaitingDots({required this.seconds, required this.still});
-
-  final int seconds;
-
-  /// Less motion asked for: the dots stay lit.
-  final bool still;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onSurfaceVariant;
-    final lead = still ? -1 : seconds % 3;
-    return SizedBox(
-      width: 14,
-      height: 14,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          for (var index = 0; index < 3; index++)
-            Container(
-              width: 3,
-              height: 3,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: index == lead ? 0.4 : 1),
-                shape: BoxShape.circle,
-              ),
-            ),
         ],
       ),
     );

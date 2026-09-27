@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:omp_core/store.dart';
 
+import 'message_rows.dart' show TranscriptRowView;
 import 'transcript_rows.dart';
 
 /// Row heights for the transcript's scroll extent: the height a row had at its last layout, else an estimate from its
@@ -15,6 +16,7 @@ import 'transcript_rows.dart';
 /// total by its own error only.
 final class RowExtents {
   double _width = 0;
+  double _body = 14;
   final _measured = <String, double>{};
   var _estimated = Expando<double>();
 
@@ -29,35 +31,46 @@ final class RowExtents {
     _measured[key] = height;
   }
 
-  double of(TranscriptRow row) => _measured[row.key] ?? (_estimated[row] ??= estimateRowExtent(row, _width));
+  /// The transcript's body text size; another size drops every estimate.
+  set bodySize(double size) {
+    if (size == _body) return;
+    _body = size;
+    _estimated = Expando<double>();
+  }
+
+  double of(TranscriptRow row) =>
+      _measured[row.key] ?? (_estimated[row] ??= estimateRowExtent(row, _width, body: _body));
 
   /// Forgets the heights of rows that are gone.
   void retain(Set<String> keys) => _measured.removeWhere((key, _) => !keys.contains(key));
 }
 
-// Rough sizes of the default theme's body text and code lines. An error here drifts the scrollbar slowly as rows are
+// Rough sizes of 14 px body text and code lines, scaled to the transcript's body size. An error here drifts the scrollbar slowly as rows are
 // laid out; it never makes it jump.
-const _maxColumn = 880.0;
+const _maxColumn = TranscriptRowView.transcriptColumn;
 const _sidePadding = 24.0;
 const _charWidth = 7.4;
 const _lineHeight = 21.0;
 const _codeLineHeight = 18.0;
 
-/// The height [row] probably lays out at, [width] wide, before it was ever laid out.
-double estimateRowExtent(TranscriptRow row, double width) {
-  final column = math.max(120.0, math.min(width, _maxColumn) - _sidePadding);
-  return switch (row) {
-    ItemRow(item: UserItem(:final content)) => 18 + 24 + _userLines(content, column - 80) * _lineHeight,
-    ItemRow() => 10 + 28,
-    AssistantTextRow(:final text, :final part) => (part == 0 ? 6 : 12) + _markdownHeight(text, column),
-    ThinkingRow() => 6 + 24,
-    AssistantImageRow() => 6 + 200,
-    ToolRow() => 6 + 36,
-    // The chat's message menu takes a line of its own under the facts of a reply with an entry.
-    AssistantFooterRow(:final item) => 4 + 20 + (item.entryId == null ? 0 : 32),
-    AwaitingReplyRow() => 10 + 20,
-    TurnSummaryRow() => 6 + 24,
-  };
+/// The height [row] probably lays out at, [width] wide with [body] px text, before it was ever laid out.
+double estimateRowExtent(TranscriptRow row, double width, {double body = 14}) {
+  final column = math.max(120.0, math.min(width, _maxColumn) - _sidePadding) * 14 / body;
+  final scale = body / 14;
+  return scale *
+      switch (row) {
+        ItemRow(item: UserItem(:final content)) => 24 + 24 + _userLines(content, column - 90) * _lineHeight,
+        ItemRow() => 10 + 28,
+        AssistantTextRow(:final text, :final part) => (part == 0 ? 6 : 12) + _markdownHeight(text, column),
+        ThinkingRow() => 6 + 24,
+        AssistantImageRow() => 6 + 200,
+        // One tool line; an open body is measured once it is laid out.
+        ToolRow() => 2 + 29,
+        // The message menu sits at the end of the facts' line and makes it an icon button tall.
+        AssistantFooterRow(:final item) => 4 + (item.entryId == null ? 16 : 32),
+        AwaitingReplyRow() => 10 + 20,
+        TurnSummaryRow() => 6 + 24,
+      };
 }
 
 int _userLines(List<ContentBlock> content, double width) {
@@ -95,8 +108,9 @@ double _markdownHeight(String text, double width) {
     final length = end - start;
     final fence = length >= 3 && (text.startsWith('```', start) || text.startsWith('~~~', start));
     if (fence) {
+      // The block's padding above its first line and below its last.
       inCode = !inCode;
-      height += inCode ? 24 : 16;
+      height += 12;
     } else if (inCode) {
       height += _codeLineHeight;
     } else if (length == 0) {

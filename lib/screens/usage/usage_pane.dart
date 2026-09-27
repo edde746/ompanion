@@ -13,6 +13,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../providers/machines_provider.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../widgets/activity_mark.dart';
 import '../config/config_widgets.dart';
 import '../machines/connect_dialogs.dart';
 import '../sessions/install_omp_dialog.dart';
@@ -296,7 +297,7 @@ class _MachineRow extends StatelessWidget {
       (MachineOnline(), _Loading() || null) => (
         Row(
           children: [
-            const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+            const ActivityMark(size: 12),
             const SizedBox(width: AppSizes.gap),
             Flexible(child: Text(t.usage.asking, style: secondary)),
           ],

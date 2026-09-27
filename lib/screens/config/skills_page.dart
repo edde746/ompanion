@@ -7,6 +7,7 @@ import '../../config/cli_results.dart';
 import '../../config/config_target.dart';
 import '../../config/omp_cli.dart';
 import '../../i18n/strings.g.dart';
+import '../../widgets/activity_mark.dart';
 import '../../widgets/app_search_field.dart';
 import 'config_widgets.dart';
 
@@ -188,7 +189,8 @@ class _SkillsPageState extends State<SkillsPage> {
             children: [
               ConfigSectionTitle(t.config.skills.installed),
               if (_error != null) ConfigError(_error!, onRetry: _loadInstalled),
-              if (installed == null && _error == null) const LinearProgressIndicator(),
+              if (installed == null && _error == null)
+                const Align(alignment: AlignmentDirectional.centerStart, child: ActivityMark()),
               if (installed != null && installed.isEmpty) Text(t.config.skills.none, style: muted),
               for (final skill in installed ?? const <InstalledSkill>[])
                 _SkillRow(
@@ -219,7 +221,11 @@ class _SkillsPageState extends State<SkillsPage> {
                 debounce: const Duration(milliseconds: 500),
                 onChanged: (text) => unawaited(_search(text)),
               ),
-              if (_searching) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
+              if (_searching)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Align(alignment: AlignmentDirectional.centerStart, child: ActivityMark()),
+                ),
               if (_searchError != null) ConfigError(_searchError!, onRetry: () => _search(_query)),
               if (results != null && results.hits.isEmpty)
                 Padding(

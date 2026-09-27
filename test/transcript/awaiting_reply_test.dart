@@ -232,11 +232,12 @@ void main() {
     testWidgets('the transcript shows it where the reply lands, and the reply replaces it', (tester) async {
       await tester.pumpWidget(_harness(_running([_user(1)])));
       expect(find.text(t.transcript.waiting), findsOneWidget);
-      final screen = tester.getSize(find.byType(TranscriptView)).height;
+      final prompt = tester.getBottomLeft(find.text('Question 1')).dy;
+      final waiting = tester.getTopLeft(find.text(t.transcript.waiting)).dy;
       expect(
-        tester.getBottomLeft(find.text(t.transcript.waiting)).dy,
-        greaterThan(screen - 60),
-        reason: 'the row sits at the bottom edge, where the reply will be',
+        waiting - prompt,
+        inInclusiveRange(0, 40),
+        reason: 'the row sits under the prompt, where the reply will be',
       );
 
       // It counts once the wait is long enough to be worth counting.
@@ -253,7 +254,11 @@ void main() {
       );
       expect(find.text('The answer'), findsOneWidget);
       expect(find.textContaining(t.transcript.waiting), findsNothing);
-      expect(tester.getBottomLeft(find.text('The answer')).dy, greaterThan(screen - 60));
+      expect(
+        tester.getTopLeft(find.text('The answer')).dy,
+        moreOrLessEquals(waiting, epsilon: 8),
+        reason: 'the reply starts where the row was',
+      );
     });
 
     testWidgets('a session whose link closed mid-wait stops showing and counting the row', (tester) async {

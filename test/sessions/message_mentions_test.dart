@@ -2,12 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/sessions/message_mentions.dart';
 import 'package:ompanion/sessions/prompt_attachments.dart';
 
-/// Text parts as they are, mentions as `<path>`.
+/// Text parts as they are, mentions as `<path>`, tagged models as `[agent name]`.
 List<String> _split(String message) => [
   for (final part in splitMentions(message))
     switch (part) {
       MessageText(:final source) => source,
       MessageMention(:final path) => '<$path>',
+      MessageModel(:final agent, :final name) => '[$agent $name]',
     },
 ];
 
@@ -15,6 +16,18 @@ void main() {
   test('the parts of a message join back to the exact message', () {
     const message = 'Review @"/tmp/a b.txt", (@src/x.ts) and local://paste-2.md.\n@\'it"s.md\' done';
     expect(splitMentions(message).map((part) => part.source).join(), message);
+  });
+
+  test('a model tag omp wrote is one part with its pseudonym and name; mentions around it still count', () {
+    const message = 'Have <model agent="m1" name="Fake Think"/> review @src/a.ts, then <model agent="m12" name=""/>.';
+    expect(_split(message), ['Have ', '[m1 Fake Think]', ' review ', '<src/a.ts>', ', then ', '[m12 ]', '.']);
+    expect(splitMentions(message).map((part) => part.source).join(), message);
+  });
+
+  test('text that only resembles a model tag stays text, as omp leaves it', () {
+    for (final message in ['<model agent="x1" name="A"/>', '<model agent="m1" name="A">', '^fake/fake-1 please']) {
+      expect(_split(message), [message], reason: message);
+    }
   });
 
   test('the mentions the app writes for attachments come back as their paths', () {

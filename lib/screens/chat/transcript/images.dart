@@ -11,6 +11,7 @@ import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../utils/app_logger.dart';
 import '../../../utils/byte_size.dart';
+import '../../../widgets/activity_mark.dart';
 import 'transcript_actions.dart';
 
 final _bytes = Expando<Uint8List>();
@@ -312,7 +313,7 @@ class _MachineImageState extends State<MachineImage> {
         },
         action: canLoadOriginal
             ? (_loadingOriginal
-                  ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const ActivityMark(size: 16)
                   : TextButton(
                       onPressed: _loadOriginal,
                       child: Text(t.loadOriginal(size: formatBytes(size!))),
@@ -333,7 +334,7 @@ class _MachineImageState extends State<MachineImage> {
       null => _ImageNotice(
         icon: Icons.image_outlined,
         text: t.imageLoading(name: _name(path)),
-        action: const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+        action: const ActivityMark(size: 16),
       ),
     };
   }

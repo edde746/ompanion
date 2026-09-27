@@ -10,6 +10,7 @@ import '../../config/config_target.dart';
 import '../../config/login.dart';
 import '../../i18n/strings.g.dart';
 import '../../utils/app_logger.dart';
+import '../../widgets/activity_mark.dart';
 import '../chat/transcript/code_style.dart';
 import '../external_links.dart';
 import 'config_widgets.dart';
@@ -189,7 +190,7 @@ class _RpcLoginDialogState extends State<RpcLoginDialog> {
                 if (_link == null && !_done && _error == null)
                   Row(
                     children: [
-                      const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                      const ActivityMark(size: 18),
                       const SizedBox(width: 12),
                       Expanded(child: Text(t.config.accounts.waitingForLink)),
                     ],

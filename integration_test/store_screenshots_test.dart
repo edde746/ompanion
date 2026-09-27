@@ -46,6 +46,7 @@ import 'package:ompanion/screens/shell/shell_screen.dart';
 import 'package:ompanion/sessions/machine_images.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:ompanion/services/secret_store.dart';
+import 'package:ompanion/widgets/activity_mark.dart';
 import 'package:omp_core/session.dart' show MachineOnline;
 import 'package:omp_core/ssh.dart' show sha256Fingerprint;
 import 'package:provider/provider.dart';
@@ -293,7 +294,7 @@ void main() {
         tester,
         () =>
             find.descendant(of: tree, matching: find.byType(ListView)).evaluate().isNotEmpty &&
-            find.descendant(of: tree, matching: find.byType(LinearProgressIndicator)).evaluate().isEmpty,
+            find.descendant(of: tree, matching: find.byType(ActivityMark)).evaluate().isEmpty,
         timeout: 60,
         what: 'the session tree',
       );

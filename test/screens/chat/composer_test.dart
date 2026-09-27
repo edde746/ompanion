@@ -17,11 +17,13 @@ import 'package:ompanion/screens/chat/attachment_drop.dart';
 import 'package:ompanion/screens/chat/attachment_input.dart';
 import 'package:ompanion/screens/chat/composer.dart';
 import 'package:ompanion/screens/chat/exec_panel.dart';
+import 'package:ompanion/screens/chat/model_mention_palette.dart';
 import 'package:ompanion/screens/chat/model_picker.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
 import 'package:ompanion/sessions/composer_attachments.dart';
+import 'package:ompanion/sessions/composer_draft.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:ompanion/widgets/app_search_field.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
@@ -195,6 +197,22 @@ String _describe(ComposerAttachment attachment) => switch (attachment) {
   FileAttachment(:final name, :final size) => 'file $name $size',
   TextAttachment(:final text) => 'text $text',
 };
+
+/// Every session is on this computer, so the composer can load the machine's models.
+final class _MachineSessions extends SessionsProvider {
+  _MachineSessions({required super.connector, required super.machines})
+    : super(deviceId: 'test', companionBytes: (_) async => const []);
+
+  static final _machine = LocalMachine(
+    id: 'local',
+    name: 'This Mac',
+    createdAt: DateTime(2026),
+    updatedAt: DateTime(2026),
+  );
+
+  @override
+  Machine? machineOf(LiveSession session) => _machine;
+}
 
 /// Pumps until [done]: file reads complete outside the test's fake clock.
 Future<void> _until(WidgetTester tester, bool Function() done) async {
@@ -703,6 +721,140 @@ void main() {
       expect(draft.attachments, attachments);
       expect(find.text('gone.txt is no longer on this device. Nothing was sent.'), findsOneWidget);
       expect(session.omp.prompts, isEmpty);
+
+      await tearDownProviders(tester);
+    });
+  });
+
+  group('model mentions', () {
+    Map<String, Object?> model(String id, String name) => {
+      'provider': 'fake',
+      'id': id,
+      'name': name,
+      'reasoning': false,
+      'input': ['text'],
+      'contextWindow': 128000,
+    };
+
+    /// A composer on a session of this computer, whose `get_available_models` lists Fake One and Fake Think.
+    Future<_Session> pumpWithModels(WidgetTester tester) async {
+      sessions = _MachineSessions(connector: MachineConnector(SecretStore(), KnownHostsStore(db)), machines: machines);
+      final session = await attachedSession(tester);
+      session.omp.models = [model('fake-think', 'Fake Think'), model('fake-1', 'Fake One')];
+      return pumpComposer(tester, session);
+    }
+
+    final palette = find.byType(ModelMentionPalette);
+    Finder row(String name) => find.descendant(of: palette, matching: find.text(name));
+    Finder chip(String name) => find.descendant(of: composer, matching: find.text(name));
+    ComposerText field(WidgetTester tester) => tester.widget<TextField>(composer).controller! as ComposerText;
+
+    Future<void> type(WidgetTester tester, String text) async {
+      await tester.enterText(composer, text);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    Future<void> send(WidgetTester tester) async {
+      await tester.tap(find.byKey(const ValueKey('send')));
+      await tester.pump();
+    }
+
+    testWidgets('^ lists the machine\'s models as typed; Enter puts in a chip, and the prompt names its selector', (
+      tester,
+    ) async {
+      final session = await pumpWithModels(tester);
+      await type(tester, 'Have ^');
+      expect(row('Fake One'), findsOneWidget);
+      expect(row('Fake Think'), findsOneWidget);
+      expect(row('fake/fake-think'), findsOneWidget);
+
+      await type(tester, 'Have ^thi');
+      expect(row('Fake One'), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(palette, findsNothing);
+      expect(chip('Fake Think'), findsOneWidget);
+      expect(field(tester).text, hasLength('Have '.length + 2), reason: 'the chip is one character, then a space');
+      expect(session.omp.prompts, isEmpty, reason: 'Enter picked the model, it did not send');
+
+      await type(tester, '${field(tester).text}review this change');
+      await send(tester);
+      expect(session.omp.prompts.last['message'], 'Have ^fake/fake-think review this change');
+
+      await tearDownProviders(tester);
+    });
+
+    testWidgets('arrows and Tab pick, a tap picks, Esc closes the list for that token; no list in a ! draft', (
+      tester,
+    ) async {
+      final session = await pumpWithModels(tester);
+      await type(tester, 'ask ^');
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(chip('Fake Think'), findsOneWidget, reason: 'the list runs Fake One, Fake Think');
+
+      await type(tester, '${field(tester).text}and ^');
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      expect(palette, findsNothing);
+      await type(tester, '${field(tester).text}o');
+      await tester.tap(row('Fake One'));
+      await tester.pump();
+      expect(chip('Fake One'), findsOneWidget);
+
+      await type(tester, '${field(tester).text}with ^zzz');
+      expect(palette, findsNothing, reason: 'no model matches');
+      await send(tester);
+      expect(session.omp.prompts.last['message'], 'ask ^fake/fake-think and ^fake/fake-1 with ^zzz');
+
+      await type(tester, '!echo ^');
+      expect(palette, findsNothing);
+
+      await tearDownProviders(tester);
+    });
+
+    testWidgets('copying or cutting a chip copies the selector omp receives; a failed send brings the chip back', (
+      tester,
+    ) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') copied = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      Future<void> shortcut(LogicalKeyboardKey key) async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(key);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump();
+      }
+
+      final session = await pumpWithModels(tester);
+      await type(tester, 'ask ^');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await type(tester, '${field(tester).text}now');
+      final text = field(tester);
+      text.selection = TextSelection(baseOffset: 0, extentOffset: text.text.length);
+      await shortcut(LogicalKeyboardKey.keyC);
+      expect(copied, 'ask ^fake/fake-1 now');
+
+      text.selection = const TextSelection(baseOffset: 0, extentOffset: 3);
+      await shortcut(LogicalKeyboardKey.keyC);
+      expect(copied, 'ask', reason: 'a selection without a chip copies as the field does');
+
+      session.omp.promptAnswer = Completer();
+      await send(tester);
+      session.omp.promptAnswer!.complete(false);
+      await tester.pump();
+      expect(chip('Fake One'), findsOneWidget);
+      expect(text.expand(text.text), 'ask ^fake/fake-1 now');
+
+      text.selection = TextSelection(baseOffset: 4, extentOffset: text.text.length);
+      await shortcut(LogicalKeyboardKey.keyX);
+      expect(copied, '^fake/fake-1 now');
+      expect(text.text, 'ask ');
 
       await tearDownProviders(tester);
     });

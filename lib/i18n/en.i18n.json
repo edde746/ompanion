@@ -589,6 +589,7 @@
     "noModels": "No models match.",
     "modelsFailed": "Could not load models: $error",
     "modelFailed": "Could not switch the model: $error",
+    "modelAgent": "Subagent $agent",
     "contextWindow": "$tokens context",
     "reasoning": "reasoning",
     "thinking": "Thinking: $level",

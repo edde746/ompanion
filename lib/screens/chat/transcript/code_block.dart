@@ -1,25 +1,27 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import 'code_style.dart';
 import 'highlighter.dart';
 import 'tool_card.dart' show codeSurface;
 import 'transcript_actions.dart';
 
-/// A block of code: an optional header with a label and a copy button, then the code in a horizontal scroll view,
-/// optionally with a line-number gutter. Highlighting is a colour-only change that lands asynchronously, so the block
-/// never changes height when it does; an unclosed (still streaming) block stays plain.
+/// A block of code on a code surface: the code in a horizontal scroll view, optionally with a line-number gutter, and
+/// a copy button in its top right corner while the pointer is over the block (always on touch screens). Highlighting
+/// is a colour-only change that lands asynchronously, so the block never changes height when it does; an unclosed
+/// (still streaming) block stays plain.
 class CodeBlock extends StatefulWidget {
   const CodeBlock({
     super.key,
     required this.code,
     this.language,
-    this.label,
     this.closed = true,
     this.lineNumbers,
-    this.header = true,
+    this.copyable = true,
   });
 
   final String code;
@@ -27,25 +29,28 @@ class CodeBlock extends StatefulWidget {
   /// highlight.js language; null for plain text.
   final String? language;
 
-  /// Header text, typically the fence info string or a file name.
-  final String? label;
-
   /// False while the block is still arriving.
   final bool closed;
 
   /// Gutter numbers, one per line of [code]; a null entry is an elided line.
   final List<int?>? lineNumbers;
 
-  /// Shows the label and copy button.
-  final bool header;
+  /// Offers the copy button.
+  final bool copyable;
 
   @override
   State<CodeBlock> createState() => _CodeBlockState();
 }
 
+bool get _touchFirst => switch (defaultTargetPlatform) {
+  TargetPlatform.android || TargetPlatform.iOS || TargetPlatform.fuchsia => true,
+  _ => false,
+};
+
 class _CodeBlockState extends State<CodeBlock> {
   HighlightRuns? _runs;
   bool _copied = false;
+  bool _hovered = false;
   Timer? _copiedReset;
 
   @override
@@ -128,39 +133,37 @@ class _CodeBlockState extends State<CodeBlock> {
               text,
             ],
           );
-    final label = widget.label ?? widget.language ?? '';
-    return DecoratedBox(
-      decoration: BoxDecoration(color: codeSurface(context), borderRadius: BorderRadius.circular(8)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (widget.header)
-            SelectionContainer.disabled(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 2, 2, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        label,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                    ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      iconSize: 16,
-                      tooltip: _copied ? context.t.common.copied : context.t.transcript.copyCode,
-                      onPressed: _copy,
-                      icon: Icon(_copied ? Icons.check : Icons.copy_outlined),
-                    ),
-                  ],
+    final surface = codeSurface(context);
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(AppSizes.radius)),
+        child: Stack(
+          children: [
+            // The block spans its column whatever the width of its code.
+            SizedBox(
+              width: double.infinity,
+              child: SideScrollView(padding: const EdgeInsets.all(12), child: body),
+            ),
+            if (widget.copyable && (_hovered || _touchFirst || _copied))
+              Positioned(
+                top: 4,
+                right: 4,
+                child: SelectionContainer.disabled(
+                  child: IconButton(
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 16,
+                    // Over the end of a long first line: the block's own tone hides the text under the button.
+                    style: IconButton.styleFrom(backgroundColor: surface, foregroundColor: scheme.onSurfaceVariant),
+                    tooltip: _copied ? context.t.common.copied : context.t.transcript.copyCode,
+                    onPressed: _copy,
+                    icon: Icon(_copied ? Icons.check : Icons.copy_outlined),
+                  ),
                 ),
               ),
-            ),
-          SideScrollView(padding: EdgeInsets.fromLTRB(12, widget.header ? 0 : 10, 12, 10), child: body),
-        ],
+          ],
+        ),
       ),
     );
   }

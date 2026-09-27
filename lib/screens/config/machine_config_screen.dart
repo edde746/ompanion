@@ -7,6 +7,7 @@ import '../../config/config_target.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../widgets/activity_mark.dart';
 import 'accounts_page.dart';
 import 'config_widgets.dart';
 import 'mcp_page.dart';
@@ -96,7 +97,7 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
   Widget _progress(String label) => Center(
     child: Column(
       mainAxisSize: MainAxisSize.min,
-      children: [const CircularProgressIndicator(), const SizedBox(height: 12), Text(label)],
+      children: [const ActivityMark(size: 20), const SizedBox(height: 12), Text(label)],
     ),
   );
 

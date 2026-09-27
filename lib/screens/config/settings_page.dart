@@ -12,6 +12,7 @@ import '../../config/settings_schema.dart';
 import '../../config/settings_view.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../widgets/activity_mark.dart';
 import '../../widgets/app_search_field.dart';
 import '../../widgets/app_segmented.dart';
 import '../chat/transcript/code_style.dart';
@@ -253,7 +254,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final schema = _schema;
     if (schema == null) {
       if (_error != null) return Center(child: ConfigError(_error!, onRetry: _load));
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: ActivityMark(size: 20));
     }
     final project = widget.target.projectSession;
     final query = _query.trim();
@@ -477,8 +478,7 @@ class _SettingTile extends StatelessWidget {
                           children: [
                             Text(setting.label, style: theme.textTheme.titleSmall),
                             if (effective != null) ProvenanceBadge(effective.provenance, envName: setting.env?.name),
-                            if (busy)
-                              const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                            if (busy) const ActivityMark(size: 12),
                           ],
                         ),
                         if (ui != null && ui.description.isNotEmpty) Text(ui.description, style: muted),

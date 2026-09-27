@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 TextStyle codeTextStyle(ThemeData theme) => TextStyle(
   fontFamily: 'JetBrainsMono',
   package: 'gpt_markdown',
-  fontSize: (theme.textTheme.bodyMedium?.fontSize ?? 14) - 1.5,
+  fontSize: (theme.textTheme.bodyMedium?.fontSize ?? 14) - 2,
   height: 1.4,
   color: theme.colorScheme.onSurface,
   fontFeatures: const [FontFeature.disable('calt'), FontFeature.disable('liga')],

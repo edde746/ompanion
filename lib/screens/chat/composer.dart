@@ -19,14 +19,19 @@ import '../../sessions/prompt_attachments.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../utils/byte_size.dart';
+import '../../widgets/activity_mark.dart';
 import '../dock/machine_access.dart';
 import 'attachment_chips.dart';
 import 'attachment_input.dart';
 import 'composer_intent.dart';
 import 'composer_toolbar.dart';
+import 'mention_spans.dart';
+import 'model_mention_palette.dart';
 import 'model_picker.dart';
 import 'queue_list.dart';
 import 'slash_palette.dart';
+import 'transcript/markdown.dart' show markdownLineHeight;
+import 'transcript/transcript_view.dart' show chatTextTheme;
 
 /// The toolbar's icon buttons: one control tall, as its pickers and text buttons are (docs/design.md rule 4).
 const _toolbarIcon = BoxConstraints.tightFor(width: AppSizes.control, height: AppSizes.control);
@@ -58,6 +63,14 @@ class _ComposerState extends State<Composer> {
 
   /// The palette query the user dismissed with Esc; it reopens once the text changes.
   String? _dismissedQuery;
+
+  /// The `^` token the user dismissed with Esc; its list reopens once the token changes.
+  ({int start, String query})? _dismissedMention;
+
+  /// The machine's models for the `^` list, loaded when a `^` is typed first; [_modelsError] when that failed.
+  List<RpcModel>? _models;
+  Object? _modelsError;
+  bool _modelsLoading = false;
   bool _sending = false;
 
   /// Bytes of this prompt's files uploaded so far, while a send uploads.
@@ -87,8 +100,13 @@ class _ComposerState extends State<Composer> {
 
   void _attach() {
     _draft = context.read<SessionsProvider>().draftOf(widget.session);
+    _draft.text.chipSpan = (chip, style) => modelChipSpan(chip.name, style: style);
     _draft.addListener(_onDraft);
     _draft.text.addListener(_onText);
+    _models = null;
+    _modelsError = null;
+    _modelsLoading = false;
+    _dismissedMention = null;
     WidgetsBinding.instance.addPostFrameCallback((_) => _onDraft());
   }
 
@@ -105,9 +123,14 @@ class _ComposerState extends State<Composer> {
 
   void _onText() {
     if (!mounted) return;
+    final mention = mentionQuery(_draft.text.value);
+    if (mention != null) _loadModels();
     setState(() {
       _paletteIndex = 0;
       if (_dismissedQuery != paletteQuery(_draft.text.text)) _dismissedQuery = null;
+      if (_dismissedMention != mention) _dismissedMention = null;
+      // A list that failed loads again for the next `^`.
+      if (mention == null) _modelsError = null;
     });
   }
 
@@ -117,6 +140,48 @@ class _ComposerState extends State<Composer> {
     return filterCommands(view.commands, query);
   }
 
+  /// The `^` list at the cursor: null while closed, else the models matching the token ([models] null while they load,
+  /// [error] when they could not). Closed when nothing matches, so Enter sends the token as typed.
+  ({List<RpcModel>? models, Object? error})? _mention() {
+    final live = mentionQuery(_draft.text.value);
+    if (live == null || live == _dismissedMention) return null;
+    if (_modelsError case final error?) return (models: null, error: error);
+    final models = _models;
+    if (models == null) return _modelsLoading ? (models: null, error: null) : null;
+    final matching = filterModels(models, live.query);
+    return matching.isEmpty ? null : (models: matching, error: null);
+  }
+
+  /// Loads the machine's model list for the `^` list, once per composer session.
+  void _loadModels() {
+    if (_models != null || _modelsLoading) return;
+    final sessions = context.read<SessionsProvider>();
+    final session = widget.session;
+    final machine = sessions.machineOf(session);
+    if (machine == null) return;
+    _modelsLoading = true;
+    unawaited(
+      sessions
+          .models(machine, session.rpc)
+          .then(
+            (models) {
+              if (!mounted || !identical(session, widget.session)) return;
+              setState(() {
+                _models = models;
+                _modelsLoading = false;
+              });
+            },
+            onError: (Object error) {
+              if (!mounted || !identical(session, widget.session)) return;
+              setState(() {
+                _modelsError = error;
+                _modelsLoading = false;
+              });
+            },
+          ),
+    );
+  }
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
     // IME composition owns Enter and the arrows until it commits.
@@ -124,22 +189,35 @@ class _ComposerState extends State<Composer> {
     final keyboard = HardwareKeyboard.instance;
     final view = widget.session.view;
     final palette = _paletteItems(view);
+    final mention = palette.isEmpty ? _mention() : null;
+    final picks = mention?.models ?? const <RpcModel>[];
     final key = event.logicalKey;
-    if (palette.isNotEmpty) {
+    final rows = palette.isNotEmpty ? palette.length : picks.length;
+    if (rows > 0) {
       if (key == LogicalKeyboardKey.arrowDown) {
-        setState(() => _paletteIndex = (_paletteIndex + 1) % palette.length);
+        setState(() => _paletteIndex = (_paletteIndex + 1) % rows);
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.arrowUp) {
-        setState(() => _paletteIndex = (_paletteIndex - 1 + palette.length) % palette.length);
+        setState(() => _paletteIndex = (_paletteIndex - 1 + rows) % rows);
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.tab) {
-        _pick(palette[_paletteIndex.clamp(0, palette.length - 1)]);
+        if (palette.isNotEmpty) {
+          _pick(palette[_paletteIndex.clamp(0, rows - 1)]);
+        } else {
+          _pickModel(picks[_paletteIndex.clamp(0, rows - 1)]);
+        }
         return KeyEventResult.handled;
       }
-      if (key == LogicalKeyboardKey.escape) {
+    }
+    if (key == LogicalKeyboardKey.escape) {
+      if (palette.isNotEmpty) {
         setState(() => _dismissedQuery = paletteQuery(_draft.text.text));
+        return KeyEventResult.handled;
+      }
+      if (mention != null) {
+        setState(() => _dismissedMention = mentionQuery(_draft.text.value));
         return KeyEventResult.handled;
       }
     }
@@ -149,6 +227,10 @@ class _ComposerState extends State<Composer> {
       // Enter completes the highlighted command unless the typed name already is one.
       if (palette.isNotEmpty && (typed == null || findCommand(view.commands, typed) == null)) {
         _pick(palette[_paletteIndex.clamp(0, palette.length - 1)]);
+        return KeyEventResult.handled;
+      }
+      if (picks.isNotEmpty) {
+        _pickModel(picks[_paletteIndex.clamp(0, picks.length - 1)]);
         return KeyEventResult.handled;
       }
       unawaited(_send(followUp: keyboard.isAltPressed));
@@ -166,14 +248,48 @@ class _ComposerState extends State<Composer> {
     _focus.requestFocus();
   }
 
+  /// Puts [model] over the `^` token at the cursor: a chip with its name that sends `^provider/id `, as omp's
+  /// completion inserts.
+  void _pickModel(RpcModel model) {
+    final live = mentionQuery(_draft.text.value);
+    if (live == null) return;
+    _draft.text.insertChip(live.start, _draft.text.selection.baseOffset, (
+      name: modelDisplayName(model),
+      source: '^${modelSelector(model)}',
+    ));
+    _focus.requestFocus();
+  }
+
+  /// Copies the field's selection with every model chip in it as the text omp would receive; [cut] deletes it too.
+  /// False when the selection holds no chip, for the field's own copy.
+  bool _copyChips({required bool cut}) {
+    final text = _draft.text;
+    final value = text.value;
+    final selection = value.selection;
+    if (!selection.isValid || selection.isCollapsed) return false;
+    final selected = selection.textInside(value.text);
+    final expanded = text.expand(selected);
+    if (expanded == selected) return false;
+    unawaited(Clipboard.setData(ClipboardData(text: expanded)));
+    if (cut) {
+      text.value = TextEditingValue(
+        text: value.text.replaceRange(selection.start, selection.end, ''),
+        selection: TextSelection.collapsed(offset: selection.start),
+      );
+    }
+    return true;
+  }
+
   Future<void> _send({required bool followUp}) async {
     if (_sending) return;
     final session = widget.session;
     final view = session.view;
-    final text = _draft.text.text;
+    final typed = _draft.text.text;
+    final chips = _draft.text.chips;
     final attachments = _draft.attachments;
+    // A tagged model goes out as omp's `^provider/id`, which omp turns into its `<model agent="m1" …/>` tag.
     final intent = composerIntent(
-      text,
+      _draft.text.expand(typed),
       hasAttachments: attachments.isNotEmpty,
       running: view.run.running,
       followUp: followUp,
@@ -213,7 +329,7 @@ class _ComposerState extends State<Composer> {
         // A send that reached nothing, or that omp refused: the row goes and the draft comes back.
         void giveBack() {
           session.setPromptPending(false);
-          draft.giveBack(text, attachments: attachments);
+          draft.giveBack(typed, attachments: attachments, chips: chips);
         }
 
         try {
@@ -304,26 +420,58 @@ class _ComposerState extends State<Composer> {
 
   /// The field's context menu with its Paste taking [_paste]'s way. The field offers Paste only while the clipboard
   /// holds text; a copied file or image pastes too, so Paste is always there. iOS keeps its own menu, whose Paste
-  /// inserts text without asking for the clipboard; for anything else the menu gets a Paste of ours.
+  /// inserts text without asking for the clipboard; for anything else the menu gets a Paste of ours. Copy and Cut of a
+  /// selection holding a model chip take [_copyChips]'s way.
   Widget _contextMenu(BuildContext context, EditableTextState field) {
     void paste() {
       field.hideToolbar();
       unawaited(_paste());
     }
 
+    VoidCallback? chipAware(VoidCallback? own, {required bool cut}) => own == null
+        ? null
+        : () {
+            if (!_copyChips(cut: cut)) return own();
+            field.hideToolbar();
+          };
     final items = [
       for (final item in field.contextMenuButtonItems)
-        item.type == ContextMenuButtonType.paste ? item.copyWith(onPressed: paste) : item,
+        switch (item.type) {
+          ContextMenuButtonType.paste => item.copyWith(onPressed: paste),
+          ContextMenuButtonType.copy => item.copyWith(onPressed: chipAware(item.onPressed, cut: false)),
+          ContextMenuButtonType.cut => item.copyWith(onPressed: chipAware(item.onPressed, cut: true)),
+          _ => item,
+        },
     ];
     final canPaste = !field.widget.readOnly && field.textEditingValue.selection.isValid;
     final offersPaste = items.any((item) => item.type == ContextMenuButtonType.paste);
     if (SystemContextMenu.isSupportedByField(field)) {
+      final localizations = MaterialLocalizations.of(context);
+      final value = field.textEditingValue;
+      final selected = value.selection.isValid ? value.selection.textInside(value.text) : '';
+      final holdsChip = _draft.text.expand(selected) != selected;
+      void copy({required bool cut}) {
+        field.hideToolbar();
+        _copyChips(cut: cut);
+      }
+
       return SystemContextMenu.editableText(
         editableTextState: field,
         items: [
-          ...SystemContextMenu.getDefaultItems(field),
+          for (final item in SystemContextMenu.getDefaultItems(field))
+            switch (item) {
+              IOSSystemContextMenuItemCopy() when holdsChip => IOSSystemContextMenuItemCustom(
+                title: localizations.copyButtonLabel,
+                onPressed: () => copy(cut: false),
+              ),
+              IOSSystemContextMenuItemCut() when holdsChip => IOSSystemContextMenuItemCustom(
+                title: localizations.cutButtonLabel,
+                onPressed: () => copy(cut: true),
+              ),
+              _ => item,
+            },
           if (canPaste && !offersPaste)
-            IOSSystemContextMenuItemCustom(title: MaterialLocalizations.of(context).pasteButtonLabel, onPressed: paste),
+            IOSSystemContextMenuItemCustom(title: localizations.pasteButtonLabel, onPressed: paste),
         ],
       );
     }
@@ -411,6 +559,7 @@ class _ComposerState extends State<Composer> {
           // A closed session has no omp to talk to; its model, thinking level and context are gone with it.
           final closed = link is LinkClosed;
           final palette = _paletteItems(session.view);
+          final mention = palette.isEmpty ? _mention() : null;
           final attachments = _draft.attachments;
           final canSend = !_sending && !closed;
           return Padding(
@@ -426,6 +575,16 @@ class _ComposerState extends State<Composer> {
                       commands: palette,
                       selected: _paletteIndex.clamp(0, palette.length - 1),
                       onPick: _pick,
+                    ),
+                  )
+                else if (mention case (:final models, :final error))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: ModelMentionPalette(
+                      models: models,
+                      error: error,
+                      selected: models == null ? 0 : _paletteIndex.clamp(0, models.length - 1),
+                      onPick: _pickModel,
                     ),
                   ),
                 Material(
@@ -444,7 +603,8 @@ class _ComposerState extends State<Composer> {
                           onInline: _draft.inline,
                         ),
                       Actions(
-                        // Cmd/Ctrl+V; the context menu's Paste goes through [_contextMenu].
+                        // Cmd/Ctrl+V; the context menu's Paste goes through [_contextMenu]. Cmd/Ctrl+C and X copy a
+                        // model chip as the text omp would receive.
                         actions: {
                           PasteTextIntent: CallbackAction<PasteTextIntent>(
                             onInvoke: (_) {
@@ -452,11 +612,14 @@ class _ComposerState extends State<Composer> {
                               return null;
                             },
                           ),
+                          CopySelectionTextIntent: _CopyChips(_copyChips),
                         },
                         child: TextField(
                           key: const ValueKey('composer'),
                           controller: _draft.text,
                           focusNode: _focus,
+                          // The size and line height the message takes in its bubble once sent.
+                          style: chatTextTheme(context).textTheme.bodyMedium?.copyWith(height: markdownLineHeight),
                           minLines: 1,
                           maxLines: 10,
                           keyboardType: TextInputType.multiline,
@@ -536,15 +699,14 @@ class _ComposerState extends State<Composer> {
                                     message: t.composer.uploading(sent: formatBytes(sent), total: formatBytes(total)),
                                     child: SizedBox.fromSize(
                                       size: const Size.square(AppSizes.control),
+                                      // A known fraction is a ring that moves only when the count does.
                                       child: Center(
-                                        child: SizedBox.square(
-                                          dimension: 20,
-                                          child: CircularProgressIndicator(
-                                            key: const ValueKey('upload-progress'),
-                                            strokeWidth: 2.5,
-                                            value: total == 0 ? null : sent / total,
-                                          ),
-                                        ),
+                                        child: total == 0
+                                            ? const ActivityMark(size: 20)
+                                            : SizedBox.square(
+                                                dimension: 20,
+                                                child: CircularProgressIndicator(strokeWidth: 2.5, value: sent / total),
+                                              ),
                                       ),
                                     ),
                                   )
@@ -598,6 +760,20 @@ class _ComposerState extends State<Composer> {
         },
       ),
     );
+  }
+}
+
+/// The field's copy and cut ([CopySelectionTextIntent.collapseSelection]): [copy] takes a selection holding a model
+/// chip; any other falls through to the field's own action.
+final class _CopyChips extends ContextAction<CopySelectionTextIntent> {
+  _CopyChips(this.copy);
+
+  final bool Function({required bool cut}) copy;
+
+  @override
+  Object? invoke(CopySelectionTextIntent intent, [BuildContext? context]) {
+    if (copy(cut: intent.collapseSelection)) return null;
+    return callingAction?.invoke(intent);
   }
 }
 

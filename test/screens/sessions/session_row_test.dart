@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/screens/sessions/machine_sessions.dart';
+import 'package:ompanion/widgets/activity_mark.dart';
 
 const _title = 'Fix the build';
 
@@ -29,7 +30,7 @@ void main() {
   final cases = <(String, SessionStatus, bool, Finder? mark, String? tooltip)>[
     ('idle', SessionStatus.none, false, null, null),
     ('unread', SessionStatus.none, true, null, t.sessions.unread),
-    ('running', SessionStatus.working, false, find.byType(CircularProgressIndicator), t.sessions.working),
+    ('running', SessionStatus.working, false, find.byType(ActivityMark), t.sessions.working),
     ('needs input', SessionStatus.needsInput, false, find.byIcon(Icons.help), t.sessions.needsInput),
     ('failed', SessionStatus.failed, false, find.byIcon(Icons.error), t.sessions.failed),
     (
@@ -43,7 +44,7 @@ void main() {
       'running and unread',
       SessionStatus.working,
       true,
-      find.byType(CircularProgressIndicator),
+      find.byType(ActivityMark),
       '${t.sessions.working} · ${t.sessions.unread}',
     ),
   ];

@@ -12,6 +12,7 @@ import '../../../files/file_workspace.dart';
 import '../../../files/git_status.dart';
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
+import '../../../widgets/activity_mark.dart';
 import '../../chat/transcript/code_style.dart';
 import '../../chat/transcript/diff.dart';
 import '../../chat/transcript/highlighter.dart';
@@ -216,9 +217,7 @@ class _FileEditorViewState extends State<FileEditorView> {
                   IconButton(
                     tooltip: t.save,
                     onPressed: document.dirty && !document.saving ? _save : null,
-                    icon: document.saving
-                        ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.save_outlined),
+                    icon: document.saving ? const ActivityMark(size: 18) : const Icon(Icons.save_outlined),
                   ),
                 PopupMenuButton<_EditorAction>(
                   tooltip: t.more,
@@ -514,7 +513,7 @@ class _GitDiff extends StatelessWidget {
           );
         }
         final text = snapshot.data;
-        if (text == null) return const Center(child: CircularProgressIndicator());
+        if (text == null) return const Center(child: ActivityMark(size: 20));
         if (text.trim().isEmpty) return Center(child: Text(t.noChanges));
         final lines = parseUnifiedDiff(text);
         final shown = lines.length > _maxDiffLines ? lines.sublist(0, _maxDiffLines) : lines;

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph, RenderTable;
 import 'package:gpt_markdown/custom_widgets/unordered_ordered_list.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 // gpt_markdown's own line tests, so blocks are cut where its parser starts them.
@@ -242,12 +243,12 @@ final _blockRegistry = MarkdownBlockRegistry([for (final component in _blockComp
 Widget _fence(BuildContext context, MdCustomBlock node, GptMarkdownConfig config) {
   final info = node.data as String? ?? '';
   final name = info.split(RegExp(r'\s+')).first;
-  return CodeBlock(code: node.body, language: languageForFence(name), label: name, closed: node.closed);
+  return CodeBlock(code: node.body, language: languageForFence(name), closed: node.closed);
 }
 
 /// Built-in fences can still reach the renderer through a construct the fence rule does not own.
 Widget _builtInFence(BuildContext context, String name, String code, bool closed) =>
-    CodeBlock(code: code, language: languageForFence(name), label: name, closed: closed);
+    CodeBlock(code: code, language: languageForFence(name), closed: closed);
 
 /// Inline markdown [text] rendered as gpt_markdown renders a table cell.
 Widget _inline(BuildContext context, String text, GptMarkdownConfig config) => config.getRich(
@@ -258,9 +259,9 @@ Widget _inline(BuildContext context, String text, GptMarkdownConfig config) => c
 Widget _table(BuildContext context, MdCustomBlock node, GptMarkdownConfig config) =>
     _TableView(table: node.data! as MarkdownTable, config: config);
 
-/// A pipe table at the full available width: columns take their content's width, up to a cap past which the text
-/// wraps, and share what is left over; a table wider than the transcript scrolls sideways. A flat header and zebra
-/// rows from the surface tones separate the cells.
+/// A pipe table at the full available width: every column its content's width when they all fit, the last one taking
+/// what is left; else the widest columns wrap at one shared width so the table still fits, and a table that cannot
+/// fit even so scrolls sideways. A muted header over rows that alternate two surface tones separates the cells.
 class _TableView extends StatefulWidget {
   const _TableView({required this.table, required this.config});
 
@@ -285,11 +286,19 @@ class _TableViewState extends State<_TableView> {
     final scheme = Theme.of(context).colorScheme;
     final table = widget.table;
     final config = widget.config;
+    // Cells one step under the body text: a table is data, read across. Code in a cell is told by its font alone: a
+    // chip's tone on the striped rows would box it a second time, lighter on one row than on the next.
+    final cellStyle = (config.style ?? const TextStyle()).copyWith(
+      fontSize: (Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14) - 1,
+    );
+    const cellCode = InlineCodeStyle(backgroundColor: Color(0x00000000), borderWidth: 0);
+    final bodyConfig = config.copyWith(style: cellStyle, inlineCodeStyle: cellCode);
     final headerConfig = config.copyWith(
-      style: (config.style ?? const TextStyle()).copyWith(fontWeight: FontWeight.w600),
+      style: cellStyle.copyWith(fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
+      inlineCodeStyle: cellCode.copyWith(color: scheme.onSurfaceVariant),
     );
     Widget cell(GptMarkdownConfig base, int column, String text) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: _cellPadding,
       child: _inline(
         context,
         text,
@@ -299,24 +308,19 @@ class _TableViewState extends State<_TableView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth.isFinite ? constraints.maxWidth : 0.0;
+        final plan = _TablePlan(width);
+        final columns = table.aligns.length;
         final grid = Table(
-          // Measured by laying each cell out (gpt_markdown's column width), capped so long text wraps.
-          defaultColumnWidth: MinColumnWidth(
-            const CustomTableColumnWidth(),
-            FixedColumnWidth(math.max(160, width * 0.6)),
-          ),
+          columnWidths: {
+            for (var column = 0; column < columns; column++)
+              column: _PlannedColumn(plan, column, last: column == columns - 1),
+          },
           children: [
             for (final (index, row) in table.rows.indexed)
               TableRow(
-                decoration: BoxDecoration(
-                  color: index == 0
-                      ? scheme.surfaceContainerHigh
-                      : index.isOdd
-                      ? scheme.surfaceContainerLow
-                      : scheme.surfaceContainer,
-                ),
+                decoration: BoxDecoration(color: index.isOdd ? scheme.surfaceContainerLow : scheme.surfaceContainer),
                 children: [
-                  for (final (column, text) in row.indexed) cell(index == 0 ? headerConfig : config, column, text),
+                  for (final (column, text) in row.indexed) cell(index == 0 ? headerConfig : bodyConfig, column, text),
                 ],
               ),
           ],
@@ -337,6 +341,113 @@ class _TableViewState extends State<_TableView> {
       },
     );
   }
+}
+
+/// Narrowest a column wraps to before its table scrolls sideways instead.
+const _minColumn = 120.0;
+
+const _cellPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+
+/// The column widths of a table [width] wide, measured for all its columns at once: a column's width depends on the
+/// others'. Each cell is laid out unconstrained, as gpt_markdown sizes its columns.
+final class _TablePlan {
+  _TablePlan(this.width);
+
+  final double width;
+  List<double> _widths = const [];
+
+  void measure(RenderTable table) {
+    final contents = <double>[];
+    final codes = <double>[];
+    for (var x = 0; x < table.columns; x++) {
+      var content = 0.0;
+      var code = 0.0;
+      for (final cell in table.column(x)) {
+        cell.layout(const BoxConstraints(), parentUsesSize: true);
+        content = math.max(content, cell.size.width);
+        code = math.max(code, _widestCode(cell));
+      }
+      contents.add(content);
+      codes.add(code);
+    }
+    _widths = _fitColumns(contents, codes, width);
+  }
+}
+
+/// Width of the widest inline code span in [cell], which was just laid out unconstrained, with the cell padding.
+double _widestCode(RenderBox cell) {
+  RenderParagraph? found;
+  void find(RenderObject child) {
+    if (child is RenderParagraph) {
+      found ??= child;
+    } else {
+      child.visitChildren(find);
+    }
+  }
+
+  find(cell);
+  final paragraph = found;
+  if (paragraph == null) return 0;
+  var widest = 0.0;
+  var offset = 0;
+  paragraph.text.visitChildren((span) {
+    final length = span is TextSpan ? span.text?.length ?? 0 : 1;
+    if (span is CodeTextSpan) {
+      // Laid out unconstrained, the span is on one line: its boxes add up to its width.
+      final boxes = paragraph.getBoxesForSelection(TextSelection(baseOffset: offset, extentOffset: offset + length));
+      widest = math.max(widest, boxes.fold(0.0, (width, box) => width + box.right - box.left));
+    }
+    offset += length;
+    return true;
+  });
+  return widest == 0 ? 0 : widest + _cellPadding.horizontal;
+}
+
+/// Widths for columns whose content is [contents] wide in a table [width] wide: the contents when they fit. Else the
+/// wide columns wrap at one shared width, but none under [_minColumn] or its widest code span ([codes]: a path or a
+/// name broken at a hyphen reads as two), and the narrow ones keep theirs. A table whose columns do not fit even so
+/// gets those floors and scrolls sideways.
+List<double> _fitColumns(List<double> contents, List<double> codes, double width) {
+  double sum(Iterable<double> widths) => widths.fold(0.0, (sum, width) => sum + width);
+  if (sum(contents) <= width) return contents;
+  final floors = [for (final (x, content) in contents.indexed) math.min(content, math.max(codes[x], _minColumn))];
+  if (sum(floors) >= width) return floors;
+  List<double> capped(double cap) => [for (final (x, content) in contents.indexed) cap.clamp(floors[x], content)];
+  // The shared width that fills the table, to well under a pixel.
+  var low = 0.0;
+  var high = contents.reduce(math.max);
+  for (var step = 0; step < 32; step++) {
+    final cap = (low + high) / 2;
+    if (sum(capped(cap)) > width) {
+      high = cap;
+    } else {
+      low = cap;
+    }
+  }
+  return capped(low);
+}
+
+/// Column [index] of a [_TablePlan]; the [last] column also takes what the table has left over. A table asks each
+/// column for its maximum width before its minimum, first to last, so the first column's question measures them all.
+final class _PlannedColumn extends TableColumnWidth {
+  const _PlannedColumn(this.plan, this.index, {required this.last});
+
+  final _TablePlan plan;
+  final int index;
+  final bool last;
+
+  @override
+  double maxIntrinsicWidth(Iterable<RenderBox> cells, double containerWidth) {
+    if (cells.isEmpty) return 0;
+    if (index == 0 || plan._widths.isEmpty) plan.measure(cells.first.parent! as RenderTable);
+    return plan._widths[index];
+  }
+
+  @override
+  double minIntrinsicWidth(Iterable<RenderBox> cells, double containerWidth) => cells.isEmpty ? 0 : plan._widths[index];
+
+  @override
+  double? flex(Iterable<RenderBox> cells) => last ? 1 : null;
 }
 
 Widget _tasks(BuildContext context, MdCustomBlock node, GptMarkdownConfig config) {

@@ -7,6 +7,7 @@ import 'package:omp_core/store.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../sessions/session_view_builder.dart';
+import '../../widgets/activity_mark.dart';
 import 'transcript/ansi.dart';
 import 'transcript/code_style.dart';
 
@@ -141,10 +142,7 @@ class _StatusChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (busy)
-            SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2, color: color))
-          else
-            Icon(icon, size: 14, color: color),
+          if (busy) ActivityMark(color: color) else Icon(icon, size: 14, color: color),
           const SizedBox(width: 6),
           Flexible(
             child: Text(text, style: theme.textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),

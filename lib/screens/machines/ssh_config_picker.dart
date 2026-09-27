@@ -7,6 +7,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/machine_draft.dart';
 import '../../providers/keys_provider.dart';
 import '../../services/ssh_config_import.dart';
+import '../../widgets/activity_mark.dart';
 
 /// Lists the `Host` aliases of `~/.ssh/config`; pops a draft resolved with `ssh -G` for the chosen one.
 Future<MachineDraft?> showSshConfigPicker(BuildContext context) =>
@@ -53,7 +54,7 @@ class _SshConfigPickerState extends State<_SshConfigPicker> {
           builder: (context, snapshot) {
             if (snapshot.hasError) return Text(t.sshConfig.failed(error: '${snapshot.error}'));
             final aliases = snapshot.data;
-            if (aliases == null) return const Center(heightFactor: 3, child: CircularProgressIndicator());
+            if (aliases == null) return const Center(heightFactor: 3, child: ActivityMark(size: 20));
             if (aliases.isEmpty) return Text(t.sshConfig.empty);
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -68,9 +69,7 @@ class _SshConfigPickerState extends State<_SshConfigPicker> {
                         ListTile(
                           leading: const Icon(Icons.dns_outlined),
                           title: Text(alias),
-                          trailing: _resolving == alias
-                              ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                              : null,
+                          trailing: _resolving == alias ? const ActivityMark(size: 16) : null,
                           onTap: _resolving == null ? () => _pick(alias) : null,
                         ),
                     ],

@@ -9,6 +9,7 @@ import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../sessions/exec_runs.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../widgets/activity_mark.dart';
 import 'transcript/ansi.dart';
 import 'transcript/code_style.dart';
 
@@ -78,11 +79,7 @@ class _ExecCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                if (run.running)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2)),
-                  ),
+                if (run.running) const Padding(padding: EdgeInsets.only(right: 8), child: ActivityMark()),
                 Expanded(
                   child: Text(
                     '$prefix${run.source}',

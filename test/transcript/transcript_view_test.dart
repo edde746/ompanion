@@ -390,13 +390,52 @@ void main() {
     expect(loads, 0, reason: 'the transcript is thousands of pixels from its top');
   });
 
-  testWidgets('a short transcript sits at the bottom and does not scroll', (tester) async {
+  testWidgets('a short transcript starts at the top edge and does not scroll', (tester) async {
     final items = _turns(0, 1);
     await tester.pumpWidget(_harness(SessionView(transcript: items, historyLength: items.length)));
     final position = _position(tester);
-    expect(position.maxScrollExtent - position.minScrollExtent, lessThanOrEqualTo(16));
-    final answer = tester.getBottomLeft(find.byKey(ValueKey('${items.last.key}#0')));
-    expect(answer.dy, greaterThan(800 - 60), reason: 'the newest row ends near the bottom edge');
+    expect(position.maxScrollExtent, position.minScrollExtent);
+    final question = tester.getTopLeft(find.byKey(ValueKey(items.first.key)));
+    expect(question.dy, lessThan(60), reason: 'the first row starts near the top edge from the first frame');
+  });
+
+  testWidgets('a reply that overflows a short transcript is followed at the bottom from then on, and a reader who '
+      'went back up to the first row stays there while it grows', (tester) async {
+    final history = _turns(0, 1);
+    final prompt = _user(100);
+    SessionView view(int paragraphs) => SessionView(
+      transcript: [...history, prompt, _answer(101, _paragraphs(paragraphs), streaming: true)],
+      historyLength: history.length,
+    );
+    await tester.pumpWidget(_harness(SessionView(transcript: [...history, prompt], historyLength: history.length)));
+    final position = _position(tester);
+    // Rows just above the top edge are laid out, not on stage.
+    final question = find.byKey(ValueKey(history.first.key), skipOffstage: false);
+    final top = tester.getTopLeft(question).dy;
+    var fitted = 0;
+    var paragraphs = 0;
+    while (position.maxScrollExtent - position.minScrollExtent < 200) {
+      paragraphs++;
+      final above = tester.getTopLeft(question).dy;
+      await tester.pumpWidget(_harness(view(paragraphs)));
+      final now = tester.getTopLeft(question).dy;
+      expect(now, lessThanOrEqualTo(above), reason: 'update $paragraphs moves nothing down');
+      if (position.maxScrollExtent == position.minScrollExtent) {
+        fitted++;
+        expect(now, top, reason: 'update $paragraphs fits: the first row stays at the top edge');
+      } else {
+        expect(position.pixels, position.maxScrollExtent, reason: 'update $paragraphs follows the reply at the bottom');
+      }
+    }
+    expect(fitted, greaterThan(3), reason: 'the reply grew in the short transcript before it overflowed');
+
+    await tester.drag(find.byType(TranscriptView), const Offset(0, 1000));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(question).dy, top, reason: 'the reader is back at the first row');
+    for (var more = 1; more <= 10; more++) {
+      await tester.pumpWidget(_harness(view(paragraphs + more)));
+      expect(tester.getTopLeft(question).dy, top, reason: 'update ${paragraphs + more} grows below the reader');
+    }
   });
 
   testWidgets('the scroll extent stays steady while the wheel scrolls up through rows of very different heights', (
@@ -476,7 +515,7 @@ void main() {
     await tester.pumpWidget(
       _harness(view(ToolResultItem(toolCallId: 'c1', toolName: 'ask', state: ToolState.running))),
     );
-    expect(find.text(t.transcript.tool.askWaiting), findsOneWidget);
+    expect(find.textContaining(t.transcript.tool.askWaiting), findsOneWidget);
     expect(find.textContaining('Which option should the demo take?'), findsNothing);
     expect(find.textContaining('Option A'), findsNothing);
 
@@ -502,7 +541,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text(t.transcript.tool.askWaiting), findsNothing);
+    expect(find.textContaining(t.transcript.tool.askWaiting), findsNothing);
     expect(find.textContaining('Option A'), findsOneWidget);
     expect(find.textContaining('Option B'), findsOneWidget);
   });
