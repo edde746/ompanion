@@ -1,0 +1,1 @@
+Chat with your own omp coding agent, on this PC or over SSH. No account, no tracking.

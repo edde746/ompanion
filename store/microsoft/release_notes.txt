@@ -1,0 +1,1 @@
+First release. Chat with a streaming transcript, tool cards with diffs, inline approvals, the session tree, subagents, todos, files and a terminal. Run omp on this PC or on your machines over SSH, jump hosts included; omp is installed on a machine that lacks it. No accounts, no analytics, no tracking. Free and open source (GPLv3).

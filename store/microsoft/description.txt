@@ -1,0 +1,51 @@
+ompanion is a client for omp, the open-source oh-my-pi coding agent. omp normally runs in a terminal; ompanion gives it a window on your PC, runs it right here or on your other machines over SSH, and installs no daemon anywhere.
+
+What you need
+- omp 18.3.1 or newer, on this PC or on a machine you can reach over SSH: macOS, Linux or Windows. If omp is missing, ompanion installs it, or shows you the commands to run yourself.
+- AI model access from your own provider accounts, configured in omp. ompanion ships no servers, no accounts, no model of its own.
+
+Chat
+- Streaming transcript with markdown, LaTeX math, highlighted code, collapsible thinking and images
+- Finished turns fold their thinking, tool calls and interim messages under a one-line summary
+- Steer the running turn or queue a follow-up, and edit or remove queued messages
+- Slash commands from the session's own command list, model and thinking-level pickers, and a context and cost meter
+- Pause and resume every agent of a session; Stop aborts the run and restores queued messages
+- Attach files by picking them, dropping them from File Explorer or pasting them, and paste images; images go to the model, files reach omp as mentions it reads on the machine
+- Copy messages and code, and branch from any of your messages
+
+Tools and approvals
+- Tool cards for shell, read, edit and write with word-level diffs, eval, todo, task, web search and fetch
+- Tool approvals answered inline; the ask tool as a form with several questions, previews and your own answers
+- Extension dialogs, status lines and toasts; files named in tool cards open in the Files panel
+
+Sessions
+- Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread
+- Search sessions across your machines by title or project path
+- Resume any session on the machine, including ones from omp's terminal UI (read-only while that omp still has it open)
+- Session tree with search, filters, labels, branching and an optional model-written summary
+- Several of your devices on one live session: each sees what the others send, and the first answer settles the dialog everywhere
+
+Machines
+- This computer: omp and terminals run directly on this PC
+- Any SSH host, including hosts behind a chain of jump hosts; import hosts from ~/.ssh/config and Tailscale peers
+- No daemon: it runs stock omp, and adds a small companion extension for what omp's RPC lacks
+- Sessions run detached on the machine, so a dropped connection or a closed window does not stop the turn
+- Key, password, keyboard-interactive and SSH config authentication, with host-key checks on every hop that honour ~/.ssh/known_hosts
+- Each machine is probed, and omp is installed on it with a checksum check
+- Generate Ed25519 keys or import your own; private keys stay in the platform's secure storage
+
+Files, terminal and configuration
+- Files: browse, create, rename and delete; an editor with find and replace; git status and diffs
+- Terminal tabs on this PC or on the machine over SSH
+- Agent Hub: subagent roster with progress, tokens and cost, each agent's transcript, steer, kill, revive
+- Todos by phase, and compactions shown with their summary and file lists
+- Settings from omp's own schema, model roles, providers, MCP servers, plugins, skills, and stats
+- Usage: subscription limits from every online machine, with reset times and account priority
+- Monochrome, flat design with an OLED-black dark theme and a light theme; a wide window shows machines, chat and tools side by side, with keyboard shortcuts for the common actions
+
+Privacy
+- No accounts, no analytics, no crash reporting, no ads, no tracking
+- Your data stays on your PC or goes over SSH to your own machines; the app reaches GitHub only to download omp, and a web image in a reply only when you click it
+- Prompts go to omp, which calls the providers you configured there, under their policies
+
+ompanion is free and open source (GPLv3): github.com/edde746/ompanion

@@ -1,0 +1,16 @@
+A streaming chat with omp: markdown, highlighted code, math, collapsible thinking and images
+Tool cards with word-level diffs and test output, and tool approvals answered inline
+Steer the running turn or queue follow-ups; pause, resume or stop every agent of a session
+Every session on every machine, grouped by project and searchable, including ones from omp's terminal UI
+Session tree with search, labels and branching from any of your messages
+Runs omp on this PC, or on any SSH host, including hosts behind a chain of jump hosts
+Imports hosts from ~/.ssh/config and Tailscale peers
+Installs omp on a machine that lacks it, with a checksum check
+Sessions keep running on the machine when the connection drops or the window closes
+Files panel with an editor, git status and diffs
+Terminal tabs on this PC or over SSH
+Agent Hub: subagents with progress, tokens and cost, their transcripts, steer, kill and revive
+omp's settings, model roles, providers, MCP servers, plugins and skills
+Usage limits of your provider subscriptions, with reset times
+A wide window with machines, chat and tools side by side, and keyboard shortcuts
+No accounts, analytics, ads or tracking; free and open source (GPLv3)
