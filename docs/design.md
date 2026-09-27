@@ -37,9 +37,11 @@ something the rules do not cover extends this document first.
 12. On macOS the app draws the title bar. The window has no title text and no title bar tone; the top header
     rows (`titleBarHeight`, 52 px) are the title bar. The traffic lights sit in the sidebar's header, centred on
     it, and the header's content starts 12 px after the zoom button (92 px in on macOS 26); with the sidebar
-    hidden the page's header keeps that room instead, and in full screen nobody does. The empty parts of every
-    top header row move the window, and a double click does what System Settings says for title bars. Windows
-    and Linux keep their native frames.
+    hidden the page's header keeps that room instead. Full screen keeps the lights in the same place: AppKit
+    hides its title bar there, so the window shows AppKit's standard buttons over the header (no symbols on
+    hover; the menu bar's title bar strip still covers them while it is shown). The empty parts of every top
+    header row move the window, except in full screen, and a double click does what System Settings says for
+    title bars. Windows and Linux keep their native frames.
 
 ## Tokens
 

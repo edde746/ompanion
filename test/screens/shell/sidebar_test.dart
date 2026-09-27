@@ -431,7 +431,8 @@ void main() {
   );
 
   testWidgets(
-    'on macOS the header keeps room for the traffic lights until full screen, and its empty parts move the window',
+    'on macOS the header keeps room for the traffic lights, in full screen too, and its empty parts move the window '
+    'until it is full screen',
     variant: TargetPlatformVariant.only(TargetPlatform.macOS),
     (tester) async {
       const chromeChannel = MethodChannel('ompanion/window_chrome');
@@ -477,15 +478,24 @@ void main() {
       await tester.pumpAndSettle();
       expect(chrome, ['state', 'doubleClickTitleBar']);
 
+      // Full screen keeps the traffic lights and their room; the window stays put.
       await messenger.handlePlatformMessage(
         chromeChannel.name,
         const StandardMethodCodec().encodeMethodCall(const MethodCall('fullScreen', true)),
         (_) {},
       );
       await tester.pump();
+      await tester.dragFrom(empty, const Offset(40, 20));
+      await tester.pumpAndSettle();
+      await tester.tapAt(empty);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(empty);
+      await tester.pumpAndSettle();
+      expect(window, ['startDragging']);
+      expect(chrome, ['state', 'doubleClickTitleBar']);
       await tester.tap(search);
       await tester.pumpAndSettle();
-      expect(tester.getTopLeft(field).dx, 16);
+      expect(tester.getTopLeft(field).dx, 92);
     },
   );
 }
