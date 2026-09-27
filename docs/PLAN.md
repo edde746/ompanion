@@ -9,7 +9,9 @@ the app does is the README's feature list; the status paragraph of `parity.md` s
 surface of their own. The companion implements more verbs than the app calls: nothing calls `sessions.list`,
 `session.fork`, `session.clear`, `session.delete`, `context.breakdown`, `history.search`, `btw`,
 `queue.get`/`queue.pop`, `goal.set`, `goal.guided` or `loop.enable` (the app starts a goal or a loop through the typed
-command; `contracts/ompx.md`). The App Store and Play build lanes exist; nothing is uploaded (§9).
+command; `contracts/ompx.md`). The App Store and Play build lanes exist; nothing is uploaded (§9). Notifications
+are built (M10), but no build has phone push yet: the Firebase project, its config files and the running relay do
+not exist (`contracts/push.md`).
 M0's spike results are in `research/`. Numbers were measured on 2026-09-25 (omp 18.3.0 installed, source read at
 tags v18.3.0 and v18.3.1, Flutter 3.47.1, Dart 3.13.1) unless marked [INFERENCE].
 
@@ -34,9 +36,10 @@ decisions.
   reverse tunnel, Tailscale.
 - Client platforms: macOS, Linux, Windows, iOS/iPadOS, Android.
 - Host platforms: macOS, Linux, Windows.
-- Beyond omp: integrated terminal, file explorer and editor, port forwards.
+- Beyond omp: integrated terminal, file explorer and editor, port forwards, notifications (push on phones, local on
+  desktops).
 - omp versions: 18.3.1 (the newest release today) and every later release as it ships. Nothing older.
-- Out of scope: push notifications (later), T3-style git/PR panels, worktree-per-thread orchestration,
+- Out of scope: T3-style git/PR panels, worktree-per-thread orchestration,
   live attach to running TUI sessions, omp's `/git` overlay, `omp commit`, collab, recording and
   streaming, Codex realtime voice (omp's `/live` model), plan mode and plan review, vibe mode.
 
@@ -61,10 +64,14 @@ decisions.
 | D15 | License GPLv3 (`LICENSE`), with no additional permissions. | User choice as the sole copyright holder, who publishes the store builds (R11). Third-party AGPL/GPL code stays out of every build, which is why the terminal is MIT (D17). |
 | D16 | One codebase for every store. Features a store forbids are compiled out with `--dart-define` flags, or worked around. | User choice. Known cases: local omp and `~/.ssh` access inside the Mac App Store sandbox, host access from Flatpak, background execution on iOS, auto-update outside GitHub builds. |
 | D17 | Flutter stack follows Plezy: `provider`, `drift`, `slang`, `window_manager`, `flutter_secure_storage`. Markdown `gpt_markdown` 1.3.0 with a CommonMark code-fence rule (its own parser mishandles nested and `~~~` fences); settled segments cached, only the streaming tail re-parsed. Highlighting `re_highlight` in an isolate. Transcript list: built-in slivers around a center anchor with a stick-to-bottom `ScrollPhysics`, no list package. Terminal `xterm2` 5.2.0 in every build (MIT); PTY `flutter_pty2` 2.0.0, and ompanion paces PTY output into the terminal itself (`lib/terminal/frame_writer.dart`: a parsing-time budget per frame and back-pressure on the PTY or SSH channel), which `xterm3` shipped and `xterm2` does not. Code viewer/editor `re_editor` 0.10.0; diffs rendered from omp's numbered diff format and `git diff`. | Same conventions as the author's other Flutter app. Evidence and rejected options: `research/ui-libraries.md`. |
-| D18 | Repository: Flutter app at the root; `packages/omp_core/` (pure Dart: transport, SSH, host scripts, session channels, RPC and companion clients, session store); `companion/` (TypeScript, Bun); `harness/` (fake OpenAI-compatible provider, isolated omp homes, recorded fixtures, SSH test containers); `docs/`. | The app and the companion version together; one companion build serves every supported omp version (§6). Pure Dart keeps the protocol and transport testable with `dart test` and drivable from a CLI without Flutter. Tests never call a paid provider: omp runs against the fake provider in an isolated `HOME`. |
+| D18 | Repository: Flutter app at the root; `packages/omp_core/` (pure Dart: transport, SSH, host scripts, session channels, RPC and companion clients, session store); `companion/` (TypeScript, Bun); `relay/` (the push relay, a Bun server, D24); `harness/` (fake OpenAI-compatible provider, isolated omp homes, recorded fixtures, SSH test containers); `docs/`. | The app and the companion version together; one companion build serves every supported omp version (§6). Pure Dart keeps the protocol and transport testable with `dart test` and drivable from a CLI without Flutter. Tests never call a paid provider: omp runs against the fake provider in an isolated `HOME`. |
 | D19 | Material 3 look. omp theme palettes are not used for the app's own colours. | User choice. omp's `theme` settings stay editable as TUI settings. |
 | D20 | The probe asks the account's login shell for its PATH once per connection (`$SHELL -l -i -c`, falling back to `-l -c`, bounded, between markers into a private file), and every launch puts that PATH in front of omp's own. On POSIX only. | An SSH exec channel's PATH is sshd's default, so Homebrew, `~/.local/bin` and nvm are missing from omp's bash tool (`gh` exit 127); the same for a Dock-launched app on macOS. `-i` because PATH commonly lives in `.zshrc`/`.bashrc`. The wrapper's own `tail`/`ps` keep sshd's PATH. Contract: `contracts/host-launch.md`. |
 | D21 | A session file another omp process holds (a process with it open for writing, or omp's terminal breadcrumb with a live omp on that tty) is read, never launched into or attached to: the app shows the transcript from the file, refuses to send, and offers Take over only once that process is gone. A run of the app for that file is killed first, as is one whose omp is behind the file. POSIX only; Windows keeps the old behaviour. | Two writers on one session file interleave turns and each process's next rewrite drops the other's entries (measured: a terminal omp mid-turn plus the app's second omp, `session_exit` written into the terminal's live session). omp's steering/follow-up queue is in that process's memory only, so the app says so instead of faking it. Contract: `contracts/session-writer.md`. |
+| D22 | Phones get push notifications through Firebase Cloud Messaging (FCM); desktops show local notifications for the sessions they have open. Kinds: needs input, done, failed, each switchable per device. | User choice. FCM has no per-message cost; its limits are 600,000 messages a minute per project and 240 a minute or 5,000 an hour per Android device. A desktop app notifies only while it runs (macOS quits with its last window), which is also when it tails its sessions. |
+| D23 | The companion in every detached run sends the pushes. A phone registers by leaving `~/.ompanion/push/<deviceId>.json` (its Firebase installation ID, its key, the kinds it wants) on each machine it connects to while push is on. Every registered phone gets every notification of the kinds it asked for, whether or not a device is attached; a phone hides only the one for the session it shows in the foreground. | No daemon (D1): while nobody is connected, the run's companion is the only host code alive. User choice over presence tracking: always push. The kinds are filtered on the machine because FCM lowers the priority of an Android install that receives high-priority messages and shows nothing. |
+| D24 | A relay, the Bun server in `relay/`, runs in Docker on our own VPS behind its reverse proxy at `push.ompanion.app`; it holds the FCM service account, forwards messages and keeps no state. Payloads are AES-256-GCM encrypted with a key the phone makes, which reaches machines only over SSH. Contract: `contracts/push.md`. | Sending through FCM needs the project's service-account key, which cannot ship in the companion: anyone holding it could push to every install. User choices: run the relay on the VPS we already have; encrypt end to end. The relay, Google and Apple see a Firebase installation ID and ciphertext only. TLS and the reverse proxy are the VPS's own setup, not part of the repository. |
+| D25 | Firebase Messaging is integrated natively: the Android SDK in `android/`, the iOS SDK through Swift Package Manager in the Runner target only. Android decrypts and posts in its `FirebaseMessagingService`; iOS decrypts in a Notification Service Extension. Desktops use `flutter_local_notifications`. A build without the Firebase config has no push and says so. | `firebase_core` carries a Windows plugin that downloads the Firebase C++ SDK (963,150,774 bytes, measured 2026-09-27) on every Windows build. Native decryption posts within Android's few seconds per message without starting a Dart isolate, and iOS needs the extension in any case to replace the encrypted placeholder. |
 
 ## 3. Architecture
 
@@ -313,6 +320,9 @@ logic in the app would stop with it.
   persisted; devices get it from the companion's `loop.changed` event and `state.snapshot`'s `loop`.
 - `packages/omp_core/test/session/goal_loop_omp_test.dart` runs a goal to completion and a loop to its limit on omp
   18.3.1 with every device detached.
+- Notifications (`companion/src/notify.ts`, D23): in a detached run the companion encrypts a notification for every
+  phone registered in `~/.ompanion/push/` when a dialog opens, a run settles or a run fails, and posts it to the relay;
+  `notify.test` sends one on request. Texts, triggers and the relay API: `contracts/push.md`.
 
 Version policy: the app drives omp 18.3.1 and later (`minimumOmpVersion`, `packages/omp_core/lib/src/host/probe.dart`).
 One companion build serves every such release and feature-checks what it uses (`lib/sessions/companion_asset.dart`);
@@ -360,8 +370,9 @@ following is built yet (M8). The app owns audio instead:
 |---|---|---|
 | GitHub releases (desktop) | none | full feature set; the macOS app updates itself through Sparkle from the latest release's `appcast.xml` (README, Releasing); Windows and Linux do not update themselves |
 | Mac App Store | sandbox: no child processes outside the container, no `~/.ssh` | flag off "this computer"; `~/.ssh` via a user-granted folder bookmark |
-| iOS App Store | no background sockets | detached sessions make this safe; reconnect on resume |
-| Google Play | foreground-service policy | no background service; reconnect on resume |
+| iOS App Store | no background sockets | detached sessions make this safe; reconnect on resume; notifications arrive as APNs pushes (D22) |
+| Google Play | foreground-service policy | no background service; reconnect on resume; notifications arrive as FCM pushes (D22) |
+| GitHub releases (phones) | the unsigned IPA is signed by whoever installs it, with whatever their profile grants; FCM on Android needs Google Play services | push works wherever the app can register with FCM; otherwise the settings switch says why |
 | Microsoft Store | MSIX package: read-only install directory; files the app process itself creates under AppData go to a per-package folder only the app sees | the `direct` build, packed by `windows/build-msix.ps1`. The processes it starts carry no package identity (measured on the probe, the omp install and omp; the terminal's ConPTY spawn sets no desktop-app policy either), so they see the real file system, as in the zip: omp installed on "this computer" lands in the real `%LOCALAPPDATA%\omp`, where WMI-started runs find it. The app's database and cache land in the package folder, which uninstall removes; so does a file or folder the Files panel creates under AppData on this computer |
 | Flathub | sandbox | "this computer" through `flatpak-spawn --host` with the permission, or flagged off |
 
@@ -384,6 +395,7 @@ a real tailnet is still open (§12).
 | M7 | Terminal, files, editor, user port forwards | — |
 | M8 | Voice: push-to-talk, reply speech, live loop | — |
 | M9 | Store builds per §9, signing, desktop auto-update | — |
+| M10 | Notifications: local on desktops, push on phones through the relay | a locked phone shows a session's question from a machine nobody is connected to, and the notification opens that session |
 
 ## 11. Risks
 
@@ -400,14 +412,19 @@ a real tailnet is still open (§12).
 | R9 | Private keys on phones. | secure storage; per-device keys installed through a one-time password login |
 | R10 | Run-dir logs hold full transcripts on the host. | 0700 directory, same sensitivity as omp's own session files; secrets bypass them (§5) |
 | R11 | App Store terms conflict with GPL distribution (FSF position; GNU Go was pulled in 2010); GPLv3 §10 forbids further restrictions and §6 wants Installation Information a store does not give. | No third-party GPL or AGPL code ships in any build - the terminal is `xterm2` (MIT, D17) and `docs/research/licenses.md` records the scan - and the project's own code is GPLv3 from its sole copyright holder, who is not bound by the licence it grants and publishes the store builds, with the source public under GPLv3. A contribution merged under GPLv3 alone needs its author's permission before it ships through a store. |
+| R12 | Phone notifications depend on a relay we run and on Google: while the VPS is down no phone gets a notification, and Android push needs Google Play services. | push is opt-in per phone; the relay keeps no state, so another host can take over by moving the DNS name; a phone without Play services gets no push and the switch says so |
+| R13 | FCM lowers high-priority messages for an Android install that receives them and shows nothing. | the machine sends only the kinds the phone asked for; the phone hides only the message for the session on its screen |
+| R14 | Firebase's Android SDK depends on proprietary Play services libraries. | the sole copyright holder ships it (R11); a Firebase-free build (F-Droid) would need a flavor without it |
+| R15 | Nothing pushes when omp crashes, after a run's idle exit, or for a session no ompanion run holds (a TUI session). | accepted: none of them has a companion to send |
 
 ## 12. Open questions
 
 All product decisions are answered: platforms, no daemon, install, tunneling, Tailscale, extra scope,
-TUI sessions, notifications (later), session lifetime (detached everywhere), gap route (companion
-only), omp versions (18.3.1 onward), host OSes, license (GPLv3), distribution (build flags), multi-device
-(any device sends), phone discovery (import from a desktop), terminal-bound features (voice, on-device
-loop), look (Material 3), modes (goal, loop and pause in; plan and vibe out), name (ompanion).
+TUI sessions, notifications (push to phones through our relay, end-to-end encrypted, always sent; local on
+desktops), session lifetime (detached everywhere), gap route (companion only), omp versions (18.3.1 onward), host
+OSes, license (GPLv3), distribution (build flags), multi-device (any device sends), phone discovery (import from a
+desktop), terminal-bound features (voice, on-device loop), look (Material 3), modes (goal, loop and pause in; plan
+and vibe out), name (ompanion).
 
 Left to spikes, not to the user (open in `research/remote-transport.md` §10): Tailscale SSH on a real tailnet,
 check mode's banner included (`none` auth itself is tested against an sshd that allows it:

@@ -10,6 +10,7 @@ Flutter client for omp. Architecture, decisions and milestones: `docs/PLAN.md`. 
 | `lib/`, `test/`, `integration_test/`, platform dirs | Flutter app (`ompanion`) |
 | `packages/omp_core/` | pure Dart: transport (`HostLink`), SSH, host scripts, session channels, RPC client, companion client, session store |
 | `companion/` | TypeScript companion extension loaded into omp with `-e` |
+| `relay/` | push relay: a Bun server on our VPS that forwards encrypted notifications to FCM (`relay/README.md`) |
 | `harness/` | fake OpenAI-compatible provider, isolated omp homes, recorded fixtures, SSH test containers |
 | `scripts/` | build the companion, fetch an omp release binary, regenerate icons, sign and notarize the macOS app |
 | `.github/workflows/` | CI (Linux and a Windows host), the per-platform build and release |
@@ -61,7 +62,7 @@ barrel file re-exporting everything.
 - A test defends an observable contract: protocol framing, reducers, parsers, scripts, companion verbs.
   No tests of markup, plumbing or defaults.
 - Pure Dart: `dart test` in `packages/omp_core`. Flutter: `flutter test`. Companion: `bun test` in
-  `companion/`.
+  `companion/`. Relay: `bun test` in `relay/`.
 - Integration tests are tagged so the unit suite runs without them: `@Tags(['omp'])`, `@Tags(['docker'])` and
   `ffmpeg` in Dart (`dart test -P integration` runs them), `*.e2e.test.ts` in Bun (`bun run test:e2e`). Tests tagged
   `windows` need a prepared Windows host and run with `-P windows`.
