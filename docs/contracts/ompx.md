@@ -359,6 +359,9 @@ session: `{id, displayName, kind: "main" | "sub" | "advisor", parentId?: string,
 "parked" | "aborted", sessionFile: string | null, createdAt: number, lastActivity: number, activity?: string,
 history?: {agent?, modelRole?, resolvedModel?, resolvedModelIsFallback?, metrics?, readOnly?, outputPath?,
 patchPath?, branchName?, nestedPatchPaths?}, lifecycle?: {responseAt?, acceptedAt?, terminalAt?}}`.
+`createdAt` and `lastActivity` are epoch ms but not always whole: a parked subagent omp reads back from its
+session file (on a task spawn, `agent://` or `history://` in a reopened session) takes `lastActivity` from the
+file's `mtimeMs`, and `createdAt` from `birthtimeMs` when the transcript has no timestamp.
 
 Event `agents.changed {agents: AgentRow[]}`, no `callId`: the whole roster, at most every 100 ms after
 registry changes. Advisors are listed read-only, as in the TUI agent hub.

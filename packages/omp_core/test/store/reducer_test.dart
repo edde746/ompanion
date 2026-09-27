@@ -1090,6 +1090,30 @@ void main() {
       expect(view.resyncReason, 'fork');
     });
 
+    test('a subagent omp read back from its session file keeps its fractional file times', () {
+      // omp 18.3.1 restores a parked subagent's lastActivity from the file's mtimeMs, and its createdAt from
+      // birthtimeMs when the transcript has no timestamp; both carry a fraction of a millisecond.
+      final view = reduce(
+        SessionView(),
+        ompxEvent('agents.changed', {
+          'agents': [
+            {
+              'id': 'Helper',
+              'displayName': 'Helper',
+              'kind': 'sub',
+              'parentId': 'Main',
+              'status': 'parked',
+              'sessionFile': '/s/Helper.jsonl',
+              'createdAt': 1790516932881.25,
+              'lastActivity': 1790516932913.5767,
+            },
+          ],
+        }),
+      );
+      final agent = view.agents.single;
+      expect((agent.status, agent.createdAt, agent.lastActivity), (AgentStatus.parked, 1790516932881, 1790516932914));
+    });
+
     test('message.appended shows a user execution once, and a reseed merges it', () {
       final execution = {
         'role': 'bashExecution',

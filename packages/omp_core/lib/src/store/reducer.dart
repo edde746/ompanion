@@ -993,8 +993,10 @@ AgentRow _decodeAgent(Map<String, Object?> agent) {
     parentId: agent.optString('parentId'),
     status: enumByName(AgentStatus.values, agent.string('status')),
     sessionFile: agent.optString('sessionFile'),
-    createdAt: agent.optInt('createdAt') ?? 0,
-    lastActivity: agent.optInt('lastActivity') ?? 0,
+    // Epoch ms as JS numbers: a parked subagent omp reads back from its session file carries the file's
+    // fractional mtimeMs (and birthtimeMs for a transcript without a timestamp).
+    createdAt: agent.optNumber('createdAt')?.round() ?? 0,
+    lastActivity: agent.optNumber('lastActivity')?.round() ?? 0,
     activity: agent.optString('activity'),
     agent: history?.optString('agent'),
     resolvedModel: history?.optString('resolvedModel'),
