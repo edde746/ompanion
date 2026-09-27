@@ -211,7 +211,8 @@ reaches the developer; arguing scope is the alternative. Decide which before the
 - **New personal developer account:** Play requires a closed test with **at least 12 testers opted in for 14
   continuous days** before you can apply for production access, and internal testing does not count
   ([App testing requirements](https://support.google.com/googleplay/android-developer/answer/14151465)).
-  Plan for that: recruit 15–20 testers, and see the checklist in `store/README.md`.
+  Plan for that: recruit 15–20 testers, and see the checklist in `store/README.md`. The closed track's testers
+  are the Google Group `edde-testers@googlegroups.com`; `store/README.md`, Google Play step 9, has the links.
 - Play requires new apps and updates to target API level 36 from 31 August 2026
   ([Target API level requirements](https://developer.android.com/google/play/requirements/target-sdk));
   the Flutter 3.47 defaults already do (compileSdk 36, targetSdk 36, minSdk 24), so nothing is pinned.

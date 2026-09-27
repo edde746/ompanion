@@ -1,1 +1,1 @@
-Open source. Connect over SSH to your own machine, install omp on it if needed, and drive the coding agent from iPhone or iPad. No account, no tracking.
+Connect over SSH to your own machine, install omp on it if needed, and drive the coding agent from iPhone or iPad. No account, no tracking.

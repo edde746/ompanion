@@ -61,7 +61,11 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
        `android/key.properties`.
 9. [ ] **New personal developer account only:** run a closed test with at least 12 testers opted in for 14
        continuous days, then apply for production access. Internal testing does not count. Recruit 15–20
-       testers. Source: <https://support.google.com/googleplay/android-developer/answer/14151465>.
+       testers. Source: <https://support.google.com/googleplay/android-developer/answer/14151465>. The closed
+       track's testers are the Google Group `edde-testers@googlegroups.com`: anyone who joins it
+       (<https://groups.google.com/g/edde-testers>) and opts in at
+       <https://play.google.com/apps/testing/com.edde746.ompanion> can install the app. The website's Google Play
+       button opens a dialog with those two steps (`https://ompanion.app/#google-play`, which the README links).
 10. [ ] Upload the phone, 7-inch and 10-inch screenshots; release notes come from `changelogs/1.txt`.
 11. [ ] Roll out to production.
 
@@ -224,7 +228,7 @@ Run it from the repository root. Output on this revision (2026-09-27):
 ok   App Store name              20 chars limit 30
 ok   App Store subtitle          21 chars limit 30
 ok   App Store keywords          97 bytes limit 100
-ok   App Store promo text       152 chars limit 170
+ok   App Store promo text       139 chars limit 170
 ok   App Store description     3932 chars limit 4000
 ok   App Store release notes    651 chars limit 4000
 ok   Play title                  20 chars limit 30
