@@ -112,7 +112,7 @@ class PushService extends ChangeNotifier with WidgetsBindingObserver {
       await _channel.invokeMethod<Object?>('enable', {'deviceId': _sessions.deviceId}),
     );
     _lostKey = false;
-    await _settings.set(Prefs.pushRemovals, const []);
+    await _settings.set(Prefs.pushRemovals, const <String>[]);
     await _settings.set(Prefs.pushNotifications, true);
     _syncOnline();
   });
