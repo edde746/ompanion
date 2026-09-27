@@ -1,0 +1,15 @@
+// Cloudflare Workers Builds installs and runs `bun run build` in website/ (settings in README.md, Deploy), then
+// `npx wrangler deploy`, which uploads build/ as static assets. The dashboard's Worker must be named `ompanion`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ompanion",
+  "compatibility_date": "2026-09-27",
+  "assets": {
+    "directory": "./build",
+    // Unknown paths get build/404.html with a 404 status; `/privacy` resolves to privacy.html.
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  },
+  // A Custom Domain needs the ompanion.app zone in the same Cloudflare account.
+  "routes": [{ "pattern": "ompanion.app", "custom_domain": true }]
+}

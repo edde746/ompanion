@@ -12,7 +12,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 - [ ] **Check the store URLs.** `https://ompanion.app`, `https://ompanion.app/privacy` and
       `https://github.com/edde746/ompanion/issues` must load in a private window before submitting; a dead
       privacy-policy URL is an automatic rejection on both stores. The site deploys from `website/` through
-      `.github/workflows/pages.yml`.
+      Cloudflare Workers Builds (`website/README.md`, Deploy).
 - [ ] Confirm `pubspec.yaml` `version:` is `0.1.0+1` and the CI run for that commit is green.
 - [ ] Fill in the fields in "Fields the user must fill in" below.
 

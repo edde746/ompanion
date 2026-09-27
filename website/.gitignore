@@ -3,6 +3,7 @@ node_modules/
 # Output
 /.svelte-kit
 /build
+/.wrangler
 
 # OS
 .DS_Store

@@ -6,8 +6,7 @@ export const ISSUES_URL = `${REPO_URL}/issues`;
 export const BUILD_FROM_SOURCE_URL = `${REPO_URL}#building-from-source`;
 export const LICENSE_URL = `${REPO_URL}/blob/main/LICENSE`;
 export const OMP_URL = 'https://github.com/can1357/oh-my-pi';
-export const GITHUB_PRIVACY_URL =
-  'https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement';
+export const CLOUDFLARE_PRIVACY_URL = 'https://www.cloudflare.com/privacypolicy/';
 
 export type Download = {
   /** Platform name as the README's Download table spells it. */

@@ -1,7 +1,7 @@
 <script lang="ts">
   import Logo from '$lib/components/Logo.svelte';
   import PageMetadata from '$lib/components/PageMetadata.svelte';
-  import { GITHUB_PRIVACY_URL, ISSUES_URL, OMP_URL, SITE_URL } from '$lib/content/downloads';
+  import { CLOUDFLARE_PRIVACY_URL, ISSUES_URL, OMP_URL, SITE_URL } from '$lib/content/downloads';
 
   const title = 'Privacy Policy — ompanion';
   const description =
@@ -128,9 +128,9 @@
           page itself.
         </p>
         <p>
-          The pages are hosted on GitHub Pages, which receives visitors' IP addresses in its server logs as any
-          web server does. That logging is GitHub's, under the
-          <a href={GITHUB_PRIVACY_URL} target="_blank" rel="noopener noreferrer">GitHub General Privacy Statement</a>.
+          The pages are hosted on Cloudflare, which receives visitors' IP addresses in its server logs as any
+          web server does. That logging is Cloudflare's, under the
+          <a href={CLOUDFLARE_PRIVACY_URL} target="_blank" rel="noopener noreferrer">Cloudflare Privacy Policy</a>.
         </p>
       </section>
 
