@@ -10,9 +10,9 @@
       <span>ompanion</span>
     </a>
     <nav class="mono-label" aria-label="Main">
-      <a href="#features">Features</a>
+      <a class="wide-only" href="#features">Features</a>
       <a href="#download">Download</a>
-      <a href="/privacy">Privacy</a>
+      <a class="wide-only" href="/privacy">Privacy</a>
       <a href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
     </nav>
   </div>
@@ -65,5 +65,12 @@
   nav a:hover,
   nav a:focus-visible {
     color: var(--color-text);
+  }
+
+  /* Phones keep one row: the features follow the hero, and the policy is in the footer. */
+  @media (max-width: 30rem) {
+    .wide-only {
+      display: none;
+    }
   }
 </style>

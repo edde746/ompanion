@@ -23,7 +23,7 @@
   <meta property="og:image:height" content="630" />
   <meta
     property="og:image:alt"
-    content="The ompanion glyph and wordmark, the line A client for omp, on machines you own, and a capture of the app on a desktop, on black."
+    content="The ompanion wordmark and the line A client for omp, on machines you own, beside a large π glyph drawn in lime-to-emerald dithered cells, on black."
   />
 
   <meta name="twitter:card" content="summary_large_image" />

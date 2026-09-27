@@ -1,4 +1,3 @@
-/// <reference types="@sveltejs/enhanced-img" />
 /// <reference types="vite/client" />
 
 declare global {

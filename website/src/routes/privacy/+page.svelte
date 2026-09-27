@@ -15,11 +15,11 @@
   <div class="column">
     <a class="back-link" href="/">
       <Logo size={22} />
-      <span>Back to ompanion</span>
+      <span class="mono-label">Back to ompanion</span>
     </a>
 
-    <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: September 26, 2026</p>
+    <h1 class="display">Privacy Policy</h1>
+    <p class="updated mono-label">Last updated: September 27, 2026</p>
 
     <div class="prose">
       <p>
@@ -54,27 +54,47 @@
             database on the device.
           </li>
           <li>
-            <strong>SSH keys</strong>: a key you generate or import is stored as a key pair. The private key, and
-            any passphrase you let the app remember, are kept in the platform's secure storage (the Keychain on
-            Apple platforms, Keystore-backed encrypted storage on Android). Only the public key and its
-            fingerprint are in the app's database. Private keys never leave the device.
+            <strong>SSH keys and passwords</strong>: a key you generate or import is stored as a key pair. The
+            private key, its passphrase, and any password you choose to save for a machine are kept in the
+            platform's secure storage (the Keychain on Apple platforms, Keystore-backed encrypted storage on
+            Android). Only the public key and its fingerprint are in the app's database. The app never sends a
+            private key, passphrase or saved password anywhere; it signs on the device.
           </li>
           <li><strong>Host keys you have trusted</strong>, so a machine that changes its key is flagged instead of trusted.</li>
-          <li><strong>Settings</strong>: your preferences, and where you left off in the session list.</li>
+          <li>
+            <strong>Settings</strong>: your preferences (theme, which panels are open, which projects are
+            collapsed in the session list), and a random id the app creates once per install. The app puts that
+            id in its requests to omp on your machines, so that when several of your devices share a session,
+            each one recognises the replies to its own requests.
+          </li>
           <li><strong>Read markers</strong>: per session file, the modification time up to which you have read it.</li>
           <li>
-            <strong>Image previews</strong>: when a reply names an image on your machine and the machine has
-            ffmpeg, the app fetches a preview over SSH and caches it in the app's cache directory so it does not
-            fetch it again.
+            <strong>Images from your machines</strong>: when the app shows an image file from one of your
+            machines, it fetches it over SSH (a large file as a smaller preview, when the machine has ffmpeg to
+            make one) and caches it in the app's cache directory, up to 256 MB, oldest first out.
           </li>
           <li>
             <strong>Session data</strong>: the transcript you see is read from the machine over SSH. Messages,
-            files and attached files live on the machine, in your own project and session directories.
+            files and attached files live on the machine, in your own project and session directories. What
+            you are typing, pasted attachments and terminal scrollback stay in memory and are gone when the app
+            closes.
           </li>
         </ul>
         <p>
           Nothing in that list is a copy of your AI provider credentials. Those stay on your machine, in omp's own
-          configuration, and the app never reads them.
+          configuration, and the app never reads them. If you type a provider API key or another secret setting
+          into the app, it goes over SSH to omp on your machine, and the app keeps no copy.
+        </p>
+        <p>
+          On iOS, the app's database is part of your own device backups, as for any app, and the secure-storage
+          items above are part of encrypted ones; the image cache is not backed up. On Android, the app opts out
+          of backup.
+        </p>
+        <p>
+          The desktop builds from GitHub can also run omp on the computer itself ("this computer"), read your
+          <code>~/.ssh/config</code>, <code>~/.ssh/known_hosts</code> and Tailscale peer list to fill in machines,
+          and sign with your ssh-agent's keys. Those files, that list and those keys never leave the computer; the
+          phone and tablet builds do none of it.
         </p>
       </section>
 
@@ -88,16 +108,24 @@
             machine and omp loads with <code>-e</code>, so that omp exposes the events the client needs.
           </li>
           <li>
-            <strong>To GitHub, when you ask the app to install omp on a machine that lacks it.</strong> Either the
-            machine downloads the release asset itself, or the app downloads it from <code>github.com</code> and
-            uploads it to your machine over SFTP, with a checksum check. This is a request for a public
+            <strong>To GitHub, when you ask the app to install omp on a machine that lacks it.</strong> The
+            machine downloads the release itself when it has curl or wget (or PowerShell on Windows); otherwise the
+            app downloads it from <code>github.com</code> and streams it to your machine over SFTP. Either way the
+            machine checks the file against a SHA-256 checksum the app carries. This is a request for a public
             open-source file; it carries no information about you beyond what any web request carries, and it goes
             only to GitHub.
           </li>
           <li>
-            <strong>To the host of a link, only when you tap it.</strong> The app opens links in your browser. This
-            includes provider sign-in pages for OAuth logins configured in omp, and a web image named in a model
-            reply: such an image is fetched from its own URL only after you tap it, and never on its own.
+            <strong>To the host of a link or image, only when you tap it.</strong> Links open in your browser,
+            including provider sign-in pages for OAuth logins in omp. A web image named in a model reply is
+            fetched by the app from its own URL only after you tap Load image, and never on its own. While a
+            sign-in is open, the app listens on the device's own loopback address for the provider's redirect and
+            relays it over SSH to omp on your machine, which completes the sign-in and keeps the token there.
+          </li>
+          <li>
+            <strong>To a place you choose, when you export machines.</strong> The export holds machine names,
+            hosts, ports, user names, authentication methods, key fingerprints, jump hosts and trusted host keys,
+            never a private key, passphrase or password. It goes to the clipboard or to a file you pick.
           </li>
           <li>
             <strong>Nowhere else.</strong> The app has no server of ours, no telemetry endpoint, no push service
@@ -117,6 +145,11 @@
           your machine and from there to your provider, under that provider's terms and privacy policy, with your
           credentials. Model access, data retention and pricing are therefore between you and the provider you
           chose — the same as running omp in a terminal.
+        </p>
+        <p>
+          Some pages of the app ask omp on your machine to go online: the usage page has omp fetch your
+          subscription limits from your providers, and the plugin and skill pages have omp query its plugin
+          marketplaces and skill registry. Those requests come from your machine, not from the device.
         </p>
       </section>
 
@@ -161,18 +194,27 @@
         <p>Your data lives on your device and on your machines, and you delete it by deleting it:</p>
         <ul>
           <li>
-            <strong>Remove a machine</strong> in the app: its definition, its jump hosts, its remembered secrets
-            and its cached data are deleted from the device. Nothing is deleted on the machine itself.
+            <strong>Remove a machine</strong> in the app: everything the app stored for it is deleted from the
+            device: its definition, its jump hosts, its saved passwords, its read markers, its session-list
+            settings, the host keys you trusted for it that no other machine of yours uses, and the images cached
+            from it. Nothing is deleted on the machine itself.
           </li>
           <li>
-            <strong>Uninstall the app</strong>: everything the app stored on the device goes with it. Note that
-            the platform's secure storage may keep entries until the app is fully removed by the operating system;
-            on iOS the Keychain items are removed with the app.
+            <strong>Delete a key</strong> in the app: its private key and passphrase are deleted from secure
+            storage.
+          </li>
+          <li>
+            <strong>Uninstall the app</strong>: on Android, everything the app stored on the device goes with it.
+            On iOS, the database and caches go with it, but the Keychain can keep private keys, passphrases and
+            saved passwords after the app is deleted; delete your keys and machines in the app first to remove
+            them.
           </li>
           <li>
             <strong>On the machine</strong>: sessions, transcripts and files uploaded for a session live on the
-            machine, in your own directories, and are yours to delete there. The companion extension is one file
-            per omp version under <code>~/.ompanion/companion/</code>, and deleting that directory removes it.
+            machine, in your own directories, and are yours to delete there. The app also keeps its own files
+            under <code>~/.ompanion/</code>: the companion extension, one file per omp version, and the input and
+            output streams of each running session, which it deletes once that session's omp has exited. Deleting
+            that directory removes all of it.
           </li>
           <li>There is no server-side copy for us to delete.</li>
         </ul>
@@ -215,35 +257,28 @@
   .back-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
     border-radius: var(--radius);
     padding: 0.5rem 0.75rem 0.5rem 0.5rem;
     margin-left: -0.5rem;
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-    font-weight: 600;
+  }
+
+  .back-link .mono-label {
     transition: color var(--motion-fast) var(--ease-standard);
   }
 
-  .back-link:hover,
-  .back-link:focus-visible {
+  .back-link:hover .mono-label,
+  .back-link:focus-visible .mono-label {
     color: var(--color-text);
   }
 
   h1 {
-    margin-top: 2rem;
-    font-family: var(--font-display);
-    font-size: clamp(2.25rem, 7vw, 3.5rem);
-    font-weight: 700;
-    letter-spacing: -0.04em;
-    line-height: 1.05;
+    margin-top: clamp(2.5rem, 7vw, 4rem);
+    font-size: var(--type-section);
   }
 
   .updated {
-    margin-top: 0.75rem;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
+    margin-top: 1rem;
   }
 
   .prose {
@@ -261,10 +296,10 @@
     margin-bottom: 1rem;
     color: var(--color-text);
     font-family: var(--font-display);
-    font-size: clamp(1.25rem, 3vw, 1.5rem);
+    font-size: var(--type-tile);
     font-weight: 700;
-    letter-spacing: -0.025em;
-    line-height: 1.25;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
   }
 
   p + ul,
@@ -282,22 +317,23 @@
     padding-left: 1.25rem;
   }
 
+  /* The site's square cell as the bullet. */
   li::before {
     content: '';
     position: absolute;
     margin-left: -1.25rem;
-    margin-top: 0.7em;
-    width: 0.375rem;
-    height: 2px;
-    border-radius: var(--radius-full);
-    background: var(--color-surface-highest);
+    margin-top: 0.68em;
+    width: 5px;
+    height: 5px;
+    background: var(--color-text-muted);
   }
 
   .prose a {
     color: var(--color-text);
     text-decoration: underline;
     text-decoration-color: var(--color-text-muted);
-    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
   }
 
   .prose a:hover,

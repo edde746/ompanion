@@ -9,7 +9,7 @@ export const OMP_URL = 'https://github.com/can1357/oh-my-pi';
 export const CLOUDFLARE_PRIVACY_URL = 'https://www.cloudflare.com/privacypolicy/';
 
 export type Download = {
-  /** Platform name as the README's Download table spells it. */
+  /** The operating system; the file name carries the architecture. */
   platform: string;
   /** Release asset file name. */
   file: string;
@@ -26,27 +26,27 @@ export const downloads: (Download & { url: string })[] = (
     {
       platform: 'macOS',
       file: 'ompanion-macos.dmg',
-      detail: 'Disk image, signed and notarized so Gatekeeper opens it.',
+      detail: 'Disk image, signed and notarized.',
     },
     {
-      platform: 'Windows x64',
+      platform: 'Windows',
       file: 'ompanion-windows-x64.zip',
       detail: 'Zip archive.',
     },
     {
-      platform: 'Linux x64',
+      platform: 'Linux',
       file: 'ompanion-linux-x64.zip',
-      detail: 'Zip archive; needs GTK 3 and libsecret.',
+      detail: 'Zip archive. Needs GTK 3 and libsecret.',
     },
     {
       platform: 'Android',
       file: 'ompanion-android.apk',
-      detail: 'APK for phones and tablets, Android 7.0 or newer.',
+      detail: 'APK for Android 7.0 or newer.',
     },
     {
       platform: 'iOS',
       file: 'ompanion-ios.ipa',
-      detail: 'Unsigned IPA; install it with a sideloading tool such as AltStore or Sideloadly.',
+      detail: 'Unsigned IPA. Install it with a sideloading tool such as AltStore or Sideloadly.',
     },
   ] satisfies Download[]
 ).map((download) => ({ ...download, url: releaseAsset(download.file) }));

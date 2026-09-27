@@ -2,12 +2,8 @@
   import PageMetadata from '$lib/components/PageMetadata.svelte';
   import Header from '$lib/components/Header.svelte';
   import Hero from '$lib/components/Hero.svelte';
-  import Screenshots from '$lib/components/Screenshots.svelte';
   import Features from '$lib/components/Features.svelte';
-  import HowItWorks from '$lib/components/HowItWorks.svelte';
   import Download from '$lib/components/Download.svelte';
-  import PrivacySummary from '$lib/components/PrivacySummary.svelte';
-  import OpenSource from '$lib/components/OpenSource.svelte';
   import Footer from '$lib/components/Footer.svelte';
   import { SITE_URL } from '$lib/content/downloads';
 
@@ -23,12 +19,8 @@
 
 <main>
   <Hero />
-  <Screenshots />
   <Features />
-  <HowItWorks />
   <Download />
-  <PrivacySummary />
-  <OpenSource />
 </main>
 
 <Footer />

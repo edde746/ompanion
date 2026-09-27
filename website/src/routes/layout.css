@@ -9,13 +9,21 @@
   --color-surface-highest: #262626;
   --color-text: #ededed;
   --color-text-muted: #8f8f8f;
+  /* The glyph's gradient stops. Lime is the one accent colour of the page: a single phrase, a live
+     dot, a cursor. The gradient between the two exists only in the glyph and in the dithered art. */
   --color-lime: #c4f042;
   --color-emerald: #22c55e;
+  /* The far end of the dither ramp, where the art dissolves into black. */
+  --color-deep: #0e4a25;
 
   --radius: 10px;
-  --radius-card: 12px;
-  --radius-lg: 16px;
+  --radius-tile: 20px;
   --radius-full: 999px;
+
+  --tile-bg: #0b0b0b;
+  --tile-line: #171717;
+  --tile-pad: clamp(1.25rem, 2.4vw, 2rem);
+  --tile-gap: clamp(0.75rem, 1.4vw, 1rem);
 
   --page-width: 72rem;
   --page-gutter: clamp(1rem, 4vw, 2rem);
@@ -24,26 +32,15 @@
   --motion-fast: 120ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
-  /* The app's own faces: system stacks, no web fonts, so the page asks nothing of anyone else. */
+  /* System stacks only: no web fonts, so the page asks nothing of anyone else. */
   --font-display: system-ui, "SF Pro Display", "Segoe UI Variable Display", ui-sans-serif, sans-serif;
   --font-body: system-ui, "SF Pro Text", "Segoe UI Variable Text", ui-sans-serif, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
 
-  /* The glyph's gradient, used as light only: a hairline on a frame's top edge, one soft glow
-     behind a frame, and the signal line between two things. Never as a fill under text. */
-  --rim: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgb(196 240 66 / 0.5) 22%,
-    rgb(34 197 94 / 0.5) 78%,
-    transparent 100%
-  );
-  --glow: radial-gradient(closest-side, rgb(196 240 66 / 0.16), rgb(34 197 94 / 0.08) 52%, transparent 76%);
-  --signal: linear-gradient(90deg, var(--color-lime), var(--color-emerald));
-
-  /* Grain and dot pitch, at 1x. Both are felt, not seen. */
-  --grain-size: 180px;
-  --dot-pitch: 24px;
+  /* Type roles, shared with the store images: display, section, tile, body, micro-label. */
+  --type-display: clamp(2.5rem, 1.1rem + 5.2vw, 4.75rem);
+  --type-section: clamp(2rem, 1.3rem + 2.6vw, 3.25rem);
+  --type-tile: clamp(1.25rem, 1.05rem + 0.6vw, 1.5rem);
 }
 
 *,
@@ -59,6 +56,9 @@ h2,
 h3,
 p,
 ul,
+ol,
+dl,
+dd,
 figure {
   margin: 0;
 }
@@ -69,56 +69,23 @@ html {
   color: var(--color-text);
 }
 
-/* Texture: film grain over the whole page, and a dot grid, a nod to terminal cells, that fades
-   out as it goes down. Both sit under the content; neither is noticeable at first glance. */
-html::before,
-html::after {
-  content: "";
-  position: fixed;
-  z-index: -1;
-  inset: 0;
-  pointer-events: none;
-}
-
-html::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
-  background-size: var(--grain-size) var(--grain-size);
-  opacity: 0.035;
-}
-
-html::after {
-  background-image: radial-gradient(circle at 50% 50%, rgb(237 237 237 / 0.06) 1px, transparent 1.3px);
-  background-size: var(--dot-pitch) var(--dot-pitch);
-  /* Fades out radially, so the grid reads at the top and never becomes a pattern. */
-  -webkit-mask-image: radial-gradient(95% 75% at 50% 6%, #000 0%, rgb(0 0 0 / 0.55) 42%, transparent 76%);
-  mask-image: radial-gradient(95% 75% at 50% 6%, #000 0%, rgb(0 0 0 / 0.55) 42%, transparent 76%);
-}
-
 /* The sticky header is at the top, so an anchor jump has to stop below it. */
 section[id] {
   scroll-margin-top: var(--anchor-offset);
 }
 
-@media (max-width: 40rem) {
-  :root {
-    /* The header wraps onto two rows on phones. */
-    --anchor-offset: 6.5rem;
-  }
-}
-
 body {
   min-width: 320px;
-  overflow-x: hidden;
+  overflow-x: clip;
   font-family: var(--font-body);
   line-height: 1.5;
-  background: transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
   color: #000000;
-  background: var(--color-text);
+  background: var(--color-lime);
 }
 
 a {
@@ -131,9 +98,14 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+button {
+  font: inherit;
+  color: inherit;
+}
+
 :focus-visible {
   outline: 2px solid var(--color-text);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 @media (forced-colors: active) {
@@ -144,7 +116,7 @@ button {
 
 img,
 svg,
-picture {
+canvas {
   display: block;
   max-width: 100%;
 }
@@ -153,9 +125,19 @@ img {
   height: auto;
 }
 
-ul {
+ul,
+ol {
   padding: 0;
   list-style: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* The second voice: small uppercase monospace labels with wide tracking. */
@@ -164,70 +146,45 @@ ul {
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   font-weight: 400;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
+  line-height: 1.4;
   text-transform: uppercase;
 }
 
-/* The only colour on the site: the glyph's gradient, as a bar under a section header. */
-.accent-bar {
-  width: 2.5rem;
-  height: 3px;
-  border-radius: var(--radius-full);
-  background: var(--signal);
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  text-wrap: balance;
 }
 
-/* Rim light: the gradient as a 1.5 px hairline along a frame's top edge, gone by the sides. */
-.rim {
-  position: absolute;
-  z-index: 2;
-  inset: 0 0 auto;
-  height: 1.5px;
-  background: var(--rim);
-}
-
-/* A node on the signal line. */
-.node {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--color-lime);
-}
-
-/* On a capture: the region a magnified detail was taken from. A hairline, not a fill. */
-.marker {
-  position: absolute;
-  z-index: 2;
-  top: var(--marker-top);
-  left: var(--marker-left);
-  width: var(--marker-width);
-  height: var(--marker-height);
-  border-radius: 4px;
-  padding: 1px;
-  background: linear-gradient(120deg, rgb(196 240 66 / 0.8), rgb(34 197 94 / 0.8));
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-
-/* A frame holding a real capture: rounded, clipped, with room for its rim light. */
-.frame {
-  position: relative;
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  overflow: hidden;
-}
-
-.frame picture,
-.frame img {
-  display: block;
-  width: 100%;
+.accent {
+  color: var(--color-lime);
 }
 
 .page-section {
   width: min(100%, var(--page-width));
   margin-inline: auto;
-  padding: clamp(3rem, 8vw, 6rem) var(--page-gutter);
+  padding: clamp(3.5rem, 8vw, 6.5rem) var(--page-gutter) 0;
+}
+
+.section-head {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+  margin-bottom: clamp(2rem, 4vw, 3rem);
+}
+
+.section-head h2 {
+  font-size: var(--type-section);
+}
+
+.section-head p:last-child {
+  color: var(--color-text-muted);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  text-wrap: pretty;
 }
 
 .bar {
@@ -235,10 +192,13 @@ ul {
   min-height: 44px;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
+  border: 0;
   border-radius: var(--radius);
   padding-inline: 1.375rem;
   font-size: 0.9375rem;
   font-weight: 600;
+  cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
@@ -264,60 +224,18 @@ ul {
   background: var(--color-surface-highest);
 }
 
-.card {
-  border-radius: var(--radius-card);
-  background: var(--color-surface-container);
+.text-link {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-decoration-color: var(--color-surface-highest);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+  transition: text-decoration-color var(--motion-fast) var(--ease-standard);
 }
 
-/* Sections fade and step in as they enter the viewport. A browser without scroll-driven
-   animations shows everything; so does anyone who asks for less motion.
-   The animation has no fill mode: outside its range the element keeps its own style, so any
-   render that lays the page out without scrolling it (print, a paginated preview, a full-page
-   capture) still shows every section. */
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .page-section > * {
-      animation-name: reveal;
-      animation-duration: auto;
-      animation-timing-function: linear;
-      animation-timeline: view();
-      animation-range: entry 0% entry 35%;
-    }
-  }
-}
-
-@keyframes reveal {
-  from {
-    opacity: 0;
-    translate: 0 1rem;
-  }
-
-  to {
-    opacity: 1;
-    translate: 0 0;
-  }
-}
-
-/* Nothing may stay hidden on paper or in a preview that never scrolls. */
-@media print {
-  .page-section > * {
-    animation: none !important;
-    opacity: 1 !important;
-  }
-
-  .pulse {
-    display: none !important;
-  }
-}
-
-/* The foot of a crop window folds into the surface under it, instead of ending on a hard cut. */
-.fold::after {
-  content: "";
-  position: absolute;
-  z-index: 1;
-  inset: auto 0 0;
-  height: 25%;
-  background: linear-gradient(180deg, rgb(0 0 0 / 0), var(--fold, var(--color-surface-container)));
+.text-link:hover,
+.text-link:focus-visible {
+  text-decoration-color: var(--color-text);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -328,9 +246,27 @@ ul {
   *,
   *::before,
   *::after {
-    scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Paper is white: the page prints as black text, without the art. */
+@media print {
+  :root {
+    --color-bg: #ffffff;
+    --color-text: #000000;
+    --color-text-muted: #333333;
+    --color-surface: #ffffff;
+    --color-surface-container: #f2f2f2;
+    --color-surface-high: #eeeeee;
+    --color-surface-highest: #dddddd;
+    --tile-bg: #ffffff;
+    --tile-line: #cccccc;
+  }
+
+  html {
+    background: #ffffff;
   }
 }
