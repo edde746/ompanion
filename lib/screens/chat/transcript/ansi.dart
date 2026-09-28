@@ -353,6 +353,21 @@ final class AnsiPalette {
 
   static AnsiPalette of(ColorScheme scheme) => _cache[scheme] ??= _build(scheme);
 
+  /// The primary and primary-container tones of the tonal-spot scheme seeded with xterm colour [index], per brightness.
+  /// Seeding the twelve schemes takes 2-5 ms, and [of] misses whenever Flutter hands out a new [ColorScheme] instance:
+  /// every button's `AnimatedTheme(theme.copyWith(...))` evicts the transcript theme from `ThemeData.localize`'s
+  /// five-entry cache, and `ThemeData.copyWith` copies the colour scheme.
+  static final _seeded = <(int, Brightness), (Color, Color)>{};
+
+  static (Color, Color) _seededTones(int index, Brightness brightness) =>
+      _seeded[(index, brightness)] ??= switch (ColorScheme.fromSeed(
+        seedColor: _xterm16[index],
+        brightness: brightness,
+        dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
+      )) {
+        final seeded => (seeded.primary, seeded.primaryContainer),
+      };
+
   final List<Color> _foreground;
   final List<Color> _background;
 
@@ -387,13 +402,9 @@ final class AnsiPalette {
           foreground[index] = scheme.onSurface;
           background[index] = scheme.surfaceContainerHigh;
         default:
-          final seeded = ColorScheme.fromSeed(
-            seedColor: _xterm16[index],
-            brightness: scheme.brightness,
-            dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
-          );
-          foreground[index] = seeded.primary;
-          background[index] = seeded.primaryContainer;
+          final (primary, container) = _seededTones(index, scheme.brightness);
+          foreground[index] = primary;
+          background[index] = container;
       }
     }
     return AnsiPalette._(List.unmodifiable(foreground), List.unmodifiable(background));
