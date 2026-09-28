@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
@@ -179,10 +180,20 @@ class _WideShell extends StatefulWidget {
   State<_WideShell> createState() => _WideShellState();
 }
 
+/// The pane whose inner edge is being dragged.
+enum _Pane { sidebar, dock }
+
 class _WideShellState extends State<_WideShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _sidebarKey = GlobalKey<SidebarState>();
   late final StreamSubscription<DockTab> _reveals;
+
+  // A drag of a pane's edge: the pane's width when it started, how far the pointer moved since, and the window's
+  // width at the last layout, which fits the width the drag asks for.
+  _Pane? _dragging;
+  double _dragStart = 0;
+  double _dragMoved = 0;
+  double _window = 0;
 
   @override
   void initState() {
@@ -232,12 +243,45 @@ class _WideShellState extends State<_WideShell> {
     }
   }
 
+  /// The width a drag asks for: the sidebar's edge moves right to widen it, the dock's left.
+  double? _asked(_Pane pane) =>
+      _dragging == pane ? _dragStart + (pane == _Pane.sidebar ? _dragMoved : -_dragMoved) : null;
+
+  void _startDrag(_Pane pane, double width) => setState(() {
+    _dragging = pane;
+    _dragStart = width;
+    _dragMoved = 0;
+  });
+
+  /// Keeps the width the drag ended at, as the window fitted it.
+  void _endDrag() {
+    final pane = _dragging;
+    if (pane == null) return;
+    final settings = context.read<SettingsProvider>();
+    final widths = paneWidths(
+      _window,
+      sidebar: settings.get(Prefs.sidebarOpen) ? _asked(_Pane.sidebar) ?? settings.get(Prefs.sidebarWidth) : null,
+      dock: widget.inlineDock && settings.get(Prefs.dockOpen)
+          ? _asked(_Pane.dock) ?? settings.get(Prefs.dockWidth)
+          : null,
+      dockGivesWay: pane == _Pane.dock,
+    );
+    setState(() => _dragging = null);
+    unawaited(
+      pane == _Pane.sidebar
+          ? settings.set(Prefs.sidebarWidth, widths.sidebar)
+          : settings.set(Prefs.dockWidth, widths.dock),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Selected, not watched: a project folder's collapsed state is a setting too, and must not rebuild the shell.
     final sidebarOpen = context.select<SettingsProvider, bool>((settings) => settings.get(Prefs.sidebarOpen));
     final dockOpen =
         widget.inlineDock && context.select<SettingsProvider, bool>((settings) => settings.get(Prefs.dockOpen));
+    final sidebarWidth = context.select<SettingsProvider, double>((settings) => settings.get(Prefs.sidebarWidth));
+    final dockWidth = context.select<SettingsProvider, double>((settings) => settings.get(Prefs.dockWidth));
     return _ShellShortcuts(
       onToggleSidebar: _toggleSidebar,
       onTogglePanels: _togglePanels,
@@ -247,26 +291,98 @@ class _WideShellState extends State<_WideShell> {
         key: _scaffoldKey,
         endDrawer: widget.inlineDock ? null : const Drawer(width: 360, child: SafeArea(child: DockPanel())),
         body: SafeArea(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Panes are told apart by surface tone: sidebar and dock sit on surfaceContainerLow.
-              if (sidebarOpen) SizedBox(width: 300, child: Sidebar(key: _sidebarKey)),
-              Expanded(
-                child: _CenterPane(
-                  sidebarOpen: sidebarOpen,
-                  panelsOpen: dockOpen,
-                  onToggleSidebar: _toggleSidebar,
-                  onTogglePanels: _togglePanels,
-                ),
-              ),
-              if (dockOpen) const SizedBox(width: 340, child: DockPanel()),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              _window = constraints.maxWidth;
+              final widths = paneWidths(
+                _window,
+                sidebar: sidebarOpen ? _asked(_Pane.sidebar) ?? sidebarWidth : null,
+                dock: dockOpen ? _asked(_Pane.dock) ?? dockWidth : null,
+                dockGivesWay: _dragging == _Pane.dock,
+              );
+              return Stack(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Panes are told apart by surface tone: sidebar and dock sit on surfaceContainerLow.
+                      if (sidebarOpen)
+                        SizedBox(
+                          width: widths.sidebar,
+                          child: Sidebar(key: _sidebarKey),
+                        ),
+                      Expanded(
+                        child: _CenterPane(
+                          sidebarOpen: sidebarOpen,
+                          panelsOpen: dockOpen,
+                          onToggleSidebar: _toggleSidebar,
+                          onTogglePanels: _togglePanels,
+                        ),
+                      ),
+                      if (dockOpen) SizedBox(width: widths.dock, child: const DockPanel()),
+                    ],
+                  ),
+                  // Each edge lies on the side of its boundary without a scrollbar: the sidebar's list and the chat
+                  // scroll along their right edges.
+                  if (sidebarOpen)
+                    Positioned(
+                      left: widths.sidebar,
+                      top: 0,
+                      bottom: 0,
+                      width: _PaneEdge.width,
+                      child: _PaneEdge(
+                        key: const ValueKey('sidebar-edge'),
+                        onStart: () => _startDrag(_Pane.sidebar, widths.sidebar),
+                        onDrag: (dx) => setState(() => _dragMoved += dx),
+                        onEnd: _endDrag,
+                      ),
+                    ),
+                  if (dockOpen)
+                    Positioned(
+                      right: widths.dock - _PaneEdge.width,
+                      top: 0,
+                      bottom: 0,
+                      width: _PaneEdge.width,
+                      child: _PaneEdge(
+                        key: const ValueKey('dock-edge'),
+                        onStart: () => _startDrag(_Pane.dock, widths.dock),
+                        onDrag: (dx) => setState(() => _dragMoved += dx),
+                        onEnd: _endDrag,
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ),
       ),
     );
   }
+}
+
+/// The strip along a pane's inner edge that resizes the pane when dragged.
+class _PaneEdge extends StatelessWidget {
+  const _PaneEdge({super.key, required this.onStart, required this.onDrag, required this.onEnd});
+
+  static const width = 6.0;
+
+  final VoidCallback onStart;
+  final ValueChanged<double> onDrag;
+  final VoidCallback onEnd;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.resizeColumn,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // From where the pointer went down, so the edge stays under it.
+      dragStartBehavior: DragStartBehavior.down,
+      onHorizontalDragStart: (_) => onStart(),
+      onHorizontalDragUpdate: (details) => onDrag(details.primaryDelta ?? 0),
+      onHorizontalDragEnd: (_) => onEnd(),
+      onHorizontalDragCancel: onEnd,
+    ),
+  );
 }
 
 class _CenterPane extends StatelessWidget {

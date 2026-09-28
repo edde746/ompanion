@@ -39,6 +39,18 @@ final class StringPref extends Pref<String> {
   Object? encode(String value) => value;
 }
 
+final class DoublePref extends Pref<double> {
+  const DoublePref(super.key, super.defaultValue);
+
+  /// JSON keeps a whole number as an int.
+  @override
+  double decode(Object? json) =>
+      json is num ? json.toDouble() : throw FormatException('setting $key: expected a number');
+
+  @override
+  Object? encode(double value) => value;
+}
+
 final class EnumPref<T extends Enum> extends Pref<T> {
   const EnumPref(super.key, super.defaultValue, this.values);
 
@@ -73,6 +85,11 @@ abstract final class Prefs {
   static const sidebarOpen = BoolPref('sidebar_open', true);
   static const dockOpen = BoolPref('dock_open', true);
   static const dockTab = EnumPref<DockTab>('dock_tab', DockTab.agents, DockTab.values);
+
+  /// Widths of the sidebar and the inline dock on wide layouts, as the user dragged them (`paneWidths` fits them to
+  /// the window).
+  static const sidebarWidth = DoublePref('sidebar_width', 300);
+  static const dockWidth = DoublePref('dock_width', 340);
 
   /// Whether the sidebar hides the sessions of the project folder [cwd] on machine [machineId].
   static BoolPref projectCollapsed(String machineId, String cwd) =>
