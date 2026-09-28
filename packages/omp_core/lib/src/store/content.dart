@@ -28,15 +28,41 @@ final class RedactedThinkingBlock extends ContentBlock {
   final String data;
 }
 
-final class ImageBlock extends ContentBlock {
-  const ImageBlock({required this.data, required this.mimeType, this.url});
+/// An image in message content: its bytes inline, or in omp's blob store.
+sealed class ImageBlock extends ContentBlock {
+  const ImageBlock({required this.mimeType});
+
+  final String mimeType;
+}
+
+final class InlineImageBlock extends ImageBlock {
+  const InlineImageBlock({required this.data, required super.mimeType, this.url});
 
   /// Base64 image bytes.
   final String data;
-  final String mimeType;
 
   /// Optional https mirror of [data].
   final String? url;
+}
+
+/// An image in omp's blob store (`session/blob-store.ts`): omp writes an image of 1024 base64 characters or more to
+/// the session file as `blob:sha256:<hash>` and puts the bytes back only when it loads the file itself, keeping the
+/// reference when the blob is gone. The app reads session files itself, so its history holds the reference.
+final class BlobImageBlock extends ImageBlock {
+  const BlobImageBlock({required this.hash, required super.mimeType});
+
+  /// SHA-256 of the image bytes in lowercase hex: the blob's file name.
+  final String hash;
+}
+
+final _blobRef = RegExp(r'^blob:sha256:([0-9a-f]{64})$');
+
+/// An omp image (`ImageContent`: `data`, `mimeType`, optional `url`) whose `data` is base64 or a blob reference.
+ImageBlock decodeImage(Map<String, Object?> image) {
+  final data = image.string('data');
+  final mimeType = image.string('mimeType');
+  if (_blobRef.firstMatch(data) case final ref?) return BlobImageBlock(hash: ref[1]!, mimeType: mimeType);
+  return InlineImageBlock(data: data, mimeType: mimeType, url: image.optString('url'));
 }
 
 final class ToolCallBlock extends ContentBlock {
@@ -74,11 +100,7 @@ ContentBlock decodeBlock(Map<String, Object?> block) => switch (block.string('ty
   'thinking' => ThinkingBlock(block.string('thinking'), signature: block.optString('thinkingSignature')),
   'redactedThinking' => RedactedThinkingBlock(block.string('data')),
   // omp's own renderers check `data` before use: an image may travel as a provider file reference only.
-  'image' when block['data'] is String => ImageBlock(
-    data: block.string('data'),
-    mimeType: block.string('mimeType'),
-    url: block.optString('url'),
-  ),
+  'image' when block['data'] is String => decodeImage(block),
   'toolCall' => ToolCallBlock(
     id: block.string('id'),
     name: block.string('name'),
@@ -109,7 +131,9 @@ bool _sameBlock(ContentBlock a, ContentBlock b) => switch ((a, b)) {
   (final TextBlock a, final TextBlock b) => a.text == b.text,
   (final ThinkingBlock a, final ThinkingBlock b) => a.thinking == b.thinking && a.signature == b.signature,
   (final RedactedThinkingBlock a, final RedactedThinkingBlock b) => a.data == b.data,
-  (final ImageBlock a, final ImageBlock b) => a.data == b.data && a.mimeType == b.mimeType && a.url == b.url,
+  (final InlineImageBlock a, final InlineImageBlock b) =>
+    a.data == b.data && a.mimeType == b.mimeType && a.url == b.url,
+  (final BlobImageBlock a, final BlobImageBlock b) => a.hash == b.hash && a.mimeType == b.mimeType,
   (final ToolCallBlock a, final ToolCallBlock b) =>
     a.id == b.id && a.name == b.name && a.intent == b.intent && _jsonEquals(a.arguments, b.arguments),
   (final OtherBlock a, final OtherBlock b) => _jsonEquals(a.raw, b.raw),

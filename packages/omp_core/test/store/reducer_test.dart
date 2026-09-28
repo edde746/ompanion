@@ -972,6 +972,29 @@ void main() {
       );
       expect(withEntries(view, entries, leafId: 'a2').transcript, hasLength(6), reason: 'merging again adds nothing');
     });
+
+    test('an image omp moved to its blob store stays a reference to the blob', () {
+      final hash = 'ab' * 32;
+      final entries = [
+        {
+          'type': 'message',
+          'id': 'u1',
+          'parentId': null,
+          'timestamp': '2026-09-25T16:35:50.798Z',
+          'message': {
+            ...user('look', 100),
+            'content': [
+              text('look'),
+              {'type': 'image', 'data': 'blob:sha256:$hash', 'mimeType': 'image/png'},
+              {'type': 'image', 'data': 'iVBORw0KGgo=', 'mimeType': 'image/png'},
+            ],
+          },
+        },
+      ];
+      final images = (withEntries(SessionView(), entries, leafId: 'u1').transcript.single as UserItem).images.toList();
+      expect(images.first, isA<BlobImageBlock>().having((image) => image.hash, 'hash', hash));
+      expect(images.last, isA<InlineImageBlock>().having((image) => image.data, 'data', 'iVBORw0KGgo='));
+    });
   });
 
   group('settings', () {

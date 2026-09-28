@@ -165,7 +165,10 @@ ToolParts _read(BuildContext context, ToolData data) {
       data.status == ToolStatus.done &&
       _imageExtensions.contains(extensionOf(_withoutSelector(target)));
   // What the model got, which omp may have converted (a PNG arrives as WebP): the file's own facts are in Files.
-  final pixels = images.isEmpty ? null : imageSize(images.first);
+  final pixels = switch (images.firstOrNull) {
+    final InlineImageBlock image => imageSize(image),
+    _ => null,
+  };
   return (
     subject: path,
     monoSubject: true,
@@ -195,7 +198,10 @@ ToolParts _read(BuildContext context, ToolData data) {
         TerminalOutput(data.text, max: 20),
       for (final (index, image) in images.indexed) ...[
         if (index > 0) const SizedBox(height: 8),
-        FittedImage(imageBytes(image)),
+        switch (image) {
+          final InlineImageBlock image => FittedImage(imageBytes(image)),
+          BlobImageBlock(:final hash) => MachineImage.blob(hash),
+        },
       ],
       if (fromMachine) ...[const SizedBox(height: 8), MachineImage(path: _withoutSelector(target), caption: false)],
       ..._errorAndImages(context, data, showImages: false),
@@ -926,10 +932,11 @@ ToolParts _eval(BuildContext context, ToolData data) {
   );
   final title = _string(data.args['title']);
   final jsonOutputs = _list(details?['jsonOutputs']);
+  // omp writes `details.images` to the session file as blob references too.
   final liveImages = [
     for (final image in _list(details?['images']))
-      if (_object(image) case {'data': final String bytes, 'mimeType': final String mime})
-        ImageBlock(data: bytes, mimeType: mime),
+      if (_object(image) case final image? when image['data'] is String && image['mimeType'] is String)
+        decodeImage(image),
   ];
   final output = _withoutNotices(data.text);
   return (

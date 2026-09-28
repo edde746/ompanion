@@ -47,7 +47,7 @@ const _keyboardImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp
 UserItem? _pendingMessage(String text, List<RpcImage> images, {required int timestamp, String? key}) {
   final content = [
     if (text.isNotEmpty) TextBlock(text),
-    for (final image in images) ImageBlock(data: image.data, mimeType: image.mimeType),
+    for (final image in images) InlineImageBlock(data: image.data, mimeType: image.mimeType),
   ];
   return content.isEmpty ? null : UserItem(key: key, timestamp: timestamp, content: content, attribution: 'user');
 }

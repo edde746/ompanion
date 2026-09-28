@@ -3,7 +3,18 @@
 library;
 
 export 'src/store/content.dart'
-    show ContentBlock, ImageBlock, OtherBlock, RedactedThinkingBlock, TextBlock, ThinkingBlock, ToolCallBlock, textOf;
+    show
+        BlobImageBlock,
+        ContentBlock,
+        ImageBlock,
+        InlineImageBlock,
+        OtherBlock,
+        RedactedThinkingBlock,
+        TextBlock,
+        ThinkingBlock,
+        ToolCallBlock,
+        decodeImage,
+        textOf;
 export 'src/store/external_writer.dart';
 export 'src/store/reducer.dart';
 export 'src/store/session_view.dart';

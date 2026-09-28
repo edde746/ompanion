@@ -53,7 +53,14 @@ void main() {
               onCopy: (_) {},
               onOpenFile: (path, {line}) => opened.add(path),
               onOpenSubagent: (_) {},
-              images: machine ? SessionImages(loader, host, cwd: '/home/u/proj') : null,
+              images: machine
+                  ? SessionImages(
+                      loader,
+                      host,
+                      cwd: '/home/u/proj',
+                      sessionPath: '/home/u/.local/share/omp/sessions/-home-u-proj/s.jsonl',
+                    )
+                  : null,
             ),
             child: SingleChildScrollView(child: child),
           ),
@@ -157,7 +164,7 @@ void main() {
           args: {'path': 'pic.png'},
           content: const [
             TextBlock('Read image file [image/png]'),
-            ImageBlock(data: _png, mimeType: 'image/png'),
+            InlineImageBlock(data: _png, mimeType: 'image/png'),
           ],
           details: {
             'fileSize': 26672,
@@ -218,13 +225,36 @@ void main() {
       expect(host.fetches, [('/home/u/proj/pic.png', false)]);
     });
 
+    testWidgets('an image omp keeps in its blob store loads from the blob beside the session file', (tester) async {
+      final hash = 'ab' * 32;
+      final blob = '/home/u/.local/share/omp/blobs/$hash';
+      host.files[blob] = (size: 26672, modified: modified);
+      host.answers[blob] = png(preview: false, size: 26672);
+      await pump(
+        tester,
+        card(
+          'read',
+          args: {'path': 'pic.png'},
+          content: [
+            const TextBlock('Read image file [image/png]'),
+            BlobImageBlock(hash: hash, mimeType: 'image/png'),
+          ],
+        ),
+      );
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+      expect(host.fetches, [(blob, false)]);
+      expect(find.byType(FittedImage), findsOneWidget);
+      expect(find.text('PNG'), findsOneWidget);
+    });
+
     testWidgets('todo and web search results keep images that come without their usual details', (tester) async {
       for (final tool in ['todo', 'web_search']) {
         await pump(
           tester,
           card(
             tool,
-            content: const [ImageBlock(data: _png, mimeType: 'image/png')],
+            content: const [InlineImageBlock(data: _png, mimeType: 'image/png')],
           ),
           key: ValueKey(tool),
         );

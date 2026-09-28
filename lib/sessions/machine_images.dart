@@ -166,7 +166,7 @@ final class MachineImages {
       host?.close();
       host = _hosts[machine.id] = RuntimeImageHost(machine.id, runtime);
     }
-    return SessionImages(this, host, cwd: session.cwd);
+    return SessionImages(this, host, cwd: session.cwd, sessionPath: session.sessionPath);
   }
 
   /// The image last loaded for [path] (SFTP) on [host], from memory only: the original when one was loaded.
@@ -374,13 +374,16 @@ final class _DiskCache {
 }
 
 /// The images a session's transcript names by path: resolved against the session's directory [cwd] and the machine's
-/// home, loaded through [MachineImages].
+/// home, loaded through [MachineImages]; and the images its file keeps in omp's blob store.
 final class SessionImages {
-  SessionImages(this._images, this._host, {required this.cwd});
+  SessionImages(this._images, this._host, {required this.cwd, required this.sessionPath});
 
   final MachineImages _images;
   final ImageHost _host;
   final String? cwd;
+
+  /// The session's file on the machine, which tells where its blob store is ([blobPath]).
+  final String? sessionPath;
 
   /// The image [path] names, from memory; null when it was not loaded or the machine is not connected.
   HostImage? peek(String path) {
@@ -392,6 +395,31 @@ final class SessionImages {
   Future<HostImage> load(String path, {bool original = false}) async =>
       _images.load(_host, _resolve(path, await _host.connect()), original: original);
 
+  /// The blob [hash] ([BlobImageBlock]), from memory; null when it was not loaded or the machine is not connected.
+  HostImage? peekBlob(String hash) {
+    final probe = _host.probe;
+    return probe == null ? null : _images.peek(_host, blobPath(hash, sessionPath: sessionPath, probe: probe));
+  }
+
+  /// Loads the blob [hash] ([BlobImageBlock]); see [MachineImages.load].
+  Future<HostImage> loadBlob(String hash, {bool original = false}) async => _images.load(
+    _host,
+    blobPath(hash, sessionPath: sessionPath, probe: await _host.connect()),
+    original: original,
+  );
+
   String _resolve(String path, HostProbe probe) =>
       resolveMachinePath(path, home: probe.home, cwd: cwd, windows: probe.isWindows);
+}
+
+/// Where omp keeps the blob [hash]: `blobs/` beside `sessions/` in omp's data directory, which a session file at
+/// `<data>/sessions/<bucket>/<file>.jsonl` names (omp puts both under `$XDG_DATA_HOME/omp` when that exists, else the
+/// agent directory). Any other session file (`--session-dir`, a subagent's) was written by the machine's default omp.
+String blobPath(String hash, {required String? sessionPath, required HostProbe probe}) {
+  final parts = sessionPath?.split(RegExp(r'[/\\]'));
+  final separator = probe.isWindows ? r'\' : '/';
+  final root = parts != null && parts.length >= 4 && parts[parts.length - 3] == 'sessions'
+      ? parts.sublist(0, parts.length - 3).join(separator)
+      : probe.agentDir;
+  return '$root${separator}blobs$separator$hash';
 }

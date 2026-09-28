@@ -247,7 +247,7 @@ void main() {
         CompactionItem(summary: 'earlier work', tokensBefore: 100),
         assistant(4000, const [
           ThinkingBlock('check'),
-          ImageBlock(data: 'AA==', mimeType: 'image/png'),
+          InlineImageBlock(data: 'AA==', mimeType: 'image/png'),
           TextBlock('Done.'),
         ], usage: const Usage(input: 1)),
       ];

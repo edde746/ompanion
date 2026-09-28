@@ -16,21 +16,14 @@ import '../../../widgets/activity_mark.dart';
 import 'transcript_actions.dart';
 
 final _bytes = Expando<Uint8List>();
-final _sizes = Expando<Size>();
 final _byteSizes = Expando<Size>();
 
 /// The decoded bytes of [image], decoded once per block.
-Uint8List imageBytes(ImageBlock image) => _bytes[image] ??= base64Decode(image.data);
+Uint8List imageBytes(InlineImageBlock image) => _bytes[image] ??= base64Decode(image.data);
 
 /// The pixel size stored in the header of [image] (PNG, JPEG, GIF, WebP), or null. Read before decoding so a
 /// thumbnail takes its final height at once and the transcript does not shift when the picture arrives.
-Size? imageSize(ImageBlock image) {
-  final cached = _sizes[image];
-  if (cached != null) return cached;
-  final size = sniffImageSize(imageBytes(image));
-  if (size != null) _sizes[image] = size;
-  return size;
-}
+Size? imageSize(InlineImageBlock image) => _bytesSize(imageBytes(image));
 
 /// [sniffImageSize] of [bytes], read once per list.
 Size? _bytesSize(Uint8List bytes) {
@@ -85,21 +78,35 @@ Size? sniffImageSize(Uint8List b) {
   return null;
 }
 
-/// A thumbnail of [image] at most [maxHeight] tall, sized from its header before it decodes; tapping it opens a
-/// zoomable view.
+/// A thumbnail of [image] at most 240 px tall and 480 px wide, sized from its header before it decodes; tapping it
+/// opens a zoomable view. An image in omp's blob store loads from the session's machine ([MachineImage.blob]).
 class TranscriptImage extends StatelessWidget {
-  const TranscriptImage(this.image, {super.key, this.maxHeight = 240, this.maxWidth = 480});
+  const TranscriptImage(this.image, {super.key});
 
   final ImageBlock image;
-  final double maxHeight;
-  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) => switch (image) {
+    final InlineImageBlock image => _Thumbnail(imageBytes(image)),
+    BlobImageBlock(:final hash) => MachineImage.blob(hash, thumbnail: true),
+  };
+}
+
+/// Image [bytes] as a [TranscriptImage].
+class _Thumbnail extends StatelessWidget {
+  const _Thumbnail(this.bytes);
+
+  static const _maxHeight = 240.0;
+  static const _maxWidth = 480.0;
+
+  final Uint8List bytes;
 
   @override
   Widget build(BuildContext context) {
-    final size = imageSize(image);
-    var width = maxWidth, height = maxHeight;
+    final size = _bytesSize(bytes);
+    var width = _maxWidth, height = _maxHeight;
     if (size != null && size.width > 0 && size.height > 0) {
-      final scale = [maxWidth / size.width, maxHeight / size.height, 1.0].reduce((a, b) => a < b ? a : b);
+      final scale = [_maxWidth / size.width, _maxHeight / size.height, 1.0].reduce((a, b) => a < b ? a : b);
       width = size.width * scale;
       height = size.height * scale;
     }
@@ -108,14 +115,14 @@ class TranscriptImage extends StatelessWidget {
       label: context.t.transcript.image,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: () => showDialog<void>(context: context, builder: (context) => ZoomedImage(imageBytes(image))),
+        onTap: () => showDialog<void>(context: context, builder: (context) => ZoomedImage(bytes)),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: SizedBox(
             width: width,
             height: height,
             child: Image.memory(
-              imageBytes(image),
+              bytes,
               fit: BoxFit.contain,
               gaplessPlayback: true,
               errorBuilder: (context, error, stack) => ColoredBox(
@@ -220,15 +227,22 @@ class FittedImage extends StatelessWidget {
 }
 
 /// An image file of the session's machine, named by [path] (host-native, `~/…` or relative to the session's
-/// directory). It loads on its own: it comes from the user's own machine over the session's link and cannot reach the
-/// network. A placeholder shows while it loads, then the image with its name and an "Open in Files" action ([caption]),
-/// or a notice of what is wrong; a file too large to send on its own offers its original. Without a machine to load
-/// from (no [TranscriptActions.images]) the path shows as text.
+/// directory), or kept in omp's blob store ([MachineImage.blob]). It loads on its own: it comes from the user's own
+/// machine over the session's link and cannot reach the network. A placeholder shows while it loads, then the image
+/// with its name and an "Open in Files" action ([caption]), or a notice of what is wrong; a file too large to send on
+/// its own offers its original. Without a machine to load from (no [TranscriptActions.images]) the path shows as text.
 class MachineImage extends StatefulWidget {
-  const MachineImage({super.key, required this.path, this.caption = true});
+  const MachineImage({super.key, required String this.path, this.caption = true}) : blob = null, thumbnail = false;
 
-  final String path;
+  /// The image omp keeps as blob [blob] ([BlobImageBlock]), which has no name to show or place in Files to open: as a
+  /// [thumbnail] like [TranscriptImage]'s, else as a [FittedImage].
+  const MachineImage.blob(String this.blob, {super.key, this.thumbnail = false}) : path = null, caption = false;
+
+  /// Exactly one of [path] and [blob] is set.
+  final String? path;
+  final String? blob;
   final bool caption;
+  final bool thumbnail;
 
   @override
   State<MachineImage> createState() => _MachineImageState();
@@ -242,6 +256,9 @@ class _MachineImageState extends State<MachineImage> {
   // Read once: this lookup adds no dependency, and the screen passes new actions on every build.
   late final _images = context.getInheritedWidgetOfExactType<TranscriptScope>()?.actions.images;
 
+  /// What the notices name: the path, or omp's reference to the blob.
+  String get _label => widget.path ?? 'blob:sha256:${widget.blob}';
+
   @override
   void initState() {
     super.initState();
@@ -251,30 +268,36 @@ class _MachineImageState extends State<MachineImage> {
   @override
   void didUpdateWidget(MachineImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.path == widget.path) return;
+    if (oldWidget.path == widget.path && oldWidget.blob == widget.blob) return;
     _image = null;
     _error = null;
     _start();
   }
 
   void _start() {
-    _image = _images?.peek(widget.path);
+    _image = switch (widget.blob) {
+      final blob? => _images?.peekBlob(blob),
+      null => _images?.peek(widget.path!),
+    };
     if (_images != null) unawaited(_load(original: false));
   }
 
   Future<void> _load({required bool original}) async {
-    final path = widget.path;
+    final label = _label;
     try {
-      final image = await _images!.load(path, original: original);
-      if (!mounted || path != widget.path) return;
+      final image = await switch (widget.blob) {
+        final blob? => _images!.loadBlob(blob, original: original),
+        null => _images!.load(widget.path!, original: original),
+      };
+      if (!mounted || label != _label) return;
       setState(() {
         _image = image;
         _error = null;
         _loadingOriginal = false;
       });
     } on Object catch (error) {
-      appLogger.w('loading the image $path failed: $error');
-      if (!mounted || path != widget.path) return;
+      appLogger.w('loading the image $label failed: $error');
+      if (!mounted || label != _label) return;
       setState(() {
         _error = error;
         _loadingOriginal = false;
@@ -289,10 +312,11 @@ class _MachineImageState extends State<MachineImage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_images == null) return Text(widget.path);
+    final path = _label;
+    if (_images == null) return Text(path);
     final t = context.t.transcript;
-    final path = widget.path;
     return switch (_image) {
+      final HostImageBytes image when widget.thumbnail => _Thumbnail(image.bytes),
       final HostImageBytes image => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -340,12 +364,14 @@ class _MachineImageState extends State<MachineImage> {
     };
   }
 
+  /// Shown with [MachineImage.caption], which only a [MachineImage.path] has.
   Widget _caption(BuildContext context, HostImageBytes image) {
+    final path = widget.path!;
     final theme = Theme.of(context);
     final t = context.t.transcript;
     final dim = theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final facts = [
-      _name(widget.path),
+      _name(path),
       if (image.width != null && image.height != null) '${image.width}×${image.height}',
       if (image.preview) t.imagePreview(sent: formatBytes(image.bytes.length), size: formatBytes(image.size)),
     ];
@@ -356,7 +382,7 @@ class _MachineImageState extends State<MachineImage> {
       children: [
         Text(facts.join(' · '), style: dim),
         TextButton.icon(
-          onPressed: () => TranscriptScope.of(context).onOpenFile(widget.path),
+          onPressed: () => TranscriptScope.of(context).onOpenFile(path),
           icon: const Icon(Symbols.folder_open, size: 16),
           label: Text(t.openInFiles),
         ),
