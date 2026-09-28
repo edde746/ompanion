@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:omp_core/host.dart' show NotificationKind;
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
+import 'package:omp_core/transport.dart' show inFlatpak;
 import 'package:window_manager/window_manager.dart';
 
 import '../i18n/strings.g.dart';
@@ -74,7 +75,12 @@ class DesktopNotifications with WindowListener {
           requestBadgePermission: false,
           requestSoundPermission: false,
         ),
-        linux: LinuxInitializationSettings(defaultActionName: t.notifications.open),
+        linux: LinuxInitializationSettings(
+          defaultActionName: t.notifications.open,
+          // The notification server runs outside a Flatpak and cannot read its /app files, but it finds the icon the
+          // Flatpak exports by name. Outside a Flatpak it reads the bundle's copy.
+          defaultIcon: inFlatpak ? ThemeLinuxIcon('com.edde746.ompanion') : AssetsLinuxIcon('assets/ompanion.png'),
+        ),
         windows: const WindowsInitializationSettings(
           appName: 'ompanion',
           appUserModelId: 'com.edde746.ompanion',
