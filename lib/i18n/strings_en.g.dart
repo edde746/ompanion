@@ -1298,6 +1298,18 @@ class Translations$sessions$en {
 	/// en: 'Could not list sessions: $error'
 	String listFailed({required Object error}) => 'Could not list sessions: ${error}';
 
+	/// en: 'Folder'
+	String get folder => 'Folder';
+
+	/// en: 'No folder'
+	String get noFolder => 'No folder';
+
+	/// en: 'omp works in a temporary directory, as when it starts in the home folder. The session lists right under the machine.'
+	String get noFolderHint => 'omp works in a temporary directory, as when it starts in the home folder. The session lists right under the machine.';
+
+	/// en: 'None of omp's temporary directories ($paths) is a directory on $machine.'
+	String noTempDirectory({required Object paths, required Object machine}) => 'None of omp\'s temporary directories (${paths}) is a directory on ${machine}.';
+
 	/// en: 'Working directory'
 	String get directory => 'Working directory';
 
@@ -4276,6 +4288,10 @@ extension on Translations {
 			'sessions.unread' => 'Unread',
 			'sessions.openFailed' => ({required Object error}) => 'Could not open the session: ${error}',
 			'sessions.listFailed' => ({required Object error}) => 'Could not list sessions: ${error}',
+			'sessions.folder' => 'Folder',
+			'sessions.noFolder' => 'No folder',
+			'sessions.noFolderHint' => 'omp works in a temporary directory, as when it starts in the home folder. The session lists right under the machine.',
+			'sessions.noTempDirectory' => ({required Object paths, required Object machine}) => 'None of omp\'s temporary directories (${paths}) is a directory on ${machine}.',
 			'sessions.directory' => 'Working directory',
 			'sessions.directoryHint' => 'A path on the machine, e.g. ~/code/project',
 			'sessions.directoryRequired' => 'Choose a working directory.',
@@ -4283,12 +4299,12 @@ extension on Translations {
 			'sessions.recentDirectories' => 'Recent projects',
 			'sessions.model' => 'Model (optional)',
 			'sessions.modelDefault' => 'Default (from omp\'s settings)',
+			_ => null,
+		} ?? switch (path) {
 			'sessions.modelPick' => 'Choose a model',
 			'sessions.modelUseDefault' => 'Use the model from omp\'s settings',
 			'sessions.create' => 'Start',
 			'sessions.browse' => 'Browse the machine',
-			_ => null,
-		} ?? switch (path) {
 			'sessions.browseTitle' => 'Choose a directory',
 			'sessions.up' => 'Parent directory',
 			'sessions.showHidden' => 'Show hidden directories',
@@ -4797,12 +4813,12 @@ extension on Translations {
 			'config.stats.ttft' => 'Avg. first token',
 			'config.stats.speed' => 'Avg. speed',
 			'config.stats.perHour' => 'Requests per hour',
+			_ => null,
+		} ?? switch (path) {
 			'config.stats.byModel' => 'By model',
 			'config.stats.byFolder' => 'By project',
 			'config.stats.byAgent' => 'By agent',
 			'config.stats.model' => 'Model',
-			_ => null,
-		} ?? switch (path) {
 			'config.stats.folder' => 'Project',
 			'config.stats.agent' => 'Agent',
 			_ => null,

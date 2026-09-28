@@ -512,11 +512,15 @@ Future<void> _newSession(WidgetTester tester, String machineId, String cwd) asyn
     );
     await _tap(tester, find.widgetWithText(MenuItemButton, 'New session').first);
   }
+  // The machine's new session actions open the dialog on "No folder".
+  final folder = find.descendant(of: find.byType(AlertDialog), matching: find.text('Folder'));
+  await _pumpUntil(tester, () => folder.evaluate().isNotEmpty, timeout: 120, what: 'the new session dialog');
+  await _tap(tester, folder.first);
   await _pumpUntil(
     tester,
     () => find.byKey(const ValueKey('new-session-cwd')).evaluate().isNotEmpty,
-    timeout: 120,
-    what: 'the new session dialog',
+    timeout: 10,
+    what: 'the directory field',
   );
   await _enterText(tester, find.byKey(const ValueKey('new-session-cwd')), cwd);
   // Start stays disabled until the dialog has probed the machine, so press it until the chat is up. A wide layout

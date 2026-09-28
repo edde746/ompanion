@@ -73,6 +73,13 @@ final class SidebarMachine {
     MachineOnline(:final probe) || MachineNeedsOmp(:final probe) => probe.home,
     _ => null,
   };
+
+  /// The directories omp works in for a session without a project folder ([HostProbe.scratchDirs]) once probed.
+  /// Sessions there list right under the machine instead of under a project.
+  List<String> get scratchDirs => switch (status) {
+    MachineOnline(:final probe) || MachineNeedsOmp(:final probe) => probe.scratchDirs,
+    _ => const [],
+  };
 }
 
 /// [listed] joined with [open], the sessions this device has open on the same machine.
@@ -186,15 +193,18 @@ final class SessionRowData extends SidebarRowData {
   String get key => 'session:${machine.machine.id}:${entry.summary?.path ?? 'open:${identityHashCode(entry.session)}'}';
 }
 
+/// "Show N more" after a short list of sessions.
 final class ShowMoreRowData extends SidebarRowData {
   const ShowMoreRowData(this.machine, this.cwd, this.hidden);
 
   final SidebarMachine machine;
-  final String cwd;
+
+  /// The project; null for the machine's sessions without a project folder.
+  final String? cwd;
   final int hidden;
 
   @override
-  String get key => 'more:${machine.machine.id}:$cwd';
+  String get key => 'more:${machine.machine.id}${cwd == null ? '' : ':$cwd'}';
 }
 
 /// Space after the pinned sessions and after each machine's rows.
@@ -216,18 +226,20 @@ const shortListCount = 5;
 /// file and open session when its machine has them, its stored pin otherwise. They are left out of their machine's
 /// projects.
 ///
-/// Then without a [query]: each machine's row, then while it is expanded its notices and its projects (sessions
-/// grouped by working directory, in order of their newest session); a project's sessions follow unless [collapsed]
-/// says so, the first [shortListCount] and every open one unless [showAll] has the project, then "Show more".
+/// Then without a [query]: each machine's row, then while it is expanded its notices, its sessions without a project
+/// folder (those in one of [SidebarMachine.scratchDirs]) and its projects (the other sessions grouped by working
+/// directory, in order of their newest session); a project's sessions follow unless [collapsed] says so. Each list of
+/// sessions holds the first [shortListCount] and every open one unless [showAll] has it (a null cwd for the sessions
+/// without a folder), then "Show more".
 ///
 /// With a [query] (case-insensitive, trimmed): only sessions whose [title] or project path holds it, every one of
-/// them, under their project and machine rows whatever their collapsed state; machines and projects without one are
-/// left out, and so are notices. Pinned sessions stay when their title holds it.
+/// them, under their machine row and their project's whatever the collapsed states; machines and projects without one
+/// are left out, and so are notices. Pinned sessions stay when their title holds it.
 List<SidebarRowData> sidebarRows(
   List<SidebarMachine> machines, {
   List<PinnedSessionRow> pins = const [],
   required bool Function(String machineId, String cwd) collapsed,
-  required bool Function(String machineId, String cwd) showAll,
+  required bool Function(String machineId, String? cwd) showAll,
   required String Function(SidebarEntry entry) title,
   String query = '',
 }) {
@@ -256,13 +268,22 @@ List<SidebarRowData> sidebarRows(
   }
   for (final machine in machines) {
     final id = machine.machine.id;
+    final scratchDirs = machine.scratchDirs;
+    final unfiled = <SidebarEntry>[];
     final byCwd = <String, List<SidebarEntry>>{};
     for (final entry in machine.entries) {
       if (pinned.contains((id, entry.sessionId))) continue;
-      byCwd.putIfAbsent(entry.cwd, () => []).add(entry);
+      if (scratchDirs.contains(entry.cwd)) {
+        unfiled.add(entry);
+      } else {
+        byCwd.putIfAbsent(entry.cwd, () => []).add(entry);
+      }
     }
     if (needle.isNotEmpty) {
-      final found = <SidebarRowData>[];
+      final found = <SidebarRowData>[
+        for (final entry in unfiled)
+          if (_find(title(entry), needle) case final match?) SessionRowData(machine, entry, match: match),
+      ];
       for (final MapEntry(key: cwd, value: entries) in byCwd.entries) {
         final pathMatch = _find(shortPath(cwd, machine.home), needle);
         final projectMatches = pathMatch != null || _find(cwd, needle) != null;
@@ -294,23 +315,36 @@ List<SidebarRowData> sidebarRows(
     if (status is MachineOffline && !listing.loading) rows.add(NoticeRowData(machine, SidebarNotice.offline));
     if (listing.error != null && status is MachineOnline) rows.add(NoticeRowData(machine, SidebarNotice.listFailed));
     if (status is MachineOnline && listing.loadedAt != null && machine.entries.isEmpty) rows.add(EmptyRowData(machine));
+    rows.addAll(_sessionRows(machine, null, unfiled, all: showAll(id, null)));
     for (final MapEntry(key: cwd, value: entries) in byCwd.entries) {
       final isCollapsed = collapsed(id, cwd);
       rows.add(ProjectRowData(machine, cwd, entries, collapsed: isCollapsed));
-      if (isCollapsed) continue;
-      // Sessions open here (the selected one, one waiting for an answer) stay listed past the short list.
-      final shown = showAll(id, cwd)
-          ? entries
-          : [
-              for (final (index, entry) in entries.indexed)
-                if (index < shortListCount || entry.session != null) entry,
-            ];
-      rows.addAll([for (final entry in shown) SessionRowData(machine, entry)]);
-      if (shown.length < entries.length) rows.add(ShowMoreRowData(machine, cwd, entries.length - shown.length));
+      if (!isCollapsed) rows.addAll(_sessionRows(machine, cwd, entries, all: showAll(id, cwd)));
     }
     rows.add(GapRowData(id));
   }
   return rows;
+}
+
+/// The rows of [entries], the sessions of project [cwd] or, null, the machine's sessions without a project folder:
+/// every one when [all], else the first [shortListCount] and every open one, then "Show more".
+List<SidebarRowData> _sessionRows(
+  SidebarMachine machine,
+  String? cwd,
+  List<SidebarEntry> entries, {
+  required bool all,
+}) {
+  // Sessions open here (the selected one, one waiting for an answer) stay listed past the short list.
+  final shown = all
+      ? entries
+      : [
+          for (final (index, entry) in entries.indexed)
+            if (index < shortListCount || entry.session != null) entry,
+        ];
+  return [
+    for (final entry in shown) SessionRowData(machine, entry),
+    if (shown.length < entries.length) ShowMoreRowData(machine, cwd, entries.length - shown.length),
+  ];
 }
 
 /// Where [needle] (lower case) first occurs in [text], ignoring case; null when it does not.

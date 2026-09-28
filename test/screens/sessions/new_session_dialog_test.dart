@@ -189,9 +189,10 @@ final _models = [
 ];
 
 /// Opens the dialog on a machine whose files are [files], holding [recent] project directories and
-/// [catalogue] as its model list.
+/// [catalogue] as its model list, as a project row's new session button does with [cwd], else as the machine's.
 Future<_Sessions> _pumpDialog(
   WidgetTester tester, {
+  String? cwd,
   List<String> recent = const [],
   List<RpcModel> catalogue = const [],
   Object? controlFailure,
@@ -210,7 +211,7 @@ Future<_Sessions> _pumpDialog(
         child: MaterialApp(
           home: Builder(
             builder: (context) => TextButton(
-              onPressed: () => unawaited(showNewSessionDialog(context, testMachine)),
+              onPressed: () => unawaited(showNewSessionDialog(context, testMachine, cwd: cwd)),
               child: const Text('new'),
             ),
           ),
@@ -224,14 +225,19 @@ Future<_Sessions> _pumpDialog(
 }
 
 /// Starts the session, with a tap on Start or, when [enter], with Enter in the focused field, and returns the
-/// new-session request the provider received. Pumped in steps, not settled: a spinner the dialog shows meanwhile
-/// never stops animating.
+/// new-session request the provider received.
 Future<NewSession> _startSession(WidgetTester tester, _Sessions sessions, {bool enter = false}) async {
   if (enter) {
     await tester.testTextInput.receiveAction(TextInputAction.done);
   } else {
     await tester.tap(find.byKey(const ValueKey('new-session-create')));
   }
+  return _opened(tester, sessions);
+}
+
+/// The new-session request the provider received. Pumped in steps, not settled: a spinner the dialog shows meanwhile
+/// never stops animating.
+Future<NewSession> _opened(WidgetTester tester, _Sessions sessions) async {
   for (var i = 0; i < 50 && sessions.opened.isEmpty; i++) {
     await tester.pump(const Duration(milliseconds: 20));
   }
@@ -288,6 +294,8 @@ void main() {
     );
     await tester.tap(find.text('new'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Folder'));
+    await tester.pumpAndSettle();
 
     // Connecting opened one channel already, for the companion upload.
     final before = link.opened.length;
@@ -318,9 +326,13 @@ void main() {
   testWidgets('a recent project row fills the directory field, and Enter starts the session there', (tester) async {
     final sessions = await _pumpDialog(
       tester,
-      recent: ['/home/u/alpha', '/home/u/.cache/deep/beta'],
+      // A session in omp's temporary directory has no project to list.
+      recent: ['/tmp', '/home/u/alpha', '/home/u/.cache/deep/beta'],
       files: {'/home/u/.cache/deep/beta/README.md': 'x'},
     );
+    await tester.tap(find.text('Folder'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('new-session-recent-/tmp')), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('new-session-recent-/home/u/.cache/deep/beta')));
     await tester.pumpAndSettle();
@@ -329,10 +341,30 @@ void main() {
     expect((await _startSession(tester, sessions, enter: true)).cwd, '/home/u/.cache/deep/beta');
   }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
+  testWidgets('without a folder, Enter starts the session where omp started in the home directory works', (
+    tester,
+  ) async {
+    final sessions = await _pumpDialog(tester, files: {'/tmp/a': 'x', '/home/u/tmp/b': 'x'});
+
+    // The machine's new session button opens on no folder, with Start focused. omp tries ~/tmp before /tmp.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect((await _opened(tester, sessions)).cwd, '/home/u/tmp');
+  });
+
+  testWidgets('without a folder and none of the temporary directories, the dialog says so', (tester) async {
+    final sessions = await _pumpDialog(tester);
+
+    await tester.tap(find.byKey(const ValueKey('new-session-create')));
+    await tester.pumpAndSettle();
+
+    expect(sessions.opened, isEmpty);
+    expect(find.textContaining('/home/u/tmp, /tmp, /var/tmp'), findsOneWidget);
+  });
+
   testWidgets('a long recent project keeps its last directory whole and inside its row', (tester) async {
     const deep = '/home/u/.cache/some/very/deeply/nested/directory/structure/that/goes/on/and/on/beta';
     const wide = '/home/u/work/a-project-whose-own-directory-name-is-wider-than-the-row';
-    await _pumpDialog(tester, recent: [deep, wide]);
+    await _pumpDialog(tester, cwd: '', recent: [deep, wide]);
 
     // The directories above the last one give way first, so `/beta` still tells this path from its neighbours.
     expect(tester.renderObject<RenderParagraph>(find.text('/beta')).didExceedMaxLines, isFalse);
@@ -343,8 +375,12 @@ void main() {
   });
 
   testWidgets('the session opens with the model picked in the picker', (tester) async {
-    final sessions = await _pumpDialog(tester, catalogue: _models, files: {'/home/u/project/README.md': 'x'});
-    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
+    final sessions = await _pumpDialog(
+      tester,
+      cwd: '/home/u/project',
+      catalogue: _models,
+      files: {'/home/u/project/README.md': 'x'},
+    );
 
     await tester.tap(find.byKey(const ValueKey('new-session-model')));
     await tester.pumpAndSettle();
@@ -357,8 +393,12 @@ void main() {
   });
 
   testWidgets('clearing the model starts the session on omp\'s default', (tester) async {
-    final sessions = await _pumpDialog(tester, catalogue: _models, files: {'/home/u/project/README.md': 'x'});
-    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
+    final sessions = await _pumpDialog(
+      tester,
+      cwd: '/home/u/project',
+      catalogue: _models,
+      files: {'/home/u/project/README.md': 'x'},
+    );
     await tester.tap(find.byKey(const ValueKey('new-session-model')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Reasoning'));
@@ -373,10 +413,14 @@ void main() {
   testWidgets('Start while the model list loads opens the session on omp\'s default, and no picker follows', (
     tester,
   ) async {
-    final sessions = await _pumpDialog(tester, catalogue: _models, files: {'/home/u/project/README.md': 'x'});
+    final sessions = await _pumpDialog(
+      tester,
+      cwd: '/home/u/project',
+      catalogue: _models,
+      files: {'/home/u/project/README.md': 'x'},
+    );
     final control = sessions.controlPending = Completer<LiveSession>();
     final open = sessions.openPending = Completer<LiveSession>();
-    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
     await tester.tap(find.byKey(const ValueKey('new-session-model')));
     await tester.pump();
 
@@ -395,9 +439,8 @@ void main() {
   });
 
   testWidgets('Escape while the session starts leaves the dialog up until the session shows', (tester) async {
-    final sessions = await _pumpDialog(tester, files: {'/home/u/project/README.md': 'x'});
+    final sessions = await _pumpDialog(tester, cwd: '/home/u/project', files: {'/home/u/project/README.md': 'x'});
     final open = sessions.openPending = Completer<LiveSession>();
-    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
     await _startSession(tester, sessions);
 
     // The session is created either way; like the disabled Cancel, Escape does not let go of it.
@@ -418,10 +461,10 @@ void main() {
   testWidgets('a model list that does not load leaves Start working, on omp\'s default', (tester) async {
     final sessions = await _pumpDialog(
       tester,
+      cwd: '/home/u/project',
       controlFailure: StateError('rpc mode refused'),
       files: {'/home/u/project/README.md': 'x'},
     );
-    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), '/home/u/project');
 
     await tester.tap(find.byKey(const ValueKey('new-session-model')));
     await tester.pumpAndSettle();

@@ -73,6 +73,15 @@ void main() {
       expect(profiled.profile, 'work');
     });
 
+    test("reports omp's temporary directory: TMPDIR, TMP, TEMP, then /tmp, without a trailing slash", () async {
+      expect((await probe({'TMPDIR': '/var/folders/x/T/'})).tempDir, '/var/folders/x/T');
+      expect((await probe({'TMPDIR': '', 'TMP': '/scratch', 'TEMP': '/other'})).tempDir, '/scratch');
+      final fallback = await probe({'TMPDIR': '', 'TMP': '', 'TEMP': ''});
+      expect(fallback.tempDir, '/tmp');
+      // omp tries ~/tmp, /tmp and /var/tmp before its temporary directory.
+      expect(fallback.scratchDirs, ['${home.path}/tmp', '/tmp', '/var/tmp', '/tmp']);
+    });
+
     test('an omp on PATH wins', () async {
       await Directory('${home.path}/bin').create();
       await File('${home.path}/.local/bin/omp').copy('${home.path}/bin/omp');
@@ -241,7 +250,8 @@ void main() {
       r'{"v":"1","kernel":"Windows_NT","machine":"AMD64","shell":null,"home":"C:\\Users\\Jos\u00e9",'
       r'"agentDir":"C:\\Users\\Jos\u00e9\\.omp\\agent","profile":null,'
       r'"omps":[{"path":"C:\\Program Files\\omp\\omp.exe","version":null},{"path":"C:\\Users\\Jos\u00e9\\AppData\\Local\\omp\\omp.exe","version":"omp/18.3.1"}],'
-      r'"curl":"1","powershell":"5.1.26100.1","localAppData":"C:\\Users\\Jos\u00e9\\AppData\\Local","sshd":"9.5.0.0"}',
+      r'"curl":"1","powershell":"5.1.26100.1","localAppData":"C:\\Users\\Jos\u00e9\\AppData\\Local","sshd":"9.5.0.0",'
+      r'"tempDir":"C:\\Users\\Jos\u00e9\\AppData\\Local\\Temp"}',
       CommandShell.cmd,
     );
     expect(probe.os, HostOs.windows);
@@ -250,6 +260,8 @@ void main() {
     expect((probe.ompPath, probe.ompVersion), (r'C:\Users\José\AppData\Local\omp\omp.exe', '18.3.1'));
     expect(probe.releaseAsset, 'omp-windows-x64.exe');
     expect(probe.powershellVersion, '5.1.26100.1');
+    // omp on Windows tries only ~\tmp before its temporary directory.
+    expect(probe.scratchDirs, [r'C:\Users\José\tmp', r'C:\Users\José\AppData\Local\Temp']);
     expect(HostProbe.fromJson(probe.toJson()).toJson(), probe.toJson());
   });
 
@@ -260,7 +272,11 @@ void main() {
 
     tearDown(() => temp.delete(recursive: true));
 
-    Future<HostProbe> probe({required String path, bool searchSystemPaths = true}) async {
+    Future<HostProbe> probe({
+      required String path,
+      bool searchSystemPaths = true,
+      Map<String, String> environment = const {},
+    }) async {
       const marker = 'OMPANION_test';
       final profile = '${temp.path}/Users/me';
       final script = '$powershellPreamble${windowsProbeScript(marker, searchSystemPaths: searchSystemPaths)}';
@@ -274,6 +290,7 @@ void main() {
           'SystemRoot': '${temp.path}/Windows',
           'ProgramFiles': '${temp.path}/Program Files',
           'PI_INSTALL_DIR': '',
+          ...environment,
         },
       );
       expect(result.exitCode, 0, reason: '${result.stderr}');
@@ -304,6 +321,18 @@ void main() {
         expect((await probe(path: path, searchSystemPaths: false)).ompPath, isNull);
       },
     );
+
+    test(r"reports omp's temporary directory: TEMP, TMP, then SystemRoot\temp, a trailing backslash dropped", () async {
+      const path = '/usr/bin:/bin';
+      Future<String?> tempDir(Map<String, String> environment) async =>
+          (await probe(path: path, environment: environment)).tempDir;
+      expect(
+        await tempDir({'TEMP': r'C:\Users\me\AppData\Local\Temp\', 'TMP': r'D:\tmp'}),
+        r'C:\Users\me\AppData\Local\Temp',
+      );
+      expect(await tempDir({'TEMP': '', 'TMP': r'D:\'}), r'D:\', reason: "a drive's root keeps its backslash");
+      expect(await tempDir({'TEMP': '', 'TMP': ''}), '${temp.path}/Windows\\temp');
+    });
   });
 }
 

@@ -15,13 +15,15 @@ import '../../models/machine.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../widgets/activity_mark.dart';
+import '../../widgets/app_segmented.dart';
 import '../../widgets/labeled_field.dart';
 import '../config/model_picker.dart';
 import '../machines/connect_dialogs.dart';
 import 'machine_sessions.dart';
 
-/// Asks for a working directory on [machine] (recent project directories, a typed path, or a folder picked on
-/// the machine) and an optional model, opens a new session there and shows it.
+/// Asks where on [machine] a new session works (no project folder, a recent project directory, a typed path, or a
+/// folder picked on the machine) and an optional model, opens the session there and shows it. It starts on [cwd], or
+/// on no folder without one: omp then works in its temporary directory, as when it starts in the home directory.
 Future<void> showNewSessionDialog(BuildContext context, Machine machine, {String? cwd}) async {
   final shell = context.read<ShellProvider>();
   final session = await showDialog<LiveSession>(
@@ -43,6 +45,11 @@ class _NewSessionDialog extends StatefulWidget {
 
 class _NewSessionDialogState extends State<_NewSessionDialog> {
   late final TextEditingController _cwd = TextEditingController(text: widget.initialCwd ?? '');
+  final _cwdFocus = FocusNode(debugLabel: 'new session directory');
+  final _startFocus = FocusNode(debugLabel: 'new session start');
+
+  /// The session works in omp's temporary directory ([HostProbe.scratchDirs]) instead of a project folder.
+  late bool _noFolder = widget.initialCwd == null;
 
   /// The chosen model: [selector] (`provider/id[:thinking]`) is what omp gets, [name] (the model's name and
   /// provider) is what the field shows. Null leaves omp on its configured default.
@@ -65,6 +72,8 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
   @override
   void dispose() {
     _cwd.dispose();
+    _cwdFocus.dispose();
+    _startFocus.dispose();
     super.dispose();
   }
 
@@ -84,6 +93,8 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
         _connecting = false;
         if (runtime.status case MachineNeedsOmp(:final reason)) _error = t.sessions.needsOmp(reason: reason);
       });
+      // Start was disabled until now, so it could not take the focus when the dialog opened.
+      if (_noFolder) _focusEnter();
     } on Object catch (error) {
       if (mounted) {
         setState(() {
@@ -103,32 +114,53 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
     return path;
   }
 
+  /// Moves the focus to where Enter starts the session: the directory field, or Start when there is no folder to type.
+  void _focusEnter() => WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) (_noFolder ? _startFocus : _cwdFocus).requestFocus();
+  });
+
+  void _setNoFolder(bool noFolder) {
+    setState(() => _noFolder = noFolder);
+    _focusEnter();
+  }
+
   Future<void> _create() async {
     final t = context.t;
     final sessions = context.read<SessionsProvider>();
     final runtime = sessions.runtimeFor(widget.machine);
-    final cwd = _expand(_cwd.text.trim());
-    if (cwd.isEmpty) {
+    final noFolder = _noFolder;
+    final typed = _expand(_cwd.text.trim());
+    if (!noFolder && typed.isEmpty) {
       setState(() => _error = t.sessions.directoryRequired);
       return;
     }
+    // omp started in the home directory moves to the first of these that exists (`cli/startup-cwd.ts`).
+    final candidates = noFolder ? _probe!.scratchDirs : [typed];
     setState(() {
       _creating = true;
       _error = null;
     });
     try {
       final files = await runtime.link.files();
-      final HostFileStat? stat;
+      String? cwd;
       try {
-        stat = await files.stat(toSftpPath(cwd));
+        for (final candidate in candidates) {
+          final stat = await files.stat(toSftpPath(candidate));
+          if (stat != null && stat.isDirectory) {
+            cwd = candidate;
+            break;
+          }
+        }
       } finally {
         await files.close();
       }
-      if (stat == null || !stat.isDirectory) {
+      if (cwd == null) {
         if (mounted) {
           setState(() {
             _creating = false;
-            _error = t.sessions.notADirectory(path: cwd, machine: widget.machine.name);
+            _error = noFolder
+                ? t.sessions.noTempDirectory(paths: candidates.toSet().join(', '), machine: widget.machine.name)
+                : t.sessions.notADirectory(path: typed, machine: widget.machine.name);
           });
         }
         return;
@@ -208,10 +240,12 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
     final t = context.t;
     final theme = Theme.of(context);
     final listing = context.watch<SessionsProvider>().listingOf(widget.machine);
+    // A session in omp's temporary directory has no project to come back to.
+    final scratchDirs = _probe?.scratchDirs ?? const <String>[];
     final recent = <String>[];
     for (final summary in listing.sessions) {
       final cwd = summary.cwd;
-      if (cwd != null && !recent.contains(cwd)) recent.add(cwd);
+      if (cwd != null && !scratchDirs.contains(cwd) && !recent.contains(cwd)) recent.add(cwd);
       if (recent.length == 8) break;
     }
     final ready = !_connecting && _probe != null && !_creating;
@@ -229,27 +263,43 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            LabeledField(
-              label: t.sessions.directory,
-              child: TextField(
-                key: const ValueKey('new-session-cwd'),
-                controller: _cwd,
-                autofocus: true,
-                // Desktop fields select everything when the focus comes back from the directory picker; a typed key
-                // would then replace the picked path.
-                selectAllOnFocus: false,
-                decoration: InputDecoration(
-                  hintText: t.sessions.directoryHint,
-                  suffixIcon: IconButton(
-                    tooltip: t.sessions.browse,
-                    icon: const Icon(Symbols.folder_open),
-                    onPressed: _probe == null ? null : () => unawaited(_browse()),
-                  ),
-                ),
-                onSubmitted: ready ? (_) => unawaited(_create()) : null,
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: AppSegmented<bool>(
+                value: _noFolder,
+                segments: [(false, t.sessions.folder, Symbols.folder), (true, t.sessions.noFolder, Symbols.folder_off)],
+                onChanged: _setNoFolder,
               ),
             ),
-            if (recent.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            if (_noFolder)
+              Text(
+                t.sessions.noFolderHint,
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              )
+            else
+              LabeledField(
+                label: t.sessions.directory,
+                child: TextField(
+                  key: const ValueKey('new-session-cwd'),
+                  controller: _cwd,
+                  focusNode: _cwdFocus,
+                  autofocus: true,
+                  // Desktop fields select everything when the focus comes back from the directory picker; a typed key
+                  // would then replace the picked path.
+                  selectAllOnFocus: false,
+                  decoration: InputDecoration(
+                    hintText: t.sessions.directoryHint,
+                    suffixIcon: IconButton(
+                      tooltip: t.sessions.browse,
+                      icon: const Icon(Symbols.folder_open),
+                      onPressed: _probe == null ? null : () => unawaited(_browse()),
+                    ),
+                  ),
+                  onSubmitted: ready ? (_) => unawaited(_create()) : null,
+                ),
+              ),
+            if (!_noFolder && recent.isNotEmpty) ...[
               const SizedBox(height: 12),
               LabeledField(
                 label: t.sessions.recentDirectories,
@@ -329,6 +379,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
         ),
         FilledButton(
           key: const ValueKey('new-session-create'),
+          focusNode: _startFocus,
           onPressed: ready ? () => unawaited(_create()) : null,
           child: _creating ? const ActivityMark(size: 16) : Text(t.sessions.create),
         ),

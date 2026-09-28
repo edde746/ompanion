@@ -109,6 +109,7 @@ what stock lacks.
 | Read a session another omp process holds | — (another terminal, `omp -p`, another client) | FS listing script; host probe for write descriptors and omp's terminal breadcrumb (`contracts/session-writer.md`) | chat (read-only), sidebar badge | M4 |
 | Take a held session over | — (after that omp exits) | re-probe, then launch `--session` | composer card, Take over | M4 |
 | New | `/new` | launch without `--session` (a new run) | sidebar | M2 |
+| New without a folder | `omp` started in the home directory, which moves to `~/tmp`, `/tmp` or `/var/tmp` (the TUI's path shows a trash can) | APP: launch with `--cwd` the first of `HostProbe.scratchDirs` that exists | new session dialog, "No folder"; the sidebar lists such sessions right under the machine | M2 |
 | Rename | `/rename` | RPC `set_session_name`; `session_info_update` | inline edit | M4 |
 | Automatic title | first message | CE `maybeStartTitleGeneration` with `PI_NO_TITLE` cleared; companion `title.changed` | sidebar, chat header | M4 |
 | Pin | `/pin` | TXT `/pin` | session browser | M4 |

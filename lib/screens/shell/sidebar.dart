@@ -49,7 +49,9 @@ class SidebarState extends State<Sidebar> {
   /// Machines whose first listing was asked for.
   final Set<String> _listed = {};
   final Set<String> _opening = {};
-  final Set<(String, String)> _showAll = {};
+
+  /// Session lists shown whole, by machine and project; a null project for the sessions without a folder.
+  final Set<(String, String?)> _showAll = {};
 
   /// A subscription per machine to its runtime's status, which decides the machine's notices; the runtime is replaced
   /// when the machine's route changes.

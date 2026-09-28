@@ -196,4 +196,40 @@ void main() {
     ]);
     expect(rows.whereType<PinnedRowData>().single.match!.textInside('Write the docs'), 'docs');
   });
+
+  test("sessions in omp's temporary directories list right under their machine, before its projects", () {
+    // The probe's home is /home/me: omp started there works in ~/tmp, /tmp or /var/tmp.
+    final machine = _machine('box', [
+      ('/tmp', 'Ask about regex'),
+      (_app, 'Fix the build'),
+      ('/home/me/tmp', 'Quick question'),
+      ('/tmp/checkout', 'Review the clone'),
+      for (var i = 1; i <= 5; i++) ('/var/tmp', 'Chat $i'),
+    ]);
+    final rows = _rows([machine]);
+    expect(_describe(rows), [
+      'machine:box',
+      'session:Ask about regex',
+      'session:Quick question',
+      'session:Chat 1',
+      'session:Chat 2',
+      'session:Chat 3',
+      'more:2',
+      'project:$_app',
+      'session:Fix the build',
+      // A directory inside a temporary one is a project like any other.
+      'project:/tmp/checkout',
+      'session:Review the clone',
+      'gap',
+    ]);
+    expect(rows.whereType<ShowMoreRowData>().first.cwd, isNull);
+    // Their titles match a query; the temporary directory's path, which no row shows, does not.
+    expect(_describe(_rows([machine], query: 'chat 5')), ['machine:box', 'session:Chat 5', 'gap']);
+    expect(_describe(_rows([machine], query: 'tmp')), [
+      'machine:box',
+      'project:/tmp/checkout',
+      'session:Review the clone',
+      'gap',
+    ]);
+  });
 }

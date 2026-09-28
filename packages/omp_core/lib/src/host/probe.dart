@@ -15,6 +15,7 @@ final class HostProbe {
     required this.arch,
     required this.home,
     required this.agentDir,
+    this.tempDir,
     this.libc,
     this.shell,
     this.profile,
@@ -37,6 +38,7 @@ final class HostProbe {
     arch: json.string('arch'),
     home: json.string('home'),
     agentDir: json.string('agentDir'),
+    tempDir: json.optString('tempDir'),
     libc: json.optString('libc'),
     shell: json.optString('shell'),
     profile: json.optString('profile'),
@@ -71,6 +73,10 @@ final class HostProbe {
   /// omp's agent directory for the default environment (`PI_CODING_AGENT_DIR`, `OMP_PROFILE` honoured).
   final String agentDir;
 
+  /// The temporary directory as omp reads it (`os.tmpdir()`): `$TMPDIR`, `$TMP`, `$TEMP` or `/tmp`; on Windows
+  /// `%TEMP%`, `%TMP%` or `%SystemRoot%\temp`. No trailing separator.
+  final String? tempDir;
+
   /// The active omp profile from `OMP_PROFILE`/`PI_PROFILE`, if any.
   final String? profile;
 
@@ -100,6 +106,10 @@ final class HostProbe {
 
   bool get isWindows => os == HostOs.windows;
 
+  /// Where omp moves when it starts in the home directory, in the order it tries them (`cli/startup-cwd.ts`): it
+  /// takes the first one that exists. A session in one of them has no project folder.
+  List<String> get scratchDirs => isWindows ? ['$home\\tmp', ?tempDir] : ['$home/tmp', '/tmp', '/var/tmp', ?tempDir];
+
   /// The shell statement that puts [loginPath] in front of a launch script's `PATH`, for a script that starts
   /// omp directly; empty when the probe read none. The login PATH goes first and the script's own `PATH`
   /// (sshd's, or launchd's on this computer) stays behind it, so the script keeps resolving the tools it
@@ -124,6 +134,7 @@ final class HostProbe {
     'arch': arch,
     'home': home,
     'agentDir': agentDir,
+    'tempDir': tempDir,
     'libc': libc,
     'shell': shell,
     'profile': profile,
@@ -209,6 +220,9 @@ fi
 cfg="$HOME/${PI_CONFIG_DIR:-.omp}"
 prof=${OMP_PROFILE-${PI_PROFILE-}}
 if [ -n "$prof" ]; then agent="$cfg/profiles/$prof/agent"; else agent=${PI_CODING_AGENT_DIR:-$cfg/agent}; fi
+# omp's os.tmpdir(), the last place it moves to when started in the home directory.
+tmp=${TMPDIR:-${TMP:-${TEMP:-/tmp}}}
+case $tmp in ?*/) tmp=${tmp%/} ;; esac
 # A terminal's shell is a login and interactive one, and that is where the user's PATH comes from: Homebrew's
 # shellenv and path_helper in .zprofile, ~/.local/bin, version managers and Android in .zshrc/.bashrc. The exec
 # channel this probe runs on is neither, so a program started from it sees sshd's default PATH, which is
@@ -283,7 +297,7 @@ curl=; if has curl; then curl=1; fi
 wget=; if has wget; then wget=1; fi
 printf '\n%s:begin\n{"v":"1"' "$m"
 o kernel "$kernel"; o machine "$machine"; o arm64 "$arm64"; o libc "$libc"; o shell "$SHELL"; o home "$HOME"
-o agentDir "$agent"; o profile "$prof"; o curl "$curl"; o wget "$wget"
+o agentDir "$agent"; o tempDir "$tmp"; o profile "$prof"; o curl "$curl"; o wget "$wget"
 o loginPath "$llogin"; o loginProblem "$lwhy"
 printf ',"omps":['
 if [ -n "$p" ]; then e "$p" "$pv"; fi
@@ -313,6 +327,7 @@ HostProbe parsePosixProbe(String payload) {
     arch: arch,
     home: _required(json, 'home'),
     agentDir: _required(json, 'agentDir'),
+    tempDir: json.optString('tempDir'),
     libc: json.optString('libc'),
     shell: json.optString('shell'),
     profile: json.optString('profile'),
@@ -368,9 +383,12 @@ foreach ($p in @((Join-Path $env:SystemRoot 'System32\OpenSSH\sshd.exe'), (Join-
 }
 $curl = $null
 if (Get-Command -Name 'curl.exe' -CommandType Application -ErrorAction SilentlyContinue) { $curl = '1' }
+# omp's os.tmpdir(), without a trailing \ unless it is a drive's root
+$t = $env:TEMP; if (!$t) { $t = $env:TMP }; if (!$t) { $t = "$env:SystemRoot\temp" }
+$t = $t -replace '(?<=[^:])\\$'
 $o = [ordered]@{
   v = '1'; kernel = 'Windows_NT'; machine = $arch; shell = $defaultShell; home = $env:USERPROFILE
-  agentDir = $agent; profile = $prof; omps = $omps; curl = $curl
+  agentDir = $agent; tempDir = $t; profile = $prof; omps = $omps; curl = $curl
   powershell = $PSVersionTable.PSVersion.ToString(); localAppData = $env:LOCALAPPDATA; sshd = $sshd
 }
 $json = ConvertTo-OmpAscii (ConvertTo-Json -InputObject $o -Compress -Depth 4)
@@ -388,6 +406,7 @@ HostProbe parseWindowsProbe(String payload, CommandShell commandShell) {
     arch: normalizeArch(json.optString('machine') ?? ''),
     home: _required(json, 'home'),
     agentDir: _required(json, 'agentDir'),
+    tempDir: json.optString('tempDir'),
     shell: json.optString('shell'),
     profile: json.optString('profile'),
     ompPath: omp?.path,
