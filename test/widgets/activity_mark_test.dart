@@ -26,11 +26,11 @@ Widget _marks({bool disableAnimations = false, bool tickers = true}) => Material
 );
 
 void main() {
-  testWidgets('marks on screen step together, two frames a second and none in between', (tester) async {
+  testWidgets('marks on screen step together, one frame a step and none in between', (tester) async {
     await tester.pumpWidget(_marks());
     await tester.pump();
-    // One step every 500 ms: 10 in 5 s, one frame each however many marks show.
-    expect(await _framesAskedFor(tester), 10);
+    // One step every 80 ms: 62 in the 5 s looked at, one frame each however many marks show.
+    expect(await _framesAskedFor(tester), 62);
   });
 
   testWidgets('a device that asks for less motion gets still marks and no frames', (tester) async {

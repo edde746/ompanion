@@ -3,13 +3,15 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Time between two steps of every [ActivityMark].
-const activityStep = Duration(milliseconds: 500);
+/// Time between two steps of every [ActivityMark]: the step of omp's TUI activity spinner, so the app and the
+/// terminal move alike.
+const activityStep = Duration(milliseconds: 80);
 
-/// The app's one mark for work that is under way: three dots in a [size] square, one lit and two dimmed, the lit one
-/// stepping to the next every [activityStep]. Every mark on screen steps together from one clock, in one frame, and a
-/// step only repaints the mark's own layer. It is still, all three dots lit, when the device asks for less motion or
-/// the mark sits in a subtree whose tickers are off (a route below another, a hidden tab).
+/// The app's one mark for work that is under way: omp's TUI activity spinner (⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) painted as a braille
+/// cell, two columns of three dots in a [size] square, the frame's dots lit and the rest dimmed, stepping to the next
+/// frame every [activityStep]. Every mark on screen steps together from one clock, in one frame, and a step only
+/// repaints the mark's own layer. It stands still on the first frame when the device asks for less motion or the
+/// mark sits in a subtree whose tickers are off (a route below another, a hidden tab).
 ///
 /// A spinning indicator draws a new frame every vsync for as long as it shows; a run that works for minutes with a
 /// tool card, a sidebar row and the header all busy kept the app at 60 or 120 frames a second.
@@ -28,7 +30,10 @@ class ActivityMark extends StatelessWidget {
     return RepaintBoundary(
       child: CustomPaint(
         size: Size.square(size),
-        painter: _Dots(color: color ?? Theme.of(context).colorScheme.onSurfaceVariant, clock: stepping ? _clock : null),
+        painter: _Braille(
+          color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+          clock: stepping ? _clock : null,
+        ),
       ),
     );
   }
@@ -66,8 +71,12 @@ final class _ActivityClock extends ChangeNotifier implements ValueListenable<int
   }
 }
 
-class _Dots extends CustomPainter {
-  _Dots({required this.color, required this.clock}) : super(repaint: clock);
+/// The frames of omp's TUI activity spinner, ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏, as their braille dot bits: bits 0 to 2 are the left column
+/// from the top, bits 3 to 5 the right one.
+const _frames = [0x0B, 0x19, 0x39, 0x38, 0x3C, 0x34, 0x26, 0x27, 0x07, 0x0F];
+
+class _Braille extends CustomPainter {
+  _Braille({required this.color, required this.clock}) : super(repaint: clock);
 
   final Color color;
 
@@ -76,19 +85,17 @@ class _Dots extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final lit = switch (clock) {
-      final clock? => clock.value % 3,
-      null => null,
-    };
-    final radius = size.shortestSide * 0.11;
-    final gap = (size.width - 6 * radius) / 2;
+    final lit = _frames[(clock?.value ?? 0) % _frames.length];
+    final radius = size.shortestSide * 0.1;
+    final pitch = size.shortestSide * 0.3;
+    final center = size.center(Offset.zero);
     final paint = Paint();
-    for (var index = 0; index < 3; index++) {
-      paint.color = lit == null || lit == index ? color : color.withValues(alpha: color.a * 0.35);
-      canvas.drawCircle(Offset(radius + index * (2 * radius + gap), size.height / 2), radius, paint);
+    for (var dot = 0; dot < 6; dot++) {
+      paint.color = (lit & (1 << dot)) != 0 ? color : color.withValues(alpha: color.a * 0.13);
+      canvas.drawCircle(center + Offset((dot ~/ 3 - 0.5) * pitch, (dot % 3 - 1) * pitch), radius, paint);
     }
   }
 
   @override
-  bool shouldRepaint(_Dots oldDelegate) => oldDelegate.color != color || oldDelegate.clock != clock;
+  bool shouldRepaint(_Braille oldDelegate) => oldDelegate.color != color || oldDelegate.clock != clock;
 }
