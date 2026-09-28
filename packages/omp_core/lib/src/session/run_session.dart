@@ -166,6 +166,10 @@ final class RunSession implements LiveSession {
   final _linkStates = StreamController<LinkState>.broadcast();
 
   _Attachment? _attached;
+
+  /// The attachment [_attach] is still setting up. [_finish] closes it: an open that timed out waiting for omp would
+  /// otherwise keep its channel's scripts following the run on the machine.
+  _Attachment? _attaching;
   late RpcClient _rpc;
   late CompanionClient _companion;
 
@@ -310,6 +314,7 @@ final class RunSession implements LiveSession {
     final tracked = _TrackedChannel(channel, _noteCommand);
     final rpc = RpcClient(tracked, deviceId: _deviceId);
     final attachment = _Attachment(channel, tracked, rpc, CompanionClient(rpc));
+    _attaching = attachment;
     // A rotation while this device was away cut off frames it never read: rebuild from RPC.
     final seed = mode != _Mode.resume || channel.generation != resume?.generation;
     _seeding = seed;
@@ -344,6 +349,8 @@ final class RunSession implements LiveSession {
         throw OmpStartFailed(code, await _access.errorLog());
       }
       throw RunEnded(runId, code);
+    } finally {
+      if (identical(_attaching, attachment)) _attaching = null;
     }
     _attached = attachment;
     _rpc = attachment.rpc;
@@ -912,6 +919,9 @@ final class RunSession implements LiveSession {
     final attachment = _attached;
     _attached = null;
     if (attachment != null) unawaited(attachment.close());
+    final attaching = _attaching;
+    _attaching = null;
+    if (attaching != null) unawaited(attaching.close());
     _setLinkState(state);
     unawaited(_views.close());
     unawaited(_linkStates.close());

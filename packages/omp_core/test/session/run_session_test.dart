@@ -376,6 +376,20 @@ void main() {
     expect(live.linkState, isA<LinkClosed>());
   });
 
+  test('an open that times out closes the channel it was still attaching', () async {
+    final run = FakeRun(ready: false);
+    final live = RunSession(
+      runId: 'r1',
+      cwd: '/work',
+      access: FakeAccess(run),
+      deviceId: 'dev-a',
+      openTimeout: const Duration(milliseconds: 50),
+    );
+    await expectLater(live.start(), throwsA(isA<TimeoutException>()));
+    await pumpEventQueue();
+    expect(run.attachedChannels, 0, reason: 'its scripts would keep following the run on the machine');
+  });
+
   test('a session switch rebuilds the view, keeps open dialogs, and records the new file', () async {
     run.entries.add(entry('e1', null, user('old', 1)));
     final live = session(recordedPath: run.sessionFile);
