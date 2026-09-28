@@ -110,7 +110,7 @@ class TranscriptRowView extends StatelessWidget {
           : t.modelRoleChange(role: item.role!, model: item.model),
     ),
     final ThinkingChangeItem item => _Marker(
-      icon: Symbols.psychology,
+      icon: Symbols.neurology,
       text: (t) => item.level == null || item.level == 'off' ? t.thinkingOff : t.thinkingLevel(level: item.level!),
     ),
     // Assistant messages and tool results have rows of their own (transcript_rows.dart); a hidden prompt has none.
@@ -435,7 +435,7 @@ class _ThinkingViewState extends State<_ThinkingView> {
                   if (row.live)
                     const ActivityMark()
                   else
-                    Icon(Symbols.psychology, size: 14, color: scheme.onSurfaceVariant),
+                    Icon(Symbols.neurology, size: 14, color: scheme.onSurfaceVariant),
                   const SizedBox(width: toolBodyIndent - 14),
                   Text(label, style: dim),
                   if (!row.live && reasoning != null && reasoning > 0)

@@ -92,7 +92,7 @@ class _ThinkingPickerState extends State<ThinkingPicker> {
       ],
       builder: (context, controller, _) => ToolbarButton(
         key: const ValueKey('thinking-picker'),
-        icon: Symbols.psychology,
+        icon: Symbols.neurology,
         label: current,
         tooltip: t.chat.thinking(level: current),
         busy: _loading,

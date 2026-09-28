@@ -553,7 +553,7 @@ String _rowText(BuildContext context, TreeEntry entry) {
   TreeEntryKind.compaction => (Symbols.compress, scheme.onSurfaceVariant),
   TreeEntryKind.branchSummary => (Symbols.call_split, scheme.onSurfaceVariant),
   TreeEntryKind.modelChange => (Symbols.swap_horiz, scheme.onSurfaceVariant),
-  TreeEntryKind.thinkingChange => (Symbols.psychology, scheme.onSurfaceVariant),
+  TreeEntryKind.thinkingChange => (Symbols.neurology, scheme.onSurfaceVariant),
   TreeEntryKind.label => (Symbols.label, scheme.onSurfaceVariant),
   TreeEntryKind.other => (Symbols.circle, scheme.onSurfaceVariant),
 };

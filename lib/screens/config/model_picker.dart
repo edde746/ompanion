@@ -105,7 +105,7 @@ class _ModelPickerState extends State<_ModelPicker> {
                       ListTile(
                         dense: true,
                         selected: '${model.provider}/${model.id}' == current,
-                        leading: Icon(model.reasoning ? Symbols.psychology_alt : Symbols.smart_toy, size: 20),
+                        leading: Icon(model.reasoning ? Symbols.neurology : Symbols.smart_toy, size: 20),
                         title: Text(model.name),
                         subtitle: Text(
                           [
