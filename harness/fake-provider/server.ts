@@ -11,7 +11,9 @@
  * `stream: true`), `GET /v1/models`. Control API: `POST /control/enqueue`, `POST /control/reset`,
  * `GET /control/requests`, `GET /control/health`. Every model request consumes the first queued turn
  * it is eligible for (see `match`). With none queued it answers "ok", so side calls never hang, or,
- * with `--demo`, the next step of the demo rotation (`demo.ts`).
+ * with `--demo`, the next step of the demo rotation (`demo.ts`). omp's session title requests are side
+ * calls that race the conversation: only a turn whose `match` they contain answers one, otherwise it is
+ * declined, and none of them enters the request log.
  */
 import type { Server } from "bun";
 import { isRecord } from "../json.ts";
@@ -86,6 +88,12 @@ export interface RecordedRequest {
 }
 
 const DEFAULT_TURN: StreamTurn = { steps: [{ text: "ok" }] };
+
+/** The first line of omp 18.3.1's title prompt (`prompts/system/title-system.md`): only title requests carry it. */
+const TITLE_REQUEST = "Write a ~5 word title";
+
+/** omp's answer for a message that names no task: the session stays untitled, as before omp titled it. */
+const DECLINED_TITLE: StreamTurn = { steps: [{ text: "<title/>" }] };
 
 /** Model ids `harness/omp-home.sh` registers; listed by `GET /v1/models`. */
 const MODEL_IDS = ["fake-1", "fake-think"];
@@ -365,18 +373,23 @@ export function startServer(port: number, options: { demo?: boolean; hostname?: 
 		if (!isRecord(body)) return json({ error: { message: "request body must be a JSON object" } }, 400);
 		// Scripted delays, hangs and waits outlive Bun's 10 s idle timeout.
 		server.timeout(req, 0);
+		// omp asks for a title beside a session's first turns; left to take the next turn, it would take the
+		// conversation's answer or advance the demo rotation depending on which request arrives first.
+		const title = raw.includes(TITLE_REQUEST);
 		const take = (): Turn | undefined => {
-			const index = queue.findIndex(t => t.match === undefined || raw.includes(t.match));
+			const index = queue.findIndex(t => (t.match === undefined ? !title : raw.includes(t.match)));
 			return index === -1 ? undefined : queue.splice(index, 1)[0];
 		};
 		let turn = take();
-		const reply = turn || !demo ? undefined : demo(body);
-		requests.push({
-			path: new URL(req.url).pathname,
-			body,
-			served: turn ? "queue" : reply ? "demo" : "default",
-			...(reply ? { demo: reply.label } : {}),
-		});
+		const reply = turn || !demo || title ? undefined : demo(body);
+		if (!title) {
+			requests.push({
+				path: new URL(req.url).pathname,
+				body,
+				served: turn ? "queue" : reply ? "demo" : "default",
+				...(reply ? { demo: reply.label } : {}),
+			});
+		}
 		while (turn && "wait" in turn) {
 			turn = take();
 			while (!turn) {
@@ -389,7 +402,7 @@ export function startServer(port: number, options: { demo?: boolean; hostname?: 
 				turn = take();
 			}
 		}
-		turn ??= reply?.turn ?? DEFAULT_TURN;
+		turn ??= reply?.turn ?? (title ? DECLINED_TITLE : DEFAULT_TURN);
 		if ("error" in turn) {
 			const { status, message = `fake provider error ${status}`, headers = {} } = turn.error;
 			const type = status >= 500 ? "server_error" : "invalid_request_error";

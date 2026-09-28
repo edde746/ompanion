@@ -914,6 +914,8 @@ SessionView _companionFrame(SessionView view, Map<String, Object?> frame) {
         'request.settled' => dismissRequest(view, data().string('id')),
         'session.changed' => view.copyWith(resyncReason: data().string('reason')),
         'loop.changed' => view.copyWith(loop: _decodeLoop(data().optObject('loop'))),
+        // A title omp set without a frame, such as its automatic one from the first message.
+        'title.changed' => view.copyWith(config: view.config.copyWith(sessionName: data().string('title'))),
         // A message omp appended without a frame, such as a user bash or Python execution.
         'message.appended' => _insertIfAbsent(view, decodeMessage(data().object('message'))),
         // omp has no frame for a manual compaction (`/compact`, RPC `compact`) until it ends; an automatic one

@@ -38,6 +38,7 @@ import { execVerbs, installExecMessageEvents } from "./session/exec.ts";
 import { goalCommands, goalVerbs, installGoalMode } from "./session/goal.ts";
 import { historyVerbs, installHistoryRecording } from "./session/history.ts";
 import { installLoopMode, loopCommands, loopVerbs } from "./session/loop.ts";
+import { installAutoTitle } from "./session/title.ts";
 
 /** Wire contract: docs/contracts/ompx.md, sections `sessions.list` through `loop.disable`. */
 
@@ -50,6 +51,7 @@ export const sessionEvents: readonly string[] = [
 	"compaction.started",
 	"compaction.ended",
 	"loop.changed",
+	"title.changed",
 ];
 
 /** Called once per process from the main session's `session_start`, after the channel is bound. */
@@ -59,6 +61,7 @@ export async function installSessionHooks(pi: ExtensionAPI, session: AgentSessio
 	installExecMessageEvents(pi);
 	installCompactionEvents(pi, session);
 	installLoopMode(session);
+	installAutoTitle(pi, session);
 	await installGoalMode(session);
 }
 

@@ -110,6 +110,7 @@ what stock lacks.
 | Take a held session over | — (after that omp exits) | re-probe, then launch `--session` | composer card, Take over | M4 |
 | New | `/new` | launch without `--session` (a new run) | sidebar | M2 |
 | Rename | `/rename` | RPC `set_session_name`; `session_info_update` | inline edit | M4 |
+| Automatic title | first message | CE `maybeStartTitleGeneration` with `PI_NO_TITLE` cleared; companion `title.changed` | sidebar, chat header | M4 |
 | Pin | `/pin` | TXT `/pin` | session browser | M4 |
 | Delete | `/delete` | CE `deleteSessionWithArtifacts`; current session via `newSession({drop})` | session browser | M4 |
 | Clear context in place | `/clear` | CE `resetSessionContext` | menu | M4 |

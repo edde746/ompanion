@@ -57,6 +57,10 @@ type Step =
   the model's output depends on what omp did first, e.g. quoting the hashline tag a `read` returned.
 - With nothing eligible queued the server answers `ok`, so side calls never hang; `served: "default"`
   in the request log shows it. With `--demo` the demo rotation answers instead (see Dev machine).
+- omp's session title requests (the ompanion companion turns omp's automatic titles on in RPC) race the
+  conversation, so only a turn whose `match` they contain answers one: match `Write a ~5 word title`, the first
+  line of omp's title prompt. Otherwise the server declines (`<title/>`) and the session stays untitled. They
+  are left out of the request log.
 - `finish` defaults to `tool_calls` when a step calls a tool, else `stop`. `usage` defaults to
   characters / 4 for the request messages and the output; it is sent when the request asks for
   `stream_options.include_usage`, which omp does.

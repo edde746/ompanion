@@ -996,6 +996,9 @@ void main() {
 
       view = reduce(view, {'type': 'session_info_update', 'title': 'Badge', 'sessionId': 'session-1'});
       expect(view.config.sessionName, 'Badge');
+
+      view = reduce(view, ompxEvent('title.changed', {'title': 'Fix the login redirect'}));
+      expect(view.config.sessionName, 'Fix the login redirect');
     });
 
     test('another session or a session-replacing response asks for a resync', () {

@@ -451,6 +451,17 @@ ends: the prompt's response is `{agentInvoked: false}` at once and `command_outp
 Devices show the run as compacting between the two and add the entry's divider, deduplicated like the
 `compact` response's.
 
+### title.changed
+
+Event `{title: string}`, no `callId`: the open session's new title, whatever set it, because omp sends no frame for a
+title it sets itself. omp 18.3.1 titles a session automatically only in the TUI and for a CLI's initial message: rpc
+and rpc-ui mode set `PI_NO_TITLE`, and the RPC `prompt` never asks for a title. The companion clears `PI_NO_TITLE`
+and calls omp's `maybeStartTitleGeneration` with the text of every user message the main session receives (the
+messages `history.search` records), so omp's own rules apply as in the TUI: only an unnamed session, no title for
+a greeting, a retry from the conversation once a declined message has an answer, and the retitle after a todo
+replan (`title.refreshOnReplan`). The title model is omp's (`tiny`, `commit`, `smol` roles, then the session's
+model). Devices show the title at once. Code: `companion/src/verbs/session/title.ts`.
+
 ### history.search
 
 `args: {query?: string, limit?: number (1-1000, default 100)}` → `result: {entries: {prompt: string,
