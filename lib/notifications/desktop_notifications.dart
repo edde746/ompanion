@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:omp_core/host.dart' show NotificationKind;
 import 'package:omp_core/session.dart';
@@ -82,9 +83,13 @@ class DesktopNotifications with WindowListener {
       ),
       onDidReceiveNotificationResponse: (response) => unawaited(_onTap(response.payload)),
     );
-    final launch = await _plugin.getNotificationAppLaunchDetails();
-    if (launch != null && launch.didNotificationLaunchApp) {
-      _launchTap = SessionTarget.fromJson(jsonDecode(launch.notificationResponse?.payload ?? 'null'));
+    // A Linux notification cannot have launched the app: its click is an ActionInvoked signal that only a running
+    // instance subscribes to, and flutter_local_notifications_linux has no launch details (it throws).
+    if (defaultTargetPlatform != TargetPlatform.linux) {
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      if (launch != null && launch.didNotificationLaunchApp) {
+        _launchTap = SessionTarget.fromJson(jsonDecode(launch.notificationResponse?.payload ?? 'null'));
+      }
     }
     // Not awaited: the user may leave the prompt open; nothing else waits for the answer.
     if (_enabled) unawaited(_requestPermission());
