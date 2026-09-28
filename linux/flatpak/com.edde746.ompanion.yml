@@ -1,0 +1,57 @@
+# Packs the bundle of `flutter build linux --release`, which linux/build-flatpak.sh stages as bundle/ next to a copy of
+# this file.
+app-id: com.edde746.ompanion
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+command: ompanion
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # This computer: omp, the commands it runs and the terminal's shell need the user's own tools, not the runtime's, so
+  # they start on the host through `flatpak-spawn --host` (hostStart in packages/omp_core). This lifts the sandbox.
+  - --talk-name=org.freedesktop.Flatpak
+  # What those host processes work on is host paths: the directories sessions run in, the Files panel, attachments,
+  # ~/.omp, and ~/.ssh for its config, keys and known_hosts.
+  - --filesystem=host
+  - --socket=ssh-auth
+  - --talk-name=org.freedesktop.Notifications
+  # libsecret (flutter_secure_storage) uses the Secret portal where the desktop has one, and the keyring's own service
+  # where it has not.
+  - --talk-name=org.freedesktop.secrets
+build-options:
+  # Flutter's AOT snapshot is a prebuilt ELF library: leave every binary as built.
+  strip: false
+  no-debuginfo: true
+modules:
+  - name: release-tty
+    buildsystem: simple
+    build-commands:
+      - cc -O2 -Wall -Wextra -Werror -o release-tty release-tty.c
+      - install -Dm755 release-tty /app/libexec/release-tty
+    sources:
+      - type: file
+        path: release-tty.c
+
+  - name: ompanion
+    buildsystem: simple
+    build-commands:
+      - cp -a bundle /app/ompanion
+      # The runner finds lib/ and data/ next to its resolved path, so a link is enough.
+      - mkdir -p /app/bin && ln -s ../ompanion/ompanion /app/bin/ompanion
+      - install -Dm644 com.edde746.ompanion.desktop /app/share/applications/com.edde746.ompanion.desktop
+      - install -Dm644 com.edde746.ompanion.metainfo.xml /app/share/metainfo/com.edde746.ompanion.metainfo.xml
+      - install -Dm644 ompanion.png /app/share/icons/hicolor/256x256/apps/com.edde746.ompanion.png
+    sources:
+      - type: dir
+        path: bundle
+        dest: bundle
+      - type: file
+        path: com.edde746.ompanion.desktop
+      - type: file
+        path: com.edde746.ompanion.metainfo.xml
+      - type: file
+        path: ompanion.png

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/session.dart';
+import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
 import 'package:xterm2/xterm.dart';
 
@@ -48,7 +49,8 @@ class _TerminalTabState extends State<TerminalTab> {
       title: machine.name,
       open: (columns, rows) async {
         if (machine is LocalMachine) {
-          final environment = Platform.environment;
+          // Flatpak sets SHELL to the runtime's /bin/sh; the user's shell is the one the host's user database names.
+          final environment = inFlatpak ? ({...Platform.environment}..remove('SHELL')) : Platform.environment;
           final shell = localShell(
             windows: Platform.isWindows,
             environment: environment,

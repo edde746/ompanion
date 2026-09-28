@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:omp_core/host.dart';
+import 'package:omp_core/transport.dart';
 
 /// The line [posixTerminalCommand] prints once the terminal neither echoes nor edits input.
 const terminalReadyMarker = 'OMPANION_TERMINAL_READY';
@@ -120,22 +121,22 @@ LocalShell localShell({
   return (executable: shell, arguments: isolation == null ? const ['-l'] : const [], environment: extra);
 }
 
-/// The login shell the user database names for this user (`USER`, else `LOGNAME`, else `id -un`): `dscl` on macOS;
-/// elsewhere `getent passwd`, or `/etc/passwd` where there is no `getent`. Null when the lookup finds no absolute
-/// path.
+/// The login shell this computer's user database names for this user (`USER`, else `LOGNAME`, else `id -un`): `dscl`
+/// on macOS; elsewhere `getent passwd`, or `/etc/passwd` where there is no `getent`. In a Flatpak both run on the host,
+/// whose sandbox has a `passwd` of its own. Null when the lookup finds no absolute path.
 Future<String?> accountLoginShell({required bool macos, required Map<String, String> environment}) async {
   var user = environment['USER'] ?? environment['LOGNAME'];
   if (user == null || user.isEmpty) {
-    final id = await Process.run('id', ['-un']);
+    final id = await runOnHost('id', ['-un']);
     user = id.exitCode == 0 ? (id.stdout as String).trim() : '';
   }
   if (user.isEmpty) return null;
   if (macos) {
-    final result = await Process.run('dscl', ['.', '-read', '/Users/$user', 'UserShell']);
+    final result = await runOnHost('dscl', ['.', '-read', '/Users/$user', 'UserShell']);
     return result.exitCode == 0 ? parseDsclUserShell(result.stdout as String) : null;
   }
   try {
-    final result = await Process.run('getent', ['passwd', user]);
+    final result = await runOnHost('getent', ['passwd', user]);
     return result.exitCode == 0 ? parsePasswdShell(result.stdout as String) : null;
   } on ProcessException {
     final passwd = File('/etc/passwd');

@@ -103,7 +103,7 @@ final class SshTerminalBackend implements TerminalBackend {
   Future<void> close() => _process.close();
 }
 
-/// A local PTY (`flutter_pty2`), desktop only.
+/// A local PTY (`flutter_pty2`), desktop only. In a Flatpak the shell runs on the host ([hostStart]).
 final class LocalTerminalBackend implements TerminalBackend {
   LocalTerminalBackend._(this._pty);
 
@@ -112,17 +112,26 @@ final class LocalTerminalBackend implements TerminalBackend {
     required String? cwd,
     required int columns,
     required int rows,
-  }) async => LocalTerminalBackend._(
-    await Pty.spawn(
-      PtySpawnOptions(
-        executable: shell.executable,
-        arguments: shell.arguments,
-        workingDirectory: cwd,
-        environment: PtyEnvironment.inherit(overrides: shell.environment),
-        size: PtySize(columns: columns, rows: rows),
+  }) async {
+    final start = hostStart(
+      shell.executable,
+      shell.arguments,
+      environment: shell.environment,
+      workingDirectory: cwd,
+      terminal: true,
+    );
+    return LocalTerminalBackend._(
+      await Pty.spawn(
+        PtySpawnOptions(
+          executable: start.executable,
+          arguments: start.arguments,
+          workingDirectory: start.workingDirectory,
+          environment: PtyEnvironment.inherit(overrides: start.environment ?? const {}),
+          size: PtySize(columns: columns, rows: rows),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   final PtySession _pty;
   var _closed = false;

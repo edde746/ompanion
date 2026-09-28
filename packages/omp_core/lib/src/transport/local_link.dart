@@ -5,8 +5,11 @@ import 'dart:typed_data';
 import 'package:meta/meta.dart';
 
 import 'host_link.dart';
+import 'host_process.dart';
 
-/// This computer. Desktop only; PTYs come from the app layer (`flutter_pty`), not from here.
+/// This computer. Desktop only; PTYs come from the app layer (`flutter_pty`), not from here. In a Flatpak, commands
+/// run on the host ([hostStart]) while files are read and written from the sandbox, which the manifest gives the
+/// host's file system at the same paths, except where the runtime has its own (`/usr`, `/etc`).
 final class LocalLink implements HostLink {
   LocalLink({this._environment});
 
@@ -30,7 +33,8 @@ final class LocalLink implements HostLink {
       final start = windowsShellStart(command);
       process = await Process.start(start.executable, start.arguments, environment: _environment);
     } else {
-      process = await Process.start('/bin/sh', ['-c', command], environment: _environment);
+      final start = hostStart('/bin/sh', ['-c', command], environment: _environment);
+      process = await Process.start(start.executable, start.arguments, environment: start.environment);
     }
     return _LocalProcess(process);
   }

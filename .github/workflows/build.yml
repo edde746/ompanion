@@ -35,8 +35,9 @@ env:
   # drop, the clipboard), so a Flutter upgrade needs that warning checked first.
   FLUTTER_VERSION: "3.47.1"
   BUN_VERSION: "1.4.0"
-  # Flutter's Linux toolchain plus libsecret for flutter_secure_storage_linux; the other plugins need only GTK 3.
-  LINUX_APT_PACKAGES: clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev
+  # Flutter's Linux toolchain plus libsecret for flutter_secure_storage_linux (the other plugins need only GTK 3), and
+  # the Flatpak tools that pack the bundle.
+  LINUX_APT_PACKAGES: clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev flatpak flatpak-builder
 
 jobs:
   name:
@@ -693,11 +694,27 @@ jobs:
         working-directory: build/linux/x64/release/bundle
         run: zip -qr "$GITHUB_WORKSPACE/ompanion-linux-x64.zip" .
 
-      - name: Upload the bundle
+      # The runtime and SDK the manifest names come from Flathub.
+      - name: Build the Flatpak
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          linux/build-flatpak.sh
+          cp build/linux/ompanion-linux-x64.flatpak .
+
+      # Installed as a user installs it, and checked in its sandbox against the runtime rather than this runner's
+      # libraries. dbus-run-session gives flatpak-spawn the session bus a desktop would.
+      - name: Check the Flatpak
+        run: |
+          flatpak install --user --noninteractive ompanion-linux-x64.flatpak
+          dbus-run-session -- linux/check-flatpak.sh
+
+      - name: Upload the bundle and the Flatpak
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.ARTIFACT }}
-          path: ompanion-linux-x64.zip
+          path: |
+            ompanion-linux-x64.flatpak
+            ompanion-linux-x64.zip
           if-no-files-found: error
           compression-level: 0
 
@@ -722,7 +739,7 @@ jobs:
 
       # The Android job also uploads the Play bundle as ompanion-android-aab-<sha>, and the Windows job the Microsoft
       # Store bundle as ompanion-windows-msix-<sha>. Those are store artifacts, not release assets, so they go before
-      # the count: the release holds the five downloads a user can use and the appcast Mac apps update from.
+      # the count: the release holds the six downloads a user can use and the appcast Mac apps update from.
       - name: Drop the store bundles
         run: rm -f release/*.aab release/*.msixbundle
 
@@ -733,8 +750,8 @@ jobs:
         run: |
           ls -l release
           count=$(find release -maxdepth 1 -type f | wc -l)
-          if [ "$count" -ne 6 ]; then
-            echo "::error::Expected the five platform files and appcast.xml, found $count." >&2
+          if [ "$count" -ne 7 ]; then
+            echo "::error::Expected the six platform files and appcast.xml, found $count." >&2
             exit 1
           fi
           # Drafts are visible only to a token that can write, so this check lives here, not before the builds.

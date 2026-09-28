@@ -32,7 +32,7 @@ export type Download = {
 const releaseAsset = (file: string) => `${REPO_URL}/releases/latest/download/${file}`;
 
 // Phones, tablets and Windows install from their stores; macOS and Linux from the latest GitHub release, which
-// also carries a Windows zip.
+// also carries a Windows zip and a Linux zip.
 export const downloads: Download[] = [
   {
     platform: 'macOS',
@@ -50,9 +50,9 @@ export const downloads: Download[] = [
   },
   {
     platform: 'Linux',
-    source: 'ompanion-linux-x64.zip',
-    detail: 'Zip archive. Needs GTK 3 and libsecret.',
-    url: releaseAsset('ompanion-linux-x64.zip'),
+    source: 'ompanion-linux-x64.flatpak',
+    detail: 'Flatpak bundle. Installs its runtime from Flathub.',
+    url: releaseAsset('ompanion-linux-x64.flatpak'),
     store: false,
   },
   {

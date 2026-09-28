@@ -4,7 +4,7 @@ import 'dart:io';
 ///
 /// The only place that reads the flag; features a store forbids are gated here (docs/PLAN.md §9).
 enum BuildChannel {
-  /// GitHub releases: full feature set.
+  /// GitHub releases, the Flatpak among them: full feature set.
   direct,
   macappstore,
   appstore,
@@ -20,7 +20,7 @@ enum BuildChannel {
 bool get isDesktop => Platform.isMacOS || Platform.isLinux || Platform.isWindows;
 
 /// "This computer" runs omp and shells through `Process`. The Mac App Store sandbox forbids child processes
-/// outside the container; Flathub builds would need `flatpak-spawn --host`, which the app does not use.
+/// outside the container. The GitHub Flatpak is a `direct` build that starts them on the host (`hostStart`).
 bool get thisComputerAvailable => isDesktop && BuildChannel.current == BuildChannel.direct;
 
 /// Reading `~/.ssh` (config aliases, `known_hosts`) and running local CLIs (`ssh -G`, `tailscale`).

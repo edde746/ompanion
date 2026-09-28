@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- linux/build-flatpak.sh adds the <releases> entry for pubspec.yaml's version. -->
+<component type="desktop-application">
+  <id>com.edde746.ompanion</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>ompanion</name>
+  <summary>Chat with your own omp coding agent, on this computer or over SSH</summary>
+  <developer id="com.edde746">
+    <name>edde746</name>
+  </developer>
+  <description>
+    <p>ompanion is a client for omp, the open-source oh-my-pi coding agent. It runs omp on this computer, or on your
+    other machines over SSH, jump hosts and Tailscale, and installs no daemon anywhere.</p>
+    <p>Streaming chat with tool cards and inline approvals, sessions and their tree, a terminal, a file explorer and
+    editor, port forwards and notifications. Model access comes from your own provider accounts, configured in omp.</p>
+  </description>
+  <launchable type="desktop-id">com.edde746.ompanion.desktop</launchable>
+  <url type="homepage">https://ompanion.app</url>
+  <url type="bugtracker">https://github.com/edde746/ompanion/issues</url>
+  <url type="vcs-browser">https://github.com/edde746/ompanion</url>
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+</component>

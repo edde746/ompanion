@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:omp_core/transport.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/tailscale_status.dart';
@@ -29,9 +30,9 @@ const _macAppBinary = '/Applications/Tailscale.app/Contents/MacOS/Tailscale';
 
 /// Runs `tailscale status --json` with the desktop's Tailscale client.
 Future<TailscaleLookup> readTailscaleStatus() async {
-  final binary = _findBinary();
+  final binary = await _findBinary();
   if (binary == null) return const TailscaleNotInstalled();
-  final result = await Process.run(
+  final result = await runOnHost(
     binary,
     const ['status', '--json'],
     // The Mac app's binary acts as the CLI only with this variable set.
@@ -45,7 +46,13 @@ Future<TailscaleLookup> readTailscaleStatus() async {
   return TailscaleFound(parseTailscaleStatus(stdout));
 }
 
-String? _findBinary() {
+Future<String?> _findBinary() async {
+  // A Flatpak's PATH and /usr are the runtime's; the CLI is on the host's PATH.
+  if (inFlatpak) {
+    final result = await runOnHost('sh', const ['-c', 'command -v tailscale']);
+    final path = (result.stdout as String).trim();
+    return result.exitCode == 0 && path.startsWith('/') ? path : null;
+  }
   if (Platform.isMacOS && File(_macAppBinary).existsSync()) return _macAppBinary;
   final name = Platform.isWindows ? 'tailscale.exe' : 'tailscale';
   // GUI apps on macOS start with a minimal PATH that lacks Homebrew's prefixes.

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../transport/host_process.dart';
+
 /// One `ProxyJump` hop: `[user@]host[:port]` or `ssh://[user@]host[:port]`, IPv6 in brackets.
 final class SshJumpSpec {
   const SshJumpSpec({this.user, required this.host, this.port});
@@ -115,11 +117,11 @@ SshResolvedHost parseSshG(String output) {
   );
 }
 
-/// Runs the local `ssh -G` (desktop). [user] and [port] override the config like `-l` and `-p`,
+/// Runs this computer's `ssh -G` (desktop). [user] and [port] override the config like `-l` and `-p`,
 /// which is how a `ProxyJump` hop is resolved.
 Future<SshResolvedHost> resolveSshAlias(String alias, {String? user, int? port, String? configFile}) async {
   if (alias.isEmpty || alias.startsWith('-')) throw ArgumentError.value(alias, 'alias', 'not a host name');
-  final result = await Process.run('ssh', [
+  final result = await runOnHost('ssh', [
     '-G',
     if (configFile != null) ...['-F', configFile],
     if (user != null) ...['-l', user],

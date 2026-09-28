@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=ompanion
+Comment=Chat with your own omp coding agent, on this computer or over SSH
+Exec=ompanion
+Icon=com.edde746.ompanion
+Terminal=false
+Categories=Development;
+Keywords=omp;oh-my-pi;agent;ssh;terminal;
+StartupWMClass=com.edde746.ompanion

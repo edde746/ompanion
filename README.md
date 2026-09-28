@@ -29,7 +29,7 @@ Google Play is in a closed test: [join the testers](https://ompanion.app/#google
 | --- | --- |
 | macOS | [DMG](https://github.com/edde746/ompanion/releases/latest/download/ompanion-macos.dmg), signed and notarized |
 | Windows x64 | [zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-windows-x64.zip) |
-| Linux x64 | [zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.zip), needs GTK 3 and libsecret |
+| Linux x64 | [Flatpak](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.flatpak): `flatpak install --user ompanion-linux-x64.flatpak`; or the [zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.zip), which needs GTK 3 and libsecret |
 
 Or build it yourself: [Building from Source](#building-from-source).
 
@@ -259,7 +259,7 @@ flutter drive --profile -d macos --driver=integration_test/driver/report_driver.
 <details>
 <summary>Releasing</summary>
 
-To publish a release, set `version` in `pubspec.yaml`, push it to main, and run Actions → Build → Run workflow on main with every platform selected and the release tag set to that version (e.g. `1.0.0`). Before building anything the run checks the branch, the tag (it must equal `pubspec.yaml`'s version and not exist yet), the platforms, and the macOS signing secrets, the update key and the Android signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip`, `ompanion-linux-x64.zip` and `appcast.xml` to a draft release. Write the notes and publish the draft; publishing creates the tag on the commit that was built, and offers the release to installed Mac apps.
+To publish a release, set `version` in `pubspec.yaml`, push it to main, and run Actions → Build → Run workflow on main with every platform selected and the release tag set to that version (e.g. `1.0.0`). Before building anything the run checks the branch, the tag (it must equal `pubspec.yaml`'s version and not exist yet), the platforms, and the macOS signing secrets, the update key and the Android signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip`, `ompanion-linux-x64.flatpak`, `ompanion-linux-x64.zip` and `appcast.xml` to a draft release. Write the notes and publish the draft; publishing creates the tag on the commit that was built, and offers the release to installed Mac apps.
 
 [build.yml](.github/workflows/build.yml), run from Actions → Build → Run workflow, signs the macOS app, notarizes the app and the DMG, and staples the tickets so Gatekeeper accepts the DMG in the artifact named `ompanion-macos-<sha>`. It reads six repository secrets, the same names [Plezy](https://github.com/edde746/plezy) uses:
 
@@ -314,6 +314,16 @@ base64 -i upload-keystore.jks | pbcopy      # ANDROID_KEYSTORE_BASE64
 ```
 
 Keep the keystore and its passwords: with [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756) Google holds the app signing key, and losing the upload key means asking Google to reset it. Locally the same four values live in `android/key.properties` (gitignored, `storeFile` relative to `android/app`). Without all four secrets the job builds a debug-signed APK and bundle and warns; with only some of them it fails and names the missing ones. The job also builds `flutter build appbundle --release --dart-define=OMPANION_CHANNEL=play` and uploads it as `ompanion-android-aab-<sha>`, which no release carries: the store lanes below build their own bundle.
+
+The Linux job packs the bundle it zips into `ompanion-linux-x64.flatpak` with [linux/build-flatpak.sh](linux/build-flatpak.sh) and the manifest in [linux/flatpak/](linux/flatpak/) (the freedesktop 26.08 runtime from Flathub), installs it, and runs [linux/check-flatpak.sh](linux/check-flatpak.sh) in its sandbox: every library of the app resolves in the runtime, and `flatpak-spawn --host` reaches the host. The Flatpak is the `direct` build: "this computer" starts omp, its commands and the terminal's shell on the host through `flatpak-spawn --host` (the manifest's `org.freedesktop.Flatpak` permission, which lifts the sandbox), and reads the host's files at their own paths (`--filesystem=host`). Locally, on an x64 or arm64 Linux machine with `flatpak` and `flatpak-builder`:
+
+```bash
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flutter build linux --release
+linux/build-flatpak.sh                  # build/linux/ompanion-linux-<x64|arm64>.flatpak
+flatpak install --user build/linux/ompanion-linux-x64.flatpak
+linux/check-flatpak.sh
+```
 
 ### The stores
 
