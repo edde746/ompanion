@@ -362,6 +362,7 @@ class ProjectRow extends StatelessWidget {
     required this.collapsed,
     required this.onToggle,
     required this.onNewSession,
+    this.starting = false,
     this.match,
   });
 
@@ -372,7 +373,12 @@ class ProjectRow extends StatelessWidget {
 
   /// Null while searching: the search decides what shows.
   final VoidCallback? onToggle;
+
+  /// Starts a session in [cwd] right away, without the new session dialog.
   final VoidCallback? onNewSession;
+
+  /// A session [onNewSession] started is still launching: the activity mark takes the new session button's place.
+  final bool starting;
 
   /// The search match in the shown path.
   final TextRange? match;
@@ -403,7 +409,12 @@ class ProjectRow extends StatelessWidget {
             ),
           ),
           if (collapsed) _ProjectMark(entries: entries),
-          if (hovered && newSession != null && cwd.isNotEmpty)
+          if (starting)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: ActivityMark(size: _iconSize, color: AppColors.of(context).running),
+            )
+          else if (hovered && newSession != null && cwd.isNotEmpty)
             _RowButton(icon: Symbols.add, tooltip: t.sessions.newSessionHere, onPressed: newSession),
         ],
       ),

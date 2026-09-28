@@ -22,7 +22,6 @@ import '../machines/machine_editor.dart';
 import '../machines/transfer_dialogs.dart';
 import '../sessions/install_omp_dialog.dart';
 import '../sessions/machine_sessions.dart';
-import '../sessions/new_session_dialog.dart';
 import 'sidebar_tree.dart';
 
 /// The header (title, search and machine actions), then the pinned sessions and per machine its projects and sessions
@@ -49,6 +48,9 @@ class SidebarState extends State<Sidebar> {
   /// Machines whose first listing was asked for.
   final Set<String> _listed = {};
   final Set<String> _opening = {};
+
+  /// Projects, by machine and directory, whose new session button started a session that is still launching.
+  final Set<(String, String)> _starting = {};
 
   /// Session lists shown whole, by machine and project; a null project for the sessions without a folder.
   final Set<(String, String?)> _showAll = {};
@@ -146,6 +148,24 @@ class SidebarState extends State<Sidebar> {
       messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: describeConnectError(t, error)))));
     } finally {
       if (mounted && path != null) setState(() => _opening.remove(path));
+    }
+  }
+
+  /// A project row's new session: straight into [cwd] on omp's default model; the new session dialog is for sessions
+  /// whose place is not given yet.
+  Future<void> _newSession(Machine machine, String cwd) async {
+    final sessions = context.read<SessionsProvider>();
+    final shell = context.read<ShellProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final t = context.t;
+    setState(() => _starting.add((machine.id, cwd)));
+    try {
+      await sessions.open(machine, NewSession(cwd));
+      shell.select(const SessionSelection());
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: describeConnectError(t, error)))));
+    } finally {
+      if (mounted) setState(() => _starting.remove((machine.id, cwd)));
     }
   }
 
@@ -370,9 +390,8 @@ class SidebarState extends State<Sidebar> {
         onToggle: searching
             ? null
             : () => unawaited(settings.set(Prefs.projectCollapsed(machine.machine.id, cwd), !collapsed)),
-        onNewSession: machine.status is MachineOnline
-            ? () => unawaited(showNewSessionDialog(context, machine.machine, cwd: cwd))
-            : null,
+        starting: _starting.contains((machine.machine.id, cwd)),
+        onNewSession: machine.status is MachineOnline ? () => unawaited(_newSession(machine.machine, cwd)) : null,
       ),
       SessionRowData(:final machine, :final entry, :final match) => _sessionTile(machine, entry, match, pinned: false),
       ShowMoreRowData(:final machine, :final cwd, :final hidden) => ShowMoreRow(

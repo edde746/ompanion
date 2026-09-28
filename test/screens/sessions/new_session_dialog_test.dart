@@ -189,10 +189,10 @@ final _models = [
 ];
 
 /// Opens the dialog on a machine whose files are [files], holding [recent] project directories and
-/// [catalogue] as its model list, as a project row's new session button does with [cwd], else as the machine's.
+/// [catalogue] as its model list. With [folder] it switches to "Folder" and types [folder] into the directory field.
 Future<_Sessions> _pumpDialog(
   WidgetTester tester, {
-  String? cwd,
+  String? folder,
   List<String> recent = const [],
   List<RpcModel> catalogue = const [],
   Object? controlFailure,
@@ -211,7 +211,7 @@ Future<_Sessions> _pumpDialog(
         child: MaterialApp(
           home: Builder(
             builder: (context) => TextButton(
-              onPressed: () => unawaited(showNewSessionDialog(context, testMachine, cwd: cwd)),
+              onPressed: () => unawaited(showNewSessionDialog(context, testMachine)),
               child: const Text('new'),
             ),
           ),
@@ -221,6 +221,11 @@ Future<_Sessions> _pumpDialog(
   );
   await tester.tap(find.text('new'));
   await tester.pumpAndSettle();
+  if (folder != null) {
+    await tester.tap(find.text('Folder'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), folder);
+  }
   return sessions;
 }
 
@@ -364,7 +369,7 @@ void main() {
   testWidgets('a long recent project keeps its last directory whole and inside its row', (tester) async {
     const deep = '/home/u/.cache/some/very/deeply/nested/directory/structure/that/goes/on/and/on/beta';
     const wide = '/home/u/work/a-project-whose-own-directory-name-is-wider-than-the-row';
-    await _pumpDialog(tester, cwd: '', recent: [deep, wide]);
+    await _pumpDialog(tester, folder: '', recent: [deep, wide]);
 
     // The directories above the last one give way first, so `/beta` still tells this path from its neighbours.
     expect(tester.renderObject<RenderParagraph>(find.text('/beta')).didExceedMaxLines, isFalse);
@@ -377,7 +382,7 @@ void main() {
   testWidgets('the session opens with the model picked in the picker', (tester) async {
     final sessions = await _pumpDialog(
       tester,
-      cwd: '/home/u/project',
+      folder: '/home/u/project',
       catalogue: _models,
       files: {'/home/u/project/README.md': 'x'},
     );
@@ -395,7 +400,7 @@ void main() {
   testWidgets('clearing the model starts the session on omp\'s default', (tester) async {
     final sessions = await _pumpDialog(
       tester,
-      cwd: '/home/u/project',
+      folder: '/home/u/project',
       catalogue: _models,
       files: {'/home/u/project/README.md': 'x'},
     );
@@ -415,7 +420,7 @@ void main() {
   ) async {
     final sessions = await _pumpDialog(
       tester,
-      cwd: '/home/u/project',
+      folder: '/home/u/project',
       catalogue: _models,
       files: {'/home/u/project/README.md': 'x'},
     );
@@ -439,7 +444,7 @@ void main() {
   });
 
   testWidgets('Escape while the session starts leaves the dialog up until the session shows', (tester) async {
-    final sessions = await _pumpDialog(tester, cwd: '/home/u/project', files: {'/home/u/project/README.md': 'x'});
+    final sessions = await _pumpDialog(tester, folder: '/home/u/project', files: {'/home/u/project/README.md': 'x'});
     final open = sessions.openPending = Completer<LiveSession>();
     await _startSession(tester, sessions);
 
@@ -461,7 +466,7 @@ void main() {
   testWidgets('a model list that does not load leaves Start working, on omp\'s default', (tester) async {
     final sessions = await _pumpDialog(
       tester,
-      cwd: '/home/u/project',
+      folder: '/home/u/project',
       controlFailure: StateError('rpc mode refused'),
       files: {'/home/u/project/README.md': 'x'},
     );

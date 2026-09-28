@@ -22,34 +22,33 @@ import '../machines/connect_dialogs.dart';
 import 'machine_sessions.dart';
 
 /// Asks where on [machine] a new session works (no project folder, a recent project directory, a typed path, or a
-/// folder picked on the machine) and an optional model, opens the session there and shows it. It starts on [cwd], or
-/// on no folder without one: omp then works in its temporary directory, as when it starts in the home directory.
-Future<void> showNewSessionDialog(BuildContext context, Machine machine, {String? cwd}) async {
+/// folder picked on the machine) and an optional model, opens the session there and shows it. It starts on no folder:
+/// omp then works in its temporary directory, as when it starts in the home directory.
+Future<void> showNewSessionDialog(BuildContext context, Machine machine) async {
   final shell = context.read<ShellProvider>();
   final session = await showDialog<LiveSession>(
     context: context,
-    builder: (_) => _NewSessionDialog(machine: machine, initialCwd: cwd),
+    builder: (_) => _NewSessionDialog(machine: machine),
   );
   if (session != null) shell.select(const SessionSelection());
 }
 
 class _NewSessionDialog extends StatefulWidget {
-  const _NewSessionDialog({required this.machine, this.initialCwd});
+  const _NewSessionDialog({required this.machine});
 
   final Machine machine;
-  final String? initialCwd;
 
   @override
   State<_NewSessionDialog> createState() => _NewSessionDialogState();
 }
 
 class _NewSessionDialogState extends State<_NewSessionDialog> {
-  late final TextEditingController _cwd = TextEditingController(text: widget.initialCwd ?? '');
+  final _cwd = TextEditingController();
   final _cwdFocus = FocusNode(debugLabel: 'new session directory');
   final _startFocus = FocusNode(debugLabel: 'new session start');
 
   /// The session works in omp's temporary directory ([HostProbe.scratchDirs]) instead of a project folder.
-  late bool _noFolder = widget.initialCwd == null;
+  bool _noFolder = true;
 
   /// The chosen model: [selector] (`provider/id[:thinking]`) is what omp gets, [name] (the model's name and
   /// provider) is what the field shows. Null leaves omp on its configured default.
@@ -284,7 +283,6 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
                   key: const ValueKey('new-session-cwd'),
                   controller: _cwd,
                   focusNode: _cwdFocus,
-                  autofocus: true,
                   // Desktop fields select everything when the focus comes back from the directory picker; a typed key
                   // would then replace the picked path.
                   selectAllOnFocus: false,
