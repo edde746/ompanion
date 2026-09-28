@@ -28,6 +28,10 @@ final Converter<List<int>, Object?> _utf8Json = utf8.decoder.fuse(json.decoder);
 /// response, frames above `maxFrameBytes` arrive as an uninterrupted `rpc_chunk` sequence that is
 /// validated and reassembled here. Any violation throws [RpcProtocolException]; the decoder is
 /// unusable afterwards.
+///
+/// A POSIX attach stream (`followScript`) sends each image once: an `ompanion_image` line defines it by `id` (and
+/// names the id it `drop`s), and a frame marked `"ompanionImages":true` names it by `ompanionImage` instead of `data`.
+/// Definitions are taken here and frames come out as omp wrote them.
 final class RpcFrameDecoder {
   /// For a stream that starts at the process's first byte. Lines before `ready` are noise (login
   /// banners, shell rc output) and are kept in [noise].
@@ -46,13 +50,16 @@ final class RpcFrameDecoder {
   _PendingChunks? _pending;
   final List<String> _noise = [];
 
+  /// Image data by `ompanion_image` id.
+  final Map<int, String> _images = {};
+
   /// Lines skipped before `ready` (at most 200, each clipped to 1000 characters), for diagnostics.
   List<String> get noise => List.unmodifiable(_noise);
 
-  /// Returns the next complete frame, or null when [line] was noise before `ready`, blank, or a
-  /// non-final `rpc_chunk`.
+  /// Returns the next complete frame, or null when [line] was noise before `ready`, blank, a non-final
+  /// `rpc_chunk`, or an `ompanion_image` definition.
   Map<String, Object?>? push(String line) => switch (_push(line)) {
-    final _Reassembled frame => _observed(_decodeReassembled(frame)),
+    final _Reassembled frame => _accept(_decodeReassembled(frame)),
     final json => json as Map<String, Object?>?,
   };
 
@@ -60,13 +67,39 @@ final class RpcFrameDecoder {
   /// future, which must complete before the next line is pushed. Such a frame is up to 64 MiB of JSON; decoding a
   /// 7.6 MB session history took 90–110 ms on the UI isolate.
   FutureOr<Map<String, Object?>?> pushOffIsolate(String line) => switch (_push(line)) {
-    final _Reassembled frame => Isolate.run(() => _decodeReassembled(frame)).then(_observed),
+    final _Reassembled frame => Isolate.run(() => _decodeReassembled(frame)).then(_accept),
     final json => json as Map<String, Object?>?,
   };
 
-  Map<String, Object?> _observed(Map<String, Object?> frame) {
+  Map<String, Object?> _accept(Map<String, Object?> frame) {
+    if (frame.remove('ompanionImages') == true) _resolve(frame);
     _observe(frame);
     return frame;
+  }
+
+  void _define(Map<String, Object?> line) {
+    final id = line['id'];
+    final data = line['data'];
+    final drop = line['drop'];
+    if (id is! int || data is! String || (drop != null && drop is! int)) {
+      throw RpcProtocolException('invalid ompanion_image line: ${_clip(jsonEncode({...line, 'data': '…'}))}');
+    }
+    _images[id] = data;
+    if (drop != null) _images.remove(drop);
+  }
+
+  /// Puts the data of each image [value] names by `ompanionImage` back into it.
+  void _resolve(Object? value) {
+    switch (value) {
+      case final Map<String, Object?> map:
+        if (map.remove('ompanionImage') case final Object id) {
+          map['data'] = _images[id] ?? (throw RpcProtocolException('image $id is not defined in this stream'));
+        } else {
+          map.values.forEach(_resolve);
+        }
+      case final List<Object?> list:
+        list.forEach(_resolve);
+    }
   }
 
   /// A frame, null, or the bytes of a completed `rpc_chunk` sequence.
@@ -86,8 +119,11 @@ final class RpcFrameDecoder {
     }
     if (value is! Map<String, Object?>) throw RpcProtocolException('frame is not a JSON object: ${_clip(line)}');
     _skippingPartialSequence = false;
-    _observe(value);
-    return value;
+    if (value['type'] == 'ompanion_image') {
+      _define(value);
+      return null;
+    }
+    return _accept(value);
   }
 
   Map<String, Object?>? _pushBeforeReady(String line) {

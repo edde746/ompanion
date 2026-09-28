@@ -5,40 +5,49 @@ import 'dart:typed_data';
 
 import '../host/scripts.dart';
 import '../transport/host_link.dart';
-import 'detached_run.dart';
+import 'follow.dart';
 import 'replay.dart';
 import 'run_log.dart';
 
-/// A [RunChannel] for Windows hosts: `out.jsonl` and `in.jsonl` are followed over SFTP by polling their size and
-/// reading what was added; lines are appended by a long-running PowerShell appender (started on the first [send]).
-/// SFTP cannot append while omp runs: Win32-OpenSSH's sftp-server opens a file for writing with `FILE_SHARE_WRITE`
-/// alone, which fails with a sharing violation against `feed.ps1`'s open read handle.
-final class SftpRunChannel implements RunChannel {
-  SftpRunChannel._(this._link, this._shell, this._files, this.dir, this._inboxFrom, this.poll);
+/// A [RunChannel] for Windows hosts: [followScript] for [lines] (polling `out.jsonl`: Windows has no `tail`),
+/// `in.jsonl` followed over SFTP by polling its size and reading what was added, and a long-running PowerShell appender
+/// (started on the first [send]). SFTP cannot append while omp runs: Win32-OpenSSH's sftp-server opens a file for
+/// writing with `FILE_SHARE_WRITE` alone, which fails with a sharing violation against `feed.ps1`'s open read handle.
+final class WindowsRunChannel implements RunChannel {
+  WindowsRunChannel._(this._link, this._shell, this._files, this.dir, this._inboxFrom, this.poll, this._log);
 
   /// Attaches to the run in [dir] (SFTP path space) on a machine whose SSH exec parses commands with [shell]. See
-  /// `attachRun` for [generation], [offset], [inboxOffset] and [replay]; [window] is [attachWindow]; [poll] is the
-  /// interval between size checks while a file is not growing.
-  static Future<SftpRunChannel> attach(
+  /// `attachRun` for [generation], [offset], [inboxOffset] and [tools]; [window] is [attachWindow]; [poll] is the
+  /// interval between size checks of `in.jsonl` while it is not growing.
+  static Future<WindowsRunChannel> attach(
     HostLink link,
     String dir, {
     required CommandShell shell,
-    required ReplayTool replay,
+    required AttachTools tools,
     int? generation,
     int offset = 0,
     int? inboxOffset,
     int window = attachWindow,
     Duration poll = const Duration(milliseconds: 200),
   }) async {
-    final files = await link.files();
+    final log = await LogFollower.start(
+      link,
+      shell,
+      FollowSource.poll,
+      hostPath(dir),
+      tools,
+      generation: generation,
+      offset: offset,
+      window: window,
+    );
+    final HostFiles files;
     try {
-      final channel = SftpRunChannel._(link, shell, files, dir, inboxOffset, poll);
-      await channel._start(generation, offset, replay, window);
-      return channel;
+      files = await link.files();
     } on Object {
-      await files.close();
+      await log.stop();
       rethrow;
     }
+    return WindowsRunChannel._(link, shell, files, dir, inboxOffset, poll, log);
   }
 
   final HostLink _link;
@@ -50,7 +59,7 @@ final class SftpRunChannel implements RunChannel {
   final int? _inboxFrom;
   final Duration poll;
   bool _closed = false;
-  late final RunOutput _output;
+  final LogFollower _log;
   late final _inbox = RunInbox(onListen: () => _loops.add(_followInbox()));
   Future<RunAppender>? _appender;
   Future<void> _writes = Future.value();
@@ -60,102 +69,22 @@ final class SftpRunChannel implements RunChannel {
   static const _readLimit = 1 << 20;
 
   @override
-  int get offset => _output.offset;
+  int get offset => _log.output.offset;
 
   @override
-  int get generation => _output.generation;
+  int get generation => _log.output.generation;
 
   @override
-  int? get exitCode => _output.exitCode;
+  int? get exitCode => _log.output.exitCode;
 
   @override
-  Stream<String> get lines => _output.lines;
+  Stream<String> get lines => _log.output.lines;
 
   @override
   Stream<InboxLine> get inbox => _inbox.stream;
 
   @override
   int get inboxOffset => _inbox.offset;
-
-  /// As on POSIX, the exit file is checked before the size, and a stored offset is used only within the same generation
-  /// and file size. Without one, a log over [window] bytes is compacted on the machine by [replayScript].
-  Future<void> _start(int? generation, int offset, ReplayTool replay, int window) async {
-    final meta = parseRunMeta(utf8.decode(await _files.read('$dir/meta.json'), allowMalformed: true));
-    if (meta == null) throw HostLinkException('no run in $dir');
-    int? ended;
-    if (await _files.stat('$dir/exit') != null) {
-      ended = int.tryParse(utf8.decode(await _files.read('$dir/exit')).trim());
-    }
-    final size = (await _files.stat('$dir/out.jsonl'))?.size ?? 0;
-    final resumes = generation == meta.generation && offset <= size;
-    var start = resumes ? offset : 0;
-    var preamble = Uint8List(0);
-    if (!resumes && size > window) {
-      final replayed = await _replay(replay, size, window);
-      final newline = replayed.indexOf(0x0A);
-      start = int.parse(ascii.decode(Uint8List.sublistView(replayed, 0, newline)));
-      preamble = Uint8List.sublistView(replayed, newline + 1);
-    }
-    _output = RunOutput(
-      generation: meta.generation,
-      offset: start,
-      preamble: preamble.length,
-      endedWith: ended == null ? null : (code: ended, size: size),
-      onEnd: () {},
-    );
-    if (preamble.isNotEmpty) _output.add(preamble);
-    _loops.add(_followOutput());
-  }
-
-  /// [replayScript]'s output for the first [size] bytes of `out.jsonl`. It goes through a file: Windows PowerShell
-  /// 5.1 re-encodes what a native program prints.
-  Future<Uint8List> _replay(ReplayTool replay, int size, int window) async {
-    final result = '$dir/replay.${newMarker()}.out';
-    final run = await runPowerShell(
-      _link,
-      _shell,
-      "\$env:BUN_BE_BUN = '1'\n"
-      '& ${psQuote(replay.omp)} ${psQuote(replay.script)} ${psQuote(hostPath('$dir/out.jsonl'))} $size $window '
-      '${psQuote(hostPath(result))}\n'
-      'exit \$LASTEXITCODE\n',
-    );
-    try {
-      if (run.exit.code != 0) throw run.failure('compacting $dir/out.jsonl failed');
-      return await _files.read(result);
-    } finally {
-      if (await _files.stat(result) != null) await _files.remove(result);
-    }
-  }
-
-  Future<void> _followOutput() async {
-    try {
-      while (!_closed && !_output.ended) {
-        final size = (await _files.stat('$dir/out.jsonl'))?.size;
-        if (size == null) throw HostLinkException('$dir/out.jsonl is gone');
-        final from = _output.readPosition;
-        if (size < from) {
-          // A rotation truncated the log. Its bytes go on as `tail -F` sends them, continuing what this channel read;
-          // the marker, their first line, moves the offsets to the new file. Until it is complete, nothing is read.
-          final head = await _files.read('$dir/out.jsonl', length: min(size, _readLimit));
-          if (head.contains(0x0A)) {
-            _output.add(head);
-            continue;
-          }
-        } else if (size > from) {
-          _output.add(await _files.read('$dir/out.jsonl', offset: from, length: min(size - from, _readLimit)));
-          continue;
-        }
-        // A run that had ended before the attach has nothing more to write.
-        if (_output.endedWith != null) {
-          _output.transportEnded(HostLinkException('$dir/out.jsonl ended'));
-          return;
-        }
-        await Future<void>.delayed(poll);
-      }
-    } on Object catch (error) {
-      if (!_closed) _output.finish(HostLinkException('following $dir/out.jsonl failed', cause: error));
-    }
-  }
 
   Future<void> _followInbox() async {
     try {
@@ -218,8 +147,7 @@ final class SftpRunChannel implements RunChannel {
     await _writes;
     final appender = _appender;
     if (appender != null) await (await appender).finish();
-    await Future.wait(_loops);
-    _output.finish();
+    await Future.wait([_log.stop(), ..._loops]);
     _inbox.close();
     await _files.close();
   }

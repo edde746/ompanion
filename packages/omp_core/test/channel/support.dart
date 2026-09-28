@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:omp_core/channel.dart';
 import 'package:omp_core/host.dart';
+import 'package:omp_core/src/channel/follow.dart' show followScript;
+import 'package:omp_core/src/channel/replay.dart' show replayScript;
 import 'package:omp_core/transport.dart';
 
 import '../omp_binary.dart';
@@ -14,8 +16,12 @@ final String? pwsh = () {
   return result.exitCode == 0 ? (result.stdout as String).trim() : null;
 }();
 
-/// The replay tool for attaches whose log stays under `attachWindow`, so the replay script never runs.
-const ReplayTool noReplay = (omp: 'omp', script: 'replay.js');
+/// The attach scripts written into [dir], run by this computer's omp.
+AttachTools localTools(String dir) {
+  final replay = File('$dir/replay.js')..writeAsStringSync(replayScript);
+  final follow = File('$dir/follow.js')..writeAsStringSync(followScript);
+  return (omp: ompBinary, replay: replay.path, follow: follow.path);
+}
 
 /// A temporary machine for tests on this computer: `home/` is an isolated omp home (harness/omp-home.sh,
 /// fake provider on a port nothing listens on, so no model turn can run) with the release binary linked at
@@ -40,6 +46,9 @@ final class TestHost {
   String get home => '${root.path}/home';
 
   String get work => '${root.path}/work dir';
+
+  /// The attach scripts, in [root].
+  late final AttachTools tools = localTools(root.path);
 
   /// Only system directories on PATH, so the user's own omp is never found; omp's directory overrides are
   /// cleared (an explicitly empty value selects the default).

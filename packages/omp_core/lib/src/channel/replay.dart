@@ -3,15 +3,10 @@
 /// snapshot): replayed whole, a 1.6 GB log took 62 s and 3.1 GB of app memory to open.
 const attachWindow = 8 << 20;
 
-/// What compacts a log on the machine: [replayScript] at [script], run by the omp binary at [omp] as Bun
-/// (`BUN_BE_BUN=1`), which every omp release is. One implementation for POSIX and Windows hosts.
-typedef ReplayTool = ({String omp, String script});
-
-/// Compacts `out.jsonl` for a device's first attach. Arguments: the log's path, its size `s` when the attach read
-/// it, the window `w` ([attachWindow]) and, optionally, a file to write to instead of stdout (Windows PowerShell 5.1
-/// re-encodes a native program's output). Output: the log offset the attach continues from, then the replay, one
-/// frame per line. The offset is 0, and the replay empty, when no frame starts in the last `w` bytes (one frame over
-/// `w` bytes at the end): the attach then sends the whole generation.
+/// Compacts `out.jsonl` for a device's first attach; `followScript` runs it. Arguments: the log's path, its size `s`
+/// when the attach read it, and the window `w` ([attachWindow]). Output: the log offset the attach continues from,
+/// then the replay, one frame per line. The offset is 0, and the replay empty, when no frame starts in the last `w`
+/// bytes (one frame over `w` bytes at the end): the attach then sends the whole generation.
 ///
 /// The replay holds, from before the window (the last `w` bytes, from the first frame that starts there; an
 /// `rpc_chunk` sequence the window cuts into is skipped, as omp writes a chunk's `index` ahead of its data), what RPC
@@ -26,11 +21,11 @@ typedef ReplayTool = ({String omp, String script});
 const replayScript = r'''
 import { closeSync, openSync, readSync, writeFileSync } from "node:fs";
 
-const [path, sizeText, windowText, result] = process.argv.slice(2);
+const [path, sizeText, windowText] = process.argv.slice(2);
 const size = Number(sizeText);
 const windowSize = Number(windowText);
 if (!path || !Number.isSafeInteger(size) || !Number.isSafeInteger(windowSize) || size <= windowSize) {
-  throw new Error(`usage: replay.js <out.jsonl> <size> <window> [<result file>], size over window; got ${process.argv.slice(2).join(" ")}`);
+  throw new Error(`usage: replay.js <out.jsonl> <size> <window>, size over window; got ${process.argv.slice(2).join(" ")}`);
 }
 const fd = openSync(path, "r");
 
@@ -58,7 +53,7 @@ for (let at = tail.indexOf(10) + 1; at > 0 && at < tail.length; ) {
   at = newline + 1;
 }
 if (first < 0) {
-  writeFileSync(result ?? 1, "0\n");
+  writeFileSync(1, "0\n");
   process.exit(0);
 }
 const start = tailStart + first;
@@ -157,5 +152,5 @@ for (let i = lines.length - 1; i >= 0; i--) {
   seen.add(key);
 }
 for (let i = 0; i < lines.length; i++) if (keep[i]) out.push(lines[i]);
-writeFileSync(result ?? 1, `${out.join("\n")}\n`);
+writeFileSync(1, `${out.join("\n")}\n`);
 ''';

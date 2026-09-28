@@ -15,6 +15,6 @@ export 'src/channel/detached_run.dart'
         rotateRunOutput,
         runRoot,
         stopRun;
-export 'src/channel/replay.dart' show ReplayTool;
+export 'src/channel/follow.dart' show AttachTools;
 export 'src/channel/run_log.dart' show InboxLine, RunChannel, RunLogGap;
-export 'src/channel/windows_channel.dart' show SftpRunChannel;
+export 'src/channel/windows_channel.dart' show WindowsRunChannel;

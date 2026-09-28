@@ -96,6 +96,29 @@ void main() {
       },
     );
 
+    test('a span\'s lines stay at its start until the last, which ends where the span ends in out.jsonl', () async {
+      final received = <(String, int)>[];
+      final spanned = RunOutput(generation: 1, offset: 100, onEnd: () {});
+      spanned.lines.listen((line) => received.add((line, spanned.offset)));
+      const span = '{"type":"ompanion_span","bytes":5000,"lines":2}\n';
+      const definition = '{"type":"ompanion_image","id":1,"data":"QUJD"}\n';
+      const frame = '{"type":"x","ompanionImages":true}\n';
+      spanned.add(bytes('{"n":1}\n$span${definition.substring(0, 20)}'));
+      await pumpEventQueue();
+      expect(spanned.readPosition, 108, reason: 'a span is read again from its start');
+      spanned.add(bytes('${definition.substring(20)}$frame{"n":2}\n'));
+      await pumpEventQueue();
+      expect(received, [('{"n":1}', 108), (definition.trim(), 108), (frame.trim(), 5108), ('{"n":2}', 5116)]);
+      expect(spanned.readPosition, 5116);
+    });
+
+    test('fails on a span marker it cannot read', () async {
+      output.add(bytes('{"n":1}\n{"type":"ompanion_span","bytes":0,"lines":1}\n{"n":2}\n'));
+      await done;
+      expect(lines, ['{"n":1}']);
+      expect(error, isA<HostLinkException>());
+    });
+
     test('ends at the exit marker with the exit code, ignoring anything after it', () async {
       output.add(bytes('{"n":1}\n{"broken\n{"type":"ompanion_exit","code":143}\n{"n":2}\n'));
       await done;

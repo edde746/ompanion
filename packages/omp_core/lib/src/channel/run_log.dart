@@ -50,7 +50,8 @@ final class RunLogGap extends HostLinkException {
   final int generation;
 }
 
-/// The lines the app itself writes into `out.jsonl`. omp never emits a `type` starting with `ompanion_`.
+/// The lines the app itself adds: `ompanion_exit` and `ompanion_rotate` in `out.jsonl`, `ompanion_span` in a POSIX
+/// attach stream (`followScript`). omp never emits a `type` starting with `ompanion_`.
 sealed class RunMarker {
   const RunMarker();
 
@@ -70,6 +71,8 @@ sealed class RunMarker {
         generation,
         size,
       ),
+      {'type': 'ompanion_span', 'bytes': final int bytes, 'lines': final int lines} when bytes > 0 && lines > 0 =>
+        RunSpan(bytes, lines),
       _ => null,
     };
   }
@@ -90,6 +93,15 @@ final class RunRotated extends RunMarker {
 
   /// Size of the previous generation when it was truncated.
   final int previousSize;
+}
+
+/// The next [lines] lines of an attach stream stand for [bytes] bytes of `out.jsonl`: one frame whose images the
+/// follow script moved into `ompanion_image` lines.
+final class RunSpan extends RunMarker {
+  const RunSpan(this.bytes, this.lines);
+
+  final int bytes;
+  final int lines;
 }
 
 /// Splits a byte stream read from [position] of a log file into lines, and tracks the file offset just past
@@ -170,10 +182,13 @@ final class RunOutput {
   final _events = StreamController<_Event>();
   bool _ended = false;
 
+  /// The [RunSpan] being read: where it starts in `out.jsonl`, its size there, and how many of its lines are to come.
+  ({int start, int bytes, int left})? _span;
+
   bool get ended => _ended;
 
-  /// File offset of the next byte to read (past the unfinished line).
-  int get readPosition => _cursor.position + _cursor.pending;
+  /// File offset of the next byte to read (past the unfinished line); the start of a span still being read.
+  int get readPosition => _span?.start ?? _cursor.position + _cursor.pending;
 
   late final Stream<String> lines = _events.stream.transform(
     StreamTransformer<_Event, String>.fromHandlers(
@@ -203,6 +218,18 @@ final class RunOutput {
         continue;
       }
       var end = rawEnd + shift;
+      if (_span case (:final start, :final bytes, :final left)) {
+        // A span's lines take no room in `out.jsonl` until its last, which ends where the span does.
+        if (left > 1) {
+          _span = (start: start, bytes: bytes, left: left - 1);
+          _events.add(_Line(text, start));
+        } else {
+          _span = null;
+          shift += start + bytes - end;
+          _events.add(_Line(text, start + bytes));
+        }
+        continue;
+      }
       switch (RunMarker.parse(text)) {
         case RunExited(:final code):
           _events.add(_Exited(code));
@@ -223,6 +250,11 @@ final class RunOutput {
           end = markerEnd;
           _parsing = generation;
           _events.add(_Rotated(generation, end));
+        case RunSpan(:final bytes, :final lines):
+          _span = (start: end - utf8.encode(text).length - 1, bytes: bytes, left: lines);
+        case null when text.startsWith('{"type":"ompanion_span"'):
+          finish(HostLinkException('bad span marker in the attach stream: $text'));
+          return;
         case null:
           _events.add(_Line(text, end));
       }

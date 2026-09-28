@@ -16,12 +16,14 @@ import '../session/support.dart';
 import 'windows_env.dart';
 
 /// Detached omp runs on this Windows computer over its own sshd, as the app drives a Windows machine: WMI launches
-/// omp, feed.ps1 pumps `in.jsonl` into its stdin, and everything else goes over SFTP and PowerShell. omp is the
-/// pinned release in `%LOCALAPPDATA%\omp`, its home points at the fake provider (the runner's home is disposable).
+/// omp, feed.ps1 pumps `in.jsonl` into its stdin, the follow script streams `out.jsonl`, and everything else goes over
+/// SFTP and PowerShell. omp is the pinned release in `%LOCALAPPDATA%\omp`, its home points at the fake provider (the
+/// runner's home is disposable).
 void main() {
   late FakeProvider fake;
   late SshLink link;
   late HostProbe probe;
+  late AttachTools tools;
   final profile = Platform.environment['USERPROFILE']!;
   final project = '$profile\\session project';
   final runtimes = <MachineRuntime>[];
@@ -50,6 +52,12 @@ void main() {
     Directory(project).createSync();
     link = await connectWindows();
     probe = await probeHost(link);
+    final uploaded = await uploadCompanion(
+      link,
+      ompVersion: probe.ompVersion!,
+      bytes: utf8.encode('export default {}\n'),
+    );
+    tools = (omp: probe.ompPath!, replay: uploaded.replay, follow: uploaded.follow);
   });
 
   tearDown(() async {
@@ -162,8 +170,8 @@ void main() {
     )).run;
     final other = await connectWindows();
     addTearDown(other.close);
-    final a = await attachRun(link, probe, run, replay: noReplay);
-    final b = await attachRun(other, probe, run, replay: noReplay);
+    final a = await attachRun(link, probe, run, tools: tools);
+    final b = await attachRun(other, probe, run, tools: tools);
     final aFrames = Frames(a.lines);
     final bFrames = Frames(b.lines);
     final inbox = <InboxLine>[];
@@ -209,7 +217,7 @@ void main() {
           args: const ['--model', 'fake/fake-1'],
         ),
       )).run;
-      final channel = await attachRun(link, probe, run, replay: noReplay);
+      final channel = await attachRun(link, probe, run, tools: tools);
       final frames = Frames(channel.lines);
       await frames.next((f) => f['type'] == 'ready', timeout: const Duration(seconds: 60));
       await channel.send(getState('r:1'));
@@ -236,7 +244,7 @@ void main() {
     timeout: const Timeout(Duration(minutes: 3)),
   );
 
-  test('with PowerShell as the OpenSSH default shell, the probe notices and a run takes lines', () async {
+  test('with PowerShell as the OpenSSH default shell, the probe notices and a run takes and sends non-ASCII', () async {
     const key = r'HKLM:\SOFTWARE\OpenSSH';
     final powershell = '${Platform.environment['SystemRoot']}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
     Future<void> reg(String script) async {
@@ -262,11 +270,15 @@ void main() {
         args: const ['--model', 'fake/fake-1'],
       ),
     )).run;
-    final channel = await attachRun(shelled, probed, run, replay: noReplay);
+    final channel = await attachRun(shelled, probed, run, tools: tools);
     final frames = Frames(channel.lines);
     await frames.next((f) => f['type'] == 'ready', timeout: const Duration(seconds: 60));
-    await channel.send(getState('ps:1'));
+    // The follow script's output never passes through Windows PowerShell 5.1, which would re-encode it.
+    const name = 'é 😀 ü';
+    await channel.send(jsonEncode({'id': 'ps:1', 'type': 'set_session_name', 'name': name}));
     await frames.response('ps:1');
+    await channel.send(getState('ps:2'));
+    expect(((await frames.response('ps:2'))['data'] as Map<String, Object?>)['sessionName'], name);
     await channel.close();
     expect(await stopRun(shelled, probed, run), 0);
   }, timeout: const Timeout(Duration(minutes: 2)));

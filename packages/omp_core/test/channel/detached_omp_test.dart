@@ -51,7 +51,7 @@ void main() {
     expect(ancestors.last, 1);
     expect(ancestors, isNot(contains(pid)));
 
-    final first = await attachRun(host.link, probe, run, replay: noReplay);
+    final first = await attachRun(host.link, probe, run, tools: host.tools);
     final frames = Frames(first.lines);
     expect((await frames.next((f) => f['type'] == 'ready'))['protocolVersion'], 1);
     await first.send(getState('a:1'));
@@ -72,7 +72,7 @@ void main() {
       host.link,
       probe,
       again.run,
-      replay: noReplay,
+      tools: host.tools,
       generation: resume.generation,
       offset: resume.offset,
     );
@@ -88,8 +88,8 @@ void main() {
 
   test('two devices append concurrently and each sees the other in its inbox', () async {
     final run = (await openRun(host.link, probe, spec())).run;
-    final a = await attachRun(host.link, probe, run, replay: noReplay);
-    final b = await attachRun(host.link, probe, run, replay: noReplay, inboxOffset: 0);
+    final a = await attachRun(host.link, probe, run, tools: host.tools);
+    final b = await attachRun(host.link, probe, run, tools: host.tools, inboxOffset: 0);
     final aFrames = Frames(a.lines);
     final bFrames = Frames(b.lines);
     final bInbox = <InboxLine>[];
@@ -125,7 +125,7 @@ void main() {
 
   test('rotating out.jsonl while attached keeps the channel going in the next generation', () async {
     final run = (await openRun(host.link, probe, spec())).run;
-    final channel = await attachRun(host.link, probe, run, replay: noReplay);
+    final channel = await attachRun(host.link, probe, run, tools: host.tools);
     final frames = Frames(channel.lines);
     await frames.next((f) => f['type'] == 'ready');
     await channel.send(getState('r:1'));
@@ -144,7 +144,7 @@ void main() {
 
   test('graceful stop exits 0 and ends attached channels; force stop exits 143; dead runs are removed', () async {
     final graceful = (await openRun(host.link, probe, spec())).run;
-    final channel = await attachRun(host.link, probe, graceful, replay: noReplay);
+    final channel = await attachRun(host.link, probe, graceful, tools: host.tools);
     final frames = Frames(channel.lines);
     await frames.next((f) => f['type'] == 'ready');
 
@@ -171,7 +171,7 @@ void main() {
     );
     expect(launched.exit.code, 0, reason: launched.stderr);
     final run = (await listRuns(host.link, probe)).singleWhere((r) => r.id == id);
-    final channel = await attachRun(host.link, probe, run, replay: noReplay);
+    final channel = await attachRun(host.link, probe, run, tools: host.tools);
     final frames = Frames(channel.lines);
     await frames.next((f) => f['type'] == 'ready');
     await channel.send(jsonEncode({'id': 'u:1', 'type': 'bash', 'command': 'mkdir made-by-bash && umask'}));

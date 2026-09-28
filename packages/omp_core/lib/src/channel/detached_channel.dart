@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import '../host/scripts.dart';
 import '../transport/host_link.dart';
+import 'follow.dart';
 import 'replay.dart';
 import 'run_log.dart';
 
@@ -12,27 +13,35 @@ import 'run_log.dart';
 /// SFTP first and appended with `cat`.
 const inlineAppendLimit = 64 * 1024;
 
-/// A [RunChannel] to a run on a POSIX machine, over exec channels: `tail -F out.jsonl` for [lines],
-/// `tail -F in.jsonl` for [inbox] (started on listen), and a long-running appender that adds each sent line
-/// to `in.jsonl` under the `in.lock` `mkdir` lock (started on the first [send]). Each script ends when its
-/// stdin closes, so nothing outlives the channel on the machine, even when the connection drops.
+/// A [RunChannel] to a run on a POSIX machine, over exec channels: [followScript] for [lines] (with `tail -F`),
+/// `tail -F in.jsonl` for [inbox] (started on listen), and a long-running appender that adds each sent line to
+/// `in.jsonl` under the `in.lock` `mkdir` lock (started on the first [send]). Each script ends when its stdin closes,
+/// so nothing outlives the channel on the machine, even when the connection drops.
 final class DetachedChannel implements RunChannel {
-  DetachedChannel._(this._link, this.dir, this._inboxFrom);
+  DetachedChannel._(this._link, this.dir, this._inboxFrom, this._log);
 
-  /// Attaches to the run in [dir] (host path). See `attachRun` for [generation], [offset], [inboxOffset] and [replay];
+  /// Attaches to the run in [dir] (host path). See `attachRun` for [generation], [offset], [inboxOffset] and [tools];
   /// [window] is [attachWindow].
   static Future<DetachedChannel> attach(
     HostLink link,
     String dir, {
-    required ReplayTool replay,
+    required AttachTools tools,
     int? generation,
     int offset = 0,
     int? inboxOffset,
     int window = attachWindow,
   }) async {
-    final channel = DetachedChannel._(link, dir, inboxOffset);
-    await channel._follow.start(link, _outputScript(dir, generation, offset, replay, window));
-    return channel;
+    final log = await LogFollower.start(
+      link,
+      CommandShell.posix,
+      FollowSource.tail,
+      dir,
+      tools,
+      generation: generation,
+      offset: offset,
+      window: window,
+    );
+    return DetachedChannel._(link, dir, inboxOffset, log);
   }
 
   final HostLink _link;
@@ -41,27 +50,25 @@ final class DetachedChannel implements RunChannel {
   final String dir;
   final int? _inboxFrom;
   bool _closed = false;
+  final LogFollower _log;
 
-  late final _follow = _Follower(onHeader: _onOutputHeader, onData: (chunk) => _output.add(chunk), onEnd: _onOutputEnd);
-  late RunOutput _output;
-
-  _Follower? _inboxFollow;
+  Follower? _inboxFollow;
   late final _inbox = RunInbox(onListen: _startInbox);
 
   Future<RunAppender>? _appender;
   Future<void> _writes = Future.value();
 
   @override
-  int get offset => _output.offset;
+  int get offset => _log.output.offset;
 
   @override
-  int get generation => _output.generation;
+  int get generation => _log.output.generation;
 
   @override
-  int? get exitCode => _output.exitCode;
+  int? get exitCode => _log.output.exitCode;
 
   @override
-  Stream<String> get lines => _output.lines;
+  Stream<String> get lines => _log.output.lines;
 
   @override
   Stream<InboxLine> get inbox => _inbox.stream;
@@ -69,27 +76,8 @@ final class DetachedChannel implements RunChannel {
   @override
   int get inboxOffset => _inbox.offset;
 
-  /// Header: `<generation> <start offset> <exit code or -> <out.jsonl size> <preamble bytes>`.
-  void _onOutputHeader(String header) {
-    final fields = header.split(' ');
-    if (fields.length != 5) throw HostLinkException('bad attach header "$header" from $dir');
-    final code = int.tryParse(fields[2]);
-    _output = RunOutput(
-      generation: int.parse(fields[0]),
-      offset: int.parse(fields[1]),
-      preamble: int.parse(fields[4]),
-      endedWith: code == null ? null : (code: code, size: int.parse(fields[3])),
-      onEnd: () => unawaited(_follow.stop()),
-    );
-  }
-
-  void _onOutputEnd(Object? error) {
-    if (_closed) return;
-    _output.transportEnded(HostLinkException('following $dir/out.jsonl ended: ${_follow.stderr}', cause: error));
-  }
-
   Future<void> _startInbox() async {
-    final follow = _inboxFollow = _Follower(
+    final follow = _inboxFollow = Follower(
       onHeader: (header) => _inbox.start(int.parse(header)),
       onData: _inbox.add,
       onEnd: (error) {
@@ -99,7 +87,7 @@ final class DetachedChannel implements RunChannel {
       },
     );
     try {
-      await follow.start(_link, _inboxScript(dir, _inboxFrom));
+      await follow.start(startPosixScript(_link, _inboxScript(dir, _inboxFrom)));
     } on Object catch (error) {
       if (!_closed) _inbox.fail(error);
     }
@@ -155,140 +143,10 @@ final class DetachedChannel implements RunChannel {
     await _writes;
     final appender = _appender;
     if (appender != null) await (await appender).finish();
-    await Future.wait([_follow.stop(), if (_inboxFollow case final follow?) follow.stop()]);
-    _output.finish();
+    await Future.wait([_log.stop(), if (_inboxFollow case final follow?) follow.stop()]);
     _inbox.close();
   }
 }
-
-/// A script that prints one header line, then streams a file, and runs until its stdin closes.
-final class _Follower {
-  _Follower({required this.onHeader, required this.onData, required this.onEnd});
-
-  /// Runs before the first [onData]; throwing fails [start].
-  final void Function(String header) onHeader;
-  final void Function(Uint8List chunk) onData;
-
-  /// The stream ended by itself (not through [stop]), with the transport's error if any.
-  final void Function(Object? error) onEnd;
-  Future<HostProcess>? _exec;
-  StreamSubscription<Uint8List>? _out;
-  StreamSubscription<Uint8List>? _err;
-  final _errBytes = BytesBuilder();
-  final _headerBytes = BytesBuilder();
-  final _started = Completer<void>();
-  final _done = Completer<void>();
-  bool _stopping = false;
-
-  String get stderr => utf8.decode(_errBytes.toBytes(), allowMalformed: true).trim();
-
-  /// Completes once the header was handled.
-  Future<void> start(HostLink link, String script) async {
-    final process = await (_exec = startPosixScript(link, script));
-    _err = process.stderr.listen((chunk) {
-      if (_errBytes.length < 16384) _errBytes.add(chunk);
-    });
-    _out = process.stdout.listen(_data, onError: _error, onDone: _end);
-    return _started.future;
-  }
-
-  void _data(Uint8List chunk) {
-    if (_stopping) return;
-    var data = chunk;
-    if (!_started.isCompleted) {
-      final newline = data.indexOf(0x0A);
-      if (newline < 0) {
-        _headerBytes.add(data);
-        return;
-      }
-      _headerBytes.add(Uint8List.sublistView(data, 0, newline));
-      try {
-        onHeader(utf8.decode(_headerBytes.takeBytes()).trim());
-      } on Object catch (error, stack) {
-        _started.completeError(error, stack);
-        unawaited(stop());
-        return;
-      }
-      _started.complete();
-      data = Uint8List.sublistView(data, newline + 1);
-      if (data.isEmpty) return;
-    }
-    onData(data);
-  }
-
-  void _error(Object error) {
-    if (!_started.isCompleted) {
-      _started.completeError(HostLinkException('following a run file failed', cause: error));
-    } else if (!_stopping) {
-      onEnd(error);
-    }
-  }
-
-  void _end() {
-    if (!_done.isCompleted) _done.complete();
-    if (_stopping) return;
-    if (!_started.isCompleted) {
-      _started.completeError(HostLinkException('attach failed: ${stderr.isEmpty ? 'no output' : stderr}'));
-    } else {
-      onEnd(null);
-    }
-  }
-
-  /// Ends the script, also one whose exec was still opening: a channel can close right after it started following.
-  Future<void> stop() async {
-    if (_stopping) return;
-    _stopping = true;
-    final exec = _exec;
-    if (exec == null) return;
-    final HostProcess process;
-    try {
-      process = await exec;
-    } on Object {
-      // The exec failed; [start] reports it.
-      return;
-    }
-    await finishProcess(process, _done.future);
-    await Future.wait([?_out?.cancel(), ?_err?.cancel()]);
-    if (!_started.isCompleted) _started.completeError(HostLinkException('stopped before the header arrived'));
-  }
-}
-
-/// The exit file is read before the size, so a run that ended is never cut short: everything it wrote
-/// precedes its exit file. The bytes already written go out through a plain `tail` before `tail -F` follows: macOS's
-/// `tail -F` copies byte by byte (`getc`/`putchar`), about 15 MB/s, and took 1.4 s to replay a 10 MB log that a plain
-/// `tail` sends in 15 ms.
-String _outputScript(String dir, int? generation, int offset, ReplayTool replay, int window) =>
-    'd=${shQuote(dir)}; g0=${generation ?? -1}; o0=$offset; w=$window; x=${shQuote(replay.omp)}; '
-    'j=${shQuote(replay.script)}\n$posixTailPoll$_outputBody';
-
-/// Without a usable offset, a log over `$w` bytes is compacted by [replayScript] (`$j`, run by omp as Bun): its
-/// replay goes out as a preamble the header counts, and the log is followed from the offset the script names.
-const _outputBody = r'''
-g=$(sed -n 's/.*"generation":\([0-9][0-9]*\).*/\1/p' "$d/meta.json" 2>/dev/null)
-if [ -z "$g" ]; then echo "no run in $d" >&2; exit 3; fi
-e=-
-if [ -f "$d/exit" ]; then e=$(cat "$d/exit"); fi
-s=$(wc -c < "$d/out.jsonl" | tr -d ' '); s=${s:-0}
-o=0
-p=
-if [ "$g" = "$g0" ] && [ "$o0" -le "$s" ]; then
-  o=$o0
-elif [ "$s" -gt "$w" ]; then
-  r=$(BUN_BE_BUN=1 "$x" "$j" "$d/out.jsonl" "$s" "$w") || exit 4
-  o=$(printf '%s\n' "$r" | head -n 1)
-  p=$(printf '%s\n' "$r" | tail -n +2)
-fi
-b=0
-if [ -n "$p" ]; then b=$(printf '%s\n' "$p" | wc -c | tr -d ' '); fi
-printf '%s %s %s %s %s\n' "$g" "$o" "$e" "$s" "$b"
-if [ -n "$p" ]; then printf '%s\n' "$p"; fi
-if [ "$e" != - ] && [ "$o" -ge "$s" ]; then exit 0; fi
-if [ "$s" -gt "$o" ]; then tail -c +$((o + 1)) "$d/out.jsonl" | head -c $((s - o)); o=$s; fi
-tail $tailpoll -c +$((o + 1)) -F "$d/out.jsonl" &
-t=$!
-cat > /dev/null
-kill "$t" 2>/dev/null
-''';
 
 /// Header: the start offset: [from] when it is within the file, otherwise the file's current end.
 String _inboxScript(String dir, int? from) => 'd=${shQuote(dir)}; o0=${from ?? -1}\n$posixTailPoll$_inboxBody';

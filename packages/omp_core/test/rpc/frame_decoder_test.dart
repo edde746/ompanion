@@ -308,5 +308,37 @@ void main() {
       final decoder = RpcFrameDecoder.attached()..push('{"type":"turn_start"}');
       expect(() => decoder.push(chunkLines(_bigFrame(2 * _mib))[3]), _protocolError('starts at index 3'));
     });
+
+    test('restores the images a frame names by id, in a chunked frame too, and fails on one not defined', () async {
+      final decoder = RpcFrameDecoder.attached();
+      Map<String, Object?> image(Object ref) => {
+        'type': 'image',
+        'mimeType': 'image/webp',
+        if (ref is int) 'ompanionImage': ref else 'data': ref,
+      };
+      Map<String, Object?> frame(List<Object> images, {String text = 'read', bool refs = true}) => {
+        'type': 'tool_execution_end',
+        'result': {
+          'content': [
+            {'type': 'text', 'text': text},
+            for (final ref in images) image(ref),
+          ],
+        },
+        if (refs) 'ompanionImages': true,
+      };
+      expect(decoder.push('{"type":"ompanion_image","id":1,"data":"QUJD"}'), isNull);
+      expect(decoder.push('{"type":"ompanion_image","id":2,"data":"REVG"}'), isNull);
+      expect(decoder.push(jsonEncode(frame([1, 2, 1]))), frame(['QUJD', 'REVG', 'QUJD'], refs: false));
+
+      final big = 'x' * _mib;
+      final lines = chunkLines(frame([2], text: big), chunkId: 'rpc-5');
+      for (final line in lines.take(lines.length - 1)) {
+        expect(decoder.pushOffIsolate(line), isNull);
+      }
+      expect(await decoder.pushOffIsolate(lines.last), frame(['REVG'], text: big, refs: false));
+
+      expect(decoder.push('{"type":"ompanion_image","id":3,"data":"R0hJ","drop":1}'), isNull);
+      expect(() => decoder.push(jsonEncode(frame([1]))), _protocolError('image 1 is not defined'));
+    });
   });
 }

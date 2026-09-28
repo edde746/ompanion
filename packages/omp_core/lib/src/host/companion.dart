@@ -2,16 +2,17 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
+import '../channel/follow.dart';
 import '../channel/replay.dart';
 import '../transport/host_link.dart';
 import 'scripts.dart';
 
-/// Puts the companion extension at `~/.ompanion/companion/<ompVersion>/<sha256>.js` and [replayScript] next to it at
-/// `replay.<sha256>.js`, and returns their host-native paths: the companion's is the value for omp's `-e`. The
-/// directory sits outside omp's extension discovery roots, so the user's TUI never loads either. A file already there
-/// with the same content is left alone; a partial or corrupt one is replaced. Uploads go to a temporary name first,
-/// so a final path only ever holds a complete file.
-Future<({String companion, String replay})> uploadCompanion(
+/// Puts the companion extension at `~/.ompanion/companion/<ompVersion>/<sha256>.js`, and [replayScript] and
+/// [followScript] next to it at `replay.<sha256>.js` and `follow.<sha256>.js`, and returns their host-native paths: the
+/// companion's is the value for omp's `-e`. The directory sits outside omp's extension discovery roots, so the user's
+/// TUI never loads any of them. A file already there with the same content is left alone; a partial or corrupt one is
+/// replaced. Uploads go to a temporary name first, so a final path only ever holds a complete file.
+Future<({String companion, String replay, String follow})> uploadCompanion(
   HostLink link, {
   required String ompVersion,
   required List<int> bytes,
@@ -36,7 +37,11 @@ Future<({String companion, String replay})> uploadCompanion(
       return hostPath(path);
     }
 
-    return (companion: await put('', bytes), replay: await put('replay.', utf8.encode(replayScript)));
+    return (
+      companion: await put('', bytes),
+      replay: await put('replay.', utf8.encode(replayScript)),
+      follow: await put('follow.', utf8.encode(followScript)),
+    );
   } finally {
     await files.close();
   }

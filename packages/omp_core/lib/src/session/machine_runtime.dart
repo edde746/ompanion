@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import '../channel/attached_channel.dart';
 import '../channel/detached_run.dart' hide listRuns;
 import '../channel/detached_run.dart' as runs show listRuns;
-import '../channel/replay.dart';
+import '../channel/follow.dart';
 import '../channel/run_log.dart';
 import '../host/companion.dart';
 import '../host/host_image.dart';
@@ -116,11 +116,11 @@ abstract interface class LocalForward {
 typedef _Connection = ({
   HostLink link,
   HostProbe probe,
-  ({String companion, String replay})? uploaded,
+  ({String companion, String replay, String follow})? uploaded,
   String? problem,
 });
 
-typedef _Ready = ({HostLink link, HostProbe probe, String companion, ReplayTool replay});
+typedef _Ready = ({HostLink link, HostProbe probe, String companion, AttachTools tools});
 
 /// Everything the app does with one machine: the connection, the probe, the companion upload, the session list and
 /// the open sessions. Sessions share one link; after it drops, each reconnects through [connect].
@@ -371,7 +371,7 @@ final class MachineRuntime {
       link: connection.link,
       probe: probe,
       companion: uploaded.companion,
-      replay: (omp: probe.ompPath!, script: uploaded.replay),
+      tools: (omp: probe.ompPath!, replay: uploaded.replay, follow: uploaded.follow),
     );
   }
 
@@ -411,7 +411,7 @@ final class MachineRuntime {
     return connection;
   }
 
-  /// Probes [link] and uploads the companion and the replay script when the app can drive the omp found there.
+  /// Probes [link] and uploads the companion and the attach scripts when the app can drive the omp found there.
   Future<_Connection> _probe(HostLink link) async {
     final probe = await probeHost(link, searchSystemPaths: _searchSystemPaths);
     final problem = ompProblem(probe);
@@ -597,7 +597,7 @@ final class _DetachedAccess implements RunAccess {
         ready.link,
         ready.probe,
         _run,
-        replay: ready.replay,
+        tools: ready.tools,
         generation: generation,
         offset: offset,
         inboxOffset: inboxOffset,

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:omp_core/host.dart';
+import 'package:omp_core/src/channel/follow.dart' show followScript;
 import 'package:omp_core/src/channel/replay.dart' show replayScript;
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
@@ -22,7 +23,7 @@ void main() {
   });
 
   test(
-    'the companion and the replay script land at content-addressed paths, kept when intact, replaced when not',
+    'the companion and the attach scripts land at content-addressed paths, kept when intact, replaced when not',
     () async {
       final bytes = utf8.encode('export default function () {}\n');
       final paths = await uploadCompanion(link, ompVersion: '18.3.1', bytes: bytes);
@@ -32,6 +33,8 @@ void main() {
       expect(File(path).readAsBytesSync(), bytes);
       expect(paths.replay, '$dir/replay.${sha256.convert(utf8.encode(replayScript))}.js');
       expect(File(paths.replay).readAsStringSync(), replayScript);
+      expect(paths.follow, '$dir/follow.${sha256.convert(utf8.encode(followScript))}.js');
+      expect(File(paths.follow).readAsStringSync(), followScript);
 
       await Process.run('touch', ['-t', '202001010000', path]);
       expect((await uploadCompanion(link, ompVersion: '18.3.1', bytes: bytes)).companion, path);
@@ -40,7 +43,7 @@ void main() {
       File(path).writeAsBytesSync(List.filled(bytes.length, 0x20));
       expect((await uploadCompanion(link, ompVersion: '18.3.1', bytes: bytes)).companion, path);
       expect(File(path).readAsBytesSync(), bytes, reason: 'a corrupt copy of the same size is replaced');
-      expect(Directory(dir).listSync(), hasLength(2), reason: 'no temporary file is left behind');
+      expect(Directory(dir).listSync(), hasLength(3), reason: 'no temporary file is left behind');
     },
   );
 }

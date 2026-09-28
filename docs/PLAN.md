@@ -115,8 +115,8 @@ Layers, each owning one thing:
   directory, tails `out.jsonl` and `in.jsonl` from stored offsets, and appends commands.
   `AttachedChannel` owns the process's stdio directly.
 - `RpcClient` — skips bytes before `ready` (shell noise), negotiates v2, validates and reassembles chunks
-  (64 MiB cap), correlates responses by device-namespaced ids, exposes typed frames. Pure Dart, tested
-  against recorded frames.
+  (64 MiB cap), puts back the images a POSIX attach stream sends once, correlates responses by device-namespaced
+  ids, exposes typed frames. Pure Dart, tested against recorded frames.
 - `CompanionClient` — `ompx` requests and replies over the same channel (§6).
 - `SessionStore` — `(view, frame) → view`. Rebuilt from `get_state`, `get_messages_page` and
   `get_entries(since)` on attach; events apply on top. Offset replay is an optimisation, never required
@@ -184,8 +184,16 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   `get_state.sessionFile` and records it in `meta.json` before `open` returns; every later switch inside
   the run (`new_session`, `switch_session`, `branch`, fork, `/clear`, tree navigation) is recorded the same
   way. A device opening that file attaches to the run instead of launching a second omp.
-- Attach: `tail -F` from saved offsets on both files; what `out.jsonl` already holds goes out through a plain
-  `tail` first (BSD `tail -F` copies byte by byte). A device's first attach to a generation over 8 MiB
+- Attach: `in.jsonl` through `tail -F` from its saved offset; `out.jsonl` through the follow script (`followScript`,
+  uploaded next to the companion and run by omp as Bun, the same script on Windows hosts), which sends what the log
+  holds with a plain read, then follows it with `tail -F` (BSD `tail -F` copies byte by byte; on macOS it delivers an
+  append in 0.6 ms, Bun's `fs.watch` in 18 ms), and sends each image once. omp writes one image into up to five
+  frames (`tool_execution_end`, `message_start`, `message_end`, `turn_end`, `agent_end`). A frame holding image blocks
+  of 1 KiB or more is rewritten: each image not sent yet goes first as an `ompanion_image` line, and the frame names it
+  by id; an `ompanion_span` line ahead of the rewritten lines gives the frame's size in `out.jsonl`, so offsets stay
+  file offsets. The stream keeps the last 64 images (`imageRefWindow`) and names each one it drops; `RpcFrameDecoder`
+  puts the data back. A fresh attach to a turn with a pasted screenshot and a `read` of a 3840×2160 PNG sent 469,094
+  bytes for a 1,551,960-byte log. A device's first attach to a generation over 8 MiB
   (`attachWindow`) gets a compacted replay, then follows the log from the end of its last complete line. From before
   the last 8 MiB it holds only what RPC cannot list again: `extension_ui_request` (dialogs, statuses, widgets),
   `command_output`, and the start of each tool call still running; a timed dialog whose tool calls all ended is left
@@ -263,10 +271,13 @@ end against Win32-OpenSSH on `windows-latest` (`packages/omp_core/test/windows/`
 - Scripts run as `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand
   <base64 UTF-16LE>`, which works under a cmd, PowerShell or bash default shell. cmd caps a line at
   8191 characters, so larger scripts are uploaded over SFTP and run with `-File`.
-- Attach: SFTP stat and offset reads on `out.jsonl` and `in.jsonl`; a log that shrank was rotated, and the channel
-  reads the new generation from byte 0 once its marker line is complete. A first attach to a log over 8 MiB runs the
-  replay script through PowerShell into a file in the run directory, as PowerShell 5.1 re-encodes a native
-  program's output, and reads that over SFTP.
+- Attach: `out.jsonl` through the same follow script as on POSIX hosts, streamed over an exec channel, with each image
+  sent once. Windows has no `tail`, so the script checks the log's size through its open handle every 50 ms and on
+  each `fs.watch` event. A log that shrank was rotated and is read again from byte 0. The launch keeps PowerShell away
+  from the bytes: under cmd it is `set BUN_BE_BUN=1&& <omp.exe> <follow.js> …`, which passes omp's standard handles on;
+  under a PowerShell default shell omp starts through `[Diagnostics.Process]::Start` with the handles inherited, since
+  PowerShell 5.1 re-encodes a native program's output. The script runs the replay itself. sshd kills the job when
+  the channel closes. `in.jsonl` is read over SFTP with stat and offset reads.
 - Rotation and `meta.json` updates: PowerShell scripts under the append lock (below); the session record also holds
   the launch lock first, over SFTP. The rotation reads the size through an open handle, as NTFS directory entries lag
   for a file another process writes. A run launched before `pump.js` (no `pump.cmd`) is never rotated.
@@ -428,7 +439,7 @@ a real tailnet is still open (§12).
 | R1 | The companion depends on omp internals, including TypeScript-private fields and rebuilt goal and loop logic; every omp release can break it, and goal and loop behaviour can drift from the TUI. | CI against 18.3.1; feature checks with fallbacks; a separate build for a release that breaks the current one (§6); the rebuilds track `interactive-mode.ts` line by line per supported version |
 | R2 | Detached sessions are shell plumbing; `tail` behaviour and log growth vary by host. | measured in M0 (`research/m0-detached-sessions.md`); rotation and offset replay are implemented (`packages/omp_core/lib/src/channel/detached_run.dart`) |
 | R3 | The Windows detached form rests on WMI breakaway and a byte pump. | CI's `windows-host` job runs it end to end, PowerShell default shell included (`packages/omp_core/test/windows/`) |
-| R4 | `message_update` carries the whole accumulated message each time (O(n²) bytes per reply) and dartssh2 has no compression. | coalesce rendering; `set_event_filter` where it helps; truncate `out.jsonl` when settled |
+| R4 | `message_update` carries the whole accumulated message each time (O(n²) bytes per reply), omp repeats each image in up to five frames, and dartssh2 has no compression. | coalesce rendering; `set_event_filter` where it helps; truncate `out.jsonl` when settled; the follow script sends each image once |
 | R5 | dartssh2 fixed channel-stall and flow-control bugs as late as 2026-09-03. | exact pin `dartssh2: 4.1.0` (`packages/omp_core/pubspec.yaml`); the integration suite runs the transport against real sshd hosts |
 | R6 | Two writers on one session file: the app resumes a session a TUI still holds. omp only has per-write locks. | probe for a write descriptor or a live terminal breadcrumb and read such a session instead of launching into it (D21); POSIX only, so a Windows host can still get a second writer |
 | R7 | Concurrent devices race: two prompts land in either order; a dialog is answered twice. | ordered by `in.jsonl`; every device sees every command; unknown dialog ids are ignored by omp |

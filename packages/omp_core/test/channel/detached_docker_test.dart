@@ -20,6 +20,7 @@ void main() {
   late SshLink link;
   late HostProbe probe;
   late String arch;
+  late AttachTools tools;
 
   Future<SshLink> connect() => SshLink.open(SshTarget(target: targetHop()), verifyHostKey: trustTestHosts);
 
@@ -31,6 +32,12 @@ void main() {
     expect(setup.exit.code, 0, reason: setup.stderr);
     probe = await probeHost(link);
     arch = await dockerArch();
+    final uploaded = await uploadCompanion(
+      link,
+      ompVersion: probe.ompVersion!,
+      bytes: utf8.encode('export default {}\n'),
+    );
+    tools = (omp: probe.ompPath!, replay: uploaded.replay, follow: uploaded.follow);
   });
 
   tearDownAll(() async {
@@ -71,7 +78,7 @@ void main() {
     await runPosixScript(link, 'mkdir -p "\$HOME/work"');
     final launcher = await connect();
     final run = (await openRun(launcher, probe, spec(session: session))).run;
-    final first = await attachRun(launcher, probe, run, replay: noReplay);
+    final first = await attachRun(launcher, probe, run, tools: tools);
     final frames = Frames(first.lines);
     await frames.next((f) => f['type'] == 'ready');
     await first.send(getState('a:1'));
@@ -88,7 +95,7 @@ void main() {
       link,
       probe,
       runs.single,
-      replay: noReplay,
+      tools: tools,
       generation: resume.generation,
       offset: resume.offset,
     );
@@ -110,8 +117,8 @@ void main() {
     final run = (await openRun(link, probe, spec())).run;
     final other = await connect();
     addTearDown(other.close);
-    final a = await attachRun(link, probe, run, replay: noReplay);
-    final b = await attachRun(other, probe, run, replay: noReplay, inboxOffset: 0);
+    final a = await attachRun(link, probe, run, tools: tools);
+    final b = await attachRun(other, probe, run, tools: tools, inboxOffset: 0);
     final aFrames = Frames(a.lines);
     final bFrames = Frames(b.lines);
     final bInbox = <InboxLine>[];
@@ -148,7 +155,7 @@ void main() {
 
   test('graceful stop exits 0, force stop exits 143, and dead runs are removed', () async {
     final graceful = (await openRun(link, probe, spec())).run;
-    final channel = await attachRun(link, probe, graceful, replay: noReplay);
+    final channel = await attachRun(link, probe, graceful, tools: tools);
     final frames = Frames(channel.lines);
     await frames.next((f) => f['type'] == 'ready');
     expect(await stopRun(link, probe, graceful), 0);

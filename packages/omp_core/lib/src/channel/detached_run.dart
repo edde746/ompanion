@@ -6,6 +6,7 @@ import '../host/scripts.dart';
 import '../rpc/json_fields.dart';
 import '../transport/host_link.dart';
 import 'detached_channel.dart';
+import 'follow.dart';
 import 'replay.dart';
 import 'run_log.dart';
 import 'windows_run.dart';
@@ -181,30 +182,23 @@ Future<List<DetachedRun>> listRuns(HostLink link, HostProbe probe) =>
 
 /// Attaches to [run]. `out.jsonl` is read from [offset] when [generation] is still the run's generation. Otherwise
 /// the current generation is read from its start, or, over [attachWindow] bytes, compacted on the machine by
-/// [replayScript] through [replay] and followed from the offset it names. `in.jsonl` is read from [inboxOffset], or
+/// [replayScript] and followed from the offset it names. POSIX hosts stream the log through [followScript], which sends
+/// each image once. [tools] names both scripts and the omp that runs them. `in.jsonl` is read from [inboxOffset], or
 /// from its current end when null.
 Future<RunChannel> attachRun(
   HostLink link,
   HostProbe probe,
   DetachedRun run, {
-  required ReplayTool replay,
+  required AttachTools tools,
   int? generation,
   int offset = 0,
   int? inboxOffset,
 }) => probe.isWindows
-    ? attachWindowsRun(
-        link,
-        probe,
-        run,
-        replay: replay,
-        generation: generation,
-        offset: offset,
-        inboxOffset: inboxOffset,
-      )
+    ? attachWindowsRun(link, probe, run, tools: tools, generation: generation, offset: offset, inboxOffset: inboxOffset)
     : DetachedChannel.attach(
         link,
         run.dir,
-        replay: replay,
+        tools: tools,
         generation: generation,
         offset: offset,
         inboxOffset: inboxOffset,
