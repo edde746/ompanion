@@ -106,7 +106,6 @@ void main() {
   });
 
   test('a first attach to a long log builds on its compacted replay and follows the log from its end', () async {
-    access = FakeAccess(run, rotateAt: 64);
     run.replay = [
       uiRequest('ask-1', 'select', {
         'title': 'Pick',
@@ -124,10 +123,9 @@ void main() {
     expect([for (final request in live.view.requests) request.id], ['ask-1']);
     expect(live.view.widgets.keys, ['progress']);
     expect(live.view.statuses, {'lint': 'clean'});
-    // The replay is no part of the log: the offset this device read is the log's end, so a settle there rotates it.
-    run.emit(agentEnd(const []));
-    run.emit({'type': 'session_settled'});
-    await until(() => access.rotations == 1);
+    // The replay is no part of the log: the log goes on from its end.
+    run.emit(uiRequest('s-2', 'setStatus', {'statusKey': 'lint', 'statusText': 'dirty'}));
+    await until(() => live.view.statuses['lint'] == 'dirty');
     await live.detach();
   });
 
@@ -499,60 +497,6 @@ void main() {
     await until(() => live.linkState is LinkLive && texts(live.view).length == 3);
     expect(access.attaches.last.generation, 2, reason: 'asked for the generation it had');
     expect(texts(live.view), ['user: one', 'assistant: two', 'user: missed']);
-    await live.detach();
-  });
-
-  test('a settled run whose log passed the threshold is rotated once its own queries are answered', () async {
-    access = FakeAccess(run, rotateAt: 64);
-    final live = session(recordedPath: run.sessionFile);
-    await live.start();
-    // agent_end asks for get_state and the settle for the entries; omp answers both after the settle.
-    run.emit(agentEnd(const []));
-    run.emit({'type': 'session_settled'});
-    await until(() => access.rotations == 1);
-    run.emit(messageEnd(user('after', 9), 'm9'));
-    await until(() => live.view.transcript.isNotEmpty);
-    expect(access.attaches, hasLength(1), reason: 'this channel follows its own rotation');
-    await live.detach();
-  });
-
-  test('a settle read after omp wrote more leaves the log alone', () async {
-    access = FakeAccess(run, rotateAt: 64);
-    final live = session(recordedPath: run.sessionFile);
-    await live.start();
-    // Another device's prompt lands before this device reads the settle.
-    run.emit({'type': 'session_settled'});
-    run.emit(messageEnd(user('next', 9), 'm9'));
-    await until(() => live.view.transcript.isNotEmpty);
-    await pumpEventQueue();
-    expect(run.generation, 1);
-    expect(access.rotations, 0);
-    await live.detach();
-  });
-
-  test('a settle that a goal continuation or a loop iteration follows leaves the log alone', () async {
-    access = FakeAccess(run, rotateAt: 64);
-    run.goal = goal('active', tokenBudget: 50000);
-    final live = session(recordedPath: run.sessionFile);
-    await live.start();
-    // The companion starts the goal's next turn 800 ms after this settle, with no input the rotation's lock holds back.
-    run.emit({'type': 'session_settled'});
-    await pumpEventQueue();
-    expect(access.rotations, 0);
-
-    run.emit({'type': 'goal_updated', 'goal': goal('paused', tokenBudget: 50000)});
-    run.emit({'type': 'session_settled'});
-    await until(() => access.rotations == 1);
-
-    run.emit(ompxEvent('loop.changed', {'loop': loop()}));
-    run.emit({'type': 'session_settled'});
-    await pumpEventQueue();
-    expect(run.outSize, greaterThanOrEqualTo(64));
-    expect(access.rotations, 1, reason: 'the loop runs its next iteration');
-
-    run.emit(ompxEvent('loop.changed', {'loop': loop(paused: true)}));
-    run.emit({'type': 'session_settled'});
-    await until(() => access.rotations == 2);
     await live.detach();
   });
 

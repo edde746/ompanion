@@ -7,9 +7,10 @@ import '../transport/host_link.dart';
 import 'run_log.dart';
 import 'windows_run.dart';
 
-/// What an attach runs on the machine: the omp binary [omp] as Bun (`BUN_BE_BUN=1`), which every omp release is,
-/// running [follow] ([followScript]), which runs [replay] (`replayScript`).
-typedef AttachTools = ({String omp, String replay, String follow});
+/// The scripts on the machine, run by the omp binary [omp] as Bun (`BUN_BE_BUN=1`), which every omp release is: [log]
+/// (`logScript`), the pump a launch puts between omp and `out.jsonl` and the replay of a first attach, and [follow]
+/// ([followScript]), which streams `out.jsonl` to an attach and runs [log]'s replay.
+typedef AttachTools = ({String omp, String log, String follow});
 
 /// How many images an attach stream keeps defined at once ([followScript]'s image window).
 const imageRefWindow = 64;
@@ -20,15 +21,18 @@ const imageRefWindow = 64;
 enum FollowSource { tail, poll }
 
 /// Streams a run's `out.jsonl` to one attach, with each image sent once. Arguments: the run directory, the generation
-/// and offset to resume from (`-1` and `0` without one), the window `w` (`attachWindow`), the path of `replayScript`,
+/// and offset to resume from (`-1` and `0` without one), the window `w` (`attachWindow`), the path of `logScript`,
 /// the image window ([imageRefWindow]), the [FollowSource] and, for `tail`, its flags (`$tailpoll`).
 ///
 /// Output: the header `<generation> <start offset> <exit code or -> <out.jsonl size> <preamble bytes>`, the preamble
 /// (the replay of a log over `w` bytes, when no offset applies), then the log from the start offset: what it holds is
-/// read directly, then the source follows it (BSD `tail -F` copies byte by byte). A log that shrank was rotated and is
-/// read again from its start, as `tail -F` does. The size comes from the open file: NTFS directory entries lag for a
-/// file another process writes. The exit file is read before the size, so a run that ended is never cut short. It ends
-/// when its stdin closes, or, for a run that had ended with nothing left to send, after the header.
+/// read directly, then the source follows it (BSD `tail -F` copies byte by byte). The generation is the one the log's
+/// first line names (`ompanion_rotate`), else 1; it is read before and after the size, so a rotation in between is
+/// seen and the reading starts over. A log the pump rotated is read again from its start, as `tail -F` does; polling
+/// sees the rotation by the log shrinking or its first line naming another generation, so a follower that was slow
+/// to look does not read the new log from the old offset. The size comes from the open file: NTFS directory entries
+/// lag for a file another process writes. The exit file is read before the size, so a run that ended is never cut
+/// short. It ends when its stdin closes, or, for a run that had ended with nothing left to send, after the header.
 ///
 /// A frame (a line, or a whole `rpc_chunk` sequence) holding image blocks (`"type":"image"` with a `data` string of
 /// 1 KiB or more) is rewritten: each image not defined yet is sent first as an `ompanion_image` line (`id`, `data`,
@@ -41,13 +45,13 @@ enum FollowSource { tail, poll }
 const followScript = r'''
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { closeSync, fstatSync, openSync, readFileSync, readSync, statSync, watch } from "node:fs";
+import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync, statSync, watch } from "node:fs";
 
-const [dir, generationText, offsetText, windowText, replay, imageWindowText, source, ...tailFlags] = process.argv.slice(2);
+const [dir, generationText, offsetText, windowText, script, imageWindowText, source, ...tailFlags] = process.argv.slice(2);
 const imageWindow = Number(imageWindowText);
-if (!dir || !replay || ![generationText, offsetText, windowText].every((n) => Number.isSafeInteger(Number(n))) ||
+if (!dir || !script || ![generationText, offsetText, windowText].every((n) => Number.isSafeInteger(Number(n))) ||
     !Number.isSafeInteger(imageWindow) || imageWindow < 1 || (source !== "tail" && source !== "poll")) {
-  throw new Error(`usage: follow.js <dir> <generation> <offset> <window> <replay.js> <image window> tail|poll [tail flags]; got ${process.argv.slice(2).join(" ")}`);
+  throw new Error(`usage: follow.js <dir> <generation> <offset> <window> <log.js> <image window> tail|poll [tail flags]; got ${process.argv.slice(2).join(" ")}`);
 }
 const log = `${dir}/out.jsonl`;
 const maxLine = 1024 * 1024;
@@ -232,13 +236,43 @@ function chunks(bytes, chunkId) {
   return lines;
 }
 
-async function main() {
-  let meta = "";
+// The generation the log's first line names: the rotation marker's, else 1. Null while the log is empty or its marker
+// is being written.
+const head = Buffer.allocUnsafe(200);
+const rotation = /^\{"type":"ompanion_rotate","generation":([0-9]+),/;
+const rotationPrefix = '{"type":"ompanion_rotate",';
+function generationIn(fd) {
+  const text = head.toString("latin1", 0, readSync(fd, head, 0, head.length, 0));
+  const marker = rotation.exec(text);
+  if (marker) return marker[1];
+  if (text.length < rotationPrefix.length ? rotationPrefix.startsWith(text) : text.startsWith(rotationPrefix)) return null;
+  return "1";
+}
+
+function currentGeneration() {
+  let fd;
   try {
-    meta = readFileSync(`${dir}/meta.json`, "utf8");
-  } catch {}
-  const generation = /.*"generation":([0-9]+)/.exec(meta)?.[1];
-  if (generation === undefined) {
+    fd = openSync(log, "r");
+  } catch {
+    return null;
+  }
+  try {
+    return generationIn(fd);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function logSize() {
+  try {
+    return statSync(log).size;
+  } catch {
+    return 0;
+  }
+}
+
+async function main() {
+  if (!existsSync(`${dir}/meta.json`)) {
     process.stderr.write(`no run in ${dir}\n`);
     stop(3);
     return;
@@ -247,27 +281,45 @@ async function main() {
   try {
     exit = readFileSync(`${dir}/exit`, "utf8").trim();
   } catch {}
-  let end = 0;
-  try {
-    end = statSync(log).size;
-  } catch {}
+  // An empty log is a new run's, or one the pump rotated: it leaves the log empty for 250 ms before the marker.
+  for (let waited = 0; exit === "-" && waited < 300 && logSize() === 0; waited += 25) Bun.sleepSync(25);
 
-  let offset = 0;
-  let preamble = [];
-  if (generation === generationText && Number(offsetText) <= end) {
-    offset = Number(offsetText);
-  } else if (end > Number(windowText)) {
-    const replayed = spawnSync(process.execPath, [replay, log, String(end), windowText], { maxBuffer: 1 << 30 });
-    if (replayed.status !== 0) {
-      process.stderr.write(replayed.stderr ?? `replay failed: ${replayed.error}\n`);
-      stop(4);
+  // The generation is read before and after the size, and after the replay, which reads the log again: a rotation in
+  // between starts the reading over. The replay is transformed only then, as that counts its images as sent.
+  let generation;
+  let end;
+  let offset;
+  let replayed = null;
+  for (let tries = 0; ; tries++) {
+    if (tries === 50) {
+      process.stderr.write(`${log} keeps rotating\n`);
+      stop(5);
       return;
     }
-    const first = replayed.stdout.indexOf(10);
-    offset = Number(replayed.stdout.toString("latin1", 0, first));
-    preamble = transform(replayed.stdout.subarray(first + 1), false);
-    flush(preamble);
+    const named = currentGeneration();
+    end = logSize();
+    if (currentGeneration() !== named || (named === null && end > 0)) continue;
+    generation = named ?? "1";
+    offset = 0;
+    replayed = null;
+    if (generation === generationText && Number(offsetText) <= end) {
+      offset = Number(offsetText);
+    } else if (end > Number(windowText)) {
+      const result = spawnSync(process.execPath, [script, "replay", log, String(end), windowText], { maxBuffer: 1 << 30 });
+      if (result.status !== 0) {
+        process.stderr.write(result.stderr ?? `replay failed: ${result.error}\n`);
+        stop(4);
+        return;
+      }
+      if (currentGeneration() !== generation) continue;
+      const first = result.stdout.indexOf(10);
+      offset = Number(result.stdout.toString("latin1", 0, first));
+      replayed = result.stdout.subarray(first + 1);
+    }
+    break;
   }
+  const preamble = replayed === null ? [] : transform(replayed, false);
+  flush(preamble);
   await write([Buffer.from(`${generation} ${offset} ${exit} ${end} ${size(preamble)}\n`), ...preamble]);
   if (exit !== "-" && offset >= end) {
     stop(0);
@@ -275,7 +327,7 @@ async function main() {
   }
 
   if (source === "poll") {
-    await poll(offset);
+    await poll(offset, generation);
     return;
   }
   const fd = openSync(log, "r");
@@ -297,7 +349,7 @@ async function main() {
   for await (const data of tail.stdout) await write(transform(data, true));
 }
 
-async function poll(from) {
+async function poll(from, generation) {
   const fd = openSync(log, "r");
   const block = Buffer.allocUnsafe(1 << 20);
   let wake;
@@ -306,9 +358,17 @@ async function poll(from) {
   } catch (error) {
     process.stderr.write(`not watching ${log}, polling only: ${error}\n`);
   }
+  // A null generation is one the log did not name yet when it was found rotated: the next one it names is taken on.
   for (let position = from; ; ) {
     const size = fstatSync(fd).size;
-    if (size < position) position = 0;
+    const named = generationIn(fd);
+    if (size < position) {
+      position = 0;
+      generation = named;
+    } else if (named !== null && named !== generation) {
+      if (generation !== null) position = 0;
+      generation = named;
+    }
     if (size > position) {
       const n = readSync(fd, block, 0, Math.min(block.length, size - position), position);
       await write(transform(Buffer.from(block.subarray(0, n)), true));
@@ -356,7 +416,7 @@ final class LogFollower {
       '${generation ?? -1}',
       '$offset',
       '$window',
-      tools.replay,
+      tools.log,
       '$imageRefWindow',
       source.name,
     ];

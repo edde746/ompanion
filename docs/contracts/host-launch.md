@@ -66,8 +66,9 @@ Homebrew and every directory `~/.zshrc` prepends.
 
 - **Detached POSIX run** (`run.sh`): the login PATH travels as `$1` of the inner `sh -c` that records
   `omp.pid` and `exec`s omp, which prepends it to omp's own PATH. Only omp is affected: the pipeline's
-  `tail`, `ps`, `mkdir` and `kill` keep the PATH sshd gave the wrapper, so a user PATH that shadows a system
-  tool cannot break liveness or the exit record.
+  `tail`, `ps`, `mkdir` and `kill`, and the pump that writes omp's output to `out.jsonl` (the omp binary as Bun, with
+  `BUN_BE_BUN=1` in front of it alone), keep the PATH sshd gave the wrapper, so a user PATH that shadows a system
+  tool cannot break liveness, the log or the exit record.
 - **Attached POSIX run** (the control process): the statement from `HostProbe.loginPathExport` before omp's
   command line.
 - **One-shot `omp` CLI calls** (`runOmp`): the same statement.

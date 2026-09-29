@@ -166,19 +166,19 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 | File | Purpose |
 |---|---|
 | `in.jsonl` | every command from every device, one JSON line each |
-| `out.jsonl` | omp's stdout, plus the app's markers: `ompanion_exit` after omp exits, `ompanion_rotate` first in a rotated generation |
-| `err.log` | omp's stderr |
-| `meta.json` | session file, cwd, omp, companion, launch args, `out.jsonl` generation |
-| `run.sh`, `omp.pid`, `tail.pid`, `exit` | the pipeline, liveness, exit code |
+| `out.jsonl` | omp's stdout through the pump, plus the app's markers: `ompanion_rotate` first in a rotated generation, `ompanion_mark` every MiB, `ompanion_exit` after omp exits |
+| `err.log` | omp's and the pump's stderr |
+| `meta.json` | session file, cwd, omp, companion, launch args |
+| `run.sh`, `omp.pid`, `tail.pid`, `code`, `exit` | the pipeline, liveness, omp's exit code as the pipeline saw it, the run's exit code |
 | `overlay.yml` | the `--config` overlay; its path in omp's command line identifies the process |
-| `in.lock/` | `mkdir` lock held for one append, a rotation or a `meta.json` update |
+| `in.lock/` | `mkdir` lock held for one append |
 
 - Launch (`openRun`, under `~/.ompanion/run/.launch.lock`): a running run whose `meta.json` names the
   session is reused. Otherwise `run.sh` starts in a new session (`setsid`, Perl's on macOS):
-  `tail -f in.jsonl | omp --mode rpc-ui --config overlay.yml --cwd <cwd> -e <companion> [--session <file>]
-  [--model …] [--thinking …] >> out.jsonl 2>> err.log`, then records omp's exit code. omp runs with the
-  login shell's PATH in front of its own, and the pipeline's `tail`/`ps` keeps sshd's
-  (`contracts/host-launch.md`).
+  `tail -f in.jsonl | { omp --mode rpc-ui --config overlay.yml --cwd <cwd> -e <companion> [--session <file>]
+  [--model …] [--thinking …] 2>> err.log; echo $? > code; } | BUN_BE_BUN=1 omp log.js pump <run dir> …`, then records
+  omp's exit code. omp runs with the login shell's PATH in front of its own, and the pipeline's `tail`/`ps` keeps
+  sshd's (`contracts/host-launch.md`). The pump is the only writer of `out.jsonl` while omp runs (Pump, below).
 - Session file: a new session starts without `--session`, so omp names its file
   (`sessions/<cwd>/<time>_<id>.jsonl`) and writes it with the first message. The first attach reads
   `get_state.sessionFile` and records it in `meta.json` before `open` returns; every later switch inside
@@ -187,24 +187,26 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 - Attach: `in.jsonl` through `tail -F` from its saved offset; `out.jsonl` through the follow script (`followScript`,
   uploaded next to the companion and run by omp as Bun, the same script on Windows hosts), which sends what the log
   holds with a plain read, then follows it with `tail -F` (BSD `tail -F` copies byte by byte; on macOS it delivers an
-  append in 0.6 ms, Bun's `fs.watch` in 18 ms), and sends each image once. omp writes one image into up to five
-  frames (`tool_execution_end`, `message_start`, `message_end`, `turn_end`, `agent_end`). A frame holding image blocks
-  of 1 KiB or more is rewritten: each image not sent yet goes first as an `ompanion_image` line, and the frame names it
-  by id; an `ompanion_span` line ahead of the rewritten lines gives the frame's size in `out.jsonl`, so offsets stay
-  file offsets. The stream keeps the last 64 images (`imageRefWindow`) and names each one it drops; `RpcFrameDecoder`
-  puts the data back. A fresh attach to a turn with a pasted screenshot and a `read` of a 3840×2160 PNG sent 469,094
-  bytes for a 1,551,960-byte log. A device's first attach to a generation over 8 MiB
+  append in 0.6 ms, Bun's `fs.watch` in 18 ms), and sends each image once. The generation is the one the log's first
+  line names (`ompanion_rotate`), else 1, read before and after the size and the replay so a rotation in between is
+  seen; an empty log is waited on for up to 300 ms, as the pump leaves a rotated one empty for 250 ms. omp writes
+  one image into up to five frames (`tool_execution_end`, `message_start`, `message_end`, `turn_end`, `agent_end`). A
+  frame holding image blocks of 1 KiB or more is rewritten: each image not sent yet goes first as an `ompanion_image`
+  line, and the frame names it by id; an `ompanion_span` line ahead of the rewritten lines gives the frame's size in
+  `out.jsonl`, so offsets stay file offsets. The stream keeps the last 64 images (`imageRefWindow`) and names each one
+  it drops; `RpcFrameDecoder` puts the data back. A fresh attach to a turn with a pasted screenshot and a `read` of a
+  3840×2160 PNG sent 469,094 bytes for a 1,551,960-byte log. A device's first attach to a generation over 8 MiB
   (`attachWindow`) gets a compacted replay, then follows the log from the end of its last complete line. From before
-  the last 8 MiB it holds only what RPC cannot list again: `extension_ui_request` (dialogs, statuses, widgets),
-  `command_output`, and the start of each tool call still running; a timed dialog whose tool calls all ended is left
-  out. From the last 8 MiB it drops each `message_update`, `tool_execution_update` and `subagent_progress` that a later
-  frame of the same message, tool call or subagent supersedes. One JavaScript script compacts on every host
-  (`replayScript`): the app uploads it next to the companion and runs it with the probe's omp binary as Bun
-  (`BUN_BE_BUN=1`, 74 ms to start). A live 1.6 GB generation compacts to 58 lines, 647 KB, with the header on the
-  device 0.4–0.7 s after the attach starts on macOS; a 1 GB log on a Windows host in 0.9 s, PowerShell included.
-  Replayed whole, the 1.6 GB took 62 s and 3.1 GB of app memory. `in.jsonl` is read from 0
-  (open dialogs and the answers that closed them). The device then seeds the view
-  from `get_state`, the session history, `get_available_commands`, `get_subagents` and the companion's `hello`,
+  the last 8 MiB it holds only what RPC cannot list again: `extension_ui_request` (dialogs, statuses, widgets; the
+  latest status, widget and title of each key), `command_output`, and the start of each tool call still running; a
+  timed dialog whose tool calls all ended is left out. From the last 8 MiB it drops each `message_update`,
+  `tool_execution_update` and `subagent_progress` that a later frame of the same message, tool call or subagent
+  supersedes. One JavaScript script (`logScript`) replays and pumps on every host: the app uploads it next to the
+  companion as `log.<sha256>.js` and runs it with the probe's omp binary as Bun (`BUN_BE_BUN=1`, 74 ms to start). A
+  live 1.6 GB generation compacted to 58 lines, 647 KB, with the header on the device 0.4–0.7 s after the attach starts
+  on macOS; a 1 GB log on a Windows host in 0.9 s, PowerShell included. Replayed whole, the 1.6 GB took 62 s and 3.1 GB
+  of app memory. `in.jsonl` is read from 0 (open dialogs and the answers that closed them). The device then seeds the
+  view from `get_state`, the session history, `get_available_commands`, `get_subagents` and the companion's `hello`,
   `state.snapshot` and `agents.list`. The history is the session file `meta.json` names, read while omp
   starts, plus `get_entries(since)` its last entry (a file over 16 MB: its last 2 MB, earlier 2 MB pages as the reader
   scrolls up); plain `get_entries` when there is no file or omp does not
@@ -223,14 +225,22 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   mode, an active goal, a running subagent, an open dialog, a call in flight), the companion sends `run.idleExit` and
   stops omp as Stop does (`contracts/ompx.md`). The chat says why the session ended, and a send opens the session file
   in a new run: a cold open instead of an attach. A session that ended before its first message opens as a new one.
-- Rotation: every `message_update` carries the whole message, so one 1.5 KB streamed answer wrote 270 KB.
-  When a run settles and `out.jsonl` holds 8 MiB, the device that read past that mark truncates it under
-  the append lock at the offset it has read, once its own requests are answered: the `get_state` its `agent_end` asked for
-  and the entries catch-up are answered after the settle, and a log checked against the settle's offset was never
-  rotated (a live run's generation reached 1.6 GB). Anything else omp writes after the settle, a command other than a
-  `get_*` query from any device, or an active goal or running loop about to start the next turn on its own (omp's
-  writes do not take `in.lock`) leaves the log for the next settle. Devices that had read everything follow, the
-  others rebuild from RPC. A restarted omp gets a new run directory, never an old `in.jsonl`.
+- Pump (`logScript`'s `pump` mode, `logLimits`): every `message_update` carries the whole message, so one 1.5 KB
+  streamed answer wrote 270 KB, and a `task` call's `tool_execution_update` carries every subagent's progress (a live
+  run that worked for 14 hours without settling wrote 16 GB, 12.5 GB of it these updates, up to 60 frames and 3.2 MB a
+  second). The pump holds each `tool_execution_update` and `subagent_progress`
+  for 250 ms and writes only the newest per tool call or subagent; any other line writes what is held first, so the log
+  is omp's output minus superseded progress, in order (on that log: 22 % of the bytes at 60 frames a second, 66 % at
+  4). Every MiB it writes a generation mark. At 64 MiB it rotates in place at a line boundary while omp's output waits
+  in the pipe: it truncates the log, leaves it empty for 250 ms (BSD `tail -F` moves to the end of a file it finds
+  truncated, measured on macOS to skip the marker otherwise), then writes the marker
+  (`generation`, `carryFrom` S, `preamble` P), P bytes of history as of S, and the old log from S, the first frame
+  start in its last 8 MiB, with its marks rewritten to the new generation. A device that had read the old log to R ≥ S
+  skips P + R − S bytes and goes on, a line it had only begun to read included; of a frame the follow script rewrote in
+  that stretch, only the image definitions go through, as the stream counts those images sent. One behind S, one that
+  had begun to read a frame the carry brings rewritten, or one that finds a mark of another generation (it read into a
+  log rotated under it) rebuilds its view from RPC. Runs launched before the
+  pump are never rotated; a restarted omp gets a new run directory, never an old `in.jsonl`.
 - Garbage collection: `removeDeadRuns` deletes the directories of runs whose omp is gone. The app runs it with every
   session listing for runs whose `out.jsonl` last changed over 3 days ago (`deadRunLifetime`); `ompctl gc` removes
   every ended run.
@@ -259,12 +269,12 @@ end against Win32-OpenSSH on `windows-latest` (`packages/omp_core/test/windows/`
   outside that job. Command line: `cmd.exe /d /s /c "<run>\run.cmd"`, which runs `powershell -NoProfile -File
   feed.ps1 | omp.cmd | pump.cmd`. `omp.cmd` runs `<omp.exe> --mode rpc-ui --config <run>\overlay.yml -e <companion>
   [--session <path>] 2>> <run>\err.log` and then writes omp's exit code to `<run>\code`, as a pipeline's `ERRORLEVEL`
-  is its last stage's. `pump.cmd` runs `pump.js` with omp's binary as Bun, a batch stage having an environment of
-  its own, so `BUN_BE_BUN` never reaches omp; `pump.js` appends omp's stdout to `out.jsonl`, opened for appending.
-  cmd.exe's `>>`, the form before it, refused every other writer and kept its own offset, so the log could never be
-  rotated (measured on Windows 11 26200: a truncation fails with a sharing violation; through `pump.js` it succeeds
-  and the next lines start at byte 0). Pipes and redirection in cmd pass bytes through unchanged; PowerShell 5.1's
-  do not.
+  is its last stage's. `pump.cmd` runs the uploaded `log.js` in `pump` mode with omp's binary as Bun, a batch stage
+  having an environment of its own, so `BUN_BE_BUN` never reaches omp; the pump opens `out.jsonl` itself and writes and
+  rotates it as on POSIX. cmd.exe's `>>`, the form before a pump, refused every other writer and kept its own offset,
+  so the log could never be rotated (measured on Windows 11 26200: a truncation fails with a sharing violation; through
+  a pump it succeeds and the next lines start at byte 0). Pipes and redirection in cmd pass bytes through unchanged;
+  PowerShell 5.1's do not.
 - Feed: `feed.ps1` is a byte pump from `in.jsonl` (opened for reading with `ReadWrite, Delete` sharing) to stdout, polling
   every 50 ms, exiting when `in.jsonl.stop` appears. Its exit closes omp's stdin. Windows has no
   signals; closing stdin is omp's only graceful stop (`Stop-Process -Force` skips cleanup).
@@ -273,14 +283,14 @@ end against Win32-OpenSSH on `windows-latest` (`packages/omp_core/test/windows/`
   8191 characters, so larger scripts are uploaded over SFTP and run with `-File`.
 - Attach: `out.jsonl` through the same follow script as on POSIX hosts, streamed over an exec channel, with each image
   sent once. Windows has no `tail`, so the script checks the log's size through its open handle every 50 ms and on
-  each `fs.watch` event. A log that shrank was rotated and is read again from byte 0. The launch keeps PowerShell away
-  from the bytes: under cmd it is `set BUN_BE_BUN=1&& <omp.exe> <follow.js> …`, which passes omp's standard handles on;
-  under a PowerShell default shell omp starts through `[Diagnostics.Process]::Start` with the handles inherited, since
-  PowerShell 5.1 re-encodes a native program's output. The script runs the replay itself. sshd kills the job when
-  the channel closes. `in.jsonl` is read over SFTP with stat and offset reads.
-- Rotation and `meta.json` updates: PowerShell scripts under the append lock (below); the session record also holds
-  the launch lock first, over SFTP. The rotation reads the size through an open handle, as NTFS directory entries lag
-  for a file another process writes. A run launched before `pump.js` (no `pump.cmd`) is never rotated.
+  each `fs.watch` event. A log that shrank, or whose first line names another generation, was rotated by the pump and
+  is read again from byte 0. The launch keeps PowerShell away from the bytes: under cmd it is
+  `set BUN_BE_BUN=1&& <omp.exe> <follow.js> …`, which passes omp's standard handles on; under a PowerShell default
+  shell omp starts through `[Diagnostics.Process]::Start` with the handles inherited, since PowerShell 5.1 re-encodes a
+  native program's output. The script runs the replay itself. sshd kills the job when the channel closes. `in.jsonl`
+  is read over SFTP with stat and offset reads.
+- `meta.json` updates: a PowerShell script under the launch lock, taken over SFTP. A run launched before the pump
+  opened its own log (no `OMPANION_PUMP` in its environment) is never rotated.
 - Send: one long-running PowerShell appender per channel opens `in.jsonl` per line for writing with `Read,
   Delete` sharing, so a second appender's open fails with a sharing violation and retries: the handle is the
   append lock. SFTP cannot append while omp runs: Win32-OpenSSH's sftp-server opens for writing with
@@ -437,9 +447,9 @@ a real tailnet is still open (§12).
 | ID | Risk | Mitigation |
 |---|---|---|
 | R1 | The companion depends on omp internals, including TypeScript-private fields and rebuilt goal and loop logic; every omp release can break it, and goal and loop behaviour can drift from the TUI. | CI against 18.3.1; feature checks with fallbacks; a separate build for a release that breaks the current one (§6); the rebuilds track `interactive-mode.ts` line by line per supported version |
-| R2 | Detached sessions are shell plumbing; `tail` behaviour and log growth vary by host. | measured in M0 (`research/m0-detached-sessions.md`); rotation and offset replay are implemented (`packages/omp_core/lib/src/channel/detached_run.dart`) |
+| R2 | Detached sessions are shell plumbing; `tail` behaviour and log growth vary by host. | measured in M0 (`research/m0-detached-sessions.md`); the pump collapses progress, rotates at 64 MiB with a carry, and pauses on an empty log for BSD `tail -F` (§5); a follower that still reads across a rotation meets a mark of the new generation and rebuilds its view |
 | R3 | The Windows detached form rests on WMI breakaway and a byte pump. | CI's `windows-host` job runs it end to end, PowerShell default shell included (`packages/omp_core/test/windows/`) |
-| R4 | `message_update` carries the whole accumulated message each time (O(n²) bytes per reply), omp repeats each image in up to five frames, and dartssh2 has no compression. | coalesce rendering; `set_event_filter` where it helps; truncate `out.jsonl` when settled; the follow script sends each image once |
+| R4 | `message_update` carries the whole accumulated message each time (O(n²) bytes per reply), `subagent_progress` and a `task` call's updates carry whole snapshots, omp repeats each image in up to five frames, and dartssh2 has no compression. | coalesce rendering; the pump keeps only the newest progress per tool call or subagent every 250 ms (§5); the follow script sends each image once |
 | R5 | dartssh2 fixed channel-stall and flow-control bugs as late as 2026-09-03. | exact pin `dartssh2: 4.1.0` (`packages/omp_core/pubspec.yaml`); the integration suite runs the transport against real sshd hosts |
 | R6 | Two writers on one session file: the app resumes a session a TUI still holds. omp only has per-write locks. | probe for a write descriptor or a live terminal breadcrumb and read such a session instead of launching into it (D21); POSIX only, so a Windows host can still get a second writer |
 | R7 | Concurrent devices race: two prompts land in either order; a dialog is answered twice. | ordered by `in.jsonl`; every device sees every command; unknown dialog ids are ignored by omp |
@@ -451,7 +461,7 @@ a real tailnet is still open (§12).
 | R13 | FCM lowers high-priority messages for an Android install that receives them and shows nothing. | the machine sends only the kinds the phone asked for; the phone hides only the message for the session on its screen |
 | R14 | Firebase's Android SDK depends on proprietary Play services libraries. | the sole copyright holder ships it (R11); a Firebase-free build (F-Droid) would need a flavor without it |
 | R15 | Nothing pushes when omp crashes, after a run's idle exit, or for a session no ompanion run holds (a TUI session). | accepted: none of them has a companion to send |
-| R16 | A first attach to a log over 8 MiB runs the omp binary as Bun (`BUN_BE_BUN=1`); an omp release built without that switch would fail every such attach. | measured on omp 18.3.1 (macOS, the CI test) and 18.3.2 (Windows); the attach fails with the script's error rather than replaying the whole log |
+| R16 | Every detached run pipes omp's output through the omp binary run as Bun (`BUN_BE_BUN=1`, the pump), and a first attach to a log over 8 MiB runs it too; an omp release built without that switch would fail every launch. | measured on omp 18.3.1 (macOS, the CI test) and 18.3.2 (Windows); omp dies with the pump (a broken pipe) and the launch reports `err.log` |
 
 ## 12. Open questions
 

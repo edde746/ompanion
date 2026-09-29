@@ -28,6 +28,7 @@ void main() {
         omp: probe.ompPath!,
         ompVersion: probe.ompVersion!,
         cwd: host.work,
+        tools: host.tools,
         args: const ['--model', 'fake/fake-1'],
       ),
     );

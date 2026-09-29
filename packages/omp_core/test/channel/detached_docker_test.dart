@@ -37,7 +37,7 @@ void main() {
       ompVersion: probe.ompVersion!,
       bytes: utf8.encode('export default {}\n'),
     );
-    tools = (omp: probe.ompPath!, replay: uploaded.replay, follow: uploaded.follow);
+    tools = (omp: probe.ompPath!, log: uploaded.log, follow: uploaded.follow);
   });
 
   tearDownAll(() async {
@@ -48,10 +48,12 @@ void main() {
     await link.close();
   });
 
-  RunSpec spec({String? session}) => RunSpec(
+  RunSpec spec({String? session, LogLimits limits = logLimits}) => RunSpec(
     omp: probe.ompPath!,
     ompVersion: probe.ompVersion!,
     cwd: probe.home,
+    tools: tools,
+    limits: limits,
     sessionPath: session,
     args: const ['--model', 'fake/fake-1'],
   );
@@ -113,8 +115,9 @@ void main() {
     await second.close();
   });
 
-  test('two connections append concurrently, see each other, and follow a rotation (GNU tail)', () async {
-    final run = (await openRun(link, probe, spec())).run;
+  test('two connections append concurrently, see each other, and follow the pump\'s rotations (GNU tail)', () async {
+    const small = (rotateAt: 64 << 10, carry: 32 << 10, hold: Duration(milliseconds: 250), markEvery: 4 << 10);
+    final run = (await openRun(link, probe, spec(limits: small))).run;
     final other = await connect();
     addTearDown(other.close);
     final a = await attachRun(link, probe, run, tools: tools);
@@ -142,13 +145,21 @@ void main() {
     expect(bInbox.where((l) => l.own).map(id).toSet(), {for (var i = 0; i < count; i++) 'b:$i'});
     await listening.cancel();
 
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    expect(await rotateRunOutput(link, probe, run), 2);
-    await a.send(getState('a:rotated'));
-    await aFrames.response('a:rotated');
-    await bFrames.response('a:rotated');
-    expect(a.generation, 2);
-    expect(b.generation, 2);
+    var sent = 0;
+    while (a.generation < 3) {
+      if (sent == 400) fail('no two rotations after $sent more answers');
+      await a.send(getState('r:$sent'));
+      await aFrames.response('r:$sent');
+      await bFrames.response('r:${sent++}');
+    }
+    for (final frames in [aFrames, bFrames]) {
+      expect(frames.error, isNull);
+      final answers = [
+        for (final f in frames.frames)
+          if (f['type'] == 'response' && (f['id']! as String).startsWith('r:')) f['id'],
+      ];
+      expect(answers, [for (var i = 0; i < sent; i++) 'r:$i'], reason: 'every answer once, in order');
+    }
     await a.close();
     await b.close();
   });

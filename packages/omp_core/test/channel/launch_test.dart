@@ -34,6 +34,8 @@ void main() {
   test('omp gets the umask of the shell that launched it; the run directory stays private', () async {
     final omp = File('${root.path}/omp')..writeAsStringSync('#!/bin/sh\n: > made-file\nmkdir made-dir\n');
     await Process.run('chmod', ['755', omp.path]);
+    // The pump's stand-in: `sh pump.sh pump <run dir> …` copies omp's output as the pump would.
+    final pump = File('${root.path}/pump.sh')..writeAsStringSync('exec cat >> "\$2/out.jsonl"\n');
     final work = Directory('${root.path}/work')..createSync();
     final id = newRunId();
     final marker = newMarker();
@@ -41,7 +43,7 @@ void main() {
       marker,
       runRoot(probe),
       id,
-      RunSpec(omp: omp.path, ompVersion: '18.3.1', cwd: work.path),
+      RunSpec(omp: omp.path, ompVersion: '18.3.1', cwd: work.path, tools: (omp: '/bin/sh', log: pump.path, follow: '')),
     );
     final result = await runPosixScript(link, 'umask 027\n$launch');
     expect(result.exit.code, 0, reason: result.stderr);

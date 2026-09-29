@@ -20,9 +20,6 @@ import 'external_session.dart';
 import 'live_session.dart';
 import 'run_session.dart';
 
-/// `out.jsonl` size from which a settled run's log is rotated.
-const rotateOutputAt = 8 << 20;
-
 /// How long a run sits idle before its companion ends omp (docs/contracts/host-launch.md, "Idle exit"). Coming back
 /// then costs a cold open instead of an attach: 1.8–3.7 s against 0.2–0.3 s for a 400 MB session over SSH
 /// (docs/research/ui-libraries.md), so a session left for a short break stays attachable.
@@ -116,7 +113,7 @@ abstract interface class LocalForward {
 typedef _Connection = ({
   HostLink link,
   HostProbe probe,
-  ({String companion, String replay, String follow})? uploaded,
+  ({String companion, String log, String follow})? uploaded,
   String? problem,
 });
 
@@ -371,7 +368,7 @@ final class MachineRuntime {
       link: connection.link,
       probe: probe,
       companion: uploaded.companion,
-      tools: (omp: probe.ompPath!, replay: uploaded.replay, follow: uploaded.follow),
+      tools: (omp: probe.ompPath!, log: uploaded.log, follow: uploaded.follow),
     );
   }
 
@@ -439,6 +436,7 @@ final class MachineRuntime {
     omp: ready.probe.ompPath!,
     ompVersion: ready.probe.ompVersion!,
     cwd: cwd,
+    tools: ready.tools,
     sessionPath: sessionPath,
     companion: ready.companion,
     overlay: _overlay,
@@ -584,9 +582,6 @@ final class _DetachedAccess implements RunAccess {
   final DetachedRun _run;
 
   @override
-  int? get rotateAt => rotateOutputAt;
-
-  @override
   bool get persistent => true;
 
   @override
@@ -619,12 +614,6 @@ final class _DetachedAccess implements RunAccess {
   Future<void> recordSession(String sessionPath) async {
     final connection = await _machine._connected();
     await recordRunSession(connection.link, connection.probe, _run, sessionPath);
-  }
-
-  @override
-  Future<void> rotate({required int generation, required int size}) async {
-    final connection = await _machine._connected();
-    await rotateRunOutput(connection.link, connection.probe, _run, settledAt: (generation: generation, size: size));
   }
 
   @override
@@ -685,9 +674,6 @@ final class _ControlAccess implements RunAccess {
   bool get persistent => false;
 
   @override
-  int? get rotateAt => null;
-
-  @override
   Future<RunChannel> attach({int? generation, int offset = 0, int inboxOffset = 0}) async {
     final ready = await _machine._ready();
     final spec = RunSpec(
@@ -695,6 +681,7 @@ final class _ControlAccess implements RunAccess {
       ompVersion: ready.probe.ompVersion!,
       cwd: ready.probe.home,
       companion: ready.companion,
+      tools: ready.tools,
       overlay: _machine._overlay,
       args: [
         '--no-session',
@@ -709,10 +696,6 @@ final class _ControlAccess implements RunAccess {
   @override
   Future<void> recordSession(String sessionPath) =>
       throw StateError('the control session runs with --no-session and has no session file');
-
-  @override
-  Future<void> rotate({required int generation, required int size}) =>
-      throw StateError('the control session has no log to rotate');
 
   @override
   Future<int?> stop() async {

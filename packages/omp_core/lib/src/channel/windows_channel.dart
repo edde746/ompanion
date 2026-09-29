@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import '../host/scripts.dart';
 import '../transport/host_link.dart';
 import 'follow.dart';
-import 'replay.dart';
+import 'log_script.dart';
 import 'run_log.dart';
 
 /// A [RunChannel] for Windows hosts: [followScript] for [lines] (polling `out.jsonl`: Windows has no `tail`),

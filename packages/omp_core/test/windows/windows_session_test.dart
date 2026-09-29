@@ -57,7 +57,7 @@ void main() {
       ompVersion: probe.ompVersion!,
       bytes: utf8.encode('export default {}\n'),
     );
-    tools = (omp: probe.ompPath!, replay: uploaded.replay, follow: uploaded.follow);
+    tools = (omp: probe.ompPath!, log: uploaded.log, follow: uploaded.follow);
   });
 
   tearDown(() async {
@@ -166,7 +166,13 @@ void main() {
     final run = (await openRun(
       link,
       probe,
-      RunSpec(omp: probe.ompPath!, ompVersion: probe.ompVersion!, cwd: project, args: const ['--model', 'fake/fake-1']),
+      RunSpec(
+        omp: probe.ompPath!,
+        ompVersion: probe.ompVersion!,
+        cwd: project,
+        tools: tools,
+        args: const ['--model', 'fake/fake-1'],
+      ),
     )).run;
     final other = await connectWindows();
     addTearDown(other.close);
@@ -205,8 +211,9 @@ void main() {
   }, timeout: const Timeout(Duration(minutes: 3)));
 
   test(
-    'pump.js lets a rotation truncate out.jsonl while omp runs, and a channel follows into the next generation',
+    'the pump rotates out.jsonl while omp runs, a channel follows each generation, and omp\'s exit code gets past it',
     () async {
+      const small = (rotateAt: 64 << 10, carry: 32 << 10, hold: Duration(milliseconds: 250), markEvery: 4 << 10);
       final run = (await openRun(
         link,
         probe,
@@ -214,30 +221,32 @@ void main() {
           omp: probe.ompPath!,
           ompVersion: probe.ompVersion!,
           cwd: project,
+          tools: tools,
+          limits: small,
           args: const ['--model', 'fake/fake-1'],
         ),
       )).run;
       final channel = await attachRun(link, probe, run, tools: tools);
       final frames = Frames(channel.lines);
       await frames.next((f) => f['type'] == 'ready', timeout: const Duration(seconds: 60));
-      await channel.send(getState('r:1'));
-      await frames.response('r:1');
-      final size = File('${run.dir}\\out.jsonl').lengthSync();
+      var sent = 0;
+      while (channel.generation < 3) {
+        if (sent == 400) fail('no two rotations after $sent answers');
+        await channel.send(getState('r:$sent'));
+        await frames.response('r:${sent++}');
+      }
+      expect(frames.error, isNull);
+      final answers = [
+        for (final f in frames.frames)
+          if (f['type'] == 'response') f['id'],
+      ];
+      expect(answers, [for (var i = 0; i < sent; i++) 'r:$i'], reason: 'every answer once, in order');
+      final text = File('${run.dir}\\out.jsonl').readAsStringSync();
+      expect(text, startsWith('{"type":"ompanion_rotate","generation":${channel.generation},'));
 
-      expect(await rotateRunOutput(link, probe, run, settledAt: (generation: 1, size: size - 1)), 1, reason: 'grown');
-      expect(await rotateRunOutput(link, probe, run, settledAt: (generation: 1, size: size)), 2);
-      await channel.send(getState('r:2'));
-      await frames.response('r:2');
-      expect(channel.generation, 2);
-      final log = File('${run.dir}\\out.jsonl').readAsStringSync();
-      expect(log, startsWith('{"type":"ompanion_rotate","generation":2,"previousSize":$size}\n'));
-      expect(channel.offset, utf8.encode(log).length, reason: 'offsets count from the start of the new generation');
-      expect(File('${run.dir}\\meta.json').readAsStringSync(), contains('"generation":2,'));
-
-      // Recorded from the launch's meta.json, generation 1: the script keeps the generation the file holds now.
       expect(await recordRunSession(link, probe, run, '$project\\recorded.jsonl'), isTrue);
       final meta = (await listRuns(link, probe)).singleWhere((r) => r.id == run.id).meta!;
-      expect((meta.generation, meta.sessionPath), (2, '$project\\recorded.jsonl'));
+      expect(meta.sessionPath, '$project\\recorded.jsonl');
       await channel.close();
       expect(await stopRun(link, probe, run), 0, reason: 'omp.cmd hands omp exit code past the pump');
     },
@@ -267,6 +276,7 @@ void main() {
         omp: probed.ompPath!,
         ompVersion: probed.ompVersion!,
         cwd: project,
+        tools: tools,
         args: const ['--model', 'fake/fake-1'],
       ),
     )).run;

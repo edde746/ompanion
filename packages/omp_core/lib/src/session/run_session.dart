@@ -27,19 +27,12 @@ abstract interface class RunAccess {
   /// starts a new process, and an exit starts the next one.
   bool get persistent;
 
-  /// `out.jsonl` size from which a settled run is rotated; null when its log is never rotated.
-  int? get rotateAt;
-
   /// A channel to the run. `out.jsonl` is read from [generation]/[offset] while [generation] is current, otherwise
   /// from a recent frame boundary of the current generation (`attachRun`); `in.jsonl` from [inboxOffset].
   Future<RunChannel> attach({int? generation, int offset = 0, int inboxOffset = 0});
 
   /// Records [sessionPath] as the run's session in its `meta.json`.
   Future<void> recordSession(String sessionPath);
-
-  /// Rotates `out.jsonl` if it is still [generation] and [size] bytes long: where this device, settled, had read
-  /// everything, so nothing was written since.
-  Future<void> rotate({required int generation, required int size});
 
   /// Stops omp gracefully and returns its exit code.
   Future<int?> stop();
@@ -203,9 +196,6 @@ final class RunSession implements LiveSession {
   /// The `meta.json` update in flight.
   Future<void>? _recording;
 
-  /// A settle found the log past [RunAccess.rotateAt] and nothing but query answers followed it yet.
-  bool _rotationDue = false;
-  bool _rotating = false;
   Completer<void>? _wake;
 
   @override
@@ -311,7 +301,7 @@ final class RunSession implements LiveSession {
       offset: resume?.offset ?? 0,
       inboxOffset: resume?.inboxOffset ?? 0,
     );
-    final tracked = _TrackedChannel(channel, _noteCommand);
+    final tracked = _TrackedChannel(channel);
     final rpc = RpcClient(tracked, deviceId: _deviceId);
     final attachment = _Attachment(channel, tracked, rpc, CompanionClient(rpc));
     _attaching = attachment;
@@ -595,19 +585,12 @@ final class RunSession implements LiveSession {
     _setView(_reduceFrame(_view, frame));
     // Replayed frames of a resuming channel are history; only live ones trigger work.
     if (!identical(attachment, _attached)) return;
-    if (frame is SessionSettledFrame) {
-      _onSettled(attachment);
-    } else if (frame is! ResponseFrame || !frame.command.startsWith('get_')) {
-      // omp wrote more than answers to queries: it is not settled anymore, or not quiet.
-      _rotationDue = false;
-    }
+    if (frame is SessionSettledFrame) unawaited(_catchUpEntries(attachment));
     _react();
-    _rotateWhenQuiet(attachment);
   }
 
   /// Dialog answers any device appended to `in.jsonl`, this one's included: every device closes the dialog.
   void _onInbox(InboxLine line) {
-    if (!line.own) _noteCommand(line.line);
     // Cheap filter first: prompts with images make long lines.
     if (_closed || !line.line.contains('"extension_ui_response"')) return;
     final Object? json;
@@ -711,50 +694,6 @@ final class RunSession implements LiveSession {
       _refreshing = false;
     }
     _react();
-  }
-
-  void _onSettled(_Attachment attachment) {
-    final at = _access.rotateAt;
-    // The companion starts a goal's continuation or a loop's next iteration 800 ms after the settle, without input the
-    // rotation's lock would hold back: frames omp writes between the size check and the truncation would be lost.
-    final followedUp = _view.goal?.status == GoalStatus.active || _view.loop?.phase == LoopPhase.running;
-    _rotationDue = at != null && !followedUp && attachment.tracked.offset >= at;
-    unawaited(_catchUpEntries(attachment));
-  }
-
-  /// A command other than a query can make omp write after its response (a prompt's run starts after it), so a
-  /// rotation that was due waits for the next settle. Every device encodes `id` first, then `type`.
-  void _noteCommand(String line) {
-    if (!_query.hasMatch(line)) _rotationDue = false;
-  }
-
-  static final _query = RegExp(r'^\{"id":"[^"]*","type":"get_');
-
-  /// Rotates a due log once this device's requests are answered, at the offset it read. Their answers follow the settle
-  /// in `out.jsonl` (the `get_state` its `agent_end` asked for, the entries catch-up), so a rotation at the settle's
-  /// offset always found the log grown and left it alone: one generation reached 1.6 GB. Checked a timer turn later,
-  /// so a request the handlers of this frame start counts.
-  void _rotateWhenQuiet(_Attachment attachment) {
-    if (!_rotationDue || _rotating) return;
-    _rotating = true;
-    Timer.run(() {
-      if (!_rotationDue || _closed || !identical(attachment, _attached) || attachment.rpc.hasPending) {
-        _rotating = false;
-        return;
-      }
-      _rotationDue = false;
-      unawaited(_rotate(attachment.tracked.generation, attachment.tracked.offset));
-    });
-  }
-
-  Future<void> _rotate(int generation, int size) async {
-    try {
-      await _access.rotate(generation: generation, size: size);
-    } on Object catch (error) {
-      if (_linkState is LinkLive) _warn('Rotating the session log on the machine failed: $error');
-    } finally {
-      _rotating = false;
-    }
   }
 
   /// Entries appended by the run that just settled, so its rows get their entry ids (branching needs them).
@@ -998,12 +937,11 @@ final class _Attachment {
 }
 
 /// Hands the run's lines to the RPC client and remembers the log position after the last complete frame: a channel
-/// resumed inside an `rpc_chunk` sequence would drop the rest of that frame. [onSend] sees every line sent.
+/// resumed inside an `rpc_chunk` sequence would drop the rest of that frame.
 final class _TrackedChannel implements LineChannel {
-  _TrackedChannel(this.channel, this.onSend) : generation = channel.generation, offset = channel.offset;
+  _TrackedChannel(this.channel) : generation = channel.generation, offset = channel.offset;
 
   final RunChannel channel;
-  final void Function(String line) onSend;
   int generation;
   int offset;
 
@@ -1017,10 +955,7 @@ final class _TrackedChannel implements LineChannel {
   });
 
   @override
-  Future<void> send(String line) {
-    onSend(line);
-    return channel.send(line);
-  }
+  Future<void> send(String line) => channel.send(line);
 
   @override
   Future<void> close() => channel.close();

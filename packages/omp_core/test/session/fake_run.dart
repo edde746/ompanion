@@ -79,12 +79,13 @@ final class FakeRun {
     _write(utf8.encode('\n{"type":"ompanion_exit","code":$code}\n'));
   }
 
-  /// `rotateRunOutput`: the next generation starts with its marker; channels that had read everything follow.
+  /// The pump's rotation with nothing to carry: the next generation starts with its marker; channels that had read
+  /// everything follow.
   void rotate() {
     final previous = _out.length;
     _out.clear();
     generation++;
-    _write(utf8.encode('{"type":"ompanion_rotate","generation":$generation,"previousSize":$previous}\n'));
+    _write(utf8.encode('{"type":"ompanion_rotate","generation":$generation,"carryFrom":$previous,"preamble":0}\n'));
   }
 
   /// The link to every attached channel drops.
@@ -272,7 +273,7 @@ final class FakeChannel implements RunChannel {
 /// A [RunAccess] over a [FakeRun], recording what the session asked of the machine. With [process] every attach
 /// starts a new run, like the control process.
 final class FakeAccess implements RunAccess {
-  FakeAccess(this.run, {this.rotateAt, this.process}) : persistent = process == null;
+  FakeAccess(this.run, {this.process}) : persistent = process == null;
 
   FakeRun run;
 
@@ -282,12 +283,8 @@ final class FakeAccess implements RunAccess {
   @override
   final bool persistent;
 
-  @override
-  final int? rotateAt;
-
   final attaches = <({int? generation, int offset, int inboxOffset})>[];
   final recorded = <String>[];
-  int rotations = 0;
 
   /// Thrown by the next attaches while set.
   Object? attachError;
@@ -302,16 +299,6 @@ final class FakeAccess implements RunAccess {
 
   @override
   Future<void> recordSession(String sessionPath) async => recorded.add(sessionPath);
-
-  /// `rotateRunOutput` with `settledAt`: a log written to or rotated since is left alone. The check runs after a
-  /// turn of the event loop, as the script does after its exec opened.
-  @override
-  Future<void> rotate({required int generation, required int size}) async {
-    await Future<void>.delayed(Duration.zero);
-    if (generation != run.generation || size != run.outSize) return;
-    rotations++;
-    run.rotate();
-  }
 
   @override
   Future<int?> stop() async {

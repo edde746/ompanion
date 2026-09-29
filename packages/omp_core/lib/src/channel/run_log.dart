@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import '../host/scripts.dart';
@@ -13,7 +14,7 @@ abstract interface class RunChannel implements LineChannel {
   /// [generation] it is the point to resume from.
   int get offset;
 
-  /// `out.jsonl` generation; it increases each time the log is rotated (truncated).
+  /// `out.jsonl` generation; it increases each time the pump rotates the log.
   int get generation;
 
   /// omp's exit code, once the run ended and every line before the end was delivered.
@@ -40,12 +41,11 @@ final class InboxLine {
   final bool own;
 }
 
-/// `out.jsonl` was rotated while this channel still had unread lines of the previous generation. The
-/// session state must be rebuilt from RPC (`get_state`, `get_messages_page`), then the run can be
-/// re-attached from [generation] at offset 0.
+/// `out.jsonl` moved to [generation] past what this channel read: the rotation carried less than it had left to read,
+/// or a mark of another generation showed that it read into a log that was rotated under it. The session state must be
+/// rebuilt from RPC (`get_state`, `get_messages_page`), then the run can be re-attached from [generation] at offset 0.
 final class RunLogGap extends HostLinkException {
-  RunLogGap(this.generation, {required int readTo, required int previousSize})
-    : super('out.jsonl rotated to generation $generation at byte $previousSize; read only to $readTo');
+  RunLogGap(this.generation, String detail) : super('out.jsonl moved to generation $generation: $detail');
 
   final int generation;
 }
@@ -67,12 +67,23 @@ sealed class RunMarker {
     if (value is! Map<String, Object?>) return null;
     return switch (value) {
       {'type': 'ompanion_exit', 'code': final int code} => RunExited(code),
+      {
+        'type': 'ompanion_rotate',
+        'generation': final int generation,
+        'carryFrom': final int carryFrom,
+        'preamble': final int preamble,
+      } =>
+        RunRotated(generation, carryFrom: carryFrom, preamble: preamble),
+      // A run launched before the pump was rotated when settled, without a carry: the new generation went on from the
+      // old one's end.
       {'type': 'ompanion_rotate', 'generation': final int generation, 'previousSize': final int size} => RunRotated(
         generation,
-        size,
+        carryFrom: size,
+        preamble: 0,
       ),
       {'type': 'ompanion_span', 'bytes': final int bytes, 'lines': final int lines} when bytes > 0 && lines > 0 =>
         RunSpan(bytes, lines),
+      {'type': 'ompanion_mark', 'generation': final int generation} => RunMark(generation),
       _ => null,
     };
   }
@@ -85,14 +96,21 @@ final class RunExited extends RunMarker {
   final int code;
 }
 
-/// The first line of a rotated `out.jsonl`.
+/// The first line of a rotated `out.jsonl`: [preamble] bytes of history follow, then the previous generation from
+/// byte [carryFrom] on (the log's `pump` mode).
 final class RunRotated extends RunMarker {
-  const RunRotated(this.generation, this.previousSize);
+  const RunRotated(this.generation, {required this.carryFrom, required this.preamble});
 
   final int generation;
+  final int carryFrom;
+  final int preamble;
+}
 
-  /// Size of the previous generation when it was truncated.
-  final int previousSize;
+/// Written into the log every so often by the pump: the log is [generation].
+final class RunMark extends RunMarker {
+  const RunMark(this.generation);
+
+  final int generation;
 }
 
 /// The next [lines] lines of an attach stream stand for [bytes] bytes of `out.jsonl`: one frame whose images the
@@ -179,11 +197,15 @@ final class RunOutput {
   final int _start;
   bool _inPreamble;
   final LogCursor _cursor;
+
+  /// After a rotation this channel follows: the end of the carried bytes it had read already, in the new generation.
+  int? _skipTo;
   final _events = StreamController<_Event>();
   bool _ended = false;
 
   /// The [RunSpan] being read: where it starts in `out.jsonl`, its size there, and how many of its lines are to come.
-  ({int start, int bytes, int left})? _span;
+  /// [skippedAt] is where a frame this channel had read before a rotation ends; only its image definitions go out.
+  ({int start, int bytes, int left, int? skippedAt})? _span;
 
   bool get ended => _ended;
 
@@ -217,20 +239,35 @@ final class RunOutput {
         _events.add(_Line(text, _start));
         continue;
       }
-      var end = rawEnd + shift;
-      if (_span case (:final start, :final bytes, :final left)) {
+      final end = rawEnd + shift;
+      if (_span case (:final start, :final bytes, :final left, :final skippedAt)) {
         // A span's lines take no room in `out.jsonl` until its last, which ends where the span does.
-        if (left > 1) {
-          _span = (start: start, bytes: bytes, left: left - 1);
-          _events.add(_Line(text, start));
-        } else {
-          _span = null;
-          shift += start + bytes - end;
-          _events.add(_Line(text, start + bytes));
+        _span = left > 1 ? (start: start, bytes: bytes, left: left - 1, skippedAt: skippedAt) : null;
+        if (left == 1) shift += start + bytes - end;
+        if (skippedAt == null) {
+          _events.add(_Line(text, left > 1 ? start : start + bytes));
+        } else if (text.startsWith(_image)) {
+          // The follow script counts the images of a frame it sent as defined, also of one this channel skips.
+          _events.add(_Line(text, skippedAt));
         }
         continue;
       }
-      switch (RunMarker.parse(text)) {
+      final marker = _marker(text);
+      if (_skipTo case final skipTo? when marker is! RunRotated) {
+        final from = end - utf8.encode(text).length - 1;
+        final to = marker is RunSpan ? from + marker.bytes : end;
+        if (to <= skipTo) {
+          // The history and the carried frames this channel had read.
+          if (marker is RunSpan) _span = (start: from, bytes: marker.bytes, left: marker.lines, skippedAt: skipTo);
+          continue;
+        }
+        _skipTo = null;
+        if (from < skipTo) {
+          finish(RunLogGap(_parsing, 'no frame of the carry starts at byte $skipTo'));
+          return;
+        }
+      }
+      switch (marker) {
         case RunExited(:final code):
           _events.add(_Exited(code));
           finish();
@@ -238,20 +275,29 @@ final class RunOutput {
         case RunRotated(:final generation) when generation == _parsing:
           // The first line of the generation this channel attached to at offset 0, not a rotation it follows.
           _events.add(_Rotated(generation, end));
-        case RunRotated(:final generation, :final previousSize):
-          // The marker is the first line of the new generation; everything before it was the old one.
-          final markerEnd = utf8.encode(text).length + 1;
-          final readTo = end - markerEnd;
-          if (readTo != previousSize) {
-            finish(RunLogGap(generation, readTo: readTo, previousSize: previousSize));
+        case RunRotated(:final generation, :final carryFrom, :final preamble):
+          // The marker is the first line of the new generation; everything before it was the old one. A line of the old
+          // one this channel had only begun to read runs into it and is dropped: the carry holds it whole. What this
+          // channel had skipped of a rotation it followed counts as read.
+          final markerEnd = utf8.encode(text.substring(text.indexOf(_rotation))).length + 1;
+          final readTo = max(end - utf8.encode(text).length - 1, _skipTo ?? 0);
+          if (readTo < carryFrom) {
+            finish(RunLogGap(generation, 'the rotation carried the log from byte $carryFrom, read only to $readTo'));
             return;
           }
           shift += markerEnd - end;
-          end = markerEnd;
           _parsing = generation;
+          // The new generation holds what this channel read up to [skipTo]: it goes on from there.
+          final skipTo = markerEnd + preamble + readTo - carryFrom;
+          _skipTo = skipTo;
+          _events.add(_Rotated(generation, skipTo));
+        case RunMark(:final generation) when generation == _parsing:
           _events.add(_Rotated(generation, end));
+        case RunMark(:final generation):
+          finish(RunLogGap(generation, 'its mark came at byte $end of generation $_parsing'));
+          return;
         case RunSpan(:final bytes, :final lines):
-          _span = (start: end - utf8.encode(text).length - 1, bytes: bytes, left: lines);
+          _span = (start: end - utf8.encode(text).length - 1, bytes: bytes, left: lines, skippedAt: null);
         case null when text.startsWith('{"type":"ompanion_span"'):
           finish(HostLinkException('bad span marker in the attach stream: $text'));
           return;
@@ -260,6 +306,20 @@ final class RunOutput {
       }
     }
     _cursor.position += shift;
+  }
+
+  static const _rotation = '{"type":"ompanion_rotate",';
+  static const _image = '{"type":"ompanion_image",';
+
+  /// The marker [text] is, or ends in: a follower that was reading a line when the log was truncated reads the rest of
+  /// the new log after the start of that line. JSON escapes the quotes of any such text inside omp's own lines.
+  static RunMarker? _marker(String text) {
+    final at = text.indexOf(_rotation);
+    if (at <= 0) return RunMarker.parse(text);
+    return switch (RunMarker.parse(text.substring(at))) {
+      final RunRotated rotated => rotated,
+      _ => null,
+    };
   }
 
   /// The transport reached the end of what it will ever deliver. Fine for a run that had ended before the attach once

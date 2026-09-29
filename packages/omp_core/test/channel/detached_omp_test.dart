@@ -23,10 +23,12 @@ void main() {
 
   tearDown(() => host.dispose(probe));
 
-  RunSpec spec({String? session}) => RunSpec(
+  RunSpec spec({String? session, LogLimits limits = logLimits}) => RunSpec(
     omp: probe.ompPath!,
     ompVersion: probe.ompVersion!,
     cwd: host.work,
+    tools: host.tools,
+    limits: limits,
     sessionPath: session,
     args: const ['--model', 'fake/fake-1'],
   );
@@ -123,23 +125,43 @@ void main() {
     await b.close();
   });
 
-  test('rotating out.jsonl while attached keeps the channel going in the next generation', () async {
-    final run = (await openRun(host.link, probe, spec())).run;
+  test('the pump rotates out.jsonl while omp answers, and channels follow and resume in each generation', () async {
+    // A get_state answer is about 16 KB here: the carry holds two, as the default one holds any frame.
+    const small = (rotateAt: 64 << 10, carry: 32 << 10, hold: Duration(milliseconds: 250), markEvery: 4 << 10);
+    final run = (await openRun(host.link, probe, spec(limits: small))).run;
     final channel = await attachRun(host.link, probe, run, tools: host.tools);
     final frames = Frames(channel.lines);
     await frames.next((f) => f['type'] == 'ready');
-    await channel.send(getState('r:1'));
-    await frames.response('r:1');
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-
-    expect(await rotateRunOutput(host.link, probe, run), 2);
-    await channel.send(getState('r:2'));
-    await frames.response('r:2');
-    expect(channel.generation, 2);
+    var sent = 0;
+    while (channel.generation < 3) {
+      if (sent == 400) fail('no two rotations after $sent answers');
+      await channel.send(getState('r:$sent'));
+      await frames.response('r:${sent++}');
+    }
+    expect(frames.error, isNull);
+    final answers = [
+      for (final f in frames.frames)
+        if (f['type'] == 'response') f['id'],
+    ];
+    expect(answers, [for (var i = 0; i < sent; i++) 'r:$i'], reason: 'every answer once, in order');
     final log = await File('${run.dir}/out.jsonl').readAsString();
-    expect(log, startsWith('{"type":"ompanion_rotate","generation":2,'));
-    expect(channel.offset, utf8.encode(log).length, reason: 'offsets count from the start of the new generation');
+    expect(log, startsWith('{"type":"ompanion_rotate","generation":${channel.generation},'));
+    final resume = (generation: channel.generation, offset: channel.offset);
     await channel.close();
+
+    await File('${run.dir}/in.jsonl').writeAsString('${getState('r:after')}\n', mode: FileMode.append, flush: true);
+    final resumed = await attachRun(
+      host.link,
+      probe,
+      run,
+      tools: host.tools,
+      generation: resume.generation,
+      offset: resume.offset,
+    );
+    final more = Frames(resumed.lines);
+    await more.response('r:after');
+    expect([for (final f in more.frames) f['id']], ['r:after'], reason: 'resumed where it stopped, nothing again');
+    await resumed.close();
   });
 
   test('graceful stop exits 0 and ends attached channels; force stop exits 143; dead runs are removed', () async {

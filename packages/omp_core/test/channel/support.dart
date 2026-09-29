@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:omp_core/channel.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/src/channel/follow.dart' show followScript;
-import 'package:omp_core/src/channel/replay.dart' show replayScript;
+import 'package:omp_core/src/channel/log_script.dart' show logScript;
 import 'package:omp_core/transport.dart';
 
 import '../omp_binary.dart';
@@ -16,11 +16,13 @@ final String? pwsh = () {
   return result.exitCode == 0 ? (result.stdout as String).trim() : null;
 }();
 
-/// The attach scripts written into [dir], run by this computer's omp.
+/// The scripts omp runs as Bun ([logScript], [followScript]) written into [dir] (created), run by this computer's omp.
 AttachTools localTools(String dir) {
-  final replay = File('$dir/replay.js')..writeAsStringSync(replayScript);
+  final log = File('$dir/log.js')
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(logScript);
   final follow = File('$dir/follow.js')..writeAsStringSync(followScript);
-  return (omp: ompBinary, replay: replay.path, follow: follow.path);
+  return (omp: ompBinary, log: log.path, follow: follow.path);
 }
 
 /// A temporary machine for tests on this computer: `home/` is an isolated omp home (harness/omp-home.sh,

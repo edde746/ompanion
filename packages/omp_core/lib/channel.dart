@@ -12,9 +12,9 @@ export 'src/channel/detached_run.dart'
         openRun,
         recordRunSession,
         removeDeadRuns,
-        rotateRunOutput,
         runRoot,
         stopRun;
 export 'src/channel/follow.dart' show AttachTools;
+export 'src/channel/log_script.dart' show LogLimits, logLimits;
 export 'src/channel/run_log.dart' show InboxLine, RunChannel, RunLogGap;
 export 'src/channel/windows_channel.dart' show WindowsRunChannel;

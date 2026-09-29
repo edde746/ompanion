@@ -7,7 +7,7 @@ import '../rpc/json_fields.dart';
 import '../transport/host_link.dart';
 import 'detached_channel.dart';
 import 'follow.dart';
-import 'replay.dart';
+import 'log_script.dart';
 import 'run_log.dart';
 import 'windows_run.dart';
 
@@ -20,17 +20,23 @@ final class RunSpec {
     required this.omp,
     required this.ompVersion,
     required this.cwd,
+    required this.tools,
     this.sessionPath,
     this.companion,
     this.overlay = defaultOverlay,
     this.args = const [],
     this.idleExit,
+    this.limits = logLimits,
   });
 
   /// Absolute path of the omp binary (the probed one).
   final String omp;
   final String ompVersion;
   final String cwd;
+
+  /// The scripts on the machine: a detached run's output goes to `out.jsonl` through [logScript]'s pump, run by
+  /// [AttachTools.omp] as Bun.
+  final AttachTools tools;
 
   /// `--session`; null starts a new session.
   final String? sessionPath;
@@ -47,6 +53,9 @@ final class RunSpec {
   /// How long the run may sit idle before the companion ends its omp (`OMPANION_IDLE_EXIT_MS`,
   /// docs/contracts/host-launch.md); null keeps it running until it is stopped.
   final Duration? idleExit;
+
+  /// How the pump writes `out.jsonl`.
+  final LogLimits limits;
 
   /// omp's arguments after the binary, given the host path of the overlay file. `--cwd` is explicit because
   /// omp started in the home directory otherwise moves itself to `~/tmp` or `/tmp` (`cli/startup-cwd.ts`).
@@ -71,7 +80,6 @@ final class RunMeta {
     required this.omp,
     required this.ompVersion,
     required this.args,
-    required this.generation,
     required this.created,
     this.sessionPath,
     this.companion,
@@ -83,7 +91,6 @@ final class RunMeta {
     omp: json.string('omp'),
     ompVersion: json.string('ompVersion'),
     args: json.strings('args'),
-    generation: json.integer('generation'),
     created: DateTime.parse(json.string('created')),
     sessionPath: json.optString('sessionPath'),
     companion: json.optString('companion'),
@@ -96,17 +103,13 @@ final class RunMeta {
 
   /// omp's arguments after the binary.
   final List<String> args;
-
-  /// `out.jsonl` generation, raised by each rotation.
-  final int generation;
   final DateTime created;
 
   /// The session the run was launched with; null for a run that started a new session.
   final String? sessionPath;
   final String? companion;
 
-  /// Key order and compact encoding are fixed: host scripts match `"sessionPath":<value>,` and
-  /// `"generation":<n>` textually.
+  /// Key order and compact encoding are fixed: host scripts match `"sessionPath":<value>,` textually.
   Map<String, Object?> toJson() => {
     'id': id,
     'sessionPath': sessionPath,
@@ -115,7 +118,6 @@ final class RunMeta {
     'ompVersion': ompVersion,
     'companion': companion,
     'args': args,
-    'generation': generation,
     'created': created.toUtc().toIso8601String(),
   };
 }
@@ -182,8 +184,8 @@ Future<List<DetachedRun>> listRuns(HostLink link, HostProbe probe) =>
 
 /// Attaches to [run]. `out.jsonl` is read from [offset] when [generation] is still the run's generation. Otherwise
 /// the current generation is read from its start, or, over [attachWindow] bytes, compacted on the machine by
-/// [replayScript] and followed from the offset it names. POSIX hosts stream the log through [followScript], which sends
-/// each image once. [tools] names both scripts and the omp that runs them. `in.jsonl` is read from [inboxOffset], or
+/// [logScript] and followed from the offset it names. The log is streamed through [followScript], which sends each
+/// image once. [tools] names both scripts and the omp that runs them. `in.jsonl` is read from [inboxOffset], or
 /// from its current end when null.
 Future<RunChannel> attachRun(
   HostLink link,
@@ -250,52 +252,21 @@ Future<List<String>> removeDeadRuns(
   return probe.isWindows ? removeWindowsRuns(link, probe, dead) : _removePosixRuns(link, runRoot(probe), dead);
 }
 
-/// Truncates `out.jsonl` and starts the next generation, holding the append lock so no command arrives
-/// meanwhile. Call it only while the session is settled: output omp writes during the rotation lands in the
-/// new generation ahead of its first line. Attached channels continue seamlessly when they had read
-/// everything, otherwise their `lines` fail with [RunLogGap]. [settledAt] is where the caller read a `session_settled`:
-/// the log is rotated only while it is still that generation and size, so nothing was written since and no other
-/// device rotated first. A Windows run launched before its output went through `pump.js` is left alone
-/// (`rotateWindowsRun`). Returns the new generation, or the current one when the log was left alone.
-Future<int> rotateRunOutput(
-  HostLink link,
-  HostProbe probe,
-  DetachedRun run, {
-  ({int generation, int size})? settledAt,
-}) async {
-  if (probe.isWindows) return rotateWindowsRun(link, probe, run, settledAt: settledAt);
-  final marker = newMarker();
-  final result = await runPosixScript(
-    link,
-    'm=${shQuote(marker)}; d=${shQuote(run.dir)}; g0=${settledAt?.generation ?? -1}; s0=${settledAt?.size ?? -1}\n'
-    '$posixLockFunctions$_processFunctions$_rotateBody',
-  );
-  if (result.exit.code != 0) throw result.failure('rotating ${run.dir}/out.jsonl failed');
-  return int.parse(result.payload(marker).trim().split(' ').first);
-}
-
 /// Records [sessionPath] as the session [run] holds in its `meta.json`, so a device opening that session finds this
 /// run instead of launching a second omp. omp changes files inside a run (`new_session`, `switch_session`,
 /// `branch`, fork), and a run launched without `--session` learns its file from `get_state`. Holds the launch lock,
-/// so a launch looking for the session sees either record, and then the append lock, so a rotation's own rewrite of
-/// `meta.json` cannot interleave. Returns whether `meta.json` changed.
+/// so a launch looking for the session sees either record. Returns whether `meta.json` changed.
 Future<bool> recordRunSession(HostLink link, HostProbe probe, DetachedRun run, String sessionPath) async {
   final meta = run.meta;
   if (meta == null) throw HostLinkException('run ${run.id} has no readable meta.json');
-  final generation = '"generation":${meta.generation}';
   final text = jsonEncode(_withSession(meta, sessionPath).toJson());
-  // String values escape every `"`, so the key occurs once; the script puts the current generation between the halves.
-  final at = text.indexOf('$generation,');
   final session = '"sessionPath":${jsonEncode(sessionPath)},';
-  final head = text.substring(0, at + '"generation":'.length);
-  final tail = text.substring(at + generation.length);
-  if (probe.isWindows) return recordWindowsRunSession(link, probe, run, session: session, head: head, tail: tail);
+  if (probe.isWindows) return recordWindowsRunSession(link, probe, run, session: session, meta: text);
   final marker = newMarker();
   final result = await runPosixScript(
     link,
     'm=${shQuote(marker)}; R=${shQuote(runRoot(probe))}; d=${shQuote(run.dir)}\n'
-    'session=${shQuote(session)}\n'
-    'head=${shQuote(head)}; tail=${shQuote(tail)}\n'
+    'session=${shQuote(session)}; meta=${shQuote(text)}\n'
     '$posixLockFunctions$_recordBody',
   );
   if (result.exit.code != 0) throw result.failure('recording the session of run ${run.id} failed');
@@ -308,7 +279,6 @@ RunMeta _withSession(RunMeta meta, String sessionPath) => RunMeta(
   omp: meta.omp,
   ompVersion: meta.ompVersion,
   args: meta.args,
-  generation: meta.generation,
   created: meta.created,
   sessionPath: sessionPath,
   companion: meta.companion,
@@ -345,8 +315,8 @@ Future<({DetachedRun run, bool launched})> _openPosixRun(HostLink link, HostProb
   return (run: run, launched: reply[0] == 'launched');
 }
 
-/// The launch recipe. `run.sh` feeds omp with `tail -f in.jsonl` and appends its stdout to `out.jsonl`; it is
-/// started in a new session (`setsid`, or Perl's on macOS, which has no `setsid` binary) so neither a
+/// The launch recipe. `run.sh` feeds omp with `tail -f in.jsonl` and pipes its stdout through the pump into
+/// `out.jsonl`; it is started in a new session (`setsid`, or Perl's on macOS, which has no `setsid` binary) so neither a
 /// terminal hangup nor a Ctrl-C in the launching process group reaches omp, and every descriptor points at
 /// run-directory files, so the launching channel can close. `umask 077` is for the run directory only:
 /// `run.sh` starts with the launching shell's umask, so the files omp and its tools create get the same
@@ -362,38 +332,61 @@ String posixLaunchScript(String marker, String root, String id, RunSpec spec, {S
     omp: spec.omp,
     ompVersion: spec.ompVersion,
     args: args,
-    generation: 1,
     created: DateTime.now(),
     sessionPath: spec.sessionPath,
     companion: spec.companion,
   );
   final session = spec.sessionPath == null ? '' : '"sessionPath":${jsonEncode(spec.sessionPath)},';
   final overlay = spec.overlay.endsWith('\n') ? spec.overlay : '${spec.overlay}\n';
+  final runsh = posixRunScript(
+    dir,
+    spec.omp,
+    args,
+    tools: spec.tools,
+    limits: spec.limits,
+    loginPath: loginPath,
+    idleExit: spec.idleExit,
+  );
   return '''
 m=${shQuote(marker)}; R=${shQuote(root)}; D=${shQuote(dir)}; cwd=${shQuote(spec.cwd)}; session=${shQuote(session)}
 overlay=${shQuote(overlay)}
 meta=${shQuote(jsonEncode(meta.toJson()))}
-runsh=${shQuote(posixRunScript(dir, spec.omp, args, loginPath: loginPath, idleExit: spec.idleExit))}
+runsh=${shQuote(runsh)}
 $posixLockFunctions$_processFunctions$_launchBody''';
 }
 
-/// `run.sh`: the pipeline's right side runs omp in the foreground, then records its exit code in `exit` and,
-/// as the last line, in `out.jsonl`. The feeding `tail` would only notice omp's death at its next write, so
-/// that side kills it too. (`wait $!` cannot be used: bash and dash wait for the whole background pipeline.)
-/// [loginPath], the login shell's PATH, reaches omp as `$1` of the inner `sh -c` and is prepended there: the
-/// pipeline's own commands keep the PATH sshd gave `run.sh`. With [idleExit], omp gets the run directory and the idle
-/// time in its environment.
-String posixRunScript(String dir, String omp, List<String> args, {String? loginPath, Duration? idleExit}) {
+/// `run.sh`: the pipeline's right side runs omp, records its exit code in `code`, and pipes its stdout through the
+/// pump ([logScript], the only writer of `out.jsonl` while omp runs); then it records the exit code in `exit` and, as
+/// the last line, in `out.jsonl`. The feeding `tail` would only notice omp's death at its next write, so that side kills
+/// it too. (`wait $!` cannot be used: bash and dash wait for the whole background pipeline.) [loginPath], the login
+/// shell's PATH, reaches omp as `$1` of the inner `sh -c` and is prepended there: the pipeline's own commands keep the
+/// PATH sshd gave `run.sh`. With [idleExit], omp gets the run directory and the idle time in its environment.
+/// `BUN_BE_BUN` reaches the pump alone.
+String posixRunScript(
+  String dir,
+  String omp,
+  List<String> args, {
+  required AttachTools tools,
+  required LogLimits limits,
+  String? loginPath,
+  Duration? idleExit,
+}) {
   final idle = idleExit == null ? '' : 'OMPANION_RUN="\$d" OMPANION_IDLE_EXIT_MS=${idleExit.inMilliseconds} ';
+  final pump = [tools.omp, tools.log, 'pump'].map(shQuote).join(' ');
   return '''
 d=${shQuote(dir)}
 $_processFunctions
 $posixTailPoll
 sh -c 'echo \$\$ > "\$0/tail.pid"; exec tail \$1 -c +1 -f "\$0/in.jsonl"' "\$d" "\$tailpoll" 2>/dev/null | {
-  ${idle}sh -c '$_ompExecBody' "\$d" ${shQuote(loginPath ?? '')} ${[omp, ...args].map(shQuote).join(' ')} >> "\$d/out.jsonl" 2>> "\$d/err.log"
+  { ${idle}sh -c '$_ompExecBody' "\$d" ${shQuote(loginPath ?? '')} ${[omp, ...args].map(shQuote).join(' ')} 2>> "\$d/err.log"; echo \$? > "\$d/code"; } |
+    BUN_BE_BUN=1 $pump "\$d" ${pumpArguments(limits)} 2>> "\$d/err.log"
 $_runTail}
 ''';
 }
+
+/// The pump's arguments after the run directory: [LogLimits] as `log.js pump` takes them.
+String pumpArguments(LogLimits limits) =>
+    '${limits.rotateAt} ${limits.carry} ${limits.hold.inMilliseconds} ${limits.markEvery}';
 
 /// The command the pipeline's right side runs omp with, after `$0` (the run directory) and `$1` (the login
 /// shell's PATH, empty when the probe read none): omp's pid goes into `omp.pid` first, so the pid file names
@@ -402,7 +395,7 @@ const _ompExecBody =
     r'''echo $$ > "$0/omp.pid"; if [ -n "$1" ]; then PATH="$1:$PATH"; export PATH; fi; shift; exec "$@"''';
 
 const _runTail = r'''
-  code=$?
+  code=$(cat "$d/code" 2>/dev/null); code=${code:--1}
   i=0
   while [ ! -s "$d/tail.pid" ] && [ $i -lt 100 ]; do sleep 0.01 2>/dev/null || sleep 1; i=$((i + 1)); done
   t=$(cat "$d/tail.pid" 2>/dev/null)
@@ -578,33 +571,13 @@ done
 printf '%s:end\n' "$m"
 ''';
 
-const _rotateBody = r'''
-lock "$d/in.lock" 30 || exit 1
-trap 'rmdir "$d/in.lock" 2>/dev/null' EXIT
-g=$(sed -n 's/.*"generation":\([0-9][0-9]*\).*/\1/p' "$d/meta.json")
-if [ -z "$g" ]; then echo "no generation in $d/meta.json" >&2; exit 1; fi
-s=$(size "$d/out.jsonl")
-if { [ "$g0" -ge 0 ] && [ "$g" != "$g0" ]; } || { [ "$s0" -ge 0 ] && [ "$s" != "$s0" ]; }; then
-  printf '%s:begin\n%s %s\n%s:end\n' "$m" "$g" "$s" "$m"; exit 0
-fi
-n=$((g + 1))
-sed "s/\"generation\":$g/\"generation\":$n/" "$d/meta.json" > "$d/meta.json.tmp" && mv -f "$d/meta.json.tmp" "$d/meta.json" || exit 1
-: > "$d/out.jsonl"
-printf '{"type":"ompanion_rotate","generation":%d,"previousSize":%d}\n' "$n" "$s" >> "$d/out.jsonl"
-printf '%s:begin\n%s %s\n%s:end\n' "$m" "$n" "$s" "$m"
-''';
-
-/// Lock order: launch lock, then append lock (rotation takes only the latter, launches only the former).
+/// Under the launch lock, so a launch looking for the session sees the old record or the new one.
 const _recordBody = r'''
 lock "$R/.launch.lock" 60 || exit 1
 trap 'rmdir "$R/.launch.lock" 2>/dev/null' EXIT
-lock "$d/in.lock" 30 || exit 1
-trap 'rmdir "$d/in.lock" 2>/dev/null; rmdir "$R/.launch.lock" 2>/dev/null' EXIT
 r=same
 if ! grep -qF "$session" "$d/meta.json"; then
-  g=$(sed -n 's/.*"generation":\([0-9][0-9]*\).*/\1/p' "$d/meta.json")
-  if [ -z "$g" ]; then echo "no generation in $d/meta.json" >&2; exit 1; fi
-  printf '%s%s%s\n' "$head" "$g" "$tail" > "$d/meta.json.tmp" && mv -f "$d/meta.json.tmp" "$d/meta.json" || exit 1
+  printf '%s\n' "$meta" > "$d/meta.json.tmp" && mv -f "$d/meta.json.tmp" "$d/meta.json" || exit 1
   r=updated
 fi
 printf '%s:begin\n%s\n%s:end\n' "$m" "$r" "$m"

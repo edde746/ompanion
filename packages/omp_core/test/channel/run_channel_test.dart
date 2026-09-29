@@ -8,7 +8,7 @@ import 'package:omp_core/host.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/src/channel/detached_channel.dart' show inlineAppendLimit;
 import 'package:omp_core/src/channel/follow.dart' show imageRefWindow;
-import 'package:omp_core/src/channel/replay.dart' show attachWindow;
+import 'package:omp_core/src/channel/log_script.dart' show attachWindow;
 import 'package:omp_core/transport.dart';
 import 'package:test/test.dart';
 
@@ -38,7 +38,6 @@ void main() {
           omp: '/bin/omp',
           ompVersion: '18.3.1',
           args: const [],
-          generation: 1,
           created: DateTime.now(),
         );
         await File('$dir/meta.json').writeAsString('${jsonEncode(meta.toJson())}\n');
@@ -176,21 +175,53 @@ void main() {
         await late.close();
       });
 
-      test('follows a rotation it had read to, counting offsets from the new file', () async {
+      test('follows a rotation past the history and the carried lines it had read', () async {
         final channel = await attach();
         final frames = Frames(channel.lines);
         final first = '{"id":"1","pad":"${'x' * 200}"}';
-        await omp('$first\n');
-        await frames.next((f) => f['id'] == '1');
-        // As rotateRunOutput leaves it: truncated, the marker first, then whatever omp writes next.
-        final marker = '{"type":"ompanion_rotate","generation":2,"previousSize":${first.length + 1}}\n';
-        await File('$dir/out.jsonl').writeAsString(marker, flush: true);
+        await omp('$first\n{"id":"1b"}\n');
+        await frames.next((f) => f['id'] == '1b');
+        // As the pump leaves it: truncated, the marker, the history, the carried end of the old log, then more.
+        const history = '{"type":"tool_execution_start","toolCallId":"t1"}\n';
+        final marker =
+            '{"type":"ompanion_rotate","generation":2,"carryFrom":${first.length + 1},"preamble":${history.length}}\n';
+        await File('$dir/out.jsonl').writeAsString('$marker$history{"id":"1b"}\n', flush: true);
         await omp('{"id":"2"}\n');
         await frames.next((f) => f['id'] == '2');
-        expect(frames.raw, [first, '{"id":"2"}']);
+        expect(frames.raw, [first, '{"id":"1b"}', '{"id":"2"}']);
         expect(frames.error, isNull);
         expect(channel.generation, 2);
-        expect(channel.offset, marker.length + 11);
+        expect(channel.offset, File('$dir/out.jsonl').lengthSync());
+        await channel.close();
+
+        final again = await attach(generation: 2, offset: channel.offset - 11);
+        final more = Frames(again.lines);
+        await more.next((f) => f['id'] == '2');
+        expect(more.raw, ['{"id":"2"}'], reason: 'resumed in generation 2, which the first line names');
+        await again.close();
+      });
+
+      test('follows every line the pump writes through its rotations, each once and in order', () async {
+        final channel = await attach();
+        final frames = Frames(channel.lines);
+        final pump = await Process.start(
+          tools.omp,
+          [tools.log, 'pump', dir, '16384', '4096', '0', '1024'],
+          environment: {'BUN_BE_BUN': '1'},
+        );
+        final pumpErrors = pump.stderr.transform(utf8.decoder).join();
+        const count = 400;
+        for (var i = 0; i < count; i++) {
+          pump.stdin.write('{"type":"line","n":$i,"pad":"${'p' * 80}"}\n');
+          await pump.stdin.flush();
+          await Future<void>.delayed(const Duration(milliseconds: 4));
+        }
+        await frames.next((f) => f['n'] == count - 1, timeout: const Duration(seconds: 60));
+        await pump.stdin.close();
+        expect(await pump.exitCode, 0, reason: await pumpErrors);
+        expect(frames.error, isNull);
+        expect([for (final f in frames.frames) f['n']], [for (var i = 0; i < count; i++) i]);
+        expect(channel.generation, greaterThan(2), reason: 'about 40 KB through 16 KiB generations');
         await channel.close();
       });
 

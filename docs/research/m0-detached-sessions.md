@@ -79,10 +79,14 @@ first in its list, reads 0.8–1.2 MB/s from the container on an M-series Mac, c
 | BusyBox 1.37.0 | same | nothing |
 
 All three detect truncation by size, so a file that grows past the reader's position before the next check
-is not seen as truncated (BusyBox checks once a second). Rotation therefore happens only while the session
-is settled, under the append lock, and writes `{"type":"ompanion_rotate","generation":G,"previousSize":S}` as
-the first line of the new generation. A channel that had read exactly `S` bytes continues and counts offsets
-from the new file; otherwise its `lines` fail with `RunLogGap` and the device resyncs over RPC.
+is not seen as truncated (BusyBox checks once a second). BSD `tail -F` also moves to the end of the file it finds
+truncated, not to its start (measured 2026-09-29 on macOS 27: a line written right after the truncation, before
+`tail` looked, was never output). A follower that lags does not notice a truncation at all: with its reader 70 KB
+into a 2 MB file, a truncation and 800 KB written at once, BSD `tail -F` went on at byte 70 KB of the new file. A
+replaced file (rename over it) is worse on macOS: `tail -F` reports it inaccessible and never follows the new one.
+The pump therefore rotates in place, leaves the log empty for 250 ms before writing the new generation, carries the
+old log's last 8 MiB, and marks the log with its generation every MiB, so a follower that still reads across a
+rotation finds out (PLAN.md §5, Pump).
 
 ## Changes to the recipe in PLAN.md §5, and why
 

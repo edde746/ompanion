@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import '../host/scripts.dart';
 import '../transport/host_link.dart';
 import 'follow.dart';
-import 'replay.dart';
+import 'log_script.dart';
 import 'run_log.dart';
 
 /// Lines up to this size are appended through the appender's stdin. `sh`'s `read` takes one byte per system
