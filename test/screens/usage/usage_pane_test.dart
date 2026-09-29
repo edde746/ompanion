@@ -12,6 +12,7 @@ import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/models/machine.dart';
 import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/providers/settings_provider.dart';
 import 'package:ompanion/screens/usage/usage_pane.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
@@ -158,8 +159,21 @@ _Answer _omp(Future<(String, String, int)> Function() usage) => (script) {
 Future<(String, String, int)> _fixture(String name) async =>
     (File('test/config/fixtures/$name').readAsStringSync(), '', 0);
 
+/// usage-target.json with an organization on team@example.com's report, the account without usage and the disabled
+/// credential.
+Future<(String, String, int)> _targetWithOrgs() async {
+  final json = jsonDecode(File('test/config/fixtures/usage-target.json').readAsStringSync()) as Map<String, Object?>;
+  final report = (json['reports']! as List<Object?>)[1]! as Map<String, Object?>;
+  (report['metadata']! as Map<String, Object?>)['orgName'] = 'Acme Team';
+  ((json['accountsWithoutUsage']! as List<Object?>).single! as Map<String, Object?>)['orgName'] = 'Acme CI';
+  ((json['disabledCredentials']! as List<Object?>).single! as Map<String, Object?>)['orgName'] = 'Acme Ops';
+  return (jsonEncode(json), '', 0);
+}
+
 void main() {
-  testWidgets("a failing or silent machine leaves the others' usage on screen", (tester) async {
+  testWidgets("a failing or silent machine leaves the others' usage on screen; hide mode masks every identity", (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -185,6 +199,7 @@ void main() {
       }
       return machines;
     }))!;
+    final settings = (await tester.runAsync(() => SettingsProvider.load(db)))!;
     final links = {
       'mac': _Link(_omp(() => _fixture('usage-mac.json'))),
       'broken': _Link(_omp(() async => ('', 'Error: database disk image is malformed', 1))),
@@ -203,6 +218,7 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
+          ChangeNotifierProvider.value(value: settings),
           ChangeNotifierProvider.value(value: machines),
           ChangeNotifierProvider<SessionsProvider>.value(value: sessions),
         ],
@@ -224,12 +240,14 @@ void main() {
     expect(find.text('Asking omp…'), findsOneWidget);
 
     // Retrying the broken machine alone brings its accounts in, merged with This Mac's.
-    links['broken']!.answer = _omp(() => _fixture('usage-target.json'));
+    links['broken']!.answer = _omp(_targetWithOrgs);
     await tester.tap(find.text('Retry'));
     for (var i = 0; i < 5; i++) {
       await tester.pump();
     }
-    expect(find.textContaining('team@example.com', findRichText: true), findsOneWidget);
+    expect(find.textContaining('team@example.com · Acme Team', findRichText: true), findsOneWidget);
+    expect(find.textContaining('ci@example.com · Acme CI', findRichText: true), findsOneWidget);
+    expect(find.textContaining('ops@example.com · Acme Ops', findRichText: true), findsOneWidget);
     expect(find.textContaining('database disk image is malformed'), findsNothing);
     expect(find.text('Asking omp…'), findsOneWidget);
 
@@ -245,6 +263,15 @@ void main() {
       expect(link.commands, ['usage invalidate', 'usage --json', 'config get']);
     }
     expect(find.textContaining('team@example.com', findRichText: true), findsOneWidget);
+
+    // Hide mode leaves no email or organization on screen, for screenshots, and showing brings them back.
+    await tester.tap(find.byTooltip('Hide emails and organizations'));
+    await tester.pump();
+    expect(find.textContaining(RegExp('example\\.com|Acme'), findRichText: true), findsNothing);
+    expect(find.textContaining('•••••••• · ••••••••', findRichText: true), findsNWidgets(3));
+    await tester.tap(find.byTooltip('Show emails and organizations'));
+    await tester.pump();
+    expect(find.textContaining('team@example.com · Acme Team', findRichText: true), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {

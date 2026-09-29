@@ -32,6 +32,8 @@
     "fetchAgain": "Ask providers again",
     "fetched": "Fetched $ago ago",
     "notFetched": "Not fetched yet",
+    "hideIdentities": "Hide emails and organizations",
+    "showIdentities": "Show emails and organizations",
     "none": "No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.",
     "noMachines": "No machines yet. Add one in the sidebar.",
     "machines": "Machines",

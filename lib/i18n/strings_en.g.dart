@@ -189,6 +189,12 @@ class Translations$usage$en {
 	/// en: 'Not fetched yet'
 	String get notFetched => 'Not fetched yet';
 
+	/// en: 'Hide emails and organizations'
+	String get hideIdentities => 'Hide emails and organizations';
+
+	/// en: 'Show emails and organizations'
+	String get showIdentities => 'Show emails and organizations';
+
 	/// en: 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.'
 	String get none => 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.';
 
@@ -3813,6 +3819,8 @@ extension on Translations {
 			'usage.fetchAgain' => 'Ask providers again',
 			'usage.fetched' => ({required Object ago}) => 'Fetched ${ago} ago',
 			'usage.notFetched' => 'Not fetched yet',
+			'usage.hideIdentities' => 'Hide emails and organizations',
+			'usage.showIdentities' => 'Show emails and organizations',
 			'usage.none' => 'No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.',
 			'usage.noMachines' => 'No machines yet. Add one in the sidebar.',
 			'usage.machines' => 'Machines',
@@ -4297,10 +4305,10 @@ extension on Translations {
 			'sessions.directoryRequired' => 'Choose a working directory.',
 			'sessions.notADirectory' => ({required Object path, required Object machine}) => '${path} is not a directory on ${machine}.',
 			'sessions.recentDirectories' => 'Recent projects',
-			'sessions.model' => 'Model (optional)',
-			'sessions.modelDefault' => 'Default (from omp\'s settings)',
 			_ => null,
 		} ?? switch (path) {
+			'sessions.model' => 'Model (optional)',
+			'sessions.modelDefault' => 'Default (from omp\'s settings)',
 			'sessions.modelPick' => 'Choose a model',
 			'sessions.modelUseDefault' => 'Use the model from omp\'s settings',
 			'sessions.create' => 'Start',
@@ -4811,10 +4819,10 @@ extension on Translations {
 			'config.stats.cacheRead' => 'Cache read',
 			'config.stats.cost' => 'Cost',
 			'config.stats.ttft' => 'Avg. first token',
-			'config.stats.speed' => 'Avg. speed',
-			'config.stats.perHour' => 'Requests per hour',
 			_ => null,
 		} ?? switch (path) {
+			'config.stats.speed' => 'Avg. speed',
+			'config.stats.perHour' => 'Requests per hour',
 			'config.stats.byModel' => 'By model',
 			'config.stats.byFolder' => 'By project',
 			'config.stats.byAgent' => 'By agent',

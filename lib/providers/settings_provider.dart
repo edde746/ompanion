@@ -91,6 +91,9 @@ abstract final class Prefs {
   static const sidebarWidth = DoublePref('sidebar_width', 300);
   static const dockWidth = DoublePref('dock_width', 340);
 
+  /// The usage pane masks account emails, ids and organizations, for screenshots.
+  static const usageHideIdentities = BoolPref('usage_hide_identities', false);
+
   /// Whether the sidebar hides the sessions of the project folder [cwd] on machine [machineId].
   static BoolPref projectCollapsed(String machineId, String cwd) =>
       BoolPref('${projectCollapsedPrefix(machineId)}$cwd', false);

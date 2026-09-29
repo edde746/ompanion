@@ -13,6 +13,7 @@ import '../../config/omp_cli.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../providers/machines_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../widgets/activity_mark.dart';
 import '../config/config_widgets.dart';
@@ -173,6 +174,8 @@ class _UsagePaneState extends State<UsagePane> {
   Widget build(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
+    final settings = context.watch<SettingsProvider>();
+    final hide = settings.get(Prefs.usageHideIdentities);
     final now = DateTime.now();
     final loaded = [
       for (final machine in _machines)
@@ -198,6 +201,14 @@ class _UsagePaneState extends State<UsagePane> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              IconButton(
+                tooltip: hide ? t.usage.showIdentities : t.usage.hideIdentities,
+                isSelected: hide,
+                onPressed: () => unawaited(settings.set(Prefs.usageHideIdentities, !hide)),
+                icon: const Icon(Symbols.visibility),
+                selectedIcon: const Icon(Symbols.visibility_off),
+              ),
+              const SizedBox(width: AppSizes.gap),
               // On a phone the label would leave no room for the fetch time.
               // Both stay enabled while a machine is still answering: a stalled machine must not hold up the others.
               if (isCompact(context))
@@ -243,7 +254,7 @@ class _UsagePaneState extends State<UsagePane> {
               padding: const EdgeInsets.only(top: 16),
               child: Text(t.usage.none, style: secondary),
             ),
-          for (final provider in overview.providers) _ProviderSection(provider: provider, now: now),
+          for (final provider in overview.providers) _ProviderSection(provider: provider, now: now, hide: hide),
         ],
       ],
     );
@@ -358,10 +369,11 @@ class _MachineRow extends StatelessWidget {
 /// One provider as `omp usage` prints it: its accounts, the accounts without usage data, the disabled credentials,
 /// and the capacity per window.
 class _ProviderSection extends StatelessWidget {
-  const _ProviderSection({required this.provider, required this.now});
+  const _ProviderSection({required this.provider, required this.now, required this.hide});
 
   final ProviderUsage provider;
   final DateTime now;
+  final bool hide;
 
   @override
   Widget build(BuildContext context) {
@@ -369,8 +381,8 @@ class _ProviderSection extends StatelessWidget {
     final theme = Theme.of(context);
     final secondary = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final others = [
-      for (final entry in provider.withoutUsage) _WithoutUsageRow(entry: entry, now: now),
-      for (final entry in provider.disabled) _DisabledRow(entry: entry, now: now),
+      for (final entry in provider.withoutUsage) _WithoutUsageRow(entry: entry, now: now, hide: hide),
+      for (final entry in provider.disabled) _DisabledRow(entry: entry, now: now, hide: hide),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -384,7 +396,7 @@ class _ProviderSection extends StatelessWidget {
         for (final (index, account) in provider.accounts.indexed)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSizes.gap),
-            child: _AccountBlock(account: account, index: index, templates: provider.templates, now: now),
+            child: _AccountBlock(account: account, index: index, templates: provider.templates, now: now, hide: hide),
           ),
         if (others.isNotEmpty)
           Padding(
@@ -440,12 +452,19 @@ String _capacityWindow(CapacityStat stat) {
 /// An account: its header (status, label, organization, plan, saved resets, age, machines), its policy, and one line
 /// per limit any account of the provider has.
 class _AccountBlock extends StatelessWidget {
-  const _AccountBlock({required this.account, required this.index, required this.templates, required this.now});
+  const _AccountBlock({
+    required this.account,
+    required this.index,
+    required this.templates,
+    required this.now,
+    required this.hide,
+  });
 
   final AccountUsage account;
   final int index;
   final List<LimitTemplate> templates;
   final DateTime now;
+  final bool hide;
 
   @override
   Widget build(BuildContext context) {
@@ -470,10 +489,10 @@ class _AccountBlock extends StatelessWidget {
               Expanded(
                 child: Text.rich(
                   TextSpan(
-                    text: report.accountLabel ?? t.usage.accountN(n: index + 1),
+                    text: _identity(report.accountLabel, hide) ?? t.usage.accountN(n: index + 1),
                     style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                     children: [
-                      for (final part in _headerParts(t, report, account.qualifier, now))
+                      for (final part in _headerParts(t, report, _identity(account.qualifier, hide), now))
                         TextSpan(text: ' · $part', style: secondary),
                     ],
                   ),
@@ -517,6 +536,10 @@ class _AccountBlock extends StatelessWidget {
     );
   }
 }
+
+/// What hide mode shows in place of an email, account id, project id or organization: one fixed mask, so neither
+/// the value nor its length shows.
+String? _identity(String? value, bool hide) => hide && value != null ? '••••••••' : value;
 
 /// `formatAccountHeader` after the label.
 List<String> _headerParts(Translations t, UsageReport report, String? qualifier, DateTime now) {
@@ -796,10 +819,11 @@ class _Bar extends StatelessWidget {
 
 /// A stored account no report covers: "no usage data", its policy, and Anthropic's re-login deadline.
 class _WithoutUsageRow extends StatelessWidget {
-  const _WithoutUsageRow({required this.entry, required this.now});
+  const _WithoutUsageRow({required this.entry, required this.now, required this.hide});
 
   final MachineAccount entry;
   final DateTime now;
+  final bool hide;
 
   @override
   Widget build(BuildContext context) {
@@ -808,14 +832,15 @@ class _WithoutUsageRow extends StatelessWidget {
     final colors = AppColors.of(context);
     final secondary = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final account = entry.account;
-    final base = account.apiKey
-        ? t.usage.apiKey
-        : identityLabel(account.identity, enterpriseUrl: account.enterpriseUrl);
+    final base = account.apiKey ? null : identityLabel(account.identity, enterpriseUrl: account.enterpriseUrl);
     final org = account.apiKey ? null : identityOrg(account.identity, base);
     final relogin = reloginRemaining(account, now);
     return _OtherRow(
       icon: _Dot(theme.colorScheme.surfaceContainerHighest),
-      label: [base ?? t.usage.oauthAccount, ?org].join(' · '),
+      label: [
+        account.apiKey ? t.usage.apiKey : _identity(base, hide) ?? t.usage.oauthAccount,
+        ?_identity(org, hide),
+      ].join(' · '),
       text: t.usage.withoutUsage,
       machine: entry.machine,
       lines: [
@@ -834,10 +859,11 @@ class _WithoutUsageRow extends StatelessWidget {
 
 /// A credential omp disabled: when, the short cause, and that a new login restores it.
 class _DisabledRow extends StatelessWidget {
-  const _DisabledRow({required this.entry, required this.now});
+  const _DisabledRow({required this.entry, required this.now, required this.hide});
 
   final MachineDisabled entry;
   final DateTime now;
+  final bool hide;
 
   @override
   Widget build(BuildContext context) {
@@ -849,7 +875,10 @@ class _DisabledRow extends StatelessWidget {
     final cause = shortDisableCause(credential.cause);
     return _OtherRow(
       icon: Icon(Symbols.block, size: 14, color: colors.error),
-      label: [base ?? t.usage.oauthAccount, ?identityOrg(credential.identity, base)].join(' · '),
+      label: [
+        _identity(base, hide) ?? t.usage.oauthAccount,
+        ?_identity(identityOrg(credential.identity, base), hide),
+      ].join(' · '),
       text:
           '${disabledAt == null ? t.usage.disabled(cause: cause) : t.usage.disabledAgo(ago: formatUsageDuration(now.difference(disabledAt)), cause: cause)} '
           '${t.usage.reloginToRestore}',

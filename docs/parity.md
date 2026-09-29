@@ -97,7 +97,7 @@ what stock lacks.
 | Logout, account list | `/logout` | CE (credentials list/remove) | providers page | M5 |
 | Account pin | `/session pin` | CE `pinCurrentProviderOAuthAccount` | providers page | M5 |
 | Provider setup wizard | `/setup` | CE-R over `get_login_providers`, `login`, auth storage, settings | onboarding | M5 |
-| Usage limits | `/usage`, `omp usage` | CLI `usage --json` per machine, `usage invalidate`; `config get auth.accountPolicies`, `retry.usageReservePct` for policy lines | usage pane (all machines, one entry per account) | M5 |
+| Usage limits | `/usage`, `omp usage` | CLI `usage --json` per machine, `usage invalidate`; `config get auth.accountPolicies`, `retry.usageReservePct` for policy lines | usage pane (all machines, one entry per account; a hide toggle masks emails, account ids and organizations for screenshots) | M5 |
 | Stats | `/stats`, `/trace` | CLI `stats --json` | stats page | M5 |
 
 ## Sessions
