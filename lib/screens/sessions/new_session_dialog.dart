@@ -14,6 +14,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../sessions/show_session.dart';
 import '../../widgets/activity_mark.dart';
 import '../../widgets/app_segmented.dart';
 import '../../widgets/labeled_field.dart';
@@ -24,14 +25,10 @@ import 'machine_sessions.dart';
 /// Asks where on [machine] a new session works (no project folder, a recent project directory, a typed path, or a
 /// folder picked on the machine) and an optional model, opens the session there and shows it. It starts on no folder:
 /// omp then works in its temporary directory, as when it starts in the home directory.
-Future<void> showNewSessionDialog(BuildContext context, Machine machine) async {
-  final shell = context.read<ShellProvider>();
-  final session = await showDialog<LiveSession>(
-    context: context,
-    builder: (_) => _NewSessionDialog(machine: machine),
-  );
-  if (session != null) shell.select(const SessionSelection());
-}
+Future<void> showNewSessionDialog(BuildContext context, Machine machine) => showDialog<void>(
+  context: context,
+  builder: (_) => _NewSessionDialog(machine: machine),
+);
 
 class _NewSessionDialog extends StatefulWidget {
   const _NewSessionDialog({required this.machine});
@@ -126,6 +123,7 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
   Future<void> _create() async {
     final t = context.t;
     final sessions = context.read<SessionsProvider>();
+    final shell = context.read<ShellProvider>();
     final runtime = sessions.runtimeFor(widget.machine);
     final noFolder = _noFolder;
     final typed = _expand(_cwd.text.trim());
@@ -164,8 +162,9 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
         }
         return;
       }
-      final session = await sessions.open(widget.machine, NewSession(cwd, model: _model?.selector));
-      if (mounted) Navigator.pop(context, session);
+      final request = NewSession(cwd, model: _model?.selector);
+      await openAndShow(sessions, shell, () => sessions.open(widget.machine, request));
+      if (mounted) Navigator.pop(context);
     } on Object catch (error) {
       if (mounted) {
         setState(() {

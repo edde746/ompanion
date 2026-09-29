@@ -135,15 +135,11 @@ class SessionsProvider extends ChangeNotifier {
   /// The deadlines of [session]'s timed dialogs, counted from when the session was opened here or the dialog arrived.
   RequestDeadlines deadlinesOf(LiveSession session) => _deadlines.putIfAbsent(session, () => RequestDeadlines(session));
 
-  /// Opens [request] on [machine] and makes it [active]. A session this device already has open is selected
-  /// instead of opened twice; one whose link closed is opened again in its place.
+  /// Opens [request] on [machine] and adds it to [openSessions]; [select] makes it [active]. A session this device
+  /// already has open is returned instead of opened twice; one whose link closed is opened again in its place.
   Future<LiveSession> open(Machine machine, SessionOpen request) async {
     final same = _open.where((s) => _machineIds[s] == machine.id && _opens(request, s)).firstOrNull;
-    if (same != null) {
-      final session = same.linkState is LinkClosed ? await reopen(same) : same;
-      select(session);
-      return session;
-    }
+    if (same != null) return same.linkState is LinkClosed ? await reopen(same) : same;
     final session = await runtimeFor(machine).open(request);
     if (_disposed) {
       await session.detach();
@@ -154,9 +150,8 @@ class SessionsProvider extends ChangeNotifier {
       _open.add(session);
       _machineIds[session] = machine.id;
       deadlinesOf(session);
+      notifyListeners();
     }
-    _active = session;
-    notifyListeners();
     // A new session or a launched run shows up in the listing.
     unawaited(refresh(machine));
     return session;

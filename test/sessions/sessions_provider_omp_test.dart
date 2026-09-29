@@ -131,6 +131,7 @@ void main() {
 
   test('a stop that cannot reach the machine keeps the session open and throws', () async {
     final session = await sessions.open(_machine, NewSession(project()));
+    sessions.select(session);
     connector.failure = HostLinkException('the machine is off the network');
     await sessions.runtimeFor(_machine).link.close();
 
@@ -143,8 +144,9 @@ void main() {
     expect(sessions.openSessions, isEmpty);
   });
 
-  test('opening a closed session again from the sidebar shows its replacement', () async {
+  test('an open, and one of a closed session again in its place, leaves the shown session shown', () async {
     final first = await sessions.open(_machine, NewSession(project()));
+    sessions.select(first);
     // The fake provider answers `ok`; omp writes the session file with the turn.
     await first.rpc.prompt('hello');
     if (!first.view.transcript.any((item) => item is AssistantItem) || first.view.run.running) {
@@ -154,12 +156,14 @@ void main() {
     }
     final path = first.sessionPath!;
     final second = await sessions.open(_machine, NewSession(project()));
-    expect(sessions.active, same(second));
+    expect(sessions.active, same(first));
+    sessions.select(second);
     await first.stop();
 
     final reopened = await sessions.open(_machine, ResumeSession(path));
     expect(reopened, isNot(same(first)));
-    expect(sessions.active, same(reopened));
+    expect(sessions.openSessions, [reopened, second]);
+    expect(sessions.active, same(second));
 
     await sessions.stop(reopened);
     await sessions.stop(second);

@@ -160,8 +160,7 @@ class SidebarState extends State<Sidebar> {
     final t = context.t;
     setState(() => _starting.add((machine.id, cwd)));
     try {
-      await sessions.open(machine, NewSession(cwd));
-      shell.select(const SessionSelection());
+      await openAndShow(sessions, shell, () => sessions.open(machine, NewSession(cwd)));
     } on Object catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: describeConnectError(t, error)))));
     } finally {

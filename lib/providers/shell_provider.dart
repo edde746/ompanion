@@ -40,16 +40,28 @@ final class SessionSelection extends ShellSelection {
 }
 
 /// Navigation state shared by the wide and the narrow layout, so resizing the window keeps the place.
+///
+/// The user's last choice of place wins. A navigation that finishes later, such as a session that takes a while to
+/// open, takes a turn ([takeTurn]) when the user asks for it and shows its result only while [isLatest] holds for that
+/// turn. Every [select] takes a turn too, so any later click supersedes it.
 class ShellProvider extends ChangeNotifier {
   ShellSelection _selection = const HomeSelection();
   bool _panelsPageOpen = false;
+  int _turn = 0;
 
   ShellSelection get selection => _selection;
 
   /// Narrow layout only: the dock panels shown as their own page.
   bool get panelsPageOpen => _panelsPageOpen;
 
+  /// Starts a navigation that finishes later; see [isLatest].
+  int takeTurn() => ++_turn;
+
+  /// Whether no navigation started since the one that took [turn].
+  bool isLatest(int turn) => turn == _turn;
+
   void select(ShellSelection selection) {
+    _turn++;
     if (selection == _selection) return;
     _selection = selection;
     notifyListeners();

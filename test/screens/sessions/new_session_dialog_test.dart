@@ -114,9 +114,9 @@ final class _Connector extends MachineConnector {
 }
 
 /// What the dialog uses of [SessionsProvider]: the fake machine's [runtime], the recent project directories of
-/// its listing, its model list, and the session requests [open] records. [controlPending], while set, stands for
-/// a control process that has not started yet; [controlFailure] for one that does not start; [openPending] for a
-/// session that is still starting.
+/// its listing, its model list, the session requests [open] records, and [select] of the session it opened.
+/// [controlPending], while set, stands for a control process that has not started yet; [controlFailure] for one that
+/// does not start; [openPending] for a session that is still starting.
 final class _Sessions extends ChangeNotifier implements SessionsProvider {
   _Sessions(this.runtime, {this.catalogue = const [], this.recent = const []});
 
@@ -164,6 +164,9 @@ final class _Sessions extends ChangeNotifier implements SessionsProvider {
     opened.add(request);
     return openPending?.future ?? FakeSession();
   }
+
+  @override
+  void select(LiveSession session) {}
 }
 
 /// The machine's models: `fake/fast` and `fake/reasoning`, as the fake provider serves them.
