@@ -45,10 +45,10 @@ platform :ios do
     screenshots_path = File.join(PROJECT_ROOT, "ios/fastlane/screenshots")
     skip_screenshots = options.fetch(:skip_screenshots, false).to_s == "true"
     UI.user_error!("No App Store metadata in #{metadata_path} (store/README.md).") unless Dir.exist?(metadata_path)
-    # The review contact and the demo password are left as FILL lines and a <PASSWORD> token in the repository
-    # (store/README.md); uploading one would put it in front of App Review.
+    # The review contact and the demo password are left as FILL lines in the repository (store/README.md);
+    # uploading one would put it in front of App Review.
     unfilled = Dir[File.join(metadata_path, "**/*.txt")].select do |path|
-      File.read(path).match?(/\AFILL|<PASSWORD>/)
+      File.read(path).start_with?("FILL")
     end
     unless unfilled.empty?
       names = unfilled.map { |path| path.delete_prefix("#{metadata_path}/") }.sort

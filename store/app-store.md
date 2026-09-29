@@ -46,9 +46,10 @@ they state a fact: the systems the app connects to (macOS, Linux and Windows in 
 descriptively, which guideline 2.3.7 allows; it forbids packing metadata with them "just to game the system".
 The keyword field repeats no word from the name or the subtitle (Apple indexes those anyway), and contains no
 category name and no "app": it is
-`terminal,remote,server,shell,jump,host,vpn,mesh,session,diff,git,ai,self-hosted,mac,linux,windows`. `vpn`
-and `mesh` stand for machines reached over a mesh VPN: the editor's "Reached over Tailscale" switch and the
-"None (Tailscale SSH)" authentication work on iPhone and iPad; the Tailscale peer picker is desktop-only.
+`terminal,remote,server,shell,jump,host,session,diff,git,ai,self-hosted,mac,linux,windows`. Keep `vpn` out
+of it and "VPN" out of every listing text: with `vpn,mesh` in the keywords and "private mesh VPN" in What's
+New, App Review's automated analysis asked about VPN functionality (section 10). Tailscale works on iPhone and
+iPad only as the user's own separate app; ompanion just dials the peer's address over SSH.
 
 **Copyright name.** `2026 edde746` also works, but the App Store already shows your real name as the seller
 of Plezy ("Edvard Wikhall", [Plezy listing](https://apps.apple.com/us/app/plezy-media-server-client/id6754315964)),
@@ -82,12 +83,12 @@ Check all three URLs in an incognito window before submitting; a dead privacy-po
 | Last name | `last_name.txt` | **field for the user** |
 | Phone | `phone_number.txt` | **field for the user** |
 | Email | `email_address.txt` | **field for the user** |
-| Notes | `notes.txt` | the canonical text is `store/review-demo/README.md` §"Console answers"; the file here is that text plus the guideline paragraphs (2.1/4.2, 2.5.2, 5.1.2(i), AI output). Before submitting, delete the fill-in marker on line 1 and replace `<PASSWORD>` in step 1; the host, `217.160.119.181`, is already in. Filled in, it stays under the 4,000-byte limit (`store/README.md`, "Length check"). |
-| Sign-in required | `demo_user.txt`, `demo_password.txt` | **Yes**: user `root`, password `REVIEW_PASSWORD` from `store/review-demo/.env`. The app has no account of its own, but this is the form an App Review person looks at first, so the demo server's credentials belong here as well as in the notes. deliver sets "Sign-in required" to Yes only when both files are non-empty. |
+| Notes | `notes.txt` | the canonical text is `store/review-demo/README.md` §"Console answers"; the file here is that text plus the guideline paragraphs (2.1/4.2, 2.5.2, 5.1.2(i), no VPN functionality, AI output). The whole file is the field's text, under the 4,000-byte limit (`store/README.md`, "Length check"). It names the host, `217.160.119.181`, and user `root`, and points to Sign-In Information for the password, which is never committed. |
+| Sign-in required | `demo_user.txt`, `demo_password.txt` | **Yes**: user `root`, password `REVIEW_PASSWORD` from `store/review-demo/.env`. The app has no account of its own, but this is the form an App Review person looks at first, and the notes' step 1 sends them here for the password. deliver sets "Sign-in required" to Yes only when both files are non-empty. |
 | Trade representative contact (EU DSA) | `ios/fastlane/metadata/trade_representative_contact_information/*.txt` | optional and **field for the user** (legal name, address, phone); only needed if you appoint an EU trade representative and want it uploaded with the metadata |
 
-`notes.txt` is the review notes text. Its first line is a fill-in marker, so a submission with the marker
-still in place is obvious.
+`notes.txt` is the review notes text, pasted or uploaded whole. The contact and password files start with
+`FILL` until filled in, and `deploy_appstore` refuses to upload while any does.
 
 ## 5. Age rating questionnaire (General → App Information → Age Ratings)
 
@@ -250,6 +251,7 @@ Desktop-only features are absent from both the captures and the descriptions.
 | [4.7 Mini apps, chatbots, plug-ins](https://developer.apple.com/app-store/review/guidelines/#extensions) | software not embedded in the binary, including chatbots and plug-ins, brings extra rules; 4.7.1 asks for filtering, a way to report content, and blocking | The companion extension is not offered on the device: it is uploaded into the user's own omp installation on the user's own machine. The agent in the chat is the user's own install with the user's own provider accounts, not a chatbot we offer, and the app has no report or filter control of its own. The one exception is the review demo server, whose model we pay for; it exists only for the review, and the notes say so. **Flagged as the most likely guideline to draw a question**; the review notes' 2.5.2 and AI-content paragraphs make this argument. |
 | [5.1.1(i) Privacy policies](https://developer.apple.com/app-store/review/guidelines/#privacy) | a privacy policy in metadata **and inside the app** | The policy is at the privacy URL, and the app links it in **Settings → About** (`lib/screens/settings/about_section.dart`): privacy policy, source code, issue tracker, licence ("GPL-3.0"), Flutter's bundled-package licence list and the version line. Both halves of the guideline are satisfied. |
 | [5.1.2(i) Data Use and Sharing](https://developer.apple.com/app-store/review/guidelines/#privacy) | disclose sharing with third parties, including third-party AI, and get permission | The app sends prompts only to the user's own omp, on the user's own machine, which calls the providers the user configured with the user's own credentials. The app never contacts a provider, keeps no provider key (a key typed into the Providers page goes over SSH to omp), and shows nothing to the developer. Explained in the review notes and in the privacy policy. On the review demo server the machine is ours: its omp sends the reviewer's prompts to OpenRouter and Z.ai with our key, which the review notes' 5.1.2(i) paragraph says. |
+| VPN (automated analysis) | App Review asks what user data a VPN collects, why, and who it is shared with, or a confirmation that there is no VPN | ompanion has no VPN: no Network Extension framework or entitlement, no tunnel, no routing. No Mach-O in the built `Runner.app` links `NetworkExtension.framework`, the entitlements are push and keychain groups only, and the one app extension is the Notification Service Extension. It opens SSH connections only; a machine may sit on the user's Tailscale network, which Tailscale's own app carries. The review notes' "No VPN functionality" paragraph says so. |
 
 ## 11. Counts (evidence)
 

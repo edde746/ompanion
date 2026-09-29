@@ -25,7 +25,7 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 | Contact email | App Store Connect → App Review Information (`ios/fastlane/metadata/review_information/email_address.txt`) and Play Console → Store settings → Contact details |
 | Contact phone | App Store Connect → App Review Information (`phone_number.txt`); optional on Play |
 | Contact first and last name | App Store Connect → App Review Information (`first_name.txt`, `last_name.txt`) |
-| Demo password | `<PASSWORD>` in `ios/fastlane/metadata/review_information/notes.txt` step 1 (delete the file's first line too) and `demo_password.txt`; the user is `root` (`demo_user.txt`) and the host `217.160.119.181` is already in the notes. The Play "Sign-in details" text is in `store/google-play.md` §4. The password is `REVIEW_PASSWORD` in `store/review-demo/.env`, and the canonical console answers are `store/review-demo/README.md` §"Console answers". |
+| Demo password | `demo_password.txt` (App Store Connect's Sign-In Information); the user is `root` (`demo_user.txt`). `ios/fastlane/metadata/review_information/notes.txt` holds no password: its step 1 points App Review to Sign-In Information, and the host `217.160.119.181` is already in it. The Play "Sign-in details" text is in `store/google-play.md` §4. The password is `REVIEW_PASSWORD` in `store/review-demo/.env`, and the canonical console answers are `store/review-demo/README.md` §"Console answers". |
 | Play developer account | Play Console: developer name shown on the listing, contact email, and the account's trader/DSA status for the EEA |
 | Apple Developer Program team | `ios/Runner.xcodeproj` pins `DEVELOPMENT_TEAM = G88U5B5783`; clear it if that id should not be public and pick the team in Xcode once per Mac |
 | Apple Team ID, App Store Connect API key (or Apple ID + app-specific password) | `.env`, see Build below |
@@ -84,8 +84,8 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 7. [ ] Export compliance: encryption **yes**, "an industry standard algorithm, not provided within the Apple
        operating system" (SSH and TLS in Dart) — §8. Upload nothing unless France is in your territories.
 8. [x] App Review Information: contact fields, **Sign-in required = Yes** with user `root` and the demo
-       password (`demo_user.txt`, `demo_password.txt`), and the notes from
-       `ios/fastlane/metadata/review_information/notes.txt` with the first line deleted and `<PASSWORD>` filled in.
+       password (`demo_user.txt`, `demo_password.txt`), and the notes: the whole of
+       `ios/fastlane/metadata/review_information/notes.txt`, unchanged.
 9. [ ] Screenshots for the iPhone 6.9-inch set (1320×2868) and the iPad set (2048×2732).
 10. [ ] Pricing and Availability: opt out of **iPhone and iPad Apps on Apple Silicon Mac** and **Apple Vision
         Pro**; both are on unless you deselect them — `store/app-store.md` §2.
@@ -179,8 +179,7 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
 
 Throwaway script, re-run after any edit to a listing text. It measures the stripped value the way `deliver`
 and `supply` do: characters everywhere, **bytes** for the App Store keyword field and the App Review notes.
-The notes are measured without their fill-in marker line and with a 24-character password in place of
-`<PASSWORD>`, since that is the text that gets pasted. The Microsoft Store's product features and search terms
+The notes file is the exact text of the field. The Microsoft Store's product features and search terms
 are one per line and measured per line.
 
 ```bash
@@ -204,8 +203,6 @@ LIMITS = [
 ]
 for label, path, limit, unit in LIMITS:
     s = open(path, encoding="utf-8").read().strip()
-    if s.startswith("FILL"):
-        s = s.split("\n", 1)[1].strip().replace("<PASSWORD>", "x" * 24)
     n = len(s.encode()) if unit == "bytes" else len(s)
     print(f"{'ok  ' if n <= limit else 'OVER'} {label:<24} {n:>5} {unit:<5} limit {limit}")
 # Partner Center: up to 20 features of 200 characters; up to 7 search terms of 30 with 21 words in all.
@@ -222,20 +219,20 @@ for label, n, limit in [
 PY
 ```
 
-Run it from the repository root. Output on this revision (2026-09-27):
+Run it from the repository root. Output on this revision (2026-09-28):
 
 ```
 ok   App Store name              20 chars limit 30
 ok   App Store subtitle          21 chars limit 30
-ok   App Store keywords          97 bytes limit 100
+ok   App Store keywords          88 bytes limit 100
 ok   App Store promo text       139 chars limit 170
 ok   App Store description     3932 chars limit 4000
-ok   App Store release notes    651 chars limit 4000
+ok   App Store release notes    637 chars limit 4000
 ok   Play title                  20 chars limit 30
 ok   Play short description      70 chars limit 80
 ok   Play full description     3855 chars limit 4000
 ok   Play changelog 1           303 chars limit 500
-ok   App Review notes          3868 bytes limit 4000
+ok   App Review notes          3980 bytes limit 4000
 ok   MS Store description      4394 chars limit 10000
 ok   MS Store what's new        323 chars limit 1500
 ok   MS Store short descr.       85 chars limit 1000
@@ -248,7 +245,7 @@ ok   MS Store term words         12       limit 21
 ```
 
 The App Store and Play descriptions are inside their limit, the App Store one by 68 characters, and the
-filled-in review notes by 132 bytes: re-run this after any wording change.
+review notes by 20 bytes: re-run this after any wording change.
 
 ## Licence
 
@@ -330,7 +327,8 @@ The App Review notes, the Play "App access" answer and the Microsoft Store certi
 out verbatim in `store/review-demo/README.md`, section "Console answers" — copy them from there so the
 host, port and password stay in one place (only `<PASSWORD>` needs filling). What is already in this
 repository: `ios/fastlane/metadata/review_information/notes.txt` (the App Review text plus the guideline
-paragraphs) and `demo_user.txt` / `demo_password.txt` (user `root` and a fill-in line for the password).
+paragraphs, pasted or uploaded whole; it names no password) and `demo_user.txt` / `demo_password.txt` (user
+`root` and a fill-in line for the password).
 
 Caveats to keep honest in the listings: the demo server has omp **preinstalled** and one model that we pay
 for, so a reviewer sees a real provider on our key. The app itself comes with no model and no subscription:

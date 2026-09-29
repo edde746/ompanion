@@ -148,8 +148,8 @@ provider, Z.ai, under their policies.
   anything and use the server's network. The server holds nothing else, the key's $10 limit bounds what the
   key can cost, and the server is destroyed after the review.
 - **The password** is in `.env` on this Mac and in the three store consoles (App Store Connect, Play
-  Console, Partner Center). The repository carries `<PASSWORD>` in its place, and `ios/fastlane/Fastfile`
-  refuses to upload review information that still contains it.
+  Console, Partner Center). The repository carries `<PASSWORD>` or a `FILL` line in its place, and
+  `ios/fastlane/Fastfile` refuses to upload review information that still starts with `FILL`.
 - **sshd runs the server image's configuration**, which allows root and passwords; `provision.sh` does not
   change it. `sshd -T` on the server reports `port 22`, `permitrootlogin yes`, `passwordauthentication yes`,
   `maxauthtries 6`, `logingracetime 120`, `maxstartups 10:30:100`, and `persourcepenalties` on (OpenSSH
@@ -174,13 +174,13 @@ written. If the server changes, replace `217.160.119.181` everywhere `git grep 2
 - **User name**: `root`
 - **Password**: `<PASSWORD>`
 - **Notes**: the text below. `ios/fastlane/metadata/review_information/notes.txt` holds it plus the guideline
-  paragraphs, and that file is what `deliver` uploads.
+  paragraphs, and the whole file is the field's text (`deliver` uploads it as is).
 
 > ompanion is a client for omp, an AI coding agent that runs on the user's own machines. The app has no
 > account of its own: to reach every screen, add the demo server we run for this review.
 >
 > 1. In the sidebar, tap Add machine. Enter Name: Demo, Host: 217.160.119.181, Port: 22, User: root,
->    Authentication: Password, Password: `<PASSWORD>`. Tap Save.
+>    Authentication: Password, Password: the one under Sign-In Information. Tap Save.
 > 2. The machine's page opens. Under System, tap Connect. The app asks "Trust this host?" the first time;
 >    tap Trust. The demo server is a machine we run only for this review and destroy afterwards; it holds
 >    no personal data.

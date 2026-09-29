@@ -1,8 +1,6 @@
-FILL BEFORE SUBMITTING: <PASSWORD> (REVIEW_PASSWORD in store/review-demo/.env), then delete this line. Sign-in required is Yes, with user name root and the same password (demo_user.txt / demo_password.txt). The host is the demo server, 217.160.119.181; if the server changes, replace it everywhere git grep finds it (store/review-demo/README.md, Console answers).
-
 ompanion is a client for omp, an AI coding agent that runs on the user's own machines. The app has no account of its own: to reach every screen, add the demo server we run for this review.
 
-1. In the sidebar, tap Add machine. Enter Name: Demo, Host: 217.160.119.181, Port: 22, User: root, Authentication: Password, Password: <PASSWORD>. Tap Save.
+1. In the sidebar, tap Add machine. Enter Name: Demo, Host: 217.160.119.181, Port: 22, User: root, Authentication: Password, Password: the one under Sign-In Information. Tap Save.
 2. The machine's page opens. Under System, tap Connect. The app asks "Trust this host?" the first time; tap Trust. The demo server is a machine we run only for this review and destroy afterwards; it holds no personal data.
 3. The System section then shows omp version 18.3.1 and Companion: Uploaded.
 4. Go back to the list of machines, tap the ⋮ on the machine's row and choose New session. Set Working directory to ~/work/notes-api and tap Start.
@@ -12,20 +10,24 @@ Everything else works on the same machine: the Files panel edits files and shows
 
 Why the app needs a server (guidelines 2.1 and 4.2)
 
-ompanion is a client for a machine the user owns, like an SSH client: without a machine there is nothing to do in it. The demo server has the agent installed and an AI model we pay for, so every feature can be tested without a machine of your own, an AI account or any cost to you. If it is unreachable during review, send us a note and we will bring it back within a day.
+ompanion is a client for a machine the user owns, like an SSH client: without a machine there is nothing to do in it. If the demo server is unreachable during review, send us a note and we will bring it back within a day.
 
 About guideline 2.5.2
 
-The app never runs downloaded code on the device, and no download changes its features. At the user's request it installs omp, an open-source binary, on the user's own remote machine over SSH, as an SSH client runs commands on a server. The machine downloads the release itself with curl or wget (PowerShell on Windows); only without them does the app stream the release from github.com to the machine over SFTP, never running or keeping it on the device, and the machine checks its SHA-256 against the value pinned in the app. The app also uploads a small JavaScript extension (about 60 KB, built from the same public repository) that the user's own omp loads on that machine; it runs there, not on the device or on any server of ours.
+The app never runs downloaded code on the device, and no download changes its features. At the user's request it installs omp, an open-source binary, on the user's own remote machine over SSH, as an SSH client runs commands on a server. The machine downloads the release itself with curl or wget; only without them does the app stream it from github.com to the machine over SFTP, never running or keeping it on the device, and the machine checks its SHA-256 against the value pinned in the app. The app also uploads a small JavaScript extension, built from the same public repository, that the user's own omp loads on that machine; it runs there, not on the device or on any server of ours.
 
 About guideline 5.1.2(i)
 
 The app shares no user data with any third party or AI provider chosen by us. Prompts go over SSH to omp on the user's own machine, which calls the AI provider the user configured there, with the user's own credentials. On our demo server, that machine is ours: its omp sends prompts to OpenRouter, which passes them to the model's provider (Z.ai), with our key. A key the user types into the app goes over SSH to omp and is not kept on the device; OAuth sign-in pages open in the user's browser, and the token stays on the user's machine. The app has no analytics, crash reporting, advertising or tracking.
 
+No VPN functionality
+
+The app has no VPN features: no Network Extension, VPN API or entitlement, no tunnel, no routing of device traffic. It only opens SSH connections to machines the user adds. Such a machine may be on a network the user joined with a separate VPN app, such as Tailscale, which carries that traffic. The app collects no user information through a VPN and shares none.
+
 About AI-generated content
 
-The chat shows replies from the user's own agent and providers. The app adds no moderation of its own because it is a remote control, not a publisher: nothing in the chat is shared with other users or with us, and there is no feed, no public profile and no messaging between users.
+Chat replies come from the user's own agent and providers. The app adds no moderation because it is a remote control, not a publisher: nothing in the chat is shared with other users or with us; there is no feed, public profile or messaging between users.
 
 About source and licence
 
-The app is open source (GPLv3): github.com/edde746/ompanion, whose issue tracker is the support URL. It has no in-app purchases or subscriptions. Settings → About shows the version, the privacy policy, the source, the issue tracker and the licences.
+Open source (GPLv3): github.com/edde746/ompanion; its issue tracker is the support URL. No in-app purchases or subscriptions. Settings → About links the privacy policy, source and licences.
