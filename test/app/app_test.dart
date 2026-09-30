@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/app/app.dart';
+import 'package:ompanion/app/palette.dart';
 import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/providers/machines_provider.dart';
 import 'package:ompanion/providers/settings_provider.dart';
@@ -36,6 +37,47 @@ void main() {
     await tester.pump();
     expect(tester.binding.hasScheduledFrame, isFalse);
     expect(identical(Theme.of(tester.element(find.byType(Scaffold).first)), theme), isTrue);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() async {
+      machines.dispose();
+      await db.close();
+    });
+  });
+
+  testWidgets('the custom theme colours the app, and a setting other than the theme keeps it', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    FlutterSecureStorage.setMockInitialValues({});
+    final db = AppDatabase(NativeDatabase.memory());
+    final secrets = SecretStore();
+    final settings = (await tester.runAsync(() => SettingsProvider.load(db)))!;
+    const paper = Color(0xFFF5F0E6);
+    await tester.runAsync(() async {
+      await settings.set(Prefs.customTheme, AppPalette.dark.pick(ThemeToken.background, paper));
+      await settings.set(Prefs.themeMode, AppThemeMode.custom);
+    });
+    final machines = MachinesProvider(db, secrets);
+    await tester.pumpWidget(
+      OmpanionApp(
+        db: db,
+        settings: settings,
+        secrets: secrets,
+        machines: machines,
+        images: MachineImages(cacheDir: machineImageCacheDir),
+      ),
+    );
+    await tester.pumpAndSettle();
+    ThemeData theme() => Theme.of(tester.element(find.byType(Scaffold).first));
+    final custom = theme();
+    expect(custom.colorScheme.surface, paper);
+    expect(custom.brightness, Brightness.light, reason: 'the background is light, though the base is dark');
+
+    await tester.runAsync(() => settings.set(Prefs.projectCollapsed('m1', '/home/me/app'), true));
+    await tester.pump();
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(identical(theme(), custom), isTrue);
 
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() async {

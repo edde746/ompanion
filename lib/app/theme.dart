@@ -2,11 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
-/// Monochrome, flat, dense. The contract is docs/design.md; tokens here mirror its tables.
-ThemeData appTheme(Brightness brightness) {
+import 'palette.dart';
+
+// Built once: a new ThemeData compares unequal to the last (its extensions have no ==), and MaterialApp then animates
+// the whole app from the old theme to the new one for 200 ms, rebuilding every widget that reads it.
+final lightAppTheme = appTheme(AppPalette.light);
+final darkAppTheme = appTheme(AppPalette.dark);
+
+/// Monochrome, flat, dense. The contract is docs/design.md; the colours are [palette]'s tokens.
+ThemeData appTheme(AppPalette palette) {
+  final brightness = palette.brightness;
   final dark = brightness == Brightness.dark;
-  final scheme = dark ? _darkScheme : _lightScheme;
-  final colors = dark ? AppColors.dark : AppColors.light;
+  final scheme = _colorScheme(palette);
+  final colors = AppColors.from(palette);
   final controlShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radius));
   final cardShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.cardRadius));
   const controlSize = Size(0, AppSizes.control);
@@ -41,10 +49,7 @@ ThemeData appTheme(Brightness brightness) {
     dividerColor: Colors.transparent,
     splashFactory: InkRipple.splashFactory,
     // Material Symbols' optical size is 24 (the size its glyphs are drawn for) instead of the 48 Flutter falls back to.
-    iconTheme: IconThemeData(
-      color: dark ? kDefaultIconLightColor : kDefaultIconDarkColor,
-      opticalSize: AppSizes.iconOpticalSize,
-    ),
+    iconTheme: IconThemeData(color: scheme.onSurface, opticalSize: AppSizes.iconOpticalSize),
     // BackButton's own glyph comes from Material Icons; this draws the same per-platform arrow from Material Symbols.
     actionIconTheme: ActionIconThemeData(
       backButtonIconBuilder: (context) => Icon(switch (Theme.of(context).platform) {
@@ -399,176 +404,90 @@ abstract final class AppSizes {
   static const double rowHeightTouch = 44;
 }
 
-/// Colours that carry meaning in content. Chrome never uses these; see docs/design.md rule 2.
+/// Every palette token of the theme by name; content reads its colours here (docs/design.md, Tokens). Chrome reads the
+/// [ColorScheme] roles the same tokens drive.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
-  const AppColors({
-    required this.error,
-    required this.errorSurface,
-    required this.warning,
-    required this.success,
-    required this.diffAdd,
-    required this.diffAddSurface,
-    required this.diffRemove,
-    required this.diffRemoveSurface,
-    required this.running,
-  });
+  AppColors.from(AppPalette palette) : this._([for (final token in ThemeToken.values) palette[token]]);
 
-  final Color error;
-  final Color errorSurface;
-  final Color warning;
-  final Color success;
-  final Color diffAdd;
-  final Color diffAddSurface;
-  final Color diffRemove;
-  final Color diffRemoveSurface;
-  final Color running;
+  const AppColors._(this._colors);
 
-  static const dark = AppColors(
-    error: Color(0xFFE07A76),
-    errorSurface: Color(0xFF2A1413),
-    warning: Color(0xFFD6A85C),
-    success: Color(0xFF7DBA8A),
-    diffAdd: Color(0xFF7DBA8A),
-    diffAddSurface: Color(0xFF0E2215),
-    diffRemove: Color(0xFFE07A76),
-    diffRemoveSurface: Color(0xFF2A1212),
-    running: Color(0xFF8F8F8F),
-  );
+  /// Indexed by [ThemeToken.index].
+  final List<Color> _colors;
 
-  static const light = AppColors(
-    error: Color(0xFFB0413C),
-    errorSurface: Color(0xFFFBECEB),
-    warning: Color(0xFF946200),
-    success: Color(0xFF357A45),
-    diffAdd: Color(0xFF357A45),
-    diffAddSurface: Color(0xFFE7F4EA),
-    diffRemove: Color(0xFFB0413C),
-    diffRemoveSurface: Color(0xFFFBECEB),
-    running: Color(0xFF5C5C5C),
-  );
+  static final dark = AppColors.from(AppPalette.dark);
+  static final light = AppColors.from(AppPalette.light);
+
+  Color operator [](ThemeToken token) => _colors[token.index];
+
+  Color get error => this[ThemeToken.error];
+  Color get errorSurface => this[ThemeToken.errorSurface];
+  Color get warning => this[ThemeToken.warning];
+  Color get success => this[ThemeToken.success];
+  Color get diffAdd => this[ThemeToken.diffAdd];
+  Color get diffAddSurface => this[ThemeToken.diffAddSurface];
+  Color get diffRemove => this[ThemeToken.diffRemove];
+  Color get diffRemoveSurface => this[ThemeToken.diffRemoveSurface];
+  Color get running => this[ThemeToken.running];
 
   /// Falls back to the set for the ambient brightness under a theme not built by [appTheme] (widget tests).
-  static AppColors of(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.extension<AppColors>() ?? (theme.brightness == Brightness.dark ? dark : light);
-  }
+  static AppColors of(BuildContext context) => ofTheme(Theme.of(context));
+
+  static AppColors ofTheme(ThemeData theme) =>
+      theme.extension<AppColors>() ?? (theme.brightness == Brightness.dark ? dark : light);
 
   @override
-  AppColors copyWith({
-    Color? error,
-    Color? errorSurface,
-    Color? warning,
-    Color? success,
-    Color? diffAdd,
-    Color? diffAddSurface,
-    Color? diffRemove,
-    Color? diffRemoveSurface,
-    Color? running,
-  }) => AppColors(
-    error: error ?? this.error,
-    errorSurface: errorSurface ?? this.errorSurface,
-    warning: warning ?? this.warning,
-    success: success ?? this.success,
-    diffAdd: diffAdd ?? this.diffAdd,
-    diffAddSurface: diffAddSurface ?? this.diffAddSurface,
-    diffRemove: diffRemove ?? this.diffRemove,
-    diffRemoveSurface: diffRemoveSurface ?? this.diffRemoveSurface,
-    running: running ?? this.running,
-  );
+  AppColors copyWith({List<Color>? colors}) => AppColors._(colors ?? _colors);
 
   @override
   AppColors lerp(AppColors? other, double t) {
     if (other == null) return this;
-    return AppColors(
-      error: Color.lerp(error, other.error, t)!,
-      errorSurface: Color.lerp(errorSurface, other.errorSurface, t)!,
-      warning: Color.lerp(warning, other.warning, t)!,
-      success: Color.lerp(success, other.success, t)!,
-      diffAdd: Color.lerp(diffAdd, other.diffAdd, t)!,
-      diffAddSurface: Color.lerp(diffAddSurface, other.diffAddSurface, t)!,
-      diffRemove: Color.lerp(diffRemove, other.diffRemove, t)!,
-      diffRemoveSurface: Color.lerp(diffRemoveSurface, other.diffRemoveSurface, t)!,
-      running: Color.lerp(running, other.running, t)!,
-    );
+    return AppColors._([for (var i = 0; i < _colors.length; i++) Color.lerp(_colors[i], other._colors[i], t)!]);
   }
 }
 
-const _darkScheme = ColorScheme(
-  brightness: Brightness.dark,
-  primary: Color(0xFFEDEDED),
-  onPrimary: Color(0xFF000000),
-  primaryContainer: Color(0xFF262626),
-  onPrimaryContainer: Color(0xFFEDEDED),
-  secondary: Color(0xFFBDBDBD),
-  onSecondary: Color(0xFF000000),
-  secondaryContainer: Color(0xFF1A1A1A),
-  onSecondaryContainer: Color(0xFFEDEDED),
-  tertiary: Color(0xFFBDBDBD),
-  onTertiary: Color(0xFF000000),
-  tertiaryContainer: Color(0xFF262626),
-  onTertiaryContainer: Color(0xFFEDEDED),
-  error: Color(0xFFE07A76),
-  onError: Color(0xFF000000),
-  errorContainer: Color(0xFF2A1413),
-  onErrorContainer: Color(0xFFF2B8B5),
-  surface: Color(0xFF000000),
-  onSurface: Color(0xFFEDEDED),
-  surfaceDim: Color(0xFF000000),
-  surfaceBright: Color(0xFF1E1E1E),
-  surfaceContainerLowest: Color(0xFF000000),
-  surfaceContainerLow: Color(0xFF0B0B0B),
-  surfaceContainer: Color(0xFF121212),
-  surfaceContainerHigh: Color(0xFF1A1A1A),
-  surfaceContainerHighest: Color(0xFF262626),
-  onSurfaceVariant: Color(0xFF8F8F8F),
-  outline: Color(0xFF5C5C5C),
-  outlineVariant: Color(0xFF262626),
-  shadow: Color(0xFF000000),
-  scrim: Color(0xFF000000),
-  inverseSurface: Color(0xFFEDEDED),
-  onInverseSurface: Color(0xFF000000),
-  inversePrimary: Color(0xFF111111),
-  surfaceTint: Colors.transparent,
-);
-
-const _lightScheme = ColorScheme(
-  brightness: Brightness.light,
-  primary: Color(0xFF111111),
-  onPrimary: Color(0xFFFFFFFF),
-  primaryContainer: Color(0xFFDDDDDD),
-  onPrimaryContainer: Color(0xFF111111),
-  secondary: Color(0xFF444444),
-  onSecondary: Color(0xFFFFFFFF),
-  secondaryContainer: Color(0xFFE8E8E8),
-  onSecondaryContainer: Color(0xFF111111),
-  tertiary: Color(0xFF444444),
-  onTertiary: Color(0xFFFFFFFF),
-  tertiaryContainer: Color(0xFFDDDDDD),
-  onTertiaryContainer: Color(0xFF111111),
-  error: Color(0xFFB0413C),
-  onError: Color(0xFFFFFFFF),
-  errorContainer: Color(0xFFFBECEB),
-  onErrorContainer: Color(0xFF5C1512),
-  surface: Color(0xFFFFFFFF),
-  onSurface: Color(0xFF111111),
-  surfaceDim: Color(0xFFDDDDDD),
-  surfaceBright: Color(0xFFE4E4E4),
-  surfaceContainerLowest: Color(0xFFFFFFFF),
-  surfaceContainerLow: Color(0xFFF7F7F7),
-  surfaceContainer: Color(0xFFF0F0F0),
-  surfaceContainerHigh: Color(0xFFE8E8E8),
-  surfaceContainerHighest: Color(0xFFDDDDDD),
-  onSurfaceVariant: Color(0xFF5C5C5C),
-  outline: Color(0xFF8F8F8F),
-  outlineVariant: Color(0xFFDDDDDD),
-  shadow: Color(0xFF000000),
-  scrim: Color(0xFF000000),
-  inverseSurface: Color(0xFF111111),
-  onInverseSurface: Color(0xFFFFFFFF),
-  inversePrimary: Color(0xFFEDEDED),
-  surfaceTint: Colors.transparent,
-);
+/// Each token's roles (docs/design.md, Tokens); the roles no token drives keep the base's greys.
+ColorScheme _colorScheme(AppPalette palette) {
+  Color c(ThemeToken token) => palette[token];
+  final dark = palette.base == ThemeBase.dark;
+  return ColorScheme(
+    brightness: palette.brightness,
+    primary: c(ThemeToken.accent),
+    onPrimary: c(ThemeToken.onAccent),
+    primaryContainer: c(ThemeToken.selected),
+    onPrimaryContainer: c(ThemeToken.text),
+    secondary: dark ? const Color(0xFFBDBDBD) : const Color(0xFF444444),
+    onSecondary: c(ThemeToken.background),
+    secondaryContainer: c(ThemeToken.field),
+    onSecondaryContainer: c(ThemeToken.text),
+    tertiary: dark ? const Color(0xFFBDBDBD) : const Color(0xFF444444),
+    onTertiary: c(ThemeToken.background),
+    tertiaryContainer: c(ThemeToken.selected),
+    onTertiaryContainer: c(ThemeToken.text),
+    error: c(ThemeToken.error),
+    onError: c(ThemeToken.background),
+    errorContainer: c(ThemeToken.errorSurface),
+    onErrorContainer: dark ? const Color(0xFFF2B8B5) : const Color(0xFF5C1512),
+    surface: c(ThemeToken.background),
+    onSurface: c(ThemeToken.text),
+    surfaceDim: dark ? const Color(0xFF000000) : const Color(0xFFDDDDDD),
+    surfaceBright: c(ThemeToken.popover),
+    surfaceContainerLowest: c(ThemeToken.background),
+    surfaceContainerLow: c(ThemeToken.pane),
+    surfaceContainer: c(ThemeToken.card),
+    surfaceContainerHigh: c(ThemeToken.field),
+    surfaceContainerHighest: c(ThemeToken.selected),
+    onSurfaceVariant: c(ThemeToken.textMuted),
+    outline: dark ? const Color(0xFF5C5C5C) : const Color(0xFF8F8F8F),
+    outlineVariant: c(ThemeToken.selected),
+    shadow: const Color(0xFF000000),
+    scrim: const Color(0xFF000000),
+    inverseSurface: c(ThemeToken.text),
+    onInverseSurface: c(ThemeToken.background),
+    inversePrimary: dark ? const Color(0xFF111111) : const Color(0xFFEDEDED),
+    surfaceTint: Colors.transparent,
+  );
+}
 
 const _noBorder = OutlineInputBorder(
   borderSide: BorderSide.none,

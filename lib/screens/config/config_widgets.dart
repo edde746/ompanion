@@ -235,7 +235,7 @@ class CommandOutputView extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: SelectableText.rich(ansiSpan(text, base: base, scheme: theme.colorScheme)),
+              child: SelectableText.rich(ansiSpan(text, base: base, theme: theme)),
             ),
           ),
           IconButton(

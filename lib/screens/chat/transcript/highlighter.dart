@@ -5,9 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:re_highlight/languages/all.dart';
 import 'package:re_highlight/re_highlight.dart';
-import 'package:re_highlight/styles/atom-one-dark.dart';
-import 'package:re_highlight/styles/atom-one-light.dart';
 
+import '../../../app/palette.dart';
+import '../../../app/theme.dart';
 import '../../../utils/app_logger.dart';
 
 /// Scope runs of highlighted code: run `i` covers `[ends[i - 1], ends[i])` of the code (from 0 for the first run)
@@ -178,9 +178,37 @@ final class _RunRenderer implements HighlightRenderer {
   void closeNode(DataNode node) => _stack.removeLast();
 }
 
-/// highlight.js colours for [brightness]: Atom One, whose palette reads well on Material 3 surfaces.
-Map<String, TextStyle> highlightTheme(Brightness brightness) =>
-    brightness == Brightness.dark ? atomOneDarkTheme : atomOneLightTheme;
+/// highlight.js scopes by the syntax token that colours them: Atom One's groups.
+const _syntaxScopes = {
+  ThemeToken.comment: ['comment', 'quote'],
+  ThemeToken.keyword: ['doctag', 'keyword', 'formula'],
+  ThemeToken.tag: ['section', 'name', 'selector-tag', 'deletion', 'subst'],
+  ThemeToken.literal: ['literal'],
+  ThemeToken.string: ['string', 'regexp', 'addition', 'attribute', 'meta-string'],
+  ThemeToken.number: [
+    'attr',
+    'variable',
+    'template-variable',
+    'type',
+    'selector-class',
+    'selector-attr',
+    'selector-pseudo',
+    'number',
+  ],
+  ThemeToken.title: ['symbol', 'bullet', 'link', 'meta', 'selector-id', 'title'],
+  ThemeToken.builtIn: ['built_in', 'title.class_', 'class-title'],
+};
+
+final _highlightThemes = Expando<Map<String, TextStyle>>();
+
+/// highlight.js styles from the theme's syntax tokens, by scope.
+Map<String, TextStyle> highlightTheme(AppColors colors) => _highlightThemes[colors] ??= {
+  for (final MapEntry(key: token, value: scopes) in _syntaxScopes.entries)
+    for (final scope in scopes)
+      scope: TextStyle(color: colors[token], fontStyle: token == ThemeToken.comment ? FontStyle.italic : null),
+  'emphasis': const TextStyle(fontStyle: FontStyle.italic),
+  'strong': const TextStyle(fontWeight: FontWeight.bold),
+};
 
 /// [code] as spans coloured by [runs] under [theme]; a scope is looked up whole, then by its first dotted part.
 List<TextSpan> highlightedSpans(String code, HighlightRuns runs, Map<String, TextStyle> theme) {

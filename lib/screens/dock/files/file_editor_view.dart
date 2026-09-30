@@ -295,7 +295,7 @@ class _Editor extends StatelessWidget {
     final code = codeTextStyle(theme);
     final language = languageFor(baseName(document.path));
     final mode = language == null ? null : modeFor(language);
-    final colors = {...highlightTheme(theme.brightness), 'root': TextStyle(color: scheme.onSurface)};
+    final colors = {...highlightTheme(AppColors.of(context)), 'root': TextStyle(color: scheme.onSurface)};
     return CodeEditor(
       controller: document.controller,
       findController: find,

@@ -14,6 +14,7 @@ import '../../notifications/push_service.dart';
 import '../../providers/machines_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../sessions/sessions_provider.dart';
+import 'settings_card.dart';
 
 /// The Notifications section of the settings pane. Desktops: notifications about the sessions open here, and the
 /// kinds. Phones: push notifications, the kinds they ask the machines for, and a test notification from each connected
@@ -108,7 +109,7 @@ class _NotificationsSectionState extends State<NotificationsSection> {
       children: [
         Text(n.title, style: theme.textTheme.titleMedium),
         const SizedBox(height: AppSizes.gap),
-        _Card(
+        SettingsCard(
           children: [
             if (push == null)
               _SwitchRow(
@@ -158,7 +159,7 @@ class _TestCard extends StatelessWidget {
     // Connecting and listing notify the sessions provider, so a machine that comes online shows up.
     context.watch<SessionsProvider>();
     final online = context.watch<MachinesProvider>().machines.where(push.isOnline).toList();
-    return _Card(
+    return SettingsCard(
       children: [
         if (online.isEmpty)
           Padding(
@@ -228,19 +229,4 @@ class _SwitchRow extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A `surfaceContainer` block with `cardRadius`: the section's grouping.
-class _Card extends StatelessWidget {
-  const _Card({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.surfaceContainer,
-    borderRadius: BorderRadius.circular(AppSizes.cardRadius),
-    clipBehavior: Clip.antiAlias,
-    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
-  );
 }

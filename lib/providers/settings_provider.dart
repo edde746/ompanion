@@ -1,8 +1,9 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:omp_core/host.dart' show NotificationKind;
 
+import '../app/palette.dart';
 import '../database/app_database.dart';
 import '../models/dock_tab.dart';
 
@@ -80,8 +81,28 @@ final class StringListPref extends Pref<List<String>> {
   Object? encode(List<String> value) => value;
 }
 
+final class PalettePref extends Pref<AppPalette> {
+  const PalettePref(super.key, super.defaultValue);
+
+  @override
+  AppPalette decode(Object? json) {
+    try {
+      return AppPalette.fromJson(json);
+    } on FormatException catch (error) {
+      throw FormatException('setting $key: ${error.message}');
+    }
+  }
+
+  @override
+  Object? encode(AppPalette value) => value.toJson();
+}
+
 abstract final class Prefs {
-  static const themeMode = EnumPref<ThemeMode>('theme_mode', ThemeMode.system, ThemeMode.values);
+  static const themeMode = EnumPref<AppThemeMode>('theme_mode', AppThemeMode.system, AppThemeMode.values);
+
+  /// The Custom theme's colours. Unset until the first switch to Custom, which starts it from the theme on screen.
+  static const customTheme = PalettePref('custom_theme', AppPalette.dark);
+
   static const sidebarOpen = BoolPref('sidebar_open', true);
   static const dockOpen = BoolPref('dock_open', true);
   static const dockTab = EnumPref<DockTab>('dock_tab', DockTab.agents, DockTab.values);
@@ -135,6 +156,9 @@ class SettingsProvider extends ChangeNotifier {
   final Map<String, Object?> _values;
 
   T get<T>(Pref<T> pref) => _values.containsKey(pref.key) ? pref.decode(_values[pref.key]) : pref.defaultValue;
+
+  /// Whether [pref] was ever set on this device.
+  bool isSet(Pref<Object?> pref) => _values.containsKey(pref.key);
 
   Future<void> set<T>(Pref<T> pref, T value) async {
     final json = pref.encode(value);

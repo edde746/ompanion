@@ -9,9 +9,11 @@ something the rules do not cover extends this document first.
 1. No strokes. No borders, outlines or dividers on any control, card, field, chip, dialog, pane or table.
    Separation comes from surface tone and spacing. `OutlinedButton`, `OutlineInputBorder` with a visible
    side, `Border.all`, `BorderSide`, `Divider` and `VerticalDivider` are not used in `lib/`.
-2. Monochrome. Chrome, accents, selection, focus and buttons are grey scale. Colour appears only where it
-   carries meaning in content: errors, warnings, success, diff additions and removals, syntax highlighting,
-   ANSI terminal output. Those colours come from `AppColors`, muted, never from `ColorScheme.primary`.
+2. Monochrome by default. In the built-in Light and Dark themes chrome, accents, selection, focus and buttons are
+   grey scale, and colour appears only where it carries meaning in content: errors, warnings, success, diff additions
+   and removals, syntax highlighting, ANSI terminal output. Those colours come from `AppColors`, muted, never from
+   `ColorScheme.primary`. The Custom theme lets the user pick every token (Tokens); widgets still read tokens, never
+   literal colours.
 3. Flat. Elevation 0 everywhere. Surfaces never tint or change colour on scroll
    (`scrolledUnderElevation: 0`, transparent `surfaceTintColor`).
 4. One control height. Every inline control (button, text field, search field, select, segmented control,
@@ -45,20 +47,34 @@ something the rules do not cover extends this document first.
 
 ## Tokens
 
-| Token | Dark | Light | Use |
-|---|---|---|---|
-| `surface` | `#000000` | `#FFFFFF` | app background, chat |
-| `surfaceContainerLow` | `#0B0B0B` | `#F7F7F7` | sidebar, dock, config navigation |
-| `surfaceContainer` | `#121212` | `#F0F0F0` | cards, composer, code blocks and output |
-| `surfaceContainerHigh` | `#1A1A1A` | `#E8E8E8` | fields, chips, tonal buttons |
-| `surfaceContainerHighest` | `#262626` | `#DDDDDD` | hover, selected rows, focused fields, selected segment, navigation indicators |
-| `surfaceBright` | `#1E1E1E` | `#E4E4E4` | popovers: menus, select and dropdown menus, popup menus. One quiet step off the cards and composer (`#121212` / `#F0F0F0`) they open over; a brighter tone makes the whole popover louder than the content it serves |
-| `onSurface` | `#EDEDED` | `#111111` | primary text, primary button fill |
-| `onSurfaceVariant` | `#8F8F8F` | `#5C5C5C` | secondary text, icons |
-| `primary` / `onPrimary` | `#EDEDED` / `#000000` | `#111111` / `#FFFFFF` | primary buttons, switches on, progress |
+Every colour the app draws is one of 43 palette tokens (`ThemeToken`, `lib/app/palette.dart`). A theme is a base
+(Dark or Light) plus the tokens picked over it: the built-in themes pick none, the Custom theme picks what the user
+chose in the theme editor. Its brightness (keyboard, markdown, status bar) is the background's.
 
-`AppColors` (a `ThemeExtension`): `error`, `errorSurface`, `warning`, `success`, `diffAdd`, `diffAddSurface`,
-`diffRemove`, `diffRemoveSurface`, `running` (grey). Muted values; one set per brightness.
+| Token | Role | Dark | Light | Use |
+|---|---|---|---|---|
+| `background` | `surface` | `#000000` | `#FFFFFF` | app background, chat |
+| `pane` | `surfaceContainerLow` | `#0B0B0B` | `#F7F7F7` | sidebar, dock, config navigation |
+| `card` | `surfaceContainer` | `#121212` | `#F0F0F0` | cards, composer, code blocks and output |
+| `field` | `surfaceContainerHigh` | `#1A1A1A` | `#E8E8E8` | fields, chips, tonal buttons |
+| `selected` | `surfaceContainerHighest` | `#262626` | `#DDDDDD` | hover, selected rows, focused fields, selected segment, navigation indicators |
+| `popover` | `surfaceBright` | `#1E1E1E` | `#E4E4E4` | popovers: menus, select and dropdown menus, popup menus. One quiet step off the cards and composer (`#121212` / `#F0F0F0`) they open over; a brighter tone makes the whole popover louder than the content it serves |
+| `text` | `onSurface` | `#EDEDED` | `#111111` | primary text, icons without a colour of their own |
+| `textMuted` | `onSurfaceVariant` | `#8F8F8F` | `#5C5C5C` | secondary text, icons |
+| `accent` / `onAccent` | `primary` / `onPrimary` | `#EDEDED` / `#000000` | `#111111` / `#FFFFFF` | primary buttons, switches on, progress |
+
+A token also drives the roles that repeat it: `background` `surfaceContainerLowest`, `onInverseSurface`,
+`onSecondary`, `onTertiary` and `onError`; `field` `secondaryContainer`; `selected` `primaryContainer`,
+`tertiaryContainer` and `outlineVariant`; `text` `inverseSurface` and the `on…Container` roles; `error` and
+`errorSurface` `error` and `errorContainer`. The roles no token drives (`secondary`, `tertiary`, `outline`,
+`onErrorContainer`, `surfaceDim`, `inversePrimary`, `shadow`, `scrim`) keep the base's grey; the modal scrim stays
+black.
+
+`AppColors` (a `ThemeExtension`) holds every token by name. Content colours: `error`, `errorSurface`, `warning`,
+`success`, `running` (grey), `diffAdd`, `diffAddSurface`, `diffRemove`, `diffRemoveSurface`; syntax highlighting
+`comment`, `keyword`, `tag`, `literal`, `string`, `number`, `title`, `builtIn` (Atom One's colours and scope groups);
+the 16 ANSI colours `ansiBlack` … `ansiBrightWhite`, which the terminal pane draws as they are and the transcript
+adapts (the colour's hue at the surface's contrast, `AnsiPalette`). Muted values in both bases.
 
 `AppSizes`: `control = 36`, `radius = 10` (controls), `cardRadius = 12`, `sheetRadius = 16`, `gap = 8`,
 `rowHeight = 32` (dense list rows on desktop; 44 on phones).
@@ -144,6 +160,9 @@ holding a `ListTile` with a `check`, not `CheckedPopupMenuItem`. Android's text 
 | Message actions | icon buttons, one click each, 18 px icons in `onSurfaceVariant` on compact `IconButton`s (32 px square on desktops, 40 px on touch screens), in this order: `call_split` Branch from here on your own messages, `restart_alt` Reset to here, `content_copy` Copy message. The tooltip names each. A user message's sit before the bubble and fade in together while the row is hovered (always on touch); an assistant reply's end the footer's facts line (model, tokens, cost, time), always visible, never on a line of its own. Reset to here is disabled while a turn runs, with a tooltip that says why, and turns back on when the turn ends. Reset moves the leaf in the same session file and the replies after it stay in the session tree: your message's text and images go back into the composer (a draft with text or attachments is replaced only after `Replace your draft?`), an assistant reply becomes the point to continue from. Branch from here asks first; Copy message confirms with a snackbar |
 | Settings link row (About) | the whole row is the target: a flat InkWell across its card, one control tall with 4 px above and below its text and taller when the label wraps or a muted `bodySmall` `onSurfaceVariant` detail line takes the second line (44 px), so no label is cut; a 16 px `onSurfaceVariant` mark at the end — `open_in_new` for a link that leaves the app through `openExternalLink`, `chevron_right` for a page inside it (`showLicensePage`). No start icon, no divider; the card is a `Material` on `surfaceContainer` with `cardRadius`, so the row's ink lands on the block's tone |
 | Settings switch row | the label in `bodyMedium`, an optional muted `bodySmall` `onSurfaceVariant` detail line under it, and a `Switch` at the end, 8 px from the card's right edge and 16 px of text inset on the left; at least one control tall plus 4 px above and below, taller when the detail wraps. It sits in the same `surfaceContainer` card as the About rows. A switch that depends on another one (the notification kinds) is disabled, not hidden, while that one is off |
+| Theme (settings) | `AppSegmented` `System` / `Light` / `Dark` / `Custom`. While Custom is chosen, a card under it with one link row: `Edit colors`, its detail line the base and how many tokens were picked (`Dark base · 3 changed`), `chevron_right`. The first switch to Custom starts the custom theme from the base of the theme on screen |
+| Theme editor | a page pushed over the app like the machine page, in the built-in theme of the custom theme's brightness, so no pick hides the editor's own controls. Its title bar: back, `Custom theme`, `Reset all` (a `TextButton`, disabled while nothing is picked). Then `Start from`, an `AppSegmented` Dark / Light (the picks stay), and one `surfaceContainer` card per group (Surfaces, Text, Accent, Status, Diff, Syntax highlighting, Terminal) under its title: token rows of a 24 px swatch (radius 6), the name over a muted `bodySmall` use line, the hex in `codeTextStyle` `onSurfaceVariant`, and a `restart_alt` reset button while the token differs from the base. A tap opens the colour picker under the row, one row at a time; a second tap closes it. The preview, drawn in the custom theme, sits beside the list (320 px wide) on a page at least 840 px wide, else in a 240 px strip above it; every token shows in it. Dragging changes the preview and the row; the pick is saved when the drag ends, a hex is applied or a token is reset |
+| Colour picker | opaque colours. A saturation/value area 160 px tall across the row with radius `radius`, and a hue track 12 px tall, a stadium; each handle is a 14 px disc in the picked colour on an 18 px disc of white or black, whichever stands apart from the colour (a halo, not a stroke). Under them a hex field one control tall and 120 px wide in `codeTextStyle`: six hex digits with or without `#`, applied on Enter and when the field loses focus; anything else puts the current colour back |
 | Notifications (settings) | a section after Theme. Desktops: one card with `Notifications` (the sessions open on this device) and the three kinds `A session needs input`, `A run finishes`, `A run fails`. Phones and tablets: the same card with `Push notifications` first, its detail line saying why when the build cannot receive them (the switch is then disabled unless push is on, so it can always be turned off), or that push was turned off because the phone no longer has its key (a restore from a backup); while push is on, a second card lists each connected machine as a row, its name and a `TextButton` `Send test notification` (disabled while one is on its way), or a muted line asking to connect a machine. Failures and results are `SnackBar`s |
 | System notification | posted by the OS, one per session (a newer one replaces it; on iOS grouped by the run's thread): the title is the session's name, else the first line of its first message, else its directory's last component; the subtitle `<machine> · Needs input`, `Done` or `Failed` (Linux puts it as the body's first line, Windows as a third line); the body is the question, `Allow <tool>?`, `Goal complete: <objective>`, the first line of the last reply, `Finished`, or the error (docs/contracts/push.md, "Payload"). None for the session on screen; showing a session clears its notification. A tap brings the window forward (desktops) and opens the session, or says in a `SnackBar` that its machine is gone |
 

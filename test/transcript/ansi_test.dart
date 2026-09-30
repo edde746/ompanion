@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ompanion/app/palette.dart';
+import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/screens/chat/transcript/ansi.dart';
 
 void main() {
@@ -59,13 +61,22 @@ void main() {
   });
 
   test('ansiSpan maps palette colours through the scheme and leaves plain runs unstyled', () {
-    final scheme = ColorScheme.fromSeed(seedColor: Colors.indigo);
-    final span = ansiSpan('\x1b[31mred\x1b[0m plain\x1b[7minv', base: const TextStyle(fontSize: 12), scheme: scheme);
+    final theme = ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo));
+    final scheme = theme.colorScheme;
+    final span = ansiSpan('\x1b[31mred\x1b[0m plain\x1b[7minv', base: const TextStyle(fontSize: 12), theme: theme);
     final children = span.children!.cast<TextSpan>();
     expect(children.map((child) => child.text), ['red', ' plain', 'inv']);
-    expect(children[0].style!.color, AnsiPalette.of(scheme).foreground(1));
+    expect(children[0].style!.color, AnsiPalette.of(theme).foreground(1));
     expect(children[1].style, isNull);
     expect(children[2].style!.color, scheme.surface);
     expect(children[2].style!.backgroundColor, scheme.onSurface);
+  });
+
+  test("a picked ANSI colour gives the transcript its hue at the scheme's tone", () {
+    const blue = Color(0xFF0000FF);
+    final palette = AnsiPalette.of(appTheme(AppPalette.dark.pick(ThemeToken.ansiRed, blue)));
+    final hue = HSVColor.fromColor(palette.foreground(1)).hue;
+    expect(hue, closeTo(HSVColor.fromColor(blue).hue, 15));
+    expect(palette.foreground(1), isNot(blue), reason: 'the tone is adapted to the dark surface');
   });
 }

@@ -103,7 +103,7 @@ class _StatusStripState extends State<StatusStrip> {
               Tooltip(
                 message: key,
                 child: Text.rich(
-                  ansiSpan(value, base: theme.textTheme.bodySmall ?? const TextStyle(), scheme: theme.colorScheme),
+                  ansiSpan(value, base: theme.textTheme.bodySmall ?? const TextStyle(), theme: theme),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -222,9 +222,7 @@ class _WidgetPanelState extends State<_WidgetPanel> {
           if (_expanded)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: SelectableText.rich(
-                ansiSpan(widget.widget.lines.join('\n'), base: base, scheme: theme.colorScheme),
-              ),
+              child: SelectableText.rich(ansiSpan(widget.widget.lines.join('\n'), base: base, theme: theme)),
             ),
         ],
       ),
@@ -291,7 +289,7 @@ class _CommandOutputsState extends State<CommandOutputs> {
                   child: SingleChildScrollView(
                     reverse: true,
                     child: SelectableText.rich(
-                      ansiSpan(shown.map((output) => output.text).join('\n'), base: base, scheme: theme.colorScheme),
+                      ansiSpan(shown.map((output) => output.text).join('\n'), base: base, theme: theme),
                     ),
                   ),
                 ),

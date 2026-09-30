@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ompanion/app/palette.dart';
+import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/screens/chat/transcript/highlighter.dart';
 
 void main() {
@@ -9,13 +13,23 @@ void main() {
       () => CodeHighlighter.instance.highlight('dart', code).timeout(const Duration(seconds: 20)),
     );
     expect(runs, isNotNull);
-    final spans = highlightedSpans(code, runs!, highlightTheme(Brightness.light));
+    final spans = highlightedSpans(code, runs!, highlightTheme(AppColors.light));
     expect(spans.map((span) => span.text).join(), code);
     expect([
       for (final span in spans)
         if (span.style != null) span.text,
     ], containsAll(['void', 'print', '1']));
     expect(CodeHighlighter.instance.isCached('dart', code), isTrue);
+  });
+
+  test('syntax tokens colour their scopes; a dotted scope is looked up whole before its first part', () {
+    const blue = Color(0xFF0000FF);
+    const green = Color(0xFF00FF00);
+    final colors = AppColors.from(AppPalette.dark.pick(ThemeToken.title, blue).pick(ThemeToken.builtIn, green));
+    final runs = HighlightRuns(Int32List.fromList([5, 9, 13]), ['title.class_', 'title.function_', 'comment']);
+    final spans = highlightedSpans('Klass foo // x', runs, highlightTheme(colors));
+    expect([for (final span in spans.take(3)) span.style?.color], [green, blue, AppPalette.dark[ThemeToken.comment]]);
+    expect(spans[2].style?.fontStyle, FontStyle.italic);
   });
 
   testWidgets('an unknown language completes without runs', (tester) async {

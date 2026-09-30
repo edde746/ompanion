@@ -112,7 +112,7 @@ class _ExecCard extends StatelessWidget {
                 constraints: const BoxConstraints(maxHeight: 200),
                 child: SingleChildScrollView(
                   reverse: true,
-                  child: SelectableText.rich(ansiSpan(output, base: base, scheme: theme.colorScheme)),
+                  child: SelectableText.rich(ansiSpan(output, base: base, theme: theme)),
                 ),
               ),
             if (run.truncated) Text(t.exec.truncated, style: theme.textTheme.labelSmall),

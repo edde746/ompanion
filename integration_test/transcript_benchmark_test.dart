@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:ompanion/app/palette.dart';
 import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/screens/chat/transcript/transcript_view.dart';
@@ -38,7 +39,7 @@ void main() {
     await tester.pumpWidget(
       TranslationProvider(
         child: MaterialApp(
-          theme: appTheme(Brightness.light),
+          theme: appTheme(AppPalette.light),
           home: Scaffold(
             body: ValueListenableBuilder<SessionView>(
               valueListenable: view,

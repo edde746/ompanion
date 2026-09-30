@@ -112,7 +112,7 @@ Or build it yourself: [Building from Source](#building-from-source).
 - One Flutter codebase for macOS, Windows, Linux, iOS and Android
 - Wide windows show machines, chat and dock side by side; narrow ones show one screen at a time
 - On macOS the app draws the whole window: no title bar, the window buttons sit in the sidebar's header
-- Monochrome, flat design with an OLED-black dark theme and a light theme
+- Monochrome, flat design with an OLED-black dark theme and a light theme, or a custom theme with every color picked by you: surfaces, text, accent, status, diffs, syntax highlighting, the terminal's 16 colors
 - Keyboard shortcuts (Cmd on Apple platforms, Ctrl elsewhere)
 - English UI
 

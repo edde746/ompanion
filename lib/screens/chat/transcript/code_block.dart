@@ -113,7 +113,7 @@ class _CodeBlockState extends State<CodeBlock> {
         style: style,
         children: runs == null
             ? [TextSpan(text: code)]
-            : highlightedSpans(code, runs, highlightTheme(theme.brightness)),
+            : highlightedSpans(code, runs, highlightTheme(AppColors.of(context))),
       ),
       softWrap: false,
     );

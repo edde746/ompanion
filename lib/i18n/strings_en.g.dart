@@ -59,6 +59,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$sshConfig$en sshConfig = Translations$sshConfig$en.internal(_root);
 	late final Translations$transfer$en transfer = Translations$transfer$en.internal(_root);
 	late final Translations$settings$en settings = Translations$settings$en.internal(_root);
+	late final Translations$themeEditor$en themeEditor = Translations$themeEditor$en.internal(_root);
 	late final Translations$notifications$en notifications = Translations$notifications$en.internal(_root);
 	late final Translations$time$en time = Translations$time$en.internal(_root);
 	late final Translations$sessions$en sessions = Translations$sessions$en.internal(_root);
@@ -1031,6 +1032,18 @@ class Translations$settings$en {
 	/// en: 'Dark'
 	String get themeDark => 'Dark';
 
+	/// en: 'Custom'
+	String get themeCustom => 'Custom';
+
+	/// en: 'Edit colors'
+	String get editColors => 'Edit colors';
+
+	/// en: '$base base'
+	String customBase({required Object base}) => '${base} base';
+
+	/// en: '$base base · $count changed'
+	String customPicked({required Object base, required Object count}) => '${base} base · ${count} changed';
+
 	/// en: 'Build channel'
 	String get buildChannel => 'Build channel';
 
@@ -1093,6 +1106,134 @@ class Translations$settings$en {
 
 	/// en: 'Open-source licenses'
 	String get aboutLicenses => 'Open-source licenses';
+}
+
+// Path: themeEditor
+class Translations$themeEditor$en {
+	Translations$themeEditor$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Custom theme'
+	String get title => 'Custom theme';
+
+	/// en: 'Reset all'
+	String get resetAll => 'Reset all';
+
+	/// en: 'Start from'
+	String get startFrom => 'Start from';
+
+	/// en: 'Reset to the base color'
+	String get reset => 'Reset to the base color';
+
+	/// en: 'Hex color'
+	String get hex => 'Hex color';
+
+	/// en: 'The terminal draws these as they are; command output in the chat keeps their hue at its own contrast.'
+	String get terminalNote => 'The terminal draws these as they are; command output in the chat keeps their hue at its own contrast.';
+
+	Map<String, String> get groups => {
+		'surfaces': 'Surfaces',
+		'text': 'Text',
+		'accent': 'Accent',
+		'status': 'Status',
+		'diff': 'Diff',
+		'syntax': 'Syntax highlighting',
+		'terminal': 'Terminal',
+	};
+	Map<String, String> get names => {
+		'background': 'Background',
+		'pane': 'Panes',
+		'card': 'Cards',
+		'field': 'Fields',
+		'selected': 'Selection',
+		'popover': 'Popovers',
+		'text': 'Text',
+		'textMuted': 'Muted text',
+		'accent': 'Accent',
+		'onAccent': 'On accent',
+		'error': 'Error',
+		'errorSurface': 'Error background',
+		'warning': 'Warning',
+		'success': 'Success',
+		'running': 'Running',
+		'diffAdd': 'Added',
+		'diffAddSurface': 'Added background',
+		'diffRemove': 'Removed',
+		'diffRemoveSurface': 'Removed background',
+		'comment': 'Comments',
+		'keyword': 'Keywords',
+		'tag': 'Tags',
+		'literal': 'Literals',
+		'string': 'Strings',
+		'number': 'Numbers',
+		'title': 'Functions',
+		'builtIn': 'Built-ins',
+		'ansiBlack': 'Black',
+		'ansiRed': 'Red',
+		'ansiGreen': 'Green',
+		'ansiYellow': 'Yellow',
+		'ansiBlue': 'Blue',
+		'ansiMagenta': 'Magenta',
+		'ansiCyan': 'Cyan',
+		'ansiWhite': 'White',
+		'ansiBrightBlack': 'Bright black',
+		'ansiBrightRed': 'Bright red',
+		'ansiBrightGreen': 'Bright green',
+		'ansiBrightYellow': 'Bright yellow',
+		'ansiBrightBlue': 'Bright blue',
+		'ansiBrightMagenta': 'Bright magenta',
+		'ansiBrightCyan': 'Bright cyan',
+		'ansiBrightWhite': 'Bright white',
+	};
+	Map<String, String> get uses => {
+		'background': 'App background, chat, terminal',
+		'pane': 'Sidebar, dock, config navigation',
+		'card': 'Cards, composer, code blocks, dialogs',
+		'field': 'Text fields, chips, secondary buttons',
+		'selected': 'Hover, selected rows, focused fields, tab indicators',
+		'popover': 'Menus and pop-up lists',
+		'text': 'Primary text and icons',
+		'textMuted': 'Secondary text and icons',
+		'accent': 'Primary buttons, switches that are on, progress',
+		'onAccent': 'Text and icons on the accent',
+		'error': 'Errors and failed runs',
+		'errorSurface': 'Behind error messages',
+		'warning': 'Warnings, paused goals and loops',
+		'success': 'Finished runs, passed checks',
+		'running': 'Work under way',
+		'diffAdd': 'Added lines',
+		'diffAddSurface': 'Behind added lines',
+		'diffRemove': 'Removed lines',
+		'diffRemoveSurface': 'Behind removed lines',
+		'comment': 'Comments and quotes',
+		'keyword': 'Keywords and doc tags',
+		'tag': 'Tags, names, sections',
+		'literal': 'true, false, null',
+		'string': 'Strings, regular expressions, attributes',
+		'number': 'Numbers, types, variables',
+		'title': 'Function names, titles, links',
+		'builtIn': 'Built-ins and class names',
+		'ansiBlack': 'ANSI 0',
+		'ansiRed': 'ANSI 1',
+		'ansiGreen': 'ANSI 2',
+		'ansiYellow': 'ANSI 3',
+		'ansiBlue': 'ANSI 4',
+		'ansiMagenta': 'ANSI 5',
+		'ansiCyan': 'ANSI 6',
+		'ansiWhite': 'ANSI 7',
+		'ansiBrightBlack': 'ANSI 8',
+		'ansiBrightRed': 'ANSI 9',
+		'ansiBrightGreen': 'ANSI 10',
+		'ansiBrightYellow': 'ANSI 11',
+		'ansiBrightBlue': 'ANSI 12',
+		'ansiBrightMagenta': 'ANSI 13',
+		'ansiBrightCyan': 'ANSI 14',
+		'ansiBrightWhite': 'ANSI 15',
+	};
+	late final Translations$themeEditor$preview$en preview = Translations$themeEditor$preview$en.internal(_root);
 }
 
 // Path: notifications
@@ -2782,6 +2923,54 @@ class Translations$dock$terminals$en {
 	String get exitedBySignal => 'The shell ended.';
 }
 
+// Path: themeEditor.preview
+class Translations$themeEditor$preview$en {
+	Translations$themeEditor$preview$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'A session'
+	String get session => 'A session';
+
+	/// en: 'The selected session'
+	String get selected => 'The selected session';
+
+	/// en: 'Text on the background'
+	String get text => 'Text on the background';
+
+	/// en: 'Muted text'
+	String get muted => 'Muted text';
+
+	/// en: 'A text field'
+	String get field => 'A text field';
+
+	/// en: 'Secondary'
+	String get secondary => 'Secondary';
+
+	/// en: 'Primary'
+	String get primary => 'Primary';
+
+	/// en: 'A menu item'
+	String get menuItem => 'A menu item';
+
+	/// en: 'Done'
+	String get done => 'Done';
+
+	/// en: 'Paused'
+	String get paused => 'Paused';
+
+	/// en: 'Failed'
+	String get failed => 'Failed';
+
+	/// en: 'Working'
+	String get working => 'Working';
+
+	/// en: 'Something went wrong'
+	String get error => 'Something went wrong';
+}
+
 // Path: goal.status
 class Translations$goal$status$en {
 	Translations$goal$status$en.internal(this._root);
@@ -4214,6 +4403,10 @@ extension on Translations {
 			'settings.themeSystem' => 'System',
 			'settings.themeLight' => 'Light',
 			'settings.themeDark' => 'Dark',
+			'settings.themeCustom' => 'Custom',
+			'settings.editColors' => 'Edit colors',
+			'settings.customBase' => ({required Object base}) => '${base} base',
+			'settings.customPicked' => ({required Object base, required Object count}) => '${base} base · ${count} changed',
 			'settings.buildChannel' => 'Build channel',
 			'settings.shortcuts' => 'Keyboard shortcuts',
 			'settings.shortcutToggleSidebar' => 'Toggle sidebar',
@@ -4235,6 +4428,120 @@ extension on Translations {
 			'settings.aboutLicense' => 'License',
 			'settings.aboutLicenseValue' => 'GPL-3.0',
 			'settings.aboutLicenses' => 'Open-source licenses',
+			'themeEditor.title' => 'Custom theme',
+			'themeEditor.resetAll' => 'Reset all',
+			'themeEditor.startFrom' => 'Start from',
+			'themeEditor.reset' => 'Reset to the base color',
+			'themeEditor.hex' => 'Hex color',
+			'themeEditor.terminalNote' => 'The terminal draws these as they are; command output in the chat keeps their hue at its own contrast.',
+			'themeEditor.groups.surfaces' => 'Surfaces',
+			'themeEditor.groups.text' => 'Text',
+			'themeEditor.groups.accent' => 'Accent',
+			'themeEditor.groups.status' => 'Status',
+			'themeEditor.groups.diff' => 'Diff',
+			'themeEditor.groups.syntax' => 'Syntax highlighting',
+			'themeEditor.groups.terminal' => 'Terminal',
+			'themeEditor.names.background' => 'Background',
+			'themeEditor.names.pane' => 'Panes',
+			'themeEditor.names.card' => 'Cards',
+			'themeEditor.names.field' => 'Fields',
+			'themeEditor.names.selected' => 'Selection',
+			'themeEditor.names.popover' => 'Popovers',
+			'themeEditor.names.text' => 'Text',
+			'themeEditor.names.textMuted' => 'Muted text',
+			'themeEditor.names.accent' => 'Accent',
+			'themeEditor.names.onAccent' => 'On accent',
+			'themeEditor.names.error' => 'Error',
+			'themeEditor.names.errorSurface' => 'Error background',
+			'themeEditor.names.warning' => 'Warning',
+			'themeEditor.names.success' => 'Success',
+			'themeEditor.names.running' => 'Running',
+			'themeEditor.names.diffAdd' => 'Added',
+			'themeEditor.names.diffAddSurface' => 'Added background',
+			'themeEditor.names.diffRemove' => 'Removed',
+			'themeEditor.names.diffRemoveSurface' => 'Removed background',
+			'themeEditor.names.comment' => 'Comments',
+			'themeEditor.names.keyword' => 'Keywords',
+			'themeEditor.names.tag' => 'Tags',
+			'themeEditor.names.literal' => 'Literals',
+			'themeEditor.names.string' => 'Strings',
+			'themeEditor.names.number' => 'Numbers',
+			'themeEditor.names.title' => 'Functions',
+			'themeEditor.names.builtIn' => 'Built-ins',
+			'themeEditor.names.ansiBlack' => 'Black',
+			'themeEditor.names.ansiRed' => 'Red',
+			'themeEditor.names.ansiGreen' => 'Green',
+			'themeEditor.names.ansiYellow' => 'Yellow',
+			'themeEditor.names.ansiBlue' => 'Blue',
+			'themeEditor.names.ansiMagenta' => 'Magenta',
+			'themeEditor.names.ansiCyan' => 'Cyan',
+			'themeEditor.names.ansiWhite' => 'White',
+			'themeEditor.names.ansiBrightBlack' => 'Bright black',
+			'themeEditor.names.ansiBrightRed' => 'Bright red',
+			'themeEditor.names.ansiBrightGreen' => 'Bright green',
+			'themeEditor.names.ansiBrightYellow' => 'Bright yellow',
+			'themeEditor.names.ansiBrightBlue' => 'Bright blue',
+			'themeEditor.names.ansiBrightMagenta' => 'Bright magenta',
+			'themeEditor.names.ansiBrightCyan' => 'Bright cyan',
+			'themeEditor.names.ansiBrightWhite' => 'Bright white',
+			'themeEditor.uses.background' => 'App background, chat, terminal',
+			'themeEditor.uses.pane' => 'Sidebar, dock, config navigation',
+			'themeEditor.uses.card' => 'Cards, composer, code blocks, dialogs',
+			'themeEditor.uses.field' => 'Text fields, chips, secondary buttons',
+			'themeEditor.uses.selected' => 'Hover, selected rows, focused fields, tab indicators',
+			'themeEditor.uses.popover' => 'Menus and pop-up lists',
+			'themeEditor.uses.text' => 'Primary text and icons',
+			'themeEditor.uses.textMuted' => 'Secondary text and icons',
+			'themeEditor.uses.accent' => 'Primary buttons, switches that are on, progress',
+			'themeEditor.uses.onAccent' => 'Text and icons on the accent',
+			_ => null,
+		} ?? switch (path) {
+			'themeEditor.uses.error' => 'Errors and failed runs',
+			'themeEditor.uses.errorSurface' => 'Behind error messages',
+			'themeEditor.uses.warning' => 'Warnings, paused goals and loops',
+			'themeEditor.uses.success' => 'Finished runs, passed checks',
+			'themeEditor.uses.running' => 'Work under way',
+			'themeEditor.uses.diffAdd' => 'Added lines',
+			'themeEditor.uses.diffAddSurface' => 'Behind added lines',
+			'themeEditor.uses.diffRemove' => 'Removed lines',
+			'themeEditor.uses.diffRemoveSurface' => 'Behind removed lines',
+			'themeEditor.uses.comment' => 'Comments and quotes',
+			'themeEditor.uses.keyword' => 'Keywords and doc tags',
+			'themeEditor.uses.tag' => 'Tags, names, sections',
+			'themeEditor.uses.literal' => 'true, false, null',
+			'themeEditor.uses.string' => 'Strings, regular expressions, attributes',
+			'themeEditor.uses.number' => 'Numbers, types, variables',
+			'themeEditor.uses.title' => 'Function names, titles, links',
+			'themeEditor.uses.builtIn' => 'Built-ins and class names',
+			'themeEditor.uses.ansiBlack' => 'ANSI 0',
+			'themeEditor.uses.ansiRed' => 'ANSI 1',
+			'themeEditor.uses.ansiGreen' => 'ANSI 2',
+			'themeEditor.uses.ansiYellow' => 'ANSI 3',
+			'themeEditor.uses.ansiBlue' => 'ANSI 4',
+			'themeEditor.uses.ansiMagenta' => 'ANSI 5',
+			'themeEditor.uses.ansiCyan' => 'ANSI 6',
+			'themeEditor.uses.ansiWhite' => 'ANSI 7',
+			'themeEditor.uses.ansiBrightBlack' => 'ANSI 8',
+			'themeEditor.uses.ansiBrightRed' => 'ANSI 9',
+			'themeEditor.uses.ansiBrightGreen' => 'ANSI 10',
+			'themeEditor.uses.ansiBrightYellow' => 'ANSI 11',
+			'themeEditor.uses.ansiBrightBlue' => 'ANSI 12',
+			'themeEditor.uses.ansiBrightMagenta' => 'ANSI 13',
+			'themeEditor.uses.ansiBrightCyan' => 'ANSI 14',
+			'themeEditor.uses.ansiBrightWhite' => 'ANSI 15',
+			'themeEditor.preview.session' => 'A session',
+			'themeEditor.preview.selected' => 'The selected session',
+			'themeEditor.preview.text' => 'Text on the background',
+			'themeEditor.preview.muted' => 'Muted text',
+			'themeEditor.preview.field' => 'A text field',
+			'themeEditor.preview.secondary' => 'Secondary',
+			'themeEditor.preview.primary' => 'Primary',
+			'themeEditor.preview.menuItem' => 'A menu item',
+			'themeEditor.preview.done' => 'Done',
+			'themeEditor.preview.paused' => 'Paused',
+			'themeEditor.preview.failed' => 'Failed',
+			'themeEditor.preview.working' => 'Working',
+			'themeEditor.preview.error' => 'Something went wrong',
 			'notifications.title' => 'Notifications',
 			'notifications.desktop' => 'Notifications',
 			'notifications.desktopDetail' => 'About the sessions open here, while you are in another window or session',
@@ -4305,8 +4612,6 @@ extension on Translations {
 			'sessions.directoryRequired' => 'Choose a working directory.',
 			'sessions.notADirectory' => ({required Object path, required Object machine}) => '${path} is not a directory on ${machine}.',
 			'sessions.recentDirectories' => 'Recent projects',
-			_ => null,
-		} ?? switch (path) {
 			'sessions.model' => 'Model (optional)',
 			'sessions.modelDefault' => 'Default (from omp\'s settings)',
 			'sessions.modelPick' => 'Choose a model',
@@ -4703,6 +5008,8 @@ extension on Translations {
 			'config.accounts.logout' => 'Log out',
 			'config.accounts.logoutTitle' => ({required Object account}) => 'Log out ${account}?',
 			'config.accounts.logoutBody' => ({required Object provider}) => 'The stored credential for ${provider} is removed from this machine.',
+			_ => null,
+		} ?? switch (path) {
 			'config.accounts.oauthLocal' => 'The browser opens on this computer.',
 			'config.accounts.oauthRemote' => 'The browser opens on this device; the app forwards omp\'s callback port to the machine.',
 			'config.accounts.saveKey' => 'Save key',
@@ -4819,8 +5126,6 @@ extension on Translations {
 			'config.stats.cacheRead' => 'Cache read',
 			'config.stats.cost' => 'Cost',
 			'config.stats.ttft' => 'Avg. first token',
-			_ => null,
-		} ?? switch (path) {
 			'config.stats.speed' => 'Avg. speed',
 			'config.stats.perHour' => 'Requests per hour',
 			'config.stats.byModel' => 'By model',

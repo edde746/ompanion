@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:xterm2/xterm.dart';
 
 import '../../../app/dev_overrides.dart';
+import '../../../app/palette.dart';
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../models/machine.dart';
@@ -362,33 +363,32 @@ class _TerminalPaneState extends State<_TerminalPane> {
 
 enum _PaneAction { copy, paste, selectAll, clear }
 
-/// The terminal's colours: the app's grey scale for background, text, cursor, selection and search hits; an ANSI
-/// palette that reads on the surface's brightness.
+/// The terminal's colours: the theme's text, background and selection tones for text, cursor, selection and search
+/// hits; its 16 ANSI tokens as they are.
 TerminalTheme terminalTheme(ThemeData theme) {
   final scheme = theme.colorScheme;
-  final dark = theme.brightness == Brightness.dark;
-  Color c(int value) => Color(value);
+  final colors = AppColors.ofTheme(theme);
   return TerminalTheme(
     cursor: scheme.onSurface,
     selection: scheme.onSurface.withValues(alpha: 0.25),
     foreground: scheme.onSurface,
     background: scheme.surface,
-    black: dark ? c(0xFF1E1E1E) : c(0xFF000000),
-    red: dark ? c(0xFFF14C4C) : c(0xFFCD3131),
-    green: dark ? c(0xFF23D18B) : c(0xFF107C10),
-    yellow: dark ? c(0xFFE5E510) : c(0xFF949800),
-    blue: dark ? c(0xFF3B8EEA) : c(0xFF0451A5),
-    magenta: dark ? c(0xFFD670D6) : c(0xFFBC05BC),
-    cyan: dark ? c(0xFF29B8DB) : c(0xFF0598BC),
-    white: dark ? c(0xFFCCCCCC) : c(0xFF555555),
-    brightBlack: dark ? c(0xFF808080) : c(0xFF666666),
-    brightRed: dark ? c(0xFFFF6B6B) : c(0xFFCD3131),
-    brightGreen: dark ? c(0xFF5AF7B0) : c(0xFF14CE14),
-    brightYellow: dark ? c(0xFFF5F543) : c(0xFFB5BA00),
-    brightBlue: dark ? c(0xFF6CB6FF) : c(0xFF0451A5),
-    brightMagenta: dark ? c(0xFFE58FE5) : c(0xFFBC05BC),
-    brightCyan: dark ? c(0xFF5FD7F5) : c(0xFF0598BC),
-    brightWhite: dark ? c(0xFFFFFFFF) : c(0xFFA5A5A5),
+    black: colors[ThemeToken.ansiBlack],
+    red: colors[ThemeToken.ansiRed],
+    green: colors[ThemeToken.ansiGreen],
+    yellow: colors[ThemeToken.ansiYellow],
+    blue: colors[ThemeToken.ansiBlue],
+    magenta: colors[ThemeToken.ansiMagenta],
+    cyan: colors[ThemeToken.ansiCyan],
+    white: colors[ThemeToken.ansiWhite],
+    brightBlack: colors[ThemeToken.ansiBrightBlack],
+    brightRed: colors[ThemeToken.ansiBrightRed],
+    brightGreen: colors[ThemeToken.ansiBrightGreen],
+    brightYellow: colors[ThemeToken.ansiBrightYellow],
+    brightBlue: colors[ThemeToken.ansiBrightBlue],
+    brightMagenta: colors[ThemeToken.ansiBrightMagenta],
+    brightCyan: colors[ThemeToken.ansiBrightCyan],
+    brightWhite: colors[ThemeToken.ansiBrightWhite],
     searchHitBackground: scheme.surfaceContainerHighest,
     searchHitBackgroundCurrent: scheme.onSurfaceVariant,
     searchHitForeground: scheme.onSurface,

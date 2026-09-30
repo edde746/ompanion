@@ -365,7 +365,7 @@ class TerminalOutput extends StatelessWidget {
           max: max,
           tail: true,
           builder: (context, start, end) =>
-              Text.rich(ansiSpan(lines.sublist(start, end).join('\n'), base: base, scheme: scheme)),
+              Text.rich(ansiSpan(lines.sublist(start, end).join('\n'), base: base, theme: theme)),
         ),
       ),
     );

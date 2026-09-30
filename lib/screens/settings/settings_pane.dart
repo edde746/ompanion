@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/build_channel.dart';
+import '../../app/palette.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../providers/settings_provider.dart';
@@ -10,6 +12,8 @@ import '../../widgets/app_segmented.dart';
 import '../shell/shortcuts.dart';
 import 'about_section.dart';
 import 'notifications_section.dart';
+import 'settings_card.dart';
+import 'theme_editor_screen.dart';
 
 class SettingsPane extends StatelessWidget {
   const SettingsPane({super.key});
@@ -20,6 +24,7 @@ class SettingsPane extends StatelessWidget {
     final theme = Theme.of(context);
     final settings = context.watch<SettingsProvider>();
     final platform = theme.platform;
+    final mode = settings.get(Prefs.themeMode);
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -27,16 +32,39 @@ class SettingsPane extends StatelessWidget {
         const SizedBox(height: AppSizes.gap),
         Align(
           alignment: AlignmentDirectional.centerStart,
-          child: AppSegmented<ThemeMode>(
-            value: settings.get(Prefs.themeMode),
+          child: AppSegmented<AppThemeMode>(
+            value: mode,
             segments: [
-              (ThemeMode.system, t.settings.themeSystem, null),
-              (ThemeMode.light, t.settings.themeLight, null),
-              (ThemeMode.dark, t.settings.themeDark, null),
+              (AppThemeMode.system, t.settings.themeSystem, null),
+              (AppThemeMode.light, t.settings.themeLight, null),
+              (AppThemeMode.dark, t.settings.themeDark, null),
+              (AppThemeMode.custom, t.settings.themeCustom, null),
             ],
-            onChanged: (mode) => settings.set(Prefs.themeMode, mode),
+            onChanged: (mode) async {
+              // The first custom theme starts from the one on screen, so nothing changes until a colour is picked.
+              if (mode == AppThemeMode.custom && !settings.isSet(Prefs.customTheme)) {
+                await settings.set(
+                  Prefs.customTheme,
+                  theme.brightness == Brightness.dark ? AppPalette.dark : AppPalette.light,
+                );
+              }
+              await settings.set(Prefs.themeMode, mode);
+            },
           ),
         ),
+        if (mode == AppThemeMode.custom) ...[
+          const SizedBox(height: AppSizes.gap),
+          SettingsCard(
+            children: [
+              SettingsLinkRow(
+                label: t.settings.editColors,
+                detail: _customSummary(t, settings.get(Prefs.customTheme)),
+                trailing: Symbols.chevron_right,
+                onTap: () => openThemeEditor(context),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 24),
         const NotificationsSection(),
         const SizedBox(height: 24),
@@ -81,6 +109,17 @@ class SettingsPane extends StatelessWidget {
       ],
     );
   }
+}
+
+/// `Dark base`, or `Dark base · 3 changed` once colours are picked.
+String _customSummary(Translations t, AppPalette palette) {
+  final base = switch (palette.base) {
+    ThemeBase.dark => t.settings.themeDark,
+    ThemeBase.light => t.settings.themeLight,
+  };
+  return palette.picks.isEmpty
+      ? t.settings.customBase(base: base)
+      : t.settings.customPicked(base: base, count: palette.picks.length);
 }
 
 /// What [bindings] do and their keys, in binding order; the panel-tab keys share one row (`⌘1–⌘5`).

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:ompanion/app/palette.dart';
 import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/widgets/app_search_field.dart';
 
@@ -9,7 +10,7 @@ void main() {
     final queries = <String>[];
     await tester.pumpWidget(
       MaterialApp(
-        theme: appTheme(Brightness.dark),
+        theme: appTheme(AppPalette.dark),
         home: Scaffold(
           body: AppSearchField(onChanged: queries.add, onSubmitted: submitted?.add),
         ),

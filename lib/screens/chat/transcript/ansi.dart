@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/palette.dart';
+import '../../../app/theme.dart';
+
 /// A colour an SGR sequence selects: an xterm palette index (0–255) or a 24-bit value.
 sealed class AnsiColor {
   const AnsiColor();
@@ -341,32 +344,35 @@ AnsiColor? _colonColour(List<String> sub) {
   return null;
 }
 
-/// The 16 base terminal colours adapted to a Material 3 [ColorScheme]: each chromatic xterm colour becomes the
-/// primary (text) and primary-container (background) tone of a tonal-spot scheme seeded with it, so every colour keeps
-/// its hue at the scheme's contrast against its surface, muted beside the monochrome chrome; black, white and grey
-/// map to the scheme's neutral roles. Indexes
-/// 16–255 and 24-bit colours are used as given.
+/// The 16 base terminal colours adapted to a Material 3 [ColorScheme]: each chromatic ANSI token becomes the primary
+/// (text) and primary-container (background) tone of a tonal-spot scheme seeded with it, so every colour keeps its hue
+/// at the scheme's contrast against its surface, muted beside the monochrome chrome; black, white and grey map to the
+/// scheme's neutral roles. Indexes 16–255 and 24-bit colours are used as given.
 final class AnsiPalette {
   AnsiPalette._(this._foreground, this._background);
 
   static final Expando<AnsiPalette> _cache = Expando();
 
-  static AnsiPalette of(ColorScheme scheme) => _cache[scheme] ??= _build(scheme);
+  static AnsiPalette of(ThemeData theme) =>
+      _cache[theme.colorScheme] ??= _build(theme.colorScheme, AppColors.ofTheme(theme));
 
-  /// The primary and primary-container tones of the tonal-spot scheme seeded with xterm colour [index], per brightness.
+  /// The primary and primary-container tones of the tonal-spot scheme seeded with a colour, per brightness.
   /// Seeding the twelve schemes takes 2-5 ms, and [of] misses whenever Flutter hands out a new [ColorScheme] instance:
   /// every button's `AnimatedTheme(theme.copyWith(...))` evicts the transcript theme from `ThemeData.localize`'s
-  /// five-entry cache, and `ThemeData.copyWith` copies the colour scheme.
-  static final _seeded = <(int, Brightness), (Color, Color)>{};
+  /// five-entry cache, and `ThemeData.copyWith` copies the colour scheme. A theme change animates the ANSI tokens it
+  /// changes through a seed per frame, so the cache starts over once it holds far more than two themes' seeds.
+  static final _seeded = <(Color, Brightness), (Color, Color)>{};
 
-  static (Color, Color) _seededTones(int index, Brightness brightness) =>
-      _seeded[(index, brightness)] ??= switch (ColorScheme.fromSeed(
-        seedColor: _xterm16[index],
-        brightness: brightness,
-        dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
-      )) {
-        final seeded => (seeded.primary, seeded.primaryContainer),
-      };
+  static (Color, Color) _seededTones(Color seed, Brightness brightness) {
+    if (_seeded.length > 256) _seeded.clear();
+    return _seeded[(seed, brightness)] ??= switch (ColorScheme.fromSeed(
+      seedColor: seed,
+      brightness: brightness,
+      dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
+    )) {
+      final seeded => (seeded.primary, seeded.primaryContainer),
+    };
+  }
 
   final List<Color> _foreground;
   final List<Color> _background;
@@ -377,14 +383,7 @@ final class AnsiPalette {
   /// Background colour for palette index [index] (0–255).
   Color background(int index) => index < 16 ? _background[index] : _xterm(index);
 
-  static const _xterm16 = [
-    Color(0xFF000000), Color(0xFFCD0000), Color(0xFF00CD00), Color(0xFFCDCD00), //
-    Color(0xFF0000EE), Color(0xFFCD00CD), Color(0xFF00CDCD), Color(0xFFE5E5E5), //
-    Color(0xFF7F7F7F), Color(0xFFFF0000), Color(0xFF00FF00), Color(0xFFFFFF00), //
-    Color(0xFF5C5CFF), Color(0xFFFF00FF), Color(0xFF00FFFF), Color(0xFFFFFFFF), //
-  ];
-
-  static AnsiPalette _build(ColorScheme scheme) {
+  static AnsiPalette _build(ColorScheme scheme, AppColors colors) {
     final foreground = List<Color>.filled(16, scheme.onSurface);
     final background = List<Color>.filled(16, scheme.surfaceContainerHighest);
     for (var index = 0; index < 16; index++) {
@@ -402,7 +401,7 @@ final class AnsiPalette {
           foreground[index] = scheme.onSurface;
           background[index] = scheme.surfaceContainerHigh;
         default:
-          final (primary, container) = _seededTones(index, scheme.brightness);
+          final (primary, container) = _seededTones(colors[ThemeToken.ansi[index]], scheme.brightness);
           foreground[index] = primary;
           background[index] = container;
       }
@@ -427,9 +426,10 @@ final class AnsiPalette {
   };
 }
 
-/// Terminal output as one [TextSpan] under [base], coloured for [scheme]. Plain runs inherit [base].
-TextSpan ansiSpan(String text, {required TextStyle base, required ColorScheme scheme}) {
-  final palette = AnsiPalette.of(scheme);
+/// Terminal output as one [TextSpan] under [base], coloured for [theme]. Plain runs inherit [base].
+TextSpan ansiSpan(String text, {required TextStyle base, required ThemeData theme}) {
+  final palette = AnsiPalette.of(theme);
+  final scheme = theme.colorScheme;
   final runs = parseAnsi(text);
   return TextSpan(
     style: base,

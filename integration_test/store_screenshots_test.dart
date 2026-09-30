@@ -34,6 +34,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:ompanion/app/app.dart';
+import 'package:ompanion/app/palette.dart';
 import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/models/dock_tab.dart';
 import 'package:ompanion/models/machine.dart';
@@ -113,7 +114,7 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
     final db = AppDatabase.open();
     final settings = await SettingsProvider.load(db);
-    await settings.set(Prefs.themeMode, ThemeMode.dark);
+    await settings.set(Prefs.themeMode, AppThemeMode.dark);
     final secrets = SecretStore();
     final images = MachineImages(cacheDir: machineImageCacheDir);
     final machines = MachinesProvider(db, secrets, images: images);

@@ -7,6 +7,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ompanion/app/palette.dart';
 import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/i18n/strings.g.dart';
@@ -224,7 +225,7 @@ void main() {
         ],
         child: TranslationProvider(
           child: MaterialApp(
-            theme: appTheme(Brightness.dark),
+            theme: appTheme(AppPalette.dark),
             home: const Scaffold(body: UsagePane()),
           ),
         ),

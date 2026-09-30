@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ompanion/app/palette.dart';
 import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/screens/settings/about_section.dart';
@@ -21,7 +22,7 @@ void main() {
     await tester.pumpWidget(
       TranslationProvider(
         child: MaterialApp(
-          theme: appTheme(Brightness.dark),
+          theme: appTheme(AppPalette.dark),
           // The settings pane's own padding, so the section gets the width the app gives it.
           home: const Scaffold(
             body: SingleChildScrollView(padding: EdgeInsets.all(24), child: AboutSection()),

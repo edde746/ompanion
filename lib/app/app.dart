@@ -25,13 +25,19 @@ import '../sessions/session_pins.dart';
 import '../sessions/session_reads.dart';
 import '../sessions/sessions_provider.dart';
 import 'build_channel.dart';
+import 'palette.dart';
 import 'theme.dart';
 import 'window_chrome.dart';
 
-// Built once: a new ThemeData on each MaterialApp build compares unequal (its extensions have no ==), and MaterialApp
-// then animates the whole app from the old theme to the new one for 200 ms, rebuilding every widget that reads it.
-final _lightTheme = appTheme(Brightness.light);
-final _darkTheme = appTheme(Brightness.dark);
+/// The custom theme, built again only when its palette changes, for the reason [lightAppTheme] is built once.
+(AppPalette, ThemeData)? _custom;
+
+ThemeData _customTheme(AppPalette palette) {
+  if (_custom case (final built, final theme) when built == palette) return theme;
+  final theme = appTheme(palette);
+  _custom = (palette, theme);
+  return theme;
+}
 
 /// Root widget. [settings] and [machines] are created in `main` because startup reads and seeds them, and [images]
 /// with them because deleting a machine deletes its cached images; they live as long as the process.
@@ -124,17 +130,28 @@ class OmpanionApp extends StatelessWidget {
       ],
       child: TranslationProvider(
         child: Builder(
-          builder: (context) => MaterialApp(
-            title: context.t.app.title,
-            debugShowCheckedModeBanner: false,
-            theme: _lightTheme,
-            darkTheme: _darkTheme,
-            themeMode: context.select<SettingsProvider, ThemeMode>((settings) => settings.get(Prefs.themeMode)),
-            locale: TranslationProvider.of(context).flutterLocale,
-            supportedLocales: AppLocaleUtils.supportedLocales,
-            builder: (context, child) => WindowChrome(child: child!),
-            home: const ConnectPromptHost(child: NotificationHost(child: ShellScreen())),
-          ),
+          builder: (context) {
+            final (mode, palette) = context.select<SettingsProvider, (AppThemeMode, AppPalette?)>((settings) {
+              final mode = settings.get(Prefs.themeMode);
+              return (mode, mode == AppThemeMode.custom ? settings.get(Prefs.customTheme) : null);
+            });
+            final custom = palette == null ? null : _customTheme(palette);
+            return MaterialApp(
+              title: context.t.app.title,
+              debugShowCheckedModeBanner: false,
+              theme: custom ?? lightAppTheme,
+              darkTheme: custom ?? darkAppTheme,
+              themeMode: switch (mode) {
+                AppThemeMode.light => ThemeMode.light,
+                AppThemeMode.dark => ThemeMode.dark,
+                AppThemeMode.system || AppThemeMode.custom => ThemeMode.system,
+              },
+              locale: TranslationProvider.of(context).flutterLocale,
+              supportedLocales: AppLocaleUtils.supportedLocales,
+              builder: (context, child) => WindowChrome(child: child!),
+              home: const ConnectPromptHost(child: NotificationHost(child: ShellScreen())),
+            );
+          },
         ),
       ),
     );
