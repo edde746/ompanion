@@ -92,6 +92,10 @@ glyphs are drawn for). Flutter falls back to optical size 48, whose strokes are 
 the theme's `iconTheme` sets 24. Widgets that give their icon a fresh icon theme take it from their own theme
 (`navigationRailTheme`'s icon themes, `chipTheme.iconTheme`) or on the icon (an `AlertDialog`'s `icon`).
 
+The theme's `iconTheme` colour is `onSurface`, and Flutter's `IconButton` takes that colour as its foreground over
+every variant's own default. An `IconButton.filled` therefore sets `color: onPrimary`. Without it, the icon is drawn in
+`onSurface` on the `primary` fill, which is the same colour in both built-in themes, so the icon disappears.
+
 Fill 1, set with `Icon.fill` and never by another family, only where the solid glyph carries meaning:
 
 - a solid status mark: `check_circle` (a done todo, a passed connection test, a completed subagent, a chosen answer

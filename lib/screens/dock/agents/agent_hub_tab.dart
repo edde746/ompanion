@@ -570,6 +570,7 @@ class _AgentDetailState extends State<_AgentDetail> {
                 IconButton.filled(
                   tooltip: t.steer,
                   onPressed: _busy ? null : _sendSteer,
+                  color: scheme.onPrimary,
                   icon: const Icon(Symbols.arrow_upward, size: 20),
                 ),
               ],

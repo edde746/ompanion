@@ -49,6 +49,7 @@ ThemeData appTheme(AppPalette palette) {
     dividerColor: Colors.transparent,
     splashFactory: InkRipple.splashFactory,
     // Material Symbols' optical size is 24 (the size its glyphs are drawn for) instead of the 48 Flutter falls back to.
+    // IconButton takes this colour as its foreground over every variant's default, so IconButton.filled sets onPrimary.
     iconTheme: IconThemeData(color: scheme.onSurface, opticalSize: AppSizes.iconOpticalSize),
     // BackButton's own glyph comes from Material Icons; this draws the same per-platform arrow from Material Symbols.
     actionIconTheme: ActionIconThemeData(
