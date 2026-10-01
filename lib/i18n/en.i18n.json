@@ -690,6 +690,7 @@
     "machinePage": "Machine settings",
     "pin": "Pin to top",
     "unpin": "Unpin",
+    "markRead": "Mark as read",
     "newSession": "New session",
     "newSessionHere": "New session in this directory",
     "newSessionOn": "New session on $machine",

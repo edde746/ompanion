@@ -1397,6 +1397,9 @@ class Translations$sessions$en {
 	/// en: 'Unpin'
 	String get unpin => 'Unpin';
 
+	/// en: 'Mark as read'
+	String get markRead => 'Mark as read';
+
 	/// en: 'New session'
 	String get newSession => 'New session';
 
@@ -4587,6 +4590,7 @@ extension on Translations {
 			'sessions.machinePage' => 'Machine settings',
 			'sessions.pin' => 'Pin to top',
 			'sessions.unpin' => 'Unpin',
+			'sessions.markRead' => 'Mark as read',
 			'sessions.newSession' => 'New session',
 			'sessions.newSessionHere' => 'New session in this directory',
 			'sessions.newSessionOn' => ({required Object machine}) => 'New session on ${machine}',
@@ -5007,9 +5011,9 @@ extension on Translations {
 			'config.accounts.pinned' => 'Account pinned to the session.',
 			'config.accounts.logout' => 'Log out',
 			'config.accounts.logoutTitle' => ({required Object account}) => 'Log out ${account}?',
-			'config.accounts.logoutBody' => ({required Object provider}) => 'The stored credential for ${provider} is removed from this machine.',
 			_ => null,
 		} ?? switch (path) {
+			'config.accounts.logoutBody' => ({required Object provider}) => 'The stored credential for ${provider} is removed from this machine.',
 			'config.accounts.oauthLocal' => 'The browser opens on this computer.',
 			'config.accounts.oauthRemote' => 'The browser opens on this device; the app forwards omp\'s callback port to the machine.',
 			'config.accounts.saveKey' => 'Save key',

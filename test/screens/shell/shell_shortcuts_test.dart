@@ -20,6 +20,7 @@ import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
 import 'package:ompanion/services/secret_store.dart';
 import 'package:ompanion/sessions/session_pins.dart';
+import 'package:ompanion/sessions/session_reads.dart';
 import 'package:ompanion/sessions/sessions_provider.dart';
 import 'package:omp_core/companion.dart' show CompanionClient, CompanionHello;
 import 'package:omp_core/rpc.dart';
@@ -142,6 +143,7 @@ void main() {
           ChangeNotifierProvider.value(value: shell),
           ChangeNotifierProvider<SessionsProvider>.value(value: sessions),
           ChangeNotifierProvider(create: (_) => SessionPins(db)),
+          ChangeNotifierProvider(create: (_) => SessionReads(db, relist: (_) {})),
           ChangeNotifierProvider(create: (_) => DockController(machines)),
           Provider<AttachmentSource>.value(value: const SystemAttachmentSource()),
         ],
@@ -204,6 +206,7 @@ void main() {
           ChangeNotifierProvider.value(value: shell),
           ChangeNotifierProvider<SessionsProvider>.value(value: sessions),
           ChangeNotifierProvider(create: (_) => SessionPins(db)),
+          ChangeNotifierProvider(create: (_) => SessionReads(db, relist: (_) {})),
           ChangeNotifierProvider(create: (_) => DockController(machines)),
           Provider<AttachmentSource>.value(value: const SystemAttachmentSource()),
         ],

@@ -115,7 +115,7 @@ class _RowButton extends StatelessWidget {
 
 /// A machine's row: its chevron, status dot and name, and on hover (always on touch screens) a button to the machine's
 /// page and a menu, plus a new session button on desktops. A tap anywhere else on the row expands or collapses it; the
-/// chevron alone is too small a target on a phone.
+/// chevron alone is too small a target on a phone. A secondary click or a long press opens the menu where it happened.
 class MachineHeader extends StatefulWidget {
   const MachineHeader({
     super.key,
@@ -126,6 +126,7 @@ class MachineHeader extends StatefulWidget {
     required this.selected,
     required this.onOpen,
     required this.onToggle,
+    required this.onMarkRead,
   });
 
   final Machine machine;
@@ -140,13 +141,33 @@ class MachineHeader extends StatefulWidget {
   /// Null while searching: the search decides what shows.
   final VoidCallback? onToggle;
 
+  /// Marks the machine's sessions read; null while none is unread.
+  final VoidCallback? onMarkRead;
+
   @override
   State<MachineHeader> createState() => _MachineHeaderState();
 }
 
 class _MachineHeaderState extends State<MachineHeader> {
+  /// The whole row anchors the menu, so a secondary click opens it under the pointer.
+  final _menu = MenuController();
+
   /// The actions stay while their menu is open, though the pointer left the row for the menu.
   bool _menuOpen = false;
+
+  /// Opens the menu at [position], global.
+  void _openMenu(Offset position) {
+    final row = context.findRenderObject()! as RenderBox;
+    _menu.open(position: row.globalToLocal(position));
+  }
+
+  /// [action] after closing the menu: a tap on the row is a tap on the menu's anchor, which leaves the menu open.
+  VoidCallback? _closingMenu(VoidCallback? action) => action == null
+      ? null
+      : () {
+          _menu.close();
+          action();
+        };
 
   @override
   Widget build(BuildContext context) {
@@ -161,95 +182,111 @@ class _MachineHeaderState extends State<MachineHeader> {
     };
     final busy = widget.loading || status is MachineConnecting;
     final touch = sidebarTouch(context);
-    return SidebarRow(
-      indent: 2,
-      selected: widget.selected,
-      onTap: widget.onToggle,
-      builder: (context, hovered) => Row(
-        children: [
-          Semantics(
-            label: widget.expanded ? t.sessions.collapse : t.sessions.expand,
-            expanded: widget.expanded,
-            child: SizedBox.square(
-              dimension: _RowButton.size,
-              child: Icon(
-                widget.expanded ? Symbols.expand_more : Symbols.chevron_right,
-                size: 16,
-                color: theme.colorScheme.onSurfaceVariant,
+    return MenuAnchor(
+      controller: _menu,
+      onOpen: () => setState(() => _menuOpen = true),
+      onClose: () => setState(() => _menuOpen = false),
+      menuChildren: [
+        MenuItemButton(
+          leadingIcon: const Icon(Symbols.add),
+          onPressed: () => unawaited(showNewSessionDialog(context, machine)),
+          child: Text(t.sessions.newSession),
+        ),
+        MenuItemButton(
+          leadingIcon: const Icon(Symbols.mark_chat_read),
+          onPressed: widget.onMarkRead,
+          child: Text(t.sessions.markRead),
+        ),
+        MenuItemButton(
+          leadingIcon: const Icon(Symbols.refresh),
+          onPressed: busy ? null : () => unawaited(sessions.refresh(machine)),
+          child: Text(t.sessions.refresh),
+        ),
+        MenuItemButton(
+          leadingIcon: const Icon(Symbols.tune),
+          onPressed: () => unawaited(openMachineConfig(context, machine)),
+          child: Text(t.sessions.configure),
+        ),
+        if (status is MachineNeedsOmp)
+          MenuItemButton(
+            leadingIcon: const Icon(Symbols.download),
+            onPressed: () => unawaited(showInstallOmpDialog(context, machine)),
+            child: Text(t.sessions.install),
+          ),
+      ],
+      child: SidebarRow(
+        indent: 2,
+        selected: widget.selected,
+        onTap: _closingMenu(widget.onToggle),
+        onMenu: _openMenu,
+        builder: (context, hovered) => Row(
+          children: [
+            Semantics(
+              label: widget.expanded ? t.sessions.collapse : t.sessions.expand,
+              expanded: widget.expanded,
+              child: SizedBox.square(
+                dimension: _RowButton.size,
+                child: Icon(
+                  widget.expanded ? Symbols.expand_more : Symbols.chevron_right,
+                  size: 16,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 2),
-          Tooltip(
-            message: machineStatusText(t, status),
-            child: Badge(
-              smallSize: 7,
-              backgroundColor: machineStatusColor(context, status),
-              child: Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              machine.name,
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (busy)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: ActivityMark(size: _iconSize, color: AppColors.of(context).running),
-            ),
-          if ((hovered || _menuOpen) && !touch)
-            _RowButton(
-              key: ValueKey('new-session-${machine.id}'),
-              icon: Symbols.add,
-              tooltip: t.sessions.newSession,
-              onPressed: () => unawaited(showNewSessionDialog(context, machine)),
-            ),
-          if (hovered || _menuOpen)
-            _RowButton(
-              key: ValueKey('machine-page-${machine.id}'),
-              icon: Symbols.settings,
-              tooltip: t.sessions.machinePage,
-              onPressed: widget.onOpen,
-            ),
-          if (hovered || _menuOpen)
-            MenuAnchor(
-              onOpen: () => setState(() => _menuOpen = true),
-              onClose: () => setState(() => _menuOpen = false),
-              menuChildren: [
-                MenuItemButton(
-                  leadingIcon: const Icon(Symbols.add),
-                  onPressed: () => unawaited(showNewSessionDialog(context, machine)),
-                  child: Text(t.sessions.newSession),
-                ),
-                MenuItemButton(
-                  leadingIcon: const Icon(Symbols.refresh),
-                  onPressed: busy ? null : () => unawaited(sessions.refresh(machine)),
-                  child: Text(t.sessions.refresh),
-                ),
-                MenuItemButton(
-                  leadingIcon: const Icon(Symbols.tune),
-                  onPressed: () => unawaited(openMachineConfig(context, machine)),
-                  child: Text(t.sessions.configure),
-                ),
-                if (status is MachineNeedsOmp)
-                  MenuItemButton(
-                    leadingIcon: const Icon(Symbols.download),
-                    onPressed: () => unawaited(showInstallOmpDialog(context, machine)),
-                    child: Text(t.sessions.install),
-                  ),
-              ],
-              builder: (context, controller, _) => _RowButton(
-                icon: Symbols.more_horiz,
-                tooltip: t.sidebar.more,
-                onPressed: () => controller.isOpen ? controller.close() : controller.open(),
+            const SizedBox(width: 2),
+            Tooltip(
+              message: machineStatusText(t, status),
+              child: Badge(
+                smallSize: 7,
+                backgroundColor: machineStatusColor(context, status),
+                child: Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
               ),
             ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                machine.name,
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (busy)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: ActivityMark(size: _iconSize, color: AppColors.of(context).running),
+              ),
+            if ((hovered || _menuOpen) && !touch)
+              _RowButton(
+                key: ValueKey('new-session-${machine.id}'),
+                icon: Symbols.add,
+                tooltip: t.sessions.newSession,
+                onPressed: _closingMenu(() => unawaited(showNewSessionDialog(context, machine))),
+              ),
+            if (hovered || _menuOpen)
+              _RowButton(
+                key: ValueKey('machine-page-${machine.id}'),
+                icon: Symbols.settings,
+                tooltip: t.sessions.machinePage,
+                onPressed: _closingMenu(widget.onOpen),
+              ),
+            if (hovered || _menuOpen)
+              Builder(
+                builder: (button) => _RowButton(
+                  icon: Symbols.more_horiz,
+                  tooltip: t.sidebar.more,
+                  onPressed: () {
+                    if (_menu.isOpen) {
+                      _menu.close();
+                    } else {
+                      final box = button.findRenderObject()! as RenderBox;
+                      _openMenu(box.localToGlobal(box.size.bottomLeft(Offset.zero)));
+                    }
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -362,6 +399,7 @@ class ProjectRow extends StatelessWidget {
     required this.collapsed,
     required this.onToggle,
     required this.onNewSession,
+    required this.onMenu,
     this.starting = false,
     this.match,
   });
@@ -380,6 +418,9 @@ class ProjectRow extends StatelessWidget {
   /// A session [onNewSession] started is still launching: the activity mark takes the new session button's place.
   final bool starting;
 
+  /// Opens the row's context menu at a global position.
+  final void Function(Offset position) onMenu;
+
   /// The search match in the shown path.
   final TextRange? match;
 
@@ -393,6 +434,7 @@ class ProjectRow extends StatelessWidget {
       // The chevron fills the gap before the folder icon, in the machine chevron's column.
       indent: _projectIndent - _RowButton.size,
       onTap: onToggle,
+      onMenu: onMenu,
       builder: (context, hovered) => Row(
         children: [
           _RowButton(
@@ -626,7 +668,7 @@ class SessionTile extends StatelessWidget {
       return tile(
         sidebarEntryTitle(t, entry),
         summary?.running ?? false ? SessionStatus.runningOnMachine : SessionStatus.none,
-        summary != null && reads.isListedUnread(machineId, summary),
+        entryUnread(reads, machineId, entry),
       );
     }
     return LinkStateBuilder(
@@ -636,7 +678,11 @@ class SessionTile extends StatelessWidget {
         select: (view) => (liveSessionName(t, view, summary), _liveStatus(view)),
         builder: (context, data) {
           final (name, status) = data;
-          return tile(name, link is LinkClosed ? SessionStatus.disconnected : status, reads.isLiveUnread(session));
+          return tile(
+            name,
+            link is LinkClosed ? SessionStatus.disconnected : status,
+            entryUnread(reads, machineId, entry),
+          );
         },
       ),
     );

@@ -14,6 +14,7 @@ import '../../providers/machines_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/session_pins.dart';
+import '../../sessions/session_reads.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../sessions/show_session.dart';
 import '../../widgets/app_search_field.dart';
@@ -168,24 +169,48 @@ class SidebarState extends State<Sidebar> {
     }
   }
 
-  /// A session row's context menu: pin or unpin it.
-  Future<void> _sessionMenu(Machine machine, SidebarEntry entry, Offset position) async {
+  /// A context menu at [position], global, of [items].
+  void _menuAt(Offset position, List<PopupMenuEntry<void>> items) {
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    unawaited(
+      showMenu<void>(
+        context: context,
+        position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
+        items: items,
+      ),
+    );
+  }
+
+  /// A session row's context menu: pin or unpin it, mark it read.
+  void _sessionMenu(Machine machine, SidebarEntry entry, Offset position) {
     final t = context.t;
     final pins = context.read<SessionPins>();
+    final reads = context.read<SessionReads>();
     final pin = pinOf(machine.id, entry, DateTime.now());
-    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final toggle = await showMenu<bool>(
-      context: context,
-      position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
-      items: [
-        PopupMenuItem(
-          value: true,
-          enabled: pin != null,
-          child: Text(pin != null && pins.isPinned(pin.machineId, pin.sessionId) ? t.sessions.unpin : t.sessions.pin),
-        ),
-      ],
-    );
-    if (toggle == true && pin != null) await pins.toggle(pin);
+    _menuAt(position, [
+      PopupMenuItem(
+        enabled: pin != null,
+        onTap: pin == null ? null : () => unawaited(pins.toggle(pin)),
+        child: Text(pin != null && pins.isPinned(pin.machineId, pin.sessionId) ? t.sessions.unpin : t.sessions.pin),
+      ),
+      PopupMenuItem(
+        enabled: entryUnread(reads, machine.id, entry),
+        onTap: () => markEntriesRead(reads, machine.id, [entry]),
+        child: Text(t.sessions.markRead),
+      ),
+    ]);
+  }
+
+  /// A project row's context menu: mark its sessions read.
+  void _projectMenu(Machine machine, List<SidebarEntry> entries, Offset position) {
+    final reads = context.read<SessionReads>();
+    _menuAt(position, [
+      PopupMenuItem(
+        enabled: entries.any((entry) => entryUnread(reads, machine.id, entry)),
+        onTap: () => markEntriesRead(reads, machine.id, entries),
+        child: Text(context.t.sessions.markRead),
+      ),
+    ]);
   }
 
   @override
@@ -196,6 +221,8 @@ class SidebarState extends State<Sidebar> {
     final sessions = context.watch<SessionsProvider>();
     final settings = context.watch<SettingsProvider>();
     final pins = context.watch<SessionPins>();
+    // The machine rows' menus offer to mark their sessions read while one is unread.
+    final reads = context.watch<SessionReads>();
     final selection = context.watch<ShellProvider>().selection;
     _followStatuses(sessions, machines.machines);
     for (final machine in machines.machines) {
@@ -257,7 +284,14 @@ class SidebarState extends State<Sidebar> {
                         final row = rows[index];
                         return KeyedSubtree(
                           key: ValueKey(row.key),
-                          child: _row(context, row, settings: settings, selection: selection, searching: searching),
+                          child: _row(
+                            context,
+                            row,
+                            settings: settings,
+                            selection: selection,
+                            reads: reads,
+                            searching: searching,
+                          ),
                         );
                       },
                       childCount: rows.length,
@@ -334,6 +368,7 @@ class SidebarState extends State<Sidebar> {
     SidebarRowData row, {
     required SettingsProvider settings,
     required ShellSelection selection,
+    required SessionReads reads,
     required bool searching,
   }) {
     final t = context.t;
@@ -349,6 +384,9 @@ class SidebarState extends State<Sidebar> {
         selected: selection == MachineSelection(machine.machine.id),
         onOpen: () => context.read<ShellProvider>().select(MachineSelection(machine.machine.id)),
         onToggle: searching ? null : () => _toggleMachine(machine.machine),
+        onMarkRead: machine.entries.any((entry) => entryUnread(reads, machine.machine.id, entry))
+            ? () => markEntriesRead(reads, machine.machine.id, machine.entries)
+            : null,
       ),
       NoticeRowData(:final machine, :final notice) => switch (notice) {
         // The machine row's dot and tooltip carry the status; these say what to do about it.
@@ -391,6 +429,7 @@ class SidebarState extends State<Sidebar> {
             : () => unawaited(settings.set(Prefs.projectCollapsed(machine.machine.id, cwd), !collapsed)),
         starting: _starting.contains((machine.machine.id, cwd)),
         onNewSession: machine.status is MachineOnline ? () => unawaited(_newSession(machine.machine, cwd)) : null,
+        onMenu: (position) => _projectMenu(machine.machine, entries, position),
       ),
       SessionRowData(:final machine, :final entry, :final match) => _sessionTile(machine, entry, match, pinned: false),
       ShowMoreRowData(:final machine, :final cwd, :final hidden) => ShowMoreRow(
@@ -411,7 +450,7 @@ class SidebarState extends State<Sidebar> {
       place: pinned ? machine.machine.name : null,
       opening: path != null && _opening.contains(path),
       onTap: () => unawaited(_open(machine.machine, entry)),
-      onMenu: (position) => unawaited(_sessionMenu(machine.machine, entry, position)),
+      onMenu: (position) => _sessionMenu(machine.machine, entry, position),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:omp_core/session.dart';
 import '../../database/app_database.dart' show PinnedSessionRow;
 import '../../models/machine.dart';
 import '../../sessions/session_name.dart';
+import '../../sessions/session_reads.dart';
 import '../../sessions/sessions_provider.dart';
 import '../sessions/machine_sessions.dart' show shortPath;
 
@@ -49,6 +50,21 @@ PinnedSessionRow? pinOf(String machineId, SidebarEntry entry, DateTime now) {
     pinnedAt: now,
   );
 }
+
+/// Whether [entry] on machine [machineId] has news the user has not seen: its open session's, else its file's.
+bool entryUnread(SessionReads reads, String machineId, SidebarEntry entry) {
+  final session = entry.session;
+  if (session != null) return reads.isLiveUnread(session);
+  final summary = entry.summary;
+  return summary != null && reads.isListedUnread(machineId, summary);
+}
+
+/// Marks [entries] on machine [machineId] read: their open sessions, and their files up to their listed times.
+void markEntriesRead(SessionReads reads, String machineId, Iterable<SidebarEntry> entries) => reads.markRead(
+  machineId,
+  listed: [for (final entry in entries) ?entry.summary],
+  live: [for (final entry in entries) ?entry.session],
+);
 
 /// One machine as the sidebar shows it.
 final class SidebarMachine {

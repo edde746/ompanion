@@ -102,6 +102,26 @@ class SessionReads extends ChangeNotifier {
     return marker != null && summary.modified.isAfter(marker);
   }
 
+  /// Marks [live], sessions open on this device, read, and [listed], files on [machineId], read up to their listed
+  /// modification times; later writes are news again.
+  void markRead(String machineId, {Iterable<SessionSummary> listed = const [], Iterable<LiveSession> live = const []}) {
+    if (_disposed) return;
+    var changed = false;
+    for (final session in live) {
+      final watch = _live[session];
+      if (watch == null || !watch.unread) continue;
+      watch.unread = false;
+      changed = true;
+    }
+    // Only files with a marker can be unread, so nothing is written before the persisted markers load.
+    final updates = <_FileKey, DateTime>{
+      for (final summary in listed)
+        if (isListedUnread(machineId, summary)) (machineId, summary.path): summary.modified,
+    };
+    if (updates.isNotEmpty) _advance(updates);
+    if (changed || updates.isNotEmpty) notifyListeners();
+  }
+
   /// Takes the sessions open on this device with their machine ids, the one on screen, and each machine's latest
   /// listing. Opening a session shows it, which marks it read.
   void update({
@@ -193,8 +213,13 @@ class SessionReads extends ChangeNotifier {
       _closedRead.removeWhere((key) => key.$1 == machineId);
     }
     if (updates.isEmpty) return;
-    _markers.addAll(updates);
+    _advance(updates);
     notifyListeners();
+  }
+
+  /// Moves the markers in [updates] to their times and persists them.
+  void _advance(Map<_FileKey, DateTime> updates) {
+    _markers.addAll(updates);
     unawaited(
       _db.batch((batch) {
         for (final MapEntry(key: (machineId, path), value: seen) in updates.entries) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/native.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -196,6 +197,19 @@ Future<void> _toggle(WidgetTester tester, String cwd, {required bool collapse}) 
   await tester.runAsync(() => Future<void>.delayed(Duration.zero));
 }
 
+/// Stores [_machine], which pins and read markers refer to.
+Future<void> _storeMachine() => _db
+    .into(_db.machines)
+    .insert(
+      MachinesCompanion.insert(
+        id: _machine.id,
+        name: _machine.name,
+        kind: MachineKind.local,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+      ),
+    );
+
 void main() {
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
@@ -241,17 +255,7 @@ void main() {
     tester,
   ) async {
     await tester.runAsync(() async {
-      await _db
-          .into(_db.machines)
-          .insert(
-            MachinesCompanion.insert(
-              id: _machine.id,
-              name: _machine.name,
-              kind: MachineKind.local,
-              createdAt: DateTime(2026),
-              updatedAt: DateTime(2026),
-            ),
-          );
+      await _storeMachine();
       await _pins.ready;
     });
     final settings = await _loadSettings(tester);
@@ -288,6 +292,61 @@ void main() {
     expect(find.text(t.sidebar.pinned), findsNothing);
     expect(top(find.text('Fix the build')), greaterThan(top(machineRow)));
   });
+
+  testWidgets(
+    "a folder's menu marks its sessions read; a secondary click on a machine opens its menu there, which marks "
+    'all of them read',
+    (tester) async {
+      // Every listed session changed since this device last read it; the open one has no news.
+      final listing = _sessions.listings[_machine.id]!;
+      await tester.runAsync(() async {
+        await _storeMachine();
+        await _reads.ready;
+        _reads
+          ..update(
+            open: const {},
+            viewed: null,
+            listings: {
+              _machine.id: [
+                for (final summary in listing)
+                  SessionSummary(path: summary.path, size: 1, modified: DateTime(2026, 8), id: summary.id),
+              ],
+            },
+          )
+          ..update(open: const {}, viewed: null, listings: {_machine.id: listing});
+      });
+      await _pump(tester, await _loadSettings(tester));
+      const titles = ['Fix the build', 'Write the docs', 'Pick a license', 'Speed up the parser'];
+      List<bool> unread() => [
+        for (final title in titles)
+          tester.widget<SessionRow>(find.ancestor(of: find.text(title), matching: find.byType(SessionRow))).unread,
+      ];
+      Future<void> markRead() async {
+        await tester.tap(find.text(t.sessions.markRead));
+        await tester.pumpAndSettle();
+        // Lets the markers reach the database.
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      }
+
+      expect(unread(), [true, true, false, true]);
+
+      await tester.tap(find.text(_lib), buttons: kSecondaryMouseButton, kind: PointerDeviceKind.mouse);
+      await tester.pumpAndSettle();
+      await markRead();
+      expect(unread(), [true, true, false, false]);
+
+      final click = tester.getCenter(find.text(_machine.name));
+      await tester.tapAt(click, buttons: kSecondaryMouseButton, kind: PointerDeviceKind.mouse);
+      await tester.pumpAndSettle();
+      // The menu of the row's "more" button, under the pointer.
+      expect(find.text(t.sessions.configure), findsOneWidget);
+      final menu = tester.getTopLeft(find.byType(MenuItemButton).first) - click;
+      expect(menu.dx, inInclusiveRange(0, 16));
+      expect(menu.dy, inInclusiveRange(0, 16));
+      await markRead();
+      expect(unread(), [false, false, false, false]);
+    },
+  );
 
   testWidgets("a tap on a machine's row collapses and expands it; its settings button opens the machine's page", (
     tester,

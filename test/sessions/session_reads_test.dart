@@ -220,4 +220,44 @@ void main() {
     expect(tracker.isListedUnread('m1', _file('/s', 15)), isTrue);
     tracker.dispose();
   });
+
+  test('sessions marked read stay read, also after a restart, until they change again', () async {
+    await insertMachine();
+    final tracker = await reads();
+    final open = _Session('/open');
+    tracker.update(
+      open: {open: 'm1'},
+      viewed: null,
+      listings: {
+        'm1': [_file('/a', 10), _file('/b', 10)],
+      },
+    );
+    open.emit(_answered('hi'));
+    final changed = [_file('/a', 20), _file('/b', 20)];
+    tracker.update(open: {open: 'm1'}, viewed: null, listings: {'m1': changed});
+    expect(tracker.isLiveUnread(open), isTrue);
+    expect(tracker.isListedUnread('m1', _file('/a', 20)), isTrue);
+
+    tracker.markRead('m1', listed: [_file('/a', 20)], live: [open]);
+    expect(tracker.isLiveUnread(open), isFalse);
+    expect(tracker.isListedUnread('m1', _file('/a', 20)), isFalse);
+    // Only what was marked.
+    expect(tracker.isListedUnread('m1', _file('/b', 20)), isTrue);
+    tracker.dispose();
+
+    final restarted = await reads();
+    restarted.update(open: const {}, viewed: null, listings: {'m1': changed});
+    expect(restarted.isListedUnread('m1', _file('/a', 20)), isFalse);
+    expect(restarted.isListedUnread('m1', _file('/b', 20)), isTrue);
+
+    restarted.update(
+      open: const {},
+      viewed: null,
+      listings: {
+        'm1': [_file('/a', 30), _file('/b', 20)],
+      },
+    );
+    expect(restarted.isListedUnread('m1', _file('/a', 30)), isTrue);
+    restarted.dispose();
+  });
 }
