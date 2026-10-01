@@ -56,7 +56,7 @@ export const sessionEvents: readonly string[] = [
 
 /** Called once per process from the main session's `session_start`, after the channel is bound. */
 export async function installSessionHooks(pi: ExtensionAPI, session: AgentSession): Promise<void> {
-	installAgentRoster();
+	installAgentRoster(pi, session);
 	installHistoryRecording(pi);
 	installExecMessageEvents(pi);
 	installCompactionEvents(pi, session);

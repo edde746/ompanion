@@ -1,4 +1,4 @@
-import { logger } from "@oh-my-pi/pi-coding-agent";
+import { type AgentSession, type ExtensionAPI, logger } from "@oh-my-pi/pi-coding-agent";
 import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
 import {
 	type AgentHistorySummary,
@@ -8,6 +8,7 @@ import {
 	type AgentRunLifecycle,
 	type AgentStatus,
 } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { registerPersistedSubagents } from "@oh-my-pi/pi-coding-agent/registry/persisted-agents";
 import { USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
 import { expectKeys, requireString } from "../../args.ts";
 import { emitEvent } from "../../channel.ts";
@@ -50,14 +51,33 @@ function agentRows(): AgentRow[] {
 const ROSTER_DEBOUNCE_MS = 100;
 let rosterTimer: Timer | undefined;
 
-/** Pushes `agents.changed` with the whole roster after every burst of registry changes. */
-export function installAgentRoster(): void {
+/**
+ * Pushes `agents.changed` with the whole roster after every burst of registry changes, and registers the subagent and
+ * advisor transcripts of the session omp opens or switches to. omp registers them only when the TUI opens its agent hub
+ * or a task spawns (`ensurePersistedRoster`), so until then rpc-ui lists the main agent alone.
+ */
+export function installAgentRoster(pi: ExtensionAPI, session: AgentSession): void {
 	AgentRegistry.global().onChange(() => {
 		if (rosterTimer) return;
 		rosterTimer = setTimeout(() => {
 			rosterTimer = undefined;
 			emitEvent("agents.changed", { agents: agentRows() });
 		}, ROSTER_DEBOUNCE_MS);
+	});
+	pi.on("session_switch", () => registerTranscripts(session));
+	registerTranscripts(session);
+}
+
+/**
+ * The TUI agent hub's load (agent-hub-runtime.ts `loadPersisted`): parked refs first, then each transcript's metrics.
+ * Not awaited: the registry pushes each step as `agents.changed`. A scan stops once omp leaves its session file.
+ */
+function registerTranscripts(session: AgentSession): void {
+	const file = session.sessionFile;
+	registerPersistedSubagents(AgentRegistry.global(), file, {
+		shouldContinue: () => session.sessionFile === file,
+	}).catch((error: unknown) => {
+		logger.warn("ompx: registering the session's subagent transcripts failed", { file, error: String(error) });
 	});
 }
 

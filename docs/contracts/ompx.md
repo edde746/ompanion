@@ -372,9 +372,15 @@ session: `{id, displayName, kind: "main" | "sub" | "advisor", parentId?: string,
 "parked" | "aborted", sessionFile: string | null, createdAt: number, lastActivity: number, activity?: string,
 history?: {agent?, modelRole?, resolvedModel?, resolvedModelIsFallback?, metrics?, readOnly?, outputPath?,
 patchPath?, branchName?, nestedPatchPaths?}, lifecycle?: {responseAt?, acceptedAt?, terminalAt?}}`.
-`createdAt` and `lastActivity` are epoch ms but not always whole: a parked subagent omp reads back from its
-session file (on a task spawn, `agent://` or `history://` in a reopened session) takes `lastActivity` from the
-file's `mtimeMs`, and `createdAt` from `birthtimeMs` when the transcript has no timestamp.
+`createdAt` and `lastActivity` are epoch ms but not always whole: a parked subagent read back from its transcript
+takes `lastActivity` from the file's `mtimeMs`, and `createdAt` from `birthtimeMs` when the transcript has no
+timestamp.
+
+The registry is process-wide; omp itself registers a session's earlier subagents only when a task spawns or `agent://`
+or `history://` is read. The companion registers the subagent and advisor transcripts of the session omp opens with
+(the main session's `session_start`) and of every session it switches to (`session_switch`: new, resume, fork), the
+way the TUI agent hub does when opened: `parked` rows (`aborted` for a killed one), then each transcript's `metrics`.
+The scan runs in the background, so an `agents.list` answered meanwhile lacks them; they arrive by `agents.changed`.
 
 Event `agents.changed {agents: AgentRow[]}`, no `callId`: the whole roster, at most every 100 ms after
 registry changes. Advisors are listed read-only, as in the TUI agent hub.
