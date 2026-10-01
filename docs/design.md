@@ -92,9 +92,10 @@ glyphs are drawn for). Flutter falls back to optical size 48, whose strokes are 
 the theme's `iconTheme` sets 24. Widgets that give their icon a fresh icon theme take it from their own theme
 (`navigationRailTheme`'s icon themes, `chipTheme.iconTheme`) or on the icon (an `AlertDialog`'s `icon`).
 
-The theme's `iconTheme` colour is `onSurface`, and Flutter's `IconButton` takes that colour as its foreground over
-every variant's own default. An `IconButton.filled` therefore sets `color: onPrimary`. Without it, the icon is drawn in
-`onSurface` on the `primary` fill, which is the same colour in both built-in themes, so the icon disappears.
+Plain icons take the theme's `iconTheme` colour, `onSurface`. Icon buttons keep their variant's colour instead:
+`onSurfaceVariant` for a standard one, `onPrimary` on a filled one. Flutter's `IconButton` would otherwise take the
+ambient icon colour over its variant's, so `iconButtonTheme` sets its foreground and overlay to colours that resolve
+to null. Because of that, an app bar's back button takes its `onSurface` from `appBarTheme.iconTheme`.
 
 Fill 1, set with `Icon.fill` and never by another family, only where the solid glyph carries meaning:
 

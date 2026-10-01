@@ -49,7 +49,6 @@ ThemeData appTheme(AppPalette palette) {
     dividerColor: Colors.transparent,
     splashFactory: InkRipple.splashFactory,
     // Material Symbols' optical size is 24 (the size its glyphs are drawn for) instead of the 48 Flutter falls back to.
-    // IconButton takes this colour as its foreground over every variant's default, so IconButton.filled sets onPrimary.
     iconTheme: IconThemeData(color: scheme.onSurface, opticalSize: AppSizes.iconOpticalSize),
     // BackButton's own glyph comes from Material Icons; this draws the same per-platform arrow from Material Symbols.
     actionIconTheme: ActionIconThemeData(
@@ -61,6 +60,9 @@ ThemeData appTheme(AppPalette palette) {
     appBarTheme: AppBarThemeData(
       backgroundColor: scheme.surface,
       foregroundColor: scheme.onSurface,
+      // Unlike the default one, a theme's iconTheme makes AppBar give its leading IconButton (the back button) this
+      // colour; otherwise the button would take iconButtonTheme's null and fall back to onSurfaceVariant.
+      iconTheme: IconThemeData(color: scheme.onSurface),
       elevation: 0,
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
@@ -114,7 +116,15 @@ ThemeData appTheme(AppPalette palette) {
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     ),
-    iconButtonTheme: const IconButtonThemeData(style: ButtonStyle(side: WidgetStatePropertyAll(BorderSide.none))),
+    // IconButton takes the ambient IconTheme's colour over its variant's default unless this theme sets one. Colours
+    // that resolve to null keep the defaults (onSurfaceVariant, filled onPrimary) instead of iconTheme's onSurface.
+    iconButtonTheme: const IconButtonThemeData(
+      style: ButtonStyle(
+        foregroundColor: WidgetStatePropertyAll(null),
+        overlayColor: WidgetStatePropertyAll(null),
+        side: WidgetStatePropertyAll(BorderSide.none),
+      ),
+    ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       elevation: 0,
       focusElevation: 0,

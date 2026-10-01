@@ -783,7 +783,6 @@ class _ComposerState extends State<Composer> {
                                     tooltip: t.composer.steer,
                                     icon: const Icon(Symbols.subdirectory_arrow_right, size: 20),
                                     constraints: _toolbarIcon,
-                                    color: theme.colorScheme.onPrimary,
                                     onPressed: canSend ? steer : null,
                                   ),
                                 ] else if (data.running && !closed) ...[
@@ -804,7 +803,6 @@ class _ComposerState extends State<Composer> {
                                     tooltip: t.composer.send,
                                     icon: const Icon(Symbols.arrow_upward, size: 20),
                                     constraints: _toolbarIcon,
-                                    color: theme.colorScheme.onPrimary,
                                     onPressed: canSend ? steer : null,
                                   ),
                               ],
