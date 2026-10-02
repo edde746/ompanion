@@ -266,9 +266,11 @@ void main() {
         ].map((line) => '$line\n').join();
         // omp is still writing the last line.
         const partial = '{"type":"message_update","message":{"n":5},"messageId":"msg-6"';
-        await omp('$before${chunk(0)}${chunk(1)}${chunk(2)}$window$partial');
+        // An earlier pump wrote generation marks inside a sequence; a mark starts no frame either.
+        final mark = '${'{"type":"ompanion_mark","generation":1}'.padRight(63)}\n';
+        await omp('$before${chunk(0)}${chunk(1)}$mark${chunk(2)}$window$partial');
         // The window starts inside the sequence's first chunk, so the rest of the sequence is skipped too.
-        final size = window.length + partial.length + 2 * chunk(0).length + chunk(0).length ~/ 2;
+        final size = window.length + partial.length + mark.length + 2 * chunk(0).length + chunk(0).length ~/ 2;
         final channel = await attach(window: size);
         final end = File('$dir/out.jsonl').lengthSync() - partial.length;
         expect(channel.offset, end, reason: 'the log continues after the last complete line');

@@ -235,7 +235,9 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   second). The pump holds each `tool_execution_update` and `subagent_progress`
   for 250 ms and writes only the newest per tool call or subagent; any other line writes what is held first, so the log
   is omp's output minus superseded progress, in order (on that log: 22 % of the bytes at 60 frames a second, 66 % at
-  4). Every MiB it writes a generation mark. At 64 MiB it rotates in place at a line boundary while omp's output waits
+  4). Every MiB it writes a generation mark. Neither a mark nor a rotation lands inside an `rpc_chunk` sequence: both
+  wait for its last chunk, as readers take a sequence only whole and uninterrupted. At 64 MiB it rotates in place at a
+  line boundary while omp's output waits
   in the pipe: it truncates the log, leaves it empty for 250 ms (BSD `tail -F` moves to the end of a file it finds
   truncated, measured on macOS to skip the marker otherwise), then writes the marker
   (`generation`, `carryFrom` S, `preamble` P), P bytes of history as of S, and the old log from S, the first frame

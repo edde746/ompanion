@@ -8,9 +8,10 @@ const attachWindow = 8 << 20;
 /// it writes a generation mark every [markEvery] bytes.
 typedef LogLimits = ({int rotateAt, int carry, Duration hold, int markEvery});
 
-/// A generation stays under 72 MiB (a first attach compacts at most that), and a device up to [attachWindow] behind
-/// follows a rotation without rebuilding its view. Measured on a live log of subagent progress: a 250 ms hold keeps
-/// 22 % of the bytes at 60 frames a second and 66 % at 4.
+/// A generation stays under 72 MiB, plus the rest of an `rpc_chunk` sequence that reaches [rotateAt] (a first attach
+/// compacts at most that), and a device up to [attachWindow] behind follows a rotation without rebuilding its view.
+/// Measured on a live log of subagent progress: a 250 ms hold keeps 22 % of the bytes at 60 frames a second and 66 %
+/// at 4.
 const LogLimits logLimits = (
   rotateAt: 64 << 20,
   carry: attachWindow,
@@ -41,6 +42,8 @@ const logMarkWidth = 64;
 ///   progress, in order.
 /// - Every `markEvery` bytes it writes `{"type":"ompanion_mark","generation":<n>}`, padded to [logMarkWidth] bytes. A
 ///   reader that finds another generation's mark read past a rotation it did not see.
+/// - It writes nothing of its own inside an `rpc_chunk` sequence: a mark or a rotation due there waits for the
+///   sequence's last chunk, so readers find each sequence whole and uninterrupted, as omp writes it.
 /// - Once the log reaches `rotateAt` bytes it rotates in place, at a line boundary, while omp's output waits in the
 ///   pipe: it truncates the log and leaves it empty for 250 ms, then writes
 ///   `{"type":"ompanion_rotate","generation":<n>,"carryFrom":<S>,"preamble":<P>}`, then `P` bytes of history as of `S`,
@@ -71,11 +74,24 @@ function read(fd, buffer, length, position) {
   return buffer.subarray(0, n);
 }
 
-// The first line start after the first newline of `buffer` that does not continue an rpc_chunk sequence; -1 if none.
-const continuation = /^\{"type":"rpc_chunk","chunkId":"[^"]*","index":[1-9]/;
+const markWidth = 64;
+const markPrefix = Buffer.from('{"type":"ompanion_mark"');
+function mark(generation) {
+  const text = `{"type":"ompanion_mark","generation":${generation}}`;
+  return text + " ".repeat(markWidth - 1 - text.length);
+}
+
+// The index and count of the rpc_chunk line at `at`, or null: omp writes them ahead of the chunk's data.
+const chunkHead = /^\{"type":"rpc_chunk","chunkId":"[^"]*","index":([0-9]+),"count":([0-9]+)/;
+const chunkAt = (buffer, at) => chunkHead.exec(buffer.toString("latin1", at, Math.min(at + 200, buffer.length)));
+
+// The first line start after the first newline of `buffer` that starts a frame, -1 if none: not a generation mark, nor
+// an rpc_chunk after the first of its sequence. A run's pump may be an earlier one, which wrote marks inside sequences.
 function frameStart(buffer) {
   for (let at = buffer.indexOf(10) + 1; at > 0 && at < buffer.length; at = buffer.indexOf(10, at) + 1) {
-    if (!continuation.test(buffer.toString("latin1", at, Math.min(at + 200, buffer.length)))) return at;
+    if (startsWith(buffer.subarray(at), markPrefix)) continue;
+    const chunk = chunkAt(buffer, at);
+    if (chunk === null || chunk[1] === "0") return at;
   }
   return -1;
 }
@@ -212,13 +228,6 @@ function replay([path, sizeText, windowText]) {
   writeFileSync(1, `${out.join("\n")}\n`);
 }
 
-const markWidth = 64;
-const markPrefix = Buffer.from('{"type":"ompanion_mark"');
-function mark(generation) {
-  const text = `{"type":"ompanion_mark","generation":${generation}}`;
-  return text + " ".repeat(markWidth - 1 - text.length);
-}
-
 // Progress frames the pump holds, keyed by tool call or subagent: each carries the whole state.
 const updatePrefix = Buffer.from('{"type":"tool_execution_update","toolCallId":"');
 const progressPrefix = Buffer.from('{"type":"subagent_progress"');
@@ -289,6 +298,8 @@ async function pump([dir, ...limits]) {
     if (isKept(line)) events.push([position, Buffer.from(line)]);
     write(line);
     write(newline);
+    const chunk = chunkAt(line, 0);
+    if (chunk !== null && Number(chunk[1]) < Number(chunk[2]) - 1) return;
     if (position - lastMark >= markEvery) {
       write(Buffer.from(`${mark(generation)}\n`));
       lastMark = position;

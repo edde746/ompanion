@@ -162,4 +162,43 @@ void main() {
     expect(numbers.last, 99);
     expect(numbers, [for (var n = numbers.first; n <= 99; n++) n], reason: 'the carry and the log after it, whole');
   });
+
+  /// `ready`, then an `rpc_chunk` sequence of [count] lines of about 300 bytes, then one more frame, as omp writes them.
+  List<String> chunked(int count) => [
+    '{"type":"ready"}',
+    for (var i = 0; i < count; i++)
+      '{"type":"rpc_chunk","chunkId":"rpc-1","index":$i,"count":$count,"byteLength":${count * 150},"data":"${'A' * 200}"}',
+    '{"type":"after"}',
+  ];
+
+  test('a mark due inside an rpc_chunk sequence waits for its last chunk', () async {
+    final lines = chunked(8);
+    final process = await pump(markEvery: 256);
+    process.stdin.write(lines.map((line) => '$line\n').join());
+    await finish(process);
+    expect(const LineSplitter().convert(out.readAsStringSync()), [
+      ...lines.take(9),
+      '{"type":"ompanion_mark","generation":1}'.padRight(63),
+      lines.last,
+    ]);
+  });
+
+  test(
+    'a rotation due inside an rpc_chunk sequence waits for its last chunk, so no generation starts in one',
+    () async {
+      final lines = chunked(8);
+      // rotateAt falls in the third chunk; the carry is shorter than the sequence.
+      final process = await pump(rotateAt: lines[0].length + lines[1].length + lines[2].length + 100, carry: 500);
+      process.stdin.write(lines.map((line) => '$line\n').join());
+      await finish(process);
+      final generation = const LineSplitter().convert(out.readAsStringSync());
+      expect(jsonDecode(generation.first), {
+        'type': 'ompanion_rotate',
+        'generation': 2,
+        'carryFrom': lines.take(9).fold(0, (sum, line) => sum + line.length + 1),
+        'preamble': 0,
+      });
+      expect(generation.skip(1), [lines.last]);
+    },
+  );
 }
