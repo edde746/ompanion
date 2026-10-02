@@ -49,7 +49,11 @@ async function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> 
 	const ui = session.extensionRunner?.getUIContext();
 	if (!ui) return;
 	mainBound = true;
-	if (bindChannel(ui).kind === "output") ui.askDialog = askDialog;
+	// omp 18.4.9+ declares `askDialog` as a getter without a setter on the RPC UI class (its own ask dialog, off until a
+	// host sends `set_ask_dialog`), so assigning it throws in this strict module; an own property shadows the getter.
+	if (bindChannel(ui).kind === "output") {
+		Object.defineProperty(ui, "askDialog", { value: askDialog, writable: true, configurable: true });
+	}
 	watchCore(session);
 	await installSessionHooks(pi, session);
 	// Last: a broken launch environment throws here, after everything else is in place. Notifications subscribe after

@@ -68,8 +68,8 @@ Which deep imports work depends on how omp is installed:
 ## 3. `ask` fidelity and approvals
 
 - The native `ask` tool calls `context.ui.askDialog` if it exists. The request carries `id`, `question`, `header`, `options{label,description,preview}`, `multi` and `recommended`. The result shape is `{kind:"submit",results[{id,question,options,multi,selectedOptions,customInput,note,timedOut}]}`, or `{kind:"chat"}`, or `undefined` for cancel (ask.ts:926-1000; tui ask-dialog.ts:20-60).
-- `RpcExtensionUIContext` has no `askDialog` (rpc-mode.ts:831-1005), so today `ask` falls back to `select`/`editor` (ask.ts:485-521).
-- **Fix:** in the companion, `ctx.ui.askDialog = (qs, {timeout, signal}) => customRequest("ompx.ask", qs)`. Tools receive the same object (tools/context.ts:37).
+- `RpcExtensionUIContext` in 18.3.1 has no `askDialog` (rpc-mode.ts:831-1005), so without the companion `ask` falls back to `select`/`editor` (ask.ts:485-521). From omp 18.4.9 the class declares `askDialog` as a getter without a setter: it returns omp's own RPC ask dialog (`extension_ui_request` method `ask`) once a host sent `set_ask_dialog`, and `undefined` (the same fallback) before.
+- **Fix (in place):** the companion installs its own `askDialog` (a companion `ask` request) as an own property of the raw UI object with `Object.defineProperty`, which shadows 18.4.9+'s getter; a plain assignment would throw in the strict ESM bundle. It never sends `set_ask_dialog`, so omp's native ask dialog stays off. Tools receive the same object (tools/context.ts:37).
 - **Alternative:** re-register a tool named `ask` and fall back to the native one through `ctx.invokeTool` (types.ts:522-540).
 - `tool_approval_requested` and `tool_approval_resolved` are notifications only (types.ts:936-952).
 - A `tool_call` handler can block a tool call, so the companion can run its own richer approval exchange before the tool runs. The exact `ToolCallEventResult` shape is [INFERENCE] (it lives in shared-events).
