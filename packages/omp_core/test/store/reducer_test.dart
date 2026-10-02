@@ -1041,6 +1041,23 @@ void main() {
         same(view),
       );
     });
+
+    test('a session-persistence notice shows and asks for get_state, which names the file omp moved to', () {
+      // omp 18.4.12 `registerRpcPersistenceSurface` (modes/rpc/rpc-mode.ts): the move is reported only in prose.
+      Map<String, Object?> notice(String? source) => {
+        'type': 'notice',
+        'level': 'warning',
+        'message':
+            'Session ~/s/a.jsonl is open for writing in another omp process, so this session now saves to '
+            '~/s/b.jsonl instead of mixing its entries into that file.',
+        'source': source,
+      };
+      final view = reduce(fromState(state()), notice('session-persistence'));
+      expect(view.stateStale, isTrue);
+      final shown = view.notices.single as MessageNotice;
+      expect((shown.level, shown.source), (NoticeLevel.warning, 'session-persistence'));
+      expect(reduce(fromState(state()), notice(null)).stateStale, isFalse);
+    });
   });
 
   group('goal', () {

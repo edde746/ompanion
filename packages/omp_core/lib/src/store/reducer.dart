@@ -80,7 +80,9 @@ SessionView _reduce(SessionView view, Map<String, Object?> frame) => switch (fra
   'goal_updated' => view.copyWith(goal: _decodeGoal(frame.optObject('goal'))),
   'irc_message' => _insertIfAbsent(view, decodeMessage(frame.object('message'))),
   'notice' => _notice(
-    view,
+    // omp 18.4.9+ moves a session it may not write to a new file and says so only in this notice's prose;
+    // get_state names the new file and session id.
+    frame.optString('source') == 'session-persistence' ? view.copyWith(stateStale: true) : view,
     (seq) => MessageNotice(
       seq,
       level: enumByName(NoticeLevel.values, frame.string('level')),

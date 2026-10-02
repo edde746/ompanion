@@ -79,26 +79,36 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
   }
 
   /// Runs `omp update` on the machine ([updateOmp]) and probes again, so new sessions, the control process and the
-  /// model cache use the new omp. omp's own words explain a run that changed nothing (up to date, or a Nix install).
+  /// model cache use the new omp. The probe follows a failed update too and the version decides, because on Windows
+  /// omp 18.3.3 to 18.3.5 exit 1 after a successful update. omp's own words explain a run that changed nothing (up to
+  /// date, or a Nix install); a failed run that changed nothing shows its failure, and a failed probe shows its own.
   Future<void> _updateOmp(HostProbe probe) async {
     final t = context.t;
     final runtime = context.read<SessionsProvider>().runtimeFor(widget.machine);
     setState(() => _update = _Running(t.machines.updatingOmp));
+    var said = '';
+    Object? failure;
     try {
-      final said = await updateOmp(runtime.link, probe);
+      said = await updateOmp(runtime.link, probe);
+    } on Object catch (error) {
+      appLogger.w('updating omp on ${widget.machine.name} failed', error: error);
+      failure = error;
+    }
+    try {
       final updated = await runtime.reprobe();
       if (!mounted) return;
       final from = probe.ompVersion ?? '?';
       final to = updated.ompVersion ?? '?';
       setState(
-        () => _update = switch (runtime.status) {
-          MachineOnline() when to != from => _Succeeded(t.machines.ompUpdated(from: from, to: to)),
-          MachineOnline() => _Succeeded(said.trim()),
-          final status => _Failed(machineStatusText(t, status)),
+        () => _update = switch ((runtime.status, failure)) {
+          (MachineOnline(), _) when to != from => _Succeeded(t.machines.ompUpdated(from: from, to: to)),
+          (MachineOnline(), null) => _Succeeded(said.trim()),
+          (MachineOnline(), final Object error) => _Failed(t.machines.failed(error: describeConnectError(t, error))),
+          (final status, _) => _Failed(machineStatusText(t, status)),
         },
       );
     } on Object catch (error) {
-      appLogger.w('updating omp on ${widget.machine.name} failed', error: error);
+      appLogger.w('probing ${widget.machine.name} after omp update failed', error: error);
       if (!mounted) return;
       setState(() => _update = _Failed(t.machines.failed(error: describeConnectError(t, error))));
     }

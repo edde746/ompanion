@@ -4,19 +4,60 @@ How the app tells that a session file belongs to another omp process, what it sh
 session over. Code: `packages/omp_core/lib/src/host/session_writer.dart` (the probe),
 `packages/omp_core/lib/src/store/external_writer.dart` (the writer and whether it is in a turn),
 `packages/omp_core/lib/src/session/external_session.dart` (the reader),
-`packages/omp_core/lib/src/session/machine_runtime.dart` (`open` refuses to launch into or attach to a held file).
+`packages/omp_core/lib/src/session/machine_runtime.dart` (`open` refuses to launch into or attach to a held file),
+`packages/omp_core/lib/src/store/reducer.dart` and `packages/omp_core/lib/src/session/run_session.dart` (a run that
+omp moved to a new file).
 
 ## Why this contract exists
 
-Two omp processes appending to one session file interleave their turns in one JSONL, and each process's later
-rewrite (compaction, `/clear`, a session switch) drops the other's entries. Measured on macOS (2026-09-26) with
-the app's own open path against a terminal omp mid-turn: the app launched a second omp on the same file, both
-held it open for writing (`lsof`: two PIDs, `30w` each), the app's user message and assistant reply landed
+Before omp 18.4.9, two omp processes appending to one session file interleave their turns in one JSONL, and each
+process's later rewrite (compaction, `/clear`, a session switch) drops the other's entries. Measured on macOS
+(2026-09-26) with the app's own open path against a terminal omp mid-turn: the app launched a second omp on the same
+file, both held it open for writing (`lsof`: two PIDs, `30w` each), the app's user message and assistant reply landed
 between the terminal's tool call and its tool result, and the app's omp appended
 `{"type":"custom","customType":"session_exit","reason":"sighup"}` inside a session the terminal still owned — a
 record on which omp's next resume hangs a synthetic aborted turn.
 
-The app must never be that second writer. It reads such a file and says what is true about it.
+The app must never be that second writer. It reads such a file and says what is true about it. From omp 18.4.9 omp
+keeps one writer per file itself (below), but the second process then continues in a new file, which splits the
+conversation in two; the app still avoids being that process.
+
+## omp 18.4.9 and later: one owner per file
+
+From omp 18.4.9 a session file has one owner, and another omp process moves to a new file instead of writing into it
+(`session-manager.ts`, `session-storage.ts`, `crates/pi-natives/src/file_lock/`, read in omp 18.4.12):
+
+- **The lease.** The owner holds an exclusive OS lock on `.<file>.jsonl.owner.lock` in the session's directory
+  (`sessionOwnerLeasePath` plus `.lock`). Linux: an abstract Unix socket `@omp-file-lock-<hash>`, where `<hash>` is
+  two xxh64 digests of that path; no file appears. Windows: a named mutex `Global\omp-file-lock-<hash>`, the same
+  name. macOS and other Unix: `flock` on the sidecar file `.<file>.jsonl.owner.lock`, which stays on disk. The OS
+  frees the lock when the process exits; omp also frees it when it closes the session or switches to another file.
+- **The claim.** Opening or resuming a file claims nothing; the first write does. An omp that resumed a file and has
+  not written does not own it, and the first process to write does.
+- **The move.** At each write, an omp without the lease tries to take it. A free lease is taken, so a writer
+  continues in the file once the owner exited. A lease another process holds (reason `open-elsewhere`) leaves the file
+  untouched: omp continues as a new session in a sibling `<timestamp>_<new id>.jsonl` in the same directory, with a new
+  session id, the header's `parentSession` set to the old id, its whole in-memory transcript written there, the
+  artifacts copied, and its terminal breadcrumb pointed at the new file.
+- **A writer without the lease** (an omp before 18.4.9, another program) is not stopped: its appends still land in
+  the owner's file. The owner's next full rewrite (compaction, a repair) finds bytes it did not write, keeps their
+  entries as a side branch and retries. After three such passes it moves to a sibling (`contested`); a file that no
+  longer reads as its session makes it move too (`replaced`).
+- **The RPC notice.** RPC clients learn of the move only from a notice whose message names both files (paths
+  shortened with `~`), e.g. `{"type":"notice","level":"warning","source":"session-persistence","message":"Session
+  <from> is open for writing in another omp process, so this session now saves to <to> instead of mixing its entries
+  into that file."}` (`registerRpcPersistenceSurface`, `modes/rpc/rpc-mode.ts`; the texts per reason in
+  `modes/persistence-failure.ts`). No field carries the paths. omp's persistence failures use the same `source` with
+  `level` `error`.
+
+With omp 18.4.9 or later in both processes, turns never interleave in one file; the conversation splits into two files
+instead. The file the second process moved to is listed as a separate session: the listing parses `parentSession`, the
+app does not show it.
+
+**What the app does.** The reducer marks the state stale on every `notice` whose `source` is `session-persistence`,
+and shows the notice as a toast. The run then reads `get_state`, records omp's new `sessionFile` in the run's
+`meta.json`, and resyncs the view on the new session id, so the header, the session list and a later open find the run
+under its new file.
 
 ## The probe (`probeSessionWriter`)
 
@@ -42,9 +83,10 @@ questions and either one names a writer:
    tty whose command looks like an omp (`(^|[/ \t])omp(\.(js|ts))?([ \t]|$)`), and its PID is reported. This is
    what catches an omp that holds no descriptor yet.
 
-A breadcrumb is **not** liveness by itself: omp never removes one (only `omp gc` reads them), so a crumb of a
-closed terminal must not lock the app out of a session it could own. Only a crumb with a live omp on its tty
-counts, and a crumb naming no tty (a multiplexer or emulator id) is ignored rather than guessed at.
+A breadcrumb is **not** liveness by itself: omp 18.3.1 never removes one (only `omp gc` reads them), and from 18.4.9
+only the opt-in `omp gc --stale` removes one, once its session file is gone. So a crumb of a closed terminal must not
+lock the app out of a session it could own. Only a crumb with a live omp on its tty counts, and a crumb naming no tty
+(a multiplexer or emulator id) is ignored rather than guessed at.
 
 ## Ownership
 
@@ -65,7 +107,9 @@ never into a second writer.
 A run of the app holds its session in memory from the moment omp loaded the file. A terminal omp that resumes the
 same file later appends turns this run never sees, and the run's omp holds no write descriptor while it is idle
 (omp opens it on its first append), so nothing stops the terminal. Attaching to that run shows the old history, and a
-prompt there continues from the old leaf.
+prompt there continues from the old leaf. With omp 18.4.9 or later in both processes this happens only when the run
+had not written to the file before the other process did: a run that wrote first owns the file, and the other process
+moves to a new file at its first write.
 
 `open(ResumeSession)` therefore never keeps such a run. When the probe finds a writer, the run's history is stale or
 will be at that writer's next append or exit record, so it is not attached. When the probe finds nobody, the attach
@@ -77,7 +121,8 @@ its own old leaf, which makes that leaf the file's last entry, and the reader th
 the other process's turns (measured with omp 18.3.1, 2026-09-27). A run that was in a turn loses that turn.
 
 An app run that is already attached on this device when another process starts writing is not checked; it shows the
-old history until it is attached again.
+old history until it is attached again. From omp 18.4.9, if that run does not own the file, its next write moves it to
+a new file, and the app follows it there (above).
 
 ## Busy vs idle
 
@@ -120,19 +165,24 @@ opens the file again (`ResumeSession`): the runtime probes, and hands back the s
 (the button says why), else launches and swaps the reader for the run.
 
 An **idle but alive** writer is still a writer: that process holds the session's history and leaf in memory, so
-launching there would recreate the two-writer bug as soon as the user types in either UI. Take-over therefore
-waits for the process to exit, not for it to fall quiet.
+launching there would recreate the two-writer bug (from omp 18.4.9: split the conversation into two files) as soon as
+the user types in either UI. Take-over therefore waits for the process to exit, not for it to fall quiet.
 
 ## Limitations
 
 - **POSIX only.** `probeSessionWriter` returns null on Windows: there is no `/proc` and no `lsof`, and an omp
   breadcrumb there names a Windows Terminal session (`wt-…`), not a device the process table shows. A Windows host
-  therefore keeps the old behaviour — the app may start a second omp for a session another process holds.
+  therefore keeps the old behaviour — the app may start a second omp for a session another process holds. With omp
+  18.4.9 or later in both processes, that omp moves to a new file at its first write instead of writing into the
+  held one.
 - A crumb whose terminal id is a multiplexer or emulator id (`tmux-%7`, `kitty-3`, `apple-…`) names no tty the app
   can check, and is ignored. omp takes a tty-shaped id whenever its stdin is a terminal, so this affects only an omp
   without one (`omp -p`, another client's RPC process): such a process is seen once it appended to the file, not
   before.
 - Processes of another account are not seen: `/proc/<pid>/fd` and `lsof` show only the probing account's own.
+- The probe does not read omp 18.4.9's ownership lease. A terminal omp that resumed the file and has not written is
+  still reported by its breadcrumb, so opening the file kills the app's run of it, even where that run owns the file
+  and the terminal would move to a new file at its first write.
 - The probe is a guard, not a lock: a process that opens the file between the probe and the launch is not seen.
   The app's own launches are serialised by the machine's launch lock and `meta.json` scan; a foreign process does
   not cooperate either way.
