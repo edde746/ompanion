@@ -27,8 +27,9 @@ abstract interface class RunAccess {
   /// starts a new process, and an exit starts the next one.
   bool get persistent;
 
-  /// A channel to the run. `out.jsonl` is read from [generation]/[offset] while [generation] is current, otherwise
-  /// from a recent frame boundary of the current generation (`attachRun`); `in.jsonl` from [inboxOffset].
+  /// A channel to the run. `out.jsonl` is read from [generation]/[offset] while [generation] is current or the next
+  /// generation carried [offset], otherwise from a recent frame boundary of the current generation (`attachRun`);
+  /// `in.jsonl` from [inboxOffset].
   Future<RunChannel> attach({int? generation, int offset = 0, int inboxOffset = 0});
 
   /// Records [sessionPath] as the run's session in its `meta.json`.

@@ -201,6 +201,34 @@ void main() {
         await again.close();
       });
 
+      test('resumes one rotation behind as if it had followed it, while the carry holds the saved offset', () async {
+        // Generation 1 was {"id":"0"}, the first line and {"id":"1b"}; the pump carried it from the first line on.
+        final first = '{"id":"1","pad":"${'x' * 200}"}';
+        const zero = '{"id":"0"}\n';
+        const history = '{"type":"tool_execution_start","toolCallId":"t1"}';
+        final marker =
+            '{"type":"ompanion_rotate","generation":2,"carryFrom":${zero.length},"preamble":${history.length + 1}}\n';
+        await omp('$marker$history\n$first\n{"id":"1b"}\n{"id":"2"}\n');
+        final end = zero.length + first.length + 1 + '{"id":"1b"}\n'.length;
+
+        for (final (offset, expected) in [
+          (end, ['{"id":"2"}']),
+          (zero.length, [first, '{"id":"1b"}', '{"id":"2"}']),
+          (0, [history, first, '{"id":"1b"}', '{"id":"2"}']),
+        ]) {
+          final again = await attach(generation: 1, offset: offset);
+          final carried = offset >= zero.length;
+          expect(again.generation, carried ? 1 : 2, reason: 'behind the carry: generation 2 with its history');
+          final more = Frames(again.lines);
+          await more.next((f) => f['id'] == '2');
+          expect(more.raw, expected, reason: 'resumed at $offset');
+          expect(more.error, isNull);
+          expect(again.generation, 2);
+          expect(again.offset, File('$dir/out.jsonl').lengthSync());
+          await again.close();
+        }
+      });
+
       test('follows every line the pump writes through its rotations, each once and in order', () async {
         final channel = await attach();
         final frames = Frames(channel.lines);

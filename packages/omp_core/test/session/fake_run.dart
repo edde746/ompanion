@@ -83,10 +83,14 @@ final class FakeRun {
   /// everything follow.
   void rotate() {
     final previous = _out.length;
+    _carriedFrom = previous;
     _out.clear();
     generation++;
     _write(utf8.encode('{"type":"ompanion_rotate","generation":$generation,"carryFrom":$previous,"preamble":0}\n'));
   }
+
+  /// Where the rotation to the current generation carried the old log from.
+  int? _carriedFrom;
 
   /// The link to every attached channel drops.
   void dropChannels() {
@@ -109,17 +113,20 @@ final class FakeRun {
     'todoPhases': <Object?>[],
   };
 
-  /// `DetachedChannel.attach`: from [offset] when [generation] is current and the offset lies within the file,
-  /// otherwise the [replay] and then the log from its end, or else the whole current generation; `in.jsonl` from
-  /// [inboxOffset].
+  /// `DetachedChannel.attach`: from [offset] when [generation] is current and the offset lies within the file; from the
+  /// start of the current generation as in [generation] at [offset] when the rotation to it carried [offset]; otherwise
+  /// the [replay] and then the log from its end, or else the whole current generation; `in.jsonl` from [inboxOffset].
   FakeChannel attach({int? generation, int offset = 0, int inboxOffset = 0}) {
     final bytes = _out.toBytes();
     final resumes = generation == this.generation && offset <= bytes.length;
-    final frames = resumes ? null : replay;
+    final follows = generation != null && generation + 1 == this.generation && _carriedFrom! <= offset;
+    final frames = resumes || follows ? null : replay;
     final preamble = utf8.encode([for (final frame in frames ?? const <Object?>[]) '${jsonEncode(frame)}\n'].join());
     final start = resumes ? offset : (frames == null ? 0 : bytes.length);
     final ended = exitCode == null ? null : (code: exitCode!, size: bytes.length);
-    final channel = FakeChannel._(this, this.generation, start, inboxOffset, ended, preamble.length);
+    final channel = follows
+        ? FakeChannel._(this, generation, offset, inboxOffset, ended, 0)
+        : FakeChannel._(this, this.generation, start, inboxOffset, ended, preamble.length);
     _channels.add(channel);
     channel._output.add(preamble);
     channel._output.add(Uint8List.sublistView(bytes, start));

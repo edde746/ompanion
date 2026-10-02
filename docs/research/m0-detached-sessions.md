@@ -84,9 +84,9 @@ truncated, not to its start (measured 2026-09-29 on macOS 27: a line written rig
 `tail` looked, was never output). A follower that lags does not notice a truncation at all: with its reader 70 KB
 into a 2 MB file, a truncation and 800 KB written at once, BSD `tail -F` went on at byte 70 KB of the new file. A
 replaced file (rename over it) is worse on macOS: `tail -F` reports it inaccessible and never follows the new one.
-The pump therefore rotates in place, leaves the log empty for 250 ms before writing the new generation, carries the
-old log's last 8 MiB, and marks the log with its generation every MiB, so a follower that still reads across a
-rotation finds out (PLAN.md §5, Pump).
+The pump therefore rotates in place, leaves the full log for 250 ms so followers read it to its end, leaves it empty
+for 250 ms before writing the new generation, carries the old log's last 8 MiB, and marks the log with its generation
+every MiB, so a follower that still reads across a rotation finds out (PLAN.md §5, Pump).
 
 ## Changes to the recipe in PLAN.md §5, and why
 

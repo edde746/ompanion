@@ -28,11 +28,14 @@ enum FollowSource { tail, poll }
 /// (the replay of a log over `w` bytes, when no offset applies), then the log from the start offset: what it holds is
 /// read directly, then the source follows it (BSD `tail -F` copies byte by byte). The generation is the one the log's
 /// first line names (`ompanion_rotate`), else 1; it is read before and after the size, so a rotation in between is
-/// seen and the reading starts over. A log the pump rotated is read again from its start, as `tail -F` does; polling
-/// sees the rotation by the log shrinking or its first line naming another generation, so a follower that was slow
-/// to look does not read the new log from the old offset. The size comes from the open file: NTFS directory entries
-/// lag for a file another process writes. The exit file is read before the size, so a run that ended is never cut
-/// short. It ends when its stdin closes, or, for a run that had ended with nothing left to send, after the header.
+/// seen and the reading starts over. A log one generation past the one resumed from, whose marker carried the old log
+/// from the resumed offset or before, goes out from its start under a header naming the resumed generation and offset:
+/// the attach follows that rotation as if it had stayed attached. A log the pump rotated is read again from its start,
+/// as `tail -F` does; polling sees the rotation by the log shrinking or its first line naming another generation, so a
+/// follower that was slow to look does not read the new log from the old offset. The size comes from the open file:
+/// NTFS directory entries lag for a file another process writes. The exit file is read before the size, so a run that
+/// ended is never cut short. It ends when its stdin closes, or, for a run that had ended with nothing left to send,
+/// after the header.
 ///
 /// A frame (a line, or a whole `rpc_chunk` sequence) holding image blocks (`"type":"image"` with a `data` string of
 /// 1 KiB or more) is rewritten: each image not defined yet is sent first as an `ompanion_image` line (`id`, `data`,
@@ -239,17 +242,19 @@ function chunks(bytes, chunkId) {
 // The generation the log's first line names: the rotation marker's, else 1. Null while the log is empty or its marker
 // is being written.
 const head = Buffer.allocUnsafe(200);
-const rotation = /^\{"type":"ompanion_rotate","generation":([0-9]+),/;
+const rotation = /^\{"type":"ompanion_rotate","generation":([0-9]+),(?:"carryFrom":([0-9]+),)?/;
 const rotationPrefix = '{"type":"ompanion_rotate",';
+const headOf = (fd) => head.toString("latin1", 0, readSync(fd, head, 0, head.length, 0));
 function generationIn(fd) {
-  const text = head.toString("latin1", 0, readSync(fd, head, 0, head.length, 0));
+  const text = headOf(fd);
   const marker = rotation.exec(text);
   if (marker) return marker[1];
   if (text.length < rotationPrefix.length ? rotationPrefix.startsWith(text) : text.startsWith(rotationPrefix)) return null;
   return "1";
 }
 
-function currentGeneration() {
+// `read` of the open log; null when it cannot be opened.
+function readLog(read) {
   let fd;
   try {
     fd = openSync(log, "r");
@@ -257,10 +262,18 @@ function currentGeneration() {
     return null;
   }
   try {
-    return generationIn(fd);
+    return read(fd);
   } finally {
     closeSync(fd);
   }
+}
+
+const currentGeneration = () => readLog(generationIn);
+
+// Where the pump's rotation to `generation` carried the old log from, while the log is that generation; else Infinity.
+function carriedFrom(generation) {
+  const marker = readLog((fd) => rotation.exec(headOf(fd)));
+  return marker?.[1] === generation && marker[2] !== undefined ? Number(marker[2]) : Infinity;
 }
 
 function logSize() {
@@ -289,6 +302,7 @@ async function main() {
   let generation;
   let end;
   let offset;
+  let resumed;
   let replayed = null;
   for (let tries = 0; ; tries++) {
     if (tries === 50) {
@@ -301,9 +315,13 @@ async function main() {
     if (currentGeneration() !== named || (named === null && end > 0)) continue;
     generation = named ?? "1";
     offset = 0;
+    resumed = null;
     replayed = null;
     if (generation === generationText && Number(offsetText) <= end) {
       offset = Number(offsetText);
+    } else if (Number(generation) === Number(generationText) + 1 && carriedFrom(generation) <= Number(offsetText)) {
+      // The rotation since carried what the device had read: it reads the log from the marker on, as a follower does.
+      resumed = `${generationText} ${offsetText}`;
     } else if (end > Number(windowText)) {
       const result = spawnSync(process.execPath, [script, "replay", log, String(end), windowText], { maxBuffer: 1 << 30 });
       if (result.status !== 0) {
@@ -320,7 +338,7 @@ async function main() {
   }
   const preamble = replayed === null ? [] : transform(replayed, false);
   flush(preamble);
-  await write([Buffer.from(`${generation} ${offset} ${exit} ${end} ${size(preamble)}\n`), ...preamble]);
+  await write([Buffer.from(`${resumed ?? `${generation} ${offset}`} ${exit} ${end} ${size(preamble)}\n`), ...preamble]);
   if (exit !== "-" && offset >= end) {
     stop(0);
     return;

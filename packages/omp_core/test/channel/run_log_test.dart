@@ -64,6 +64,14 @@ void main() {
       expect(error, isA<RunLogGap>().having((e) => e.generation, 'generation', 2));
     });
 
+    test('a rotation marker past the next generation is a gap, whatever its carry', () async {
+      // Generation 2 went by unseen; 3 carried from byte 8 of 2, which this channel's 16 bytes of 1 say nothing about.
+      output.add(bytes('{"n":1}\n{"n":2}\n${rotated(3, carryFrom: 8, preamble: 0)}{"n":3}\n'));
+      await done;
+      expect(lines, ['{"n":1}', '{"n":2}']);
+      expect(error, isA<RunLogGap>().having((e) => e.generation, 'generation', 3));
+    });
+
     test('a line the channel had only begun to read when the log was truncated gives way to the marker', () async {
       // The follower read {"n":1} and half of {"n":2}; the rotation carried the log from {"n":2}.
       output.add(bytes('{"n":1}\n{"n"'));

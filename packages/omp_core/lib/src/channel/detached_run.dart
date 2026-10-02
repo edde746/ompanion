@@ -182,11 +182,12 @@ Future<({DetachedRun run, bool launched})> openRun(HostLink link, HostProbe prob
 Future<List<DetachedRun>> listRuns(HostLink link, HostProbe probe) =>
     probe.isWindows ? listWindowsRuns(link, probe) : _listPosixRuns(link, runRoot(probe));
 
-/// Attaches to [run]. `out.jsonl` is read from [offset] when [generation] is still the run's generation. Otherwise
-/// the current generation is read from its start, or, over [attachWindow] bytes, compacted on the machine by
-/// [logScript] and followed from the offset it names. The log is streamed through [followScript], which sends each
-/// image once. [tools] names both scripts and the omp that runs them. `in.jsonl` is read from [inboxOffset], or
-/// from its current end when null.
+/// Attaches to [run]. `out.jsonl` is read from [offset] when [generation] is still the run's generation, or follows
+/// the pump's rotation to the next one when that carried the log from [offset] or before: the channel then starts in
+/// [generation] at [offset], as if it had stayed attached. Otherwise the current generation is read from its start,
+/// or, over [attachWindow] bytes, compacted on the machine by [logScript] and followed from the offset it names. The
+/// log is streamed through [followScript], which sends each image once. [tools] names both scripts and the omp that
+/// runs them. `in.jsonl` is read from [inboxOffset], or from its current end when null.
 Future<RunChannel> attachRun(
   HostLink link,
   HostProbe probe,

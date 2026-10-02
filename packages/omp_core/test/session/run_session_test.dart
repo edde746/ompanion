@@ -500,6 +500,31 @@ void main() {
     await live.detach();
   });
 
+  test('a rotation while away that carried everything the session had read is followed, not rebuilt', () async {
+    final live = session(
+      recordedPath: run.sessionFile,
+      backoff: (attempt) => attempt == 1 ? Duration.zero : const Duration(hours: 1),
+    );
+    await live.start();
+    run.emit(messageEnd(user('one', 1), 'm1'));
+    await until(() => live.view.transcript.isNotEmpty);
+    int seeds() => run.received.where((command) => command['type'] == 'get_subagents').length;
+    final seeded = seeds();
+
+    access.attachError = StateError('still down');
+    run.dropChannels();
+    await until(() => states.whereType<LinkReconnecting>().length == 2);
+    run.rotate();
+    run.emit(messageEnd(assistant(2, [text('two')]), 'm2'));
+    access.attachError = null;
+    live.reconnectNow();
+    await until(() => live.linkState is LinkLive && texts(live.view).length == 2);
+    expect(access.attaches.last.generation, 1);
+    expect(seeds(), seeded, reason: 'the view went on as it was');
+    expect(texts(live.view), ['user: one', 'assistant: two']);
+    await live.detach();
+  });
+
   test('state news from a frame is read once with get_state', () async {
     final live = session(recordedPath: run.sessionFile);
     await live.start();

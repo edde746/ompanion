@@ -219,8 +219,10 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 - Send: one long-running appender per channel, started with the attach, takes `in.lock` per line; lines over 64 KiB
   are uploaded first.
 - Link loss: a session reconnects with jittered backoff (1 s doubling to 30 s) and continues from the last
-  frame boundary it read; a rotation it missed rebuilds the view from RPC. Refused credentials or host
-  keys, a removed run and an omp that cannot start end the session.
+  frame boundary it read, also across one rotation whose carry holds that point (the follow script streams the new
+  generation from its marker, as to a device that stayed attached); a rotation that cut off frames it never read
+  rebuilds the view from RPC. Refused credentials or host keys, a removed run and an omp that cannot start end the
+  session.
 - Stop: kill the feeding `tail`; omp drains and exits 0. Force: SIGTERM (exit 143). Detaching, closing the app and
   losing the link never stop a run; the user's Stop and the idle exit do.
 - Idle exit: every run's omp gets its run directory and `MachineRuntime.idleExit` (1 h) in its environment
@@ -237,16 +239,17 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   is omp's output minus superseded progress, in order (on that log: 22 % of the bytes at 60 frames a second, 66 % at
   4). Every MiB it writes a generation mark. Neither a mark nor a rotation lands inside an `rpc_chunk` sequence: both
   wait for its last chunk, as readers take a sequence only whole and uninterrupted. At 64 MiB it rotates in place at a
-  line boundary while omp's output waits
-  in the pipe: it truncates the log, leaves it empty for 250 ms (BSD `tail -F` moves to the end of a file it finds
-  truncated, measured on macOS to skip the marker otherwise), then writes the marker
-  (`generation`, `carryFrom` S, `preamble` P), P bytes of history as of S, and the old log from S, the first frame
-  start in its last 8 MiB, with its marks rewritten to the new generation. A device that had read the old log to R ≥ S
-  skips P + R − S bytes and goes on, a line it had only begun to read included; of a frame the follow script rewrote in
-  that stretch, only the image definitions go through, as the stream counts those images sent. One behind S, one that
-  had begun to read a frame the carry brings rewritten, or one that finds a mark of another generation (it read into a
-  log rotated under it) rebuilds its view from RPC. Runs launched before the
-  pump are never rotated; a restarted omp gets a new run directory, never an old `in.jsonl`.
+  line boundary while omp's output waits in the pipe: it leaves the log as it is for 250 ms, so followers read it to
+  its end (what omp wrote meanwhile comes out of the pipe at once and can fill the next generation within a
+  millisecond; followers then missed 19 generations in a row), truncates it, leaves it empty for 250 ms (BSD `tail -F`
+  moves to the end of a file it finds truncated, measured on macOS to skip the marker otherwise), then writes the
+  marker (`generation`, `carryFrom` S, `preamble` P), P bytes of history as of S, and the old log from S, the first
+  frame start in its last 8 MiB, with its marks rewritten to the new generation. A device that had read the old log to
+  R ≥ S skips P + R − S bytes and goes on, a line it had only begun to read included; of a frame the follow script
+  rewrote in that stretch, only the image definitions go through, as the stream counts those images sent. One behind
+  S, one that had begun to read a frame the carry brings rewritten, one whose next marker is not the next generation's,
+  or one that finds a mark of another generation (it read into a log rotated under it) rebuilds its view from RPC.
+  Runs launched before the pump are never rotated; a restarted omp gets a new run directory, never an old `in.jsonl`.
 - Garbage collection: `removeDeadRuns` deletes the directories of runs whose omp is gone. The app runs it with every
   session listing for runs whose `out.jsonl` last changed over 3 days ago (`deadRunLifetime`); `ompctl gc` removes
   every ended run.

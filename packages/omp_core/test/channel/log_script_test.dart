@@ -163,6 +163,33 @@ void main() {
     expect(numbers, [for (var n = numbers.first; n <= 99; n++) n], reason: 'the carry and the log after it, whole');
   });
 
+  test('a backlog over several generations leaves each on disk whole before truncating it', () async {
+    // As omp's output that piled up in the pipe during a rotation: it all reaches the pump at once.
+    final process = await pump(rotateAt: 4096, carry: 1024);
+    final marker = RegExp(r'^\{"type":"ompanion_rotate","generation":(\d+),');
+    final seen = <int, int>{};
+    var watching = true;
+    final watcher = () async {
+      while (watching) {
+        final text = out.readAsStringSync();
+        final generation = text.startsWith('{"type":"ompanion_rotate"')
+            ? int.tryParse(marker.firstMatch(text)?.group(1) ?? '')
+            : (text.isEmpty ? null : 1);
+        if (generation != null && text.length > (seen[generation] ?? 0)) seen[generation] = text.length;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }();
+    process.stdin.write([for (var i = 0; i < 100; i++) '{"type":"line","n":$i,"pad":"${'x' * 80}"}\n'].join());
+    await finish(process);
+    watching = false;
+    await watcher;
+    final last = int.parse(marker.firstMatch(out.readAsStringSync())!.group(1)!);
+    expect(last, greaterThan(2));
+    for (var generation = 1; generation < last; generation++) {
+      expect(seen[generation], greaterThanOrEqualTo(4096), reason: 'generation $generation, before its rotation');
+    }
+  });
+
   /// `ready`, then an `rpc_chunk` sequence of [count] lines of about 300 bytes, then one more frame, as omp writes them.
   List<String> chunked(int count) => [
     '{"type":"ready"}',

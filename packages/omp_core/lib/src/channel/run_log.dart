@@ -42,8 +42,9 @@ final class InboxLine {
 }
 
 /// `out.jsonl` moved to [generation] past what this channel read: the rotation carried less than it had left to read,
-/// or a mark of another generation showed that it read into a log that was rotated under it. The session state must be
-/// rebuilt from RPC (`get_state`, `get_messages_page`), then the run can be re-attached from [generation] at offset 0.
+/// it came after a rotation this channel never saw, or a mark of another generation showed that it read into a log
+/// that was rotated under it. The session state must be rebuilt from RPC (`get_state`, `get_messages_page`), then the
+/// run can be re-attached from [generation] at offset 0.
 final class RunLogGap extends HostLinkException {
   RunLogGap(this.generation, String detail) : super('out.jsonl moved to generation $generation: $detail');
 
@@ -275,6 +276,10 @@ final class RunOutput {
         case RunRotated(:final generation) when generation == _parsing:
           // The first line of the generation this channel attached to at offset 0, not a rotation it follows.
           _events.add(_Rotated(generation, end));
+        case RunRotated(:final generation) when generation != _parsing + 1:
+          // The rotations in between went by unseen: a carry is relative to the generation just before its own.
+          finish(RunLogGap(generation, 'its rotation marker came after generation $_parsing'));
+          return;
         case RunRotated(:final generation, :final carryFrom, :final preamble):
           // The marker is the first line of the new generation; everything before it was the old one. A line of the old
           // one this channel had only begun to read runs into it and is dropped: the carry holds it whole. What this

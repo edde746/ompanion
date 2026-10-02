@@ -45,12 +45,14 @@ const logMarkWidth = 64;
 /// - It writes nothing of its own inside an `rpc_chunk` sequence: a mark or a rotation due there waits for the
 ///   sequence's last chunk, so readers find each sequence whole and uninterrupted, as omp writes it.
 /// - Once the log reaches `rotateAt` bytes it rotates in place, at a line boundary, while omp's output waits in the
-///   pipe: it truncates the log and leaves it empty for 250 ms, then writes
+///   pipe: it leaves the log as it is for 250 ms, truncates it and leaves it empty for 250 ms, then writes
 ///   `{"type":"ompanion_rotate","generation":<n>,"carryFrom":<S>,"preamble":<P>}`, then `P` bytes of history as of `S`,
 ///   then the old log from `S` (the first frame start in its last `carry` bytes), its marks rewritten to the new
 ///   generation. A reader that had read the old log to `R >= S` skips `P + R - S` bytes and goes on; one behind `S`
-///   rebuilds its view. The pause is for BSD `tail -F`: it moves to the end of a file it finds truncated, so it has to
-///   find it empty, or it skips what the pump wrote since (measured on macOS: the marker line lost).
+///   rebuilds its view. The first pause lets followers read the old log to its end: what omp wrote meanwhile comes out
+///   of the pipe at once and can reach `rotateAt` again within a millisecond (measured: followers missed 19 generations
+///   in a row). The second is for BSD `tail -F`: it moves to the end of a file it finds truncated, so it has to find it
+///   empty, or it skips what the pump wrote since (measured on macOS: the marker line lost).
 ///
 /// The history is what RPC cannot list again: `extension_ui_request` (dialogs, statuses, widgets; a later status,
 /// widget or title of the same key replaces the earlier one), `command_output`, and the start of each tool call still
@@ -248,6 +250,9 @@ function heldKey(line) {
   return null;
 }
 
+// Each of a rotation's two pauses, in ms: for followers to read the old log to its end, then to find it empty.
+const pause = 250;
+
 async function pump([dir, ...limits]) {
   const [rotateAt, carrySize, hold, markEvery] = limits.map(Number);
   if (!dir || ![rotateAt, carrySize, hold, markEvery].every(Number.isSafeInteger) || carrySize >= rotateAt || markEvery < markWidth) {
@@ -281,8 +286,9 @@ async function pump([dir, ...limits]) {
     for (let at = 0, newline = carry.indexOf(10); newline >= 0; at = newline + 1, newline = carry.indexOf(10, at)) {
       if (newline - at === markWidth - 1 && startsWith(carry.subarray(at), markPrefix)) carry.write(mark(generation), at, "latin1");
     }
+    Bun.sleepSync(pause);
     ftruncateSync(fd, 0);
-    Bun.sleepSync(250);
+    Bun.sleepSync(pause);
     position = 0;
     write(Buffer.from(`{"type":"ompanion_rotate","generation":${generation},"carryFrom":${start},"preamble":${preamble.length}}\n`));
     write(preamble);
