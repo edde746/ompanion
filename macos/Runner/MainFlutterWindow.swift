@@ -22,6 +22,10 @@ class MainFlutterWindow: NSWindow {
   /// The traffic lights while the window is full screen; see `showFullScreenTrafficLights`.
   private var fullScreenTrafficLights: NSView?
 
+  /// The window that keeps the screen refreshing for this window's frames while it is full screen; see
+  /// `showRefreshKeeper`.
+  private var refreshKeeper: NSWindow?
+
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
@@ -66,9 +70,11 @@ class MainFlutterWindow: NSWindow {
     // shows no jump, and an attempt to leave that fails keeps them.
     center.addObserver(forName: NSWindow.didEnterFullScreenNotification, object: self, queue: .main) { [weak self] _ in
       self?.showFullScreenTrafficLights()
+      self?.showRefreshKeeper()
       self?.chrome?.invokeMethod("fullScreen", arguments: true)
     }
     center.addObserver(forName: NSWindow.willExitFullScreenNotification, object: self, queue: .main) { [weak self] _ in
+      self?.hideRefreshKeeper()
       self?.chrome?.invokeMethod("fullScreen", arguments: false)
     }
     center.addObserver(forName: NSWindow.didExitFullScreenNotification, object: self, queue: .main) { [weak self] _ in
@@ -79,6 +85,33 @@ class MainFlutterWindow: NSWindow {
 
     super.awakeFromNib()
     layoutTrafficLights()
+  }
+
+  /// Puts a one-point window with 1/255 white in the window's bottom-right corner. Measured on macOS 27 with a
+  /// ProMotion display: in full screen, once the user has typed, the window server stops refreshing the screen for the
+  /// frames this window commits and refreshes at its 10 Hz floor until a click, so scrolling shows 10 of 120 frames a
+  /// second. Any other window with visible content on the screen keeps it refreshing for every frame; a clear one does
+  /// not count. Outside full screen the window server refreshes for every frame anyway.
+  private func showRefreshKeeper() {
+    guard refreshKeeper == nil else { return }
+    let keeper = NSWindow(
+      contentRect: NSRect(x: frame.maxX - 1, y: frame.minY, width: 1, height: 1), styleMask: .borderless,
+      backing: .buffered, defer: false)
+    keeper.isReleasedWhenClosed = false
+    keeper.isOpaque = false
+    keeper.hasShadow = false
+    keeper.ignoresMouseEvents = true
+    keeper.isExcludedFromWindowsMenu = true
+    keeper.backgroundColor = NSColor.white.withAlphaComponent(1 / 255)
+    addChildWindow(keeper, ordered: .above)
+    refreshKeeper = keeper
+  }
+
+  private func hideRefreshKeeper() {
+    guard let keeper = refreshKeeper else { return }
+    removeChildWindow(keeper)
+    keeper.orderOut(nil)
+    refreshKeeper = nil
   }
 
   // AppKit lays the title bar out again on its own (on show, on key changes); the lights go back where the app wants
