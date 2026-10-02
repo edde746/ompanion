@@ -137,7 +137,8 @@ class _Thumbnail extends StatelessWidget {
   }
 }
 
-/// [bytes] in a dialog as large as the window allows, zoomable; the viewer for images in the chat and the composer.
+/// [bytes] on the dialog scrim with no surface, zoomable across the window, a close button in the top right; the viewer
+/// for images in the chat and the composer.
 class ZoomedImage extends StatelessWidget {
   const ZoomedImage(this.bytes, {super.key});
 
@@ -145,23 +146,33 @@ class ZoomedImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.all(24),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          InteractiveViewer(maxScale: 8, child: Center(child: Image.memory(bytes))),
-          Positioned(
-            top: 4,
-            right: 4,
-            child: IconButton.filledTonal(
-              tooltip: context.t.common.close,
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Symbols.close),
-            ),
+    return Stack(
+      children: [
+        InteractiveViewer(
+          maxScale: 8,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // The viewer covers the scrim so a pinch or a pan can start anywhere; a tap beside the image still
+              // closes it, as one on the scrim would.
+              GestureDetector(behavior: HitTestBehavior.opaque, onTap: () => Navigator.of(context).pop()),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(child: Image.memory(bytes)),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: IconButton.filledTonal(
+            tooltip: context.t.common.close,
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Symbols.close),
+          ),
+        ),
+      ],
     );
   }
 }
