@@ -6,7 +6,8 @@ export type LoginKind = "key" | "optional_key" | "flow";
 /**
  * The `/login` providers whose login is only a pasted API key (`login "api-key"` in omp's auth policies), keyed
  * by id. Runs while the companion is bundled (imported `with { type: "macro" }`): omp serves extensions no login
- * kind at runtime, and `@oh-my-pi/pi-catalog`, which holds the policies, is not among the packages it serves them.
+ * kind at runtime, and serves `@oh-my-pi/pi-catalog`, which holds the policies, only from 18.4.5 on. So the table
+ * holds the policies of the `@oh-my-pi/*` devDependencies the companion is built with.
  * An empty-fallback key is optional: an empty answer sets up a local server without auth.
  */
 export function keyLogins(): Record<string, Exclude<LoginKind, "flow">> {

@@ -137,7 +137,9 @@ common rules"); both override whatever a device carried over from before an atta
   first, for restoring into the composer (the TUI's dequeue). `null` when there is none.
 - `queue.take` `args: {mode: "steering" | "followUp", index: number}` → `result: Restored | null`: removes
   the message at `index` of `Queue.steering` or `Queue.followUp`, with the hidden notices queued right
-  before it, as `queue.pop` does for the last one. `null` when `index` is past the end.
+  before it, as `queue.pop` does for the last one. `null` when `index` is past the end. `failed` "The running
+  response already took this message; it can no longer be removed." for a steering row live steering already gave
+  the running response (below).
 - `queue.clear` `args: {interrupt?: boolean}` → `result: {steering: Restored[], followUp: Restored[]}`:
   removes every user-queued message and returns them. Queued messages omp itself authored stay, unless
   `interrupt` is true: then only advisor cards stay, so the RPC `abort` that follows cannot deliver an
@@ -147,13 +149,16 @@ Stop, as the TUI's Esc does it: `queue.clear {interrupt: true}`, restore what it
 composer, RPC `abort`, then `pause.set {paused: false}` when paused, because `abort` leaves the gate
 engaged and the next run would park again.
 
-`Queue.steering` and `Queue.followUp` are the texts of user-queued messages (`"[Image]"` for an
-image-only one). `count` is omp's `queuedMessageCount`, which also counts messages omp queued itself, so
-it can exceed the two lists.
+`Queue.steering` and `Queue.followUp` are omp's own queue lists (`getQueuedMessages`): the texts of user-queued
+messages (`"[Image]"` for an image-only one). From omp 18.4.4 they leave out user messages an agent or extension
+handed off (`attribution: "agent"`), which stay queued. From 18.3.3, `Queue.steering` starts with the steering that
+live steering (OpenAI Codex over WebSocket) already gave the running response, until the transcript records it.
+`count` is omp's `queuedMessageCount`, which also counts messages omp queued itself and hand-offs, so it can exceed
+the two lists.
 
-Event `queue.changed` with `Queue` whenever it differs from the last one pushed. omp emits nothing when a
-message is queued, and nothing at all while a run is parked, so the companion checks on every session
-event and every 250 ms while the session streams.
+Event `queue.changed` with `Queue` whenever it differs from the last one pushed. omp 18.3.1 emits nothing when a
+message is queued (18.4.4+ emits its own `queue_update`), and no session event comes while a run is parked, so the
+companion checks on every session event and every 250 ms while the session streams.
 
 ### settings.schema
 
@@ -472,10 +477,11 @@ model). Devices show the title at once. Code: `companion/src/verbs/session/title
 
 `args: {query?: string, limit?: number (1-1000, default 100)}` → `result: {entries: {prompt: string,
 createdAt: number, cwd: string | null, sessionId: string | null, useCount: number}[]}`, newest first. Without
-`query`: the most recent prompts. Reads omp's `history.db`, the store behind the TUI's Up arrow and Ctrl+R.
-RPC prompts never reach it on their own (omp fires `input` only in the TUI), so the companion records every
-user message the main session receives (prompts, steers, follow-ups, after template expansion) plus
-`exec.bash` / `exec.python` lines; agent-injected messages are skipped.
+`query`: the most recent prompts. Reads omp's `history.db`, the store behind the TUI's Up arrow and Ctrl+R. omp
+writes it only from the TUI editor, so RPC prompts never reach it on their own (from omp 18.4.10 they fire `input`,
+but omp still records nothing for them). The companion records every user message the main session receives
+(prompts, steers, follow-ups, after template expansion) plus `exec.bash` / `exec.python` lines; agent-injected
+messages are skipped.
 
 ### accounts.list
 
@@ -532,9 +538,15 @@ without a model or when the model call fails.
 ### Goal mode and loop mode: common rules
 
 Owner: CompanionGoalLoop (`companion/src/verbs/session/goal.ts`, `companion/src/verbs/session/loop.ts`). The
-companion runs omp 18.3.1's TUI goal mode, guided goal and loop mode (`interactive-mode.ts`) inside the rpc process,
-so a goal or a loop keeps going with no device attached: same grammar, state transitions, prompt texts, notice
-texts, 800 ms delays and session-file entries. The differences are listed at the end of this section.
+companion runs omp's TUI goal mode, guided goal and loop mode (`interactive-mode.ts` of 18.3.1, plus 18.4's hold for
+blocked todos) inside the rpc process, so a goal or a loop keeps going with no device attached: same grammar, state
+transitions, prompt texts, notice texts, 800 ms delays and session-file entries. The differences are listed at the
+end of this section.
+
+omp 18.4.11+ runs a goal controller of its own in rpc mode (`RpcGoalController`, behind the RPC `goal` command; the
+companion detects it by `pi.pi.RpcClient` having a `goal` method). With it, the companion leaves the restore to omp,
+stands down from continuing when `goal.continuationModes` contains `rpc`, and applies its drop rule for the tools
+after the controller's own restore (below).
 
 ```ts
 // omp's own goal, exactly as `goal_updated` carries it.
@@ -584,8 +596,9 @@ goal inside omp.
 
 `args: {}` → `result: {goal: null}`. `/goal drop` after its confirmation (the verb does not ask; the app does).
 omp emits `goal_updated` with status `dropped`, then clears the goal. Dropping a running goal restores the tools that
-were on before goal mode; a goal dropped while paused leaves the `goal` tool on, as in the TUI. `failed` "No goal to
-drop.".
+were on before goal mode (before the interview for a guided goal); a goal dropped while paused leaves the tools as
+they are, `goal` on, as in the TUI. With omp's goal controller the companion applies this after the controller's own
+restore, which would otherwise win. `failed` "No goal to drop.".
 
 ### goal.budget
 
@@ -605,13 +618,15 @@ active. Use /goal to manage it, or /goal drop to start over." or the paused-goal
 ### Goal continuation, completion and restore
 
 - Continuation: 800 ms after each terminal `agent_end` (the turn settled) while loop mode is off (also when
-  suspended), `goal.continuationModes` contains `interactive`, plan mode is off, the goal is enabled and `active`,
-  and no stall hold applies. The text is omp's `goal-continuation.md`, built at that moment; it is sent as
+  suspended), `goal.continuationModes` contains `interactive` (and, with omp's goal controller, not `rpc`: omp
+  continues the goal itself then), plan mode is off, the goal is enabled and `active`, no stall hold applies, and the
+  todo list's open work is not all blocked (no `pending` or `in_progress` task while one is `blocked`: omp 18.4's
+  wait for the user). The text is omp's `goal-continuation.md`, built at that moment; it is sent as
   `promptCustomMessage({customType: "goal-continuation", display: false, attribution: "agent"}, {streamingBehavior:
-  "followUp"})`, so omp prepends its `goal-mode-context`. When it is due, loop mode or plan mode turned on since
-  cancels it; a streaming, compacting or post-prompt-busy session drops it (the next terminal `agent_end` schedules
-  again); a prompt or companion call still being admitted, or a session switch, new session or branch still in
-  progress, retries it 800 ms later. `agent_start` cancels a pending one.
+  "followUp"})`, so omp prepends its `goal-mode-context`. When it is due, loop mode or plan mode turned on since, or
+  open work now all blocked, cancels it; a streaming, compacting or post-prompt-busy session drops it (the next
+  terminal `agent_end` schedules again); a prompt or companion call still being admitted, or a session switch, new
+  session or branch still in progress, retries it 800 ms later. `agent_start` cancels a pending one.
 - Failed submission: an objective or continuation that starts no turn (omp threw, shown as an error notice, or
   dropped it before the agent) schedules the next continuation 800 ms later; each further failure in a row doubles
   the wait, up to 60 s. A turn that starts resets it.
@@ -627,6 +642,9 @@ active. Use /goal to manage it, or /goal drop to start over." or the paused-goal
   (a `goal_paused` entry is written), a paused one as paused, each with the `goal` tool on. `switch_session` and
   `branch` (through omp's session-switch reconciler) keep a running goal running and clear the previous session's
   goal first, restoring its tools. `new_session` keeps the goal in memory, paused by omp's abort, as the TUI does.
+  With omp's goal controller, omp itself restores at startup and after every switch, branch, open and new session
+  (RPC commands and extension actions), with the same outcome; the companion only drops its own record of the
+  previous session's goal. `new_session` then clears the goal: the new session has none.
 
 ### loop.enable
 
@@ -721,6 +739,13 @@ ends in "No active goal.", as in the TUI.
 - A synthetic developer message (the guided-goal kickoff, omp's continuation after a compaction) starts a new turn in
   the app's transcript, so the reply it prompts is not folded into the previous turn; like the TUI, the app shows no
   row for the message itself.
+- With omp's goal controller (18.4.11+), `new_session` clears the goal; the TUI keeps it paused in memory.
+- With omp's goal controller, a switch away from a session whose goal the model created in a `/guided-goal` interview
+  leaves the `goal` tool on in the target session: the controller restores the tool set it saw at the goal's creation,
+  which already held `goal`, after the companion's reconciler has run.
+- With `rpc` in `goal.continuationModes` and omp's goal controller, omp continues the goal by its own rules: as soon
+  as the session is idle instead of 800 ms later, also while loop mode is on, and unseen by the push notifications,
+  which send `done` after each of those turns in a detached run.
 
 <!-- verb sections are appended by their implementers -->
 
@@ -728,8 +753,11 @@ ends in "No active goal.", as in the TUI.
 
 ### ask
 
-Sent when omp's `ask` tool (or any extension) calls `ctx.ui.askDialog`, which the companion installs in
-rpc-ui. Without it omp degrades `ask` to one `select`/`editor` dialog per question.
+Sent when omp's `ask` tool (or any extension) calls `ctx.ui.askDialog`, which the companion installs in rpc-ui as an
+own property of omp's RPC UI object. omp 18.3.1's RPC UI object has no `askDialog`; from 18.4.9 its class declares a
+getter without a setter that returns omp's own RPC ask dialog (`extension_ui_request` method `ask`) only after a host
+sent `set_ask_dialog`. The companion's own property shadows that getter, and it never sends `set_ask_dialog`.
+Without the companion's dialog omp degrades `ask` to one `select`/`editor` dialog per question.
 
 ```ts
 type AskParams = {

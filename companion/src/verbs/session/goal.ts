@@ -1,7 +1,8 @@
 import { type AgentMessage, AgentBusyError } from "@oh-my-pi/pi-agent-core";
-import type { AgentSession, ExtensionCommandContext } from "@oh-my-pi/pi-coding-agent";
+import type { AgentSession, ExtensionAPI, ExtensionCommandContext, RpcClient } from "@oh-my-pi/pi-coding-agent";
 import { lookup } from "@oh-my-pi/pi-coding-agent/config/registry";
 import type { GoalModeState } from "@oh-my-pi/pi-coding-agent/goals/state";
+import { nextActionableTask } from "@oh-my-pi/pi-coding-agent/tools/todo";
 import type { Goal } from "@oh-my-pi/pi-tui/tools/goal";
 import { prompt, stableStringifyJson } from "@oh-my-pi/pi-utils";
 import { expectKeys, requireInteger, requireNullableString, requireString } from "../../args.ts";
@@ -82,6 +83,16 @@ let turnStarts = 0;
 let failedSubmissions = 0;
 /** The exit a drop's `goal_updated` started (a verb, `/goal drop` or the model's `goal` tool). */
 let dropExit: Promise<void> = Promise.resolve();
+/**
+ * omp 18.4.11+ runs a goal controller of its own in rpc mode (modes/rpc/rpc-goal.ts `RpcGoalController`): it
+ * reconciles the goal at startup and after every switch, branch and open (RPC commands and extension actions alike),
+ * restores a tool snapshot of its own on every drop, and continues goals when `goal.continuationModes` names `rpc`.
+ * The controller lives inside omp's rpc mode, out of an extension's reach, and its module cannot be probed by import:
+ * a subpath omp does not bundle falls through to normal resolution from the companion's file, which in a checkout
+ * finds the devDependency's newer copy. The RPC `goal` command shipped with the controller and is served by it, and
+ * the RPC client omp hands extensions (`pi.pi.RpcClient`) has a `goal` method exactly when omp has that command.
+ */
+let ompGoalController = false;
 
 function errorText(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -144,6 +155,31 @@ async function exitGoalMode(session: AgentSession, restoreTools: boolean): Promi
 	if (restoreTools && tools) await session.setActiveToolsByName(tools);
 }
 
+/**
+ * The TUI's drop exit: a goal that was running gives back the tools from before goal mode, a paused one leaves them.
+ * omp's goal controller ({@link ompGoalController}) queues a restore of its own snapshot right after the drop's
+ * `goal_updated`, and that snapshot holds `goal` when the companion had turned it on first (a guided goal) or misses
+ * it for a paused goal; applied a macrotask later, the companion's set lands behind it.
+ */
+async function exitDroppedGoal(session: AgentSession): Promise<void> {
+	// Emitted before omp clears the state, so the state still says whether the goal was running.
+	const running = goalRunning(session);
+	if (!ompGoalController) return exitGoalMode(session, running);
+	const tools = running ? previousTools : session.getEnabledToolNames();
+	await exitGoalMode(session, false);
+	if (!tools) return;
+	const { promise, resolve } = Promise.withResolvers<void>();
+	setImmediate(resolve);
+	await promise;
+	await session.setActiveToolsByName(tools);
+}
+
+/** omp 18.4's `#goalOpenWorkAllBlocked`: a todo list whose open work is all blocked waits for the user, not a turn. */
+function openWorkAllBlocked(session: AgentSession): boolean {
+	const phases = session.getTodoPhases();
+	return !nextActionableTask(phases) && phases.some(phase => phase.tasks.some(task => task.status === "blocked"));
+}
+
 /** Model-visible tool activity of a continuation turn, without call ids and timestamps. */
 function continuationActivity(messages: readonly AgentMessage[]): string {
 	const digests: string[] = [];
@@ -172,10 +208,13 @@ function scheduleContinuation(session: AgentSession, delayMs = CONTINUATION_DELA
 	if (loopEnabled()) return;
 	const modes = goalSetting(session, "goal.continuationModes");
 	if (!Array.isArray(modes) || !modes.includes("interactive")) return;
+	// omp's goal controller continues the goal then; a second driver would also undo its stall hold, and it ours.
+	if (ompGoalController && modes.includes("rpc")) return;
 	if (session.getPlanModeState()?.enabled) return;
 	if (suppressNextContinuation) return;
 	const state = session.getGoalModeState();
 	if (!state?.enabled || state.goal.status !== "active") return;
+	if (openWorkAllBlocked(session)) return;
 	const text = session.goalRuntime.buildContinuationPrompt();
 	if (!text) return;
 	continuationTimer = setTimeout(() => continueGoal(session, text), delayMs);
@@ -206,6 +245,7 @@ function continueGoal(session: AgentSession, text: string): void {
 	}
 	const state = session.getGoalModeState();
 	if (!state?.enabled || state.goal.status !== "active") return;
+	if (openWorkAllBlocked(session)) return;
 	const turnStartsBefore = turnStarts;
 	pendingContinuationTurns += 1;
 	const noTurn = (): void => {
@@ -264,6 +304,12 @@ function goalFromModeData(modeData: Record<string, unknown> | undefined): Goal |
  * it running. A goal from the previous session is cleared first.
  */
 async function reconcileGoal(session: AgentSession, preserveActiveGoal: boolean): Promise<void> {
+	if (ompGoalController) {
+		// omp's controller reconciles right after, from the tools as they are: only the companion's bookkeeping of the
+		// previous session's goal goes, so a later drop does not apply that session's tools.
+		await exitGoalMode(session, false);
+		return;
+	}
 	if (goalRunning(session) || pausedGoal(session)) {
 		await exitGoalMode(session, true);
 		session.setGoalModeState(undefined);
@@ -431,9 +477,14 @@ async function startGuidedGoal(session: AgentSession, initial: string | undefine
 /**
  * Installs what the TUI does around goals: restore on open (active → paused), on switch and branch (running
  * goals keep running, through omp's session-switch reconciler, which rpc-ui leaves unset), the continuation
- * after each settled turn, the tool restore on drop and the completion exit.
+ * after each settled turn, the tool restore on drop and the completion exit. With omp's goal controller
+ * ({@link ompGoalController}) omp restores on open, switch and branch; a companion restore before it would make the
+ * controller snapshot a tool set that already holds `goal`.
  */
-export async function installGoalMode(session: AgentSession): Promise<void> {
+export async function installGoalMode(pi: ExtensionAPI, session: AgentSession): Promise<void> {
+	// Typed from the newest omp; the RPC client of omp before 18.4.11 has no `goal`.
+	const client: Partial<Pick<RpcClient, "goal">> = pi.pi.RpcClient.prototype;
+	ompGoalController = typeof client.goal === "function";
 	session.subscribe(event => {
 		switch (event.type) {
 			case "agent_start":
@@ -446,10 +497,7 @@ export async function installGoalMode(session: AgentSession): Promise<void> {
 				return;
 			case "goal_updated":
 				if (event.state?.goal.status === "dropped") {
-					// Emitted before omp clears the state, so the state still says whether the goal was running.
-					dropExit = exitGoalMode(session, goalRunning(session)).catch(error =>
-						channel().notify(errorText(error), "error"),
-					);
+					dropExit = exitDroppedGoal(session).catch(error => channel().notify(errorText(error), "error"));
 				} else if (!event.state?.enabled) {
 					cancelContinuation();
 				}
@@ -472,7 +520,7 @@ export async function installGoalMode(session: AgentSession): Promise<void> {
 		}
 	});
 	session.setSessionSwitchReconciler(() => reconcileGoal(session, true));
-	await reconcileGoal(session, false);
+	if (!ompGoalController) await reconcileGoal(session, false);
 }
 
 /** `/goal show` (#showGoalDetails). */

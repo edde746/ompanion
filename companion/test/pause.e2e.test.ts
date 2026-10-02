@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
+import * as path from "node:path";
 import type { Turn } from "../../harness/fake-provider/client.ts";
 import { type Frame, OmpDriver } from "./driver.ts";
 
@@ -7,7 +8,7 @@ setDefaultTimeout(60_000);
 let omp: OmpDriver;
 
 beforeAll(async () => {
-	omp = await OmpDriver.start();
+	omp = await OmpDriver.start({ args: ["-e", path.join(import.meta.dir, "agent-steer-extension.ts")] });
 });
 
 afterEach(async () => {
@@ -202,6 +203,29 @@ describe("queue", () => {
 		expect(await omp.call("queue.get")).toEqual({ steering: [], followUp: [], count: 0 });
 
 		mark = omp.mark();
+		await omp.command({ type: "abort" });
+		await omp.waitFor(frame => frame.type === "session_settled", { since: mark });
+	});
+
+	test("take indexes the list queue.get shows, also next to a steer an agent handed off", async () => {
+		type Queue = { steering: string[]; followUp: string[]; count: number };
+		await omp.fake.enqueue({ steps: [{ text: "working" }, { hang: true }] });
+		await startStreaming("start working");
+		let mark = omp.mark();
+		await omp.command({ type: "prompt", message: "/agent-steer from the agent" });
+		await omp.waitEvent("queue.changed", { since: mark, where: data => (data as Queue).count === 1 });
+		mark = omp.mark();
+		await omp.command({ type: "steer", message: "mine" });
+		const queued = await omp.waitEvent("queue.changed", { since: mark, where: data => (data as Queue).count === 2 });
+		// omp 18.4.4+ lists only the user's steer; older versions list the hand-off before it.
+		const listed = queued.data as Queue;
+		const index = listed.steering.indexOf("mine");
+		expect(index).toBeGreaterThanOrEqual(0);
+		expect(await omp.call("queue.take", { mode: "steering", index })).toEqual({ text: "mine" });
+		expect(((await omp.call("queue.get")) as Queue).steering).toEqual(listed.steering.toSpliced(index, 1));
+
+		mark = omp.mark();
+		await omp.call("queue.clear", { interrupt: true });
 		await omp.command({ type: "abort" });
 		await omp.waitFor(frame => frame.type === "session_settled", { since: mark });
 	});

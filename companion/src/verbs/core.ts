@@ -1,4 +1,4 @@
-import { agentPauseGate } from "@oh-my-pi/pi-agent-core";
+import { type Agent, type AgentMessage, agentPauseGate } from "@oh-my-pi/pi-agent-core";
 import type { AgentSession, Settings } from "@oh-my-pi/pi-coding-agent";
 import { orderedSettings } from "@oh-my-pi/pi-coding-agent/config/all-settings";
 import { getKnownRoleIds, getRoleInfo } from "@oh-my-pi/pi-coding-agent/config/model-roles";
@@ -6,11 +6,7 @@ import { cfgModelRoleStorage } from "@oh-my-pi/pi-coding-agent/config/model-sett
 import { type AnySetting, all, lookup } from "@oh-my-pi/pi-coding-agent/config/registry";
 import { createSettingsHost } from "@oh-my-pi/pi-coding-agent/config/settings-ui";
 import type { RestoredQueuedMessage } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
-import {
-	isHiddenUserCompanion,
-	isUserQueuedMessage,
-	toRestoredQueuedMessage,
-} from "@oh-my-pi/pi-coding-agent/session/queued-messages";
+import * as queuedMessages from "@oh-my-pi/pi-coding-agent/session/queued-messages";
 import pkg from "../../package.json" with { type: "json" };
 import {
 	expectKeys,
@@ -24,7 +20,7 @@ import {
 } from "../args.ts";
 import { channel, emitEvent } from "../channel.ts";
 import { takeSecretFile } from "../paths.ts";
-import { VerbError, type VerbHandler, type VerbTable } from "../protocol.ts";
+import { Refusal, VerbError, type VerbHandler, type VerbTable } from "../protocol.ts";
 import { goalSnapshot } from "./session/goal.ts";
 import { loopState } from "./session/loop.ts";
 
@@ -38,8 +34,8 @@ export const coreEvents = [
 ] as const;
 
 /**
- * omp emits no event when a message is queued, and a run parked on the pause gate or inside a
- * silent tool emits nothing at all, so the queue is also polled while the session streams.
+ * omp 18.3.1 emits no event when a message is queued (18.4.4+ has `queue_update`), and a run parked on the pause
+ * gate or inside a silent tool emits nothing at all, so the queue is also polled while the session streams.
  */
 const QUEUE_POLL_MS = 250;
 
@@ -68,16 +64,43 @@ function checkQueue(session: AgentSession): void {
 }
 
 /**
- * Removes the `index`-th user-queued message of one queue with the hidden companions queued right before it,
- * as `popLastQueuedMessage` removes the last one.
+ * Whether `getQueuedMessages()` lists a queued message: omp 18.4.4+ lists only user-authored ones and leaves out
+ * user messages an agent or extension handed off (`attribution: "agent"`); older versions list every user-queued one.
+ * A namespace lookup, because a named import omp does not export fails the whole bundle.
+ */
+const listedQueuedMessage: (message: AgentMessage) => boolean =
+	(queuedMessages as Partial<typeof queuedMessages>).isUserAuthoredQueuedMessage ?? queuedMessages.isUserQueuedMessage;
+
+/**
+ * Steering the running response already took through live steering (omp 18.3.3+), which `getQueuedMessages()` lists
+ * before the steering queue until the transcript records it.
+ */
+function liveSteered(session: AgentSession): AgentMessage[] {
+	// Typed from the newest omp; 18.3.1 and 18.3.2 lack it.
+	const agent: Partial<Pick<Agent, "peekLiveSteeredMessages">> = session.agent;
+	return agent.peekLiveSteeredMessages?.() ?? [];
+}
+
+/**
+ * Removes the message at `index` of `queue.get`'s list for one queue with the hidden companions queued right before
+ * it, as `popLastQueuedMessage` removes the last one, and returns it for the composer, images included. omp's
+ * `removeQueuedMessage` (18.4.4+) matches by text, so it cannot tell duplicates apart, and returns no images.
  */
 function takeQueued(session: AgentSession, mode: "steering" | "followUp", index: number): RestoredQueuedMessage | undefined {
 	const steering = [...session.agent.peekSteeringQueue()];
 	const followUp = [...session.agent.peekFollowUpQueue()];
 	const queue = mode === "steering" ? steering : followUp;
+	const live = mode === "steering" ? liveSteered(session).filter(listedQueuedMessage).length : 0;
+	if (index < live) {
+		throw new Refusal(
+			"failed",
+			"The running response already took this message; it can no longer be removed.",
+			"warning",
+		);
+	}
 	let position = -1;
-	for (let i = 0, seen = 0; i < queue.length; i++) {
-		if (!isUserQueuedMessage(queue[i]!)) continue;
+	for (let i = 0, seen = live; i < queue.length; i++) {
+		if (!listedQueuedMessage(queue[i]!)) continue;
 		if (seen++ === index) {
 			position = i;
 			break;
@@ -86,13 +109,13 @@ function takeQueued(session: AgentSession, mode: "steering" | "followUp", index:
 	if (position < 0) return undefined;
 	const taken = queue[position]!;
 	let start = position;
-	while (start > 0 && isHiddenUserCompanion(queue[start - 1]!)) start--;
+	while (start > 0 && queuedMessages.isHiddenUserCompanion(queue[start - 1]!)) start--;
 	queue.splice(start, position - start + 1);
 	// clearQueue() also resets omp's private drain block once the queues are empty; it drops exactly what is
-	// left then (user messages and their companions), which is nothing.
+	// left then (user messages and their companions), which is nothing. It leaves live steering alone.
 	if (steering.length === 0 && followUp.length === 0) session.clearQueue();
 	else session.agent.replaceQueues(steering, followUp);
-	return toRestoredQueuedMessage(taken);
+	return queuedMessages.toRestoredQueuedMessage(taken);
 }
 
 /** The settings panel's order (omp's domain order), then anything registered outside it. */

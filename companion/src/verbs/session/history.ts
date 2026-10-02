@@ -4,11 +4,12 @@ import { expectKeys, optionalInteger, optionalString } from "../../args.ts";
 import type { VerbTable } from "../../protocol.ts";
 
 /**
- * omp writes prompt history (history.db, read by the TUI's Up arrow and Ctrl+R) only from the TUI
- * editor, and RPC prompts never fire the `input` event (runner.emitInput has one caller,
- * input-controller.ts:974). So the companion records every user message the main session receives:
- * prompts, steers and follow-ups, after prompt-template expansion. Messages the agent or an extension
- * injects carry `attribution: "agent"` or `synthetic` and are skipped.
+ * omp writes prompt history (history.db, read by the TUI's Up arrow and Ctrl+R) only from the TUI editor, in every
+ * supported version. RPC prompts reach no `input` handler up to omp 18.4.9; from 18.4.10 RPC `prompt`, `steer`,
+ * `follow_up` and `abort_and_prompt` fire `input` (source `rpc`) before admission, but omp still records none of
+ * them, so nothing here is recorded twice. The companion records every user message the main session receives:
+ * prompts, steers and follow-ups, after prompt-template expansion. Messages the agent or an extension injects carry
+ * `attribution: "agent"` or `synthetic` and are skipped.
  */
 export function installHistoryRecording(pi: ExtensionAPI): void {
 	pi.on("message_end", (event, ctx) => {

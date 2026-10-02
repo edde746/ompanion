@@ -87,7 +87,7 @@ interface PendingRequest {
 
 /**
  * `RpcExtensionUIContext` keeps `output` and `pendingRequests` as TypeScript-private constructor
- * parameters (rpc-mode.ts:832-835), so they are plain properties at runtime.
+ * parameters (rpc-mode.ts:832-835 in omp 18.3.1, :1284-1287 in 18.4.12), so they are plain properties at runtime.
  */
 interface RpcUiPrivate {
 	output(frame: object): void;

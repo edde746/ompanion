@@ -62,7 +62,7 @@ export async function installSessionHooks(pi: ExtensionAPI, session: AgentSessio
 	installCompactionEvents(pi, session);
 	installLoopMode(session);
 	installAutoTitle(pi, session);
-	await installGoalMode(session);
+	await installGoalMode(pi, session);
 }
 
 function sessionRow(info: SessionInfo, pinned: ReadonlySet<string>) {

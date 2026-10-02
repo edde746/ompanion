@@ -146,6 +146,46 @@ describe("goal continuation", () => {
 		expect(await snapshotGoal()).toMatchObject({ objective: "keep checking", status: "active" });
 	});
 
+	test("a todo list whose open work is all blocked holds the continuation", async () => {
+		const todo = (args: Record<string, unknown>): Turn => ({ steps: [{ toolCall: { name: "todo", arguments: args } }] });
+		await omp.fake.enqueue([
+			todo({ op: "init", list: [{ phase: "Release", items: ["Ship it"] }] }),
+			todo({ op: "block", task: "Ship it", reason: "needs sign-off" }),
+			{ steps: [{ text: "Waiting for sign-off." }] },
+		]);
+		const since = await slash("/goal ship the release");
+		try {
+			const end = await frameIndex(isAgentEnd, since);
+			await holdWindow();
+			expect(await omp.fake.requests()).toHaveLength(3);
+			expect(omp.frames.slice(end + 1).some(frame => frame.type === "agent_start")).toBe(false);
+		} finally {
+			// The todo list belongs to the session: a fresh one keeps it from holding the next tests' goals.
+			expect((await omp.command({ type: "new_session" })).success).toBe(true);
+		}
+	});
+
+	test("with `rpc` among goal.continuationModes, one driver continues and the stall hold ends it", async () => {
+		// omp 18.4.11+ continues the goal itself then; without it the companion does. Either way: the objective turn,
+		// one empty continuation, then the hold.
+		await omp.call("settings.set", {
+			path: "goal.continuationModes",
+			value: ["interactive", "rpc"],
+			scope: "override",
+		});
+		try {
+			await omp.fake.enqueue([{ steps: [{ text: "started" }] }, { steps: [{ text: "still going" }] }]);
+			const since = await slash("/goal write the tests");
+			const firstEnd = await frameIndex(isAgentEnd, since);
+			const secondEnd = await frameIndex(isAgentEnd, firstEnd + 1);
+			await holdWindow();
+			expect(await omp.fake.requests()).toHaveLength(2);
+			expect(omp.frames.slice(secondEnd + 1).some(frame => frame.type === "agent_start")).toBe(false);
+		} finally {
+			await omp.call("settings.unset", { path: "goal.continuationModes", scope: "override" });
+		}
+	});
+
 	test("goal({op: complete}) ends the continuations and records the completion", async () => {
 		await omp.fake.enqueue([
 			{ steps: [{ text: "started" }] },
@@ -374,6 +414,8 @@ describe("/goal and goal verbs", () => {
 		const dropped = await omp.waitFor(frame => frame.type === "goal_updated", { since });
 		expect(dropped.goal).toMatchObject({ objective, status: "dropped" });
 		expect(await snapshotGoal()).toBeNull();
+		// As in the TUI, a goal dropped while paused leaves the tools as they are.
+		expect(await activeTools()).toContain("goal");
 	});
 
 	test("dropping a running goal restores the tools it had before, without `goal`", async () => {
@@ -450,5 +492,22 @@ describe("guided goal", () => {
 			code: "failed",
 			message: "failed: Goal mode is already active. Use /goal to manage it, or /goal drop to start over.",
 		});
+	});
+
+	test("dropping a goal the model created in the interview restores the tools from before it", async () => {
+		const toolsBefore = (await activeTools()).filter(name => name !== "goal");
+		await omp.fake.enqueue([
+			{ steps: [{ text: "What do you want to achieve?" }] },
+			{ steps: [{ toolCall: { name: "goal", arguments: { op: "create", objective: "faster builds" } } }] },
+			{ steps: [{ text: "Goal set; starting." }] },
+		]);
+		let since = omp.mark();
+		await omp.call("goal.guided", { initial: null });
+		await omp.waitFor(frame => frame.type === "session_settled", { since });
+		since = await slash("faster builds");
+		await omp.waitFor(frame => frame.type === "goal_updated", { since });
+		await frameIndex(isAgentEnd, since);
+		expect(await omp.call("goal.drop")).toEqual({ goal: null });
+		expect(await activeTools()).toEqual(toolsBefore);
 	});
 });

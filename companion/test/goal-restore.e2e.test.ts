@@ -80,4 +80,28 @@ test("a switch keeps a running goal, a goal-less session clears it, and a cold o
 	await omp.waitFor(frame => frame.type === "agent_end", { since });
 	const [continuation] = await omp.fake.requests();
 	expect(requestMessages(continuation).at(-1)?.text).toContain("Continue active goal.\n\n<objective>\nkeep the goal");
+
+	expect(await omp.call("goal.drop")).toEqual({ goal: null });
+	expect(await toolNames()).not.toContain("goal");
+});
+
+test("after a restart, switching to a session without a goal turns the goal tool off", async () => {
+	expect((await omp.command({ type: "new_session" })).success).toBe(true);
+	let since = omp.mark();
+	await omp.command({ type: "prompt", message: "hello" });
+	await settle(since);
+	const other = (await state()).sessionFile;
+
+	expect((await omp.command({ type: "new_session" })).success).toBe(true);
+	since = omp.mark();
+	await omp.call("goal.set", { objective: "restored, then left behind" });
+	const objectiveEnd = omp.frames.indexOf(await omp.waitFor(frame => frame.type === "agent_end", { since }), since);
+	await omp.waitFor(frame => frame.type === "agent_end", { since: objectiveEnd + 1 });
+
+	await omp.restart();
+	expect(await snapshotGoal()).toMatchObject({ objective: "restored, then left behind", status: "paused" });
+	expect(await toolNames()).toContain("goal");
+	expect((await omp.command({ type: "switch_session", sessionPath: other })).success).toBe(true);
+	expect(await snapshotGoal()).toBeNull();
+	expect(await toolNames()).not.toContain("goal");
 });
