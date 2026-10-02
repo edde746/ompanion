@@ -49,7 +49,8 @@ final class _Failed extends _RunState {
   final String message;
 }
 
-/// One machine: what its probe found, how it is reached, a connection test, and the host keys trusted for its hops.
+/// One machine: what its probe found, how it is reached, a connection test, the omp update, and the host keys trusted
+/// for its hops.
 class MachineDetailPane extends StatefulWidget {
   const MachineDetailPane({super.key, required this.machine});
 
@@ -61,6 +62,7 @@ class MachineDetailPane extends StatefulWidget {
 
 class _MachineDetailPaneState extends State<MachineDetailPane> {
   _RunState _test = const _Idle();
+  _RunState _update = const _Idle();
 
   Future<void> _testConnection() async {
     final t = context.t;
@@ -73,6 +75,32 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
       appLogger.w('test connection to ${widget.machine.name} failed', error: error);
       if (!mounted) return;
       setState(() => _test = _Failed(t.machines.failed(error: describeConnectError(t, error))));
+    }
+  }
+
+  /// Runs `omp update` on the machine ([updateOmp]) and probes again, so new sessions, the control process and the
+  /// model cache use the new omp. omp's own words explain a run that changed nothing (up to date, or a Nix install).
+  Future<void> _updateOmp(HostProbe probe) async {
+    final t = context.t;
+    final runtime = context.read<SessionsProvider>().runtimeFor(widget.machine);
+    setState(() => _update = _Running(t.machines.updatingOmp));
+    try {
+      final said = await updateOmp(runtime.link, probe);
+      final updated = await runtime.reprobe();
+      if (!mounted) return;
+      final from = probe.ompVersion ?? '?';
+      final to = updated.ompVersion ?? '?';
+      setState(
+        () => _update = switch (runtime.status) {
+          MachineOnline() when to != from => _Succeeded(t.machines.ompUpdated(from: from, to: to)),
+          MachineOnline() => _Succeeded(said.trim()),
+          final status => _Failed(machineStatusText(t, status)),
+        },
+      );
+    } on Object catch (error) {
+      appLogger.w('updating omp on ${widget.machine.name} failed', error: error);
+      if (!mounted) return;
+      setState(() => _update = _Failed(t.machines.failed(error: describeConnectError(t, error))));
     }
   }
 
@@ -125,24 +153,34 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
           ],
         ),
         const SizedBox(height: 16),
-        Wrap(
-          spacing: AppSizes.gap,
-          runSpacing: AppSizes.gap,
-          children: [
-            FilledButton.icon(
-              icon: const Icon(Symbols.power),
-              label: Text(t.machines.testConnection),
-              onPressed: _test is _Running ? null : _testConnection,
-            ),
-            FilledButton.tonalIcon(
-              icon: const Icon(Symbols.edit),
-              label: Text(t.common.edit),
-              onPressed: () => showMachineEditor(context, machine: machine),
-            ),
-            TextButton.icon(icon: const Icon(Symbols.delete), label: Text(t.common.delete), onPressed: _delete),
-          ],
+        MachineStatusBuilder(
+          runtime: runtime,
+          builder: (context, status) => Wrap(
+            spacing: AppSizes.gap,
+            runSpacing: AppSizes.gap,
+            children: [
+              FilledButton.icon(
+                icon: const Icon(Symbols.power),
+                label: Text(t.machines.testConnection),
+                onPressed: _test is _Running ? null : _testConnection,
+              ),
+              if (status case MachineOnline(:final probe))
+                FilledButton.tonalIcon(
+                  icon: const Icon(Symbols.upgrade),
+                  label: Text(t.machines.updateOmp),
+                  onPressed: _update is _Running ? null : () => unawaited(_updateOmp(probe)),
+                ),
+              FilledButton.tonalIcon(
+                icon: const Icon(Symbols.edit),
+                label: Text(t.common.edit),
+                onPressed: () => showMachineEditor(context, machine: machine),
+              ),
+              TextButton.icon(icon: const Icon(Symbols.delete), label: Text(t.common.delete), onPressed: _delete),
+            ],
+          ),
         ),
         _RunStatus(_test),
+        _RunStatus(_update),
         const SizedBox(height: 24),
         Text(t.machines.facts, style: theme.textTheme.titleMedium),
         const SizedBox(height: AppSizes.gap),

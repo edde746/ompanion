@@ -302,11 +302,17 @@ final class MachineRuntime {
   ///
   /// On a machine where omp finds no usable model, omp refuses rpc mode; the control then runs in bootstrap mode
   /// ([controlIsBootstrap]) so settings, `accounts.setKey` and `login` still work. Once a key was stored or a login
-  /// succeeded there, the next call ends it and starts a normal one.
+  /// succeeded there, the next call ends it and starts a normal one. So does a call after [reprobe] found another
+  /// omp than the one the control runs (an update), whose models and settings may differ.
   Future<LiveSession> control() {
     final current = _control;
     if (current != null && current.linkState is! LinkClosed) {
-      if (!(_controlAccess?.credentialsChanged ?? false)) return Future.value(current);
+      final access = _controlAccess;
+      final probe = _connection?.probe;
+      final launched = access?.launched;
+      final ompChanged =
+          probe != null && launched != null && (launched.path, launched.version) != (probe.ompPath, probe.ompVersion);
+      if (!(access?.credentialsChanged ?? false) && !ompChanged) return Future.value(current);
       _control = null;
       return _controlStarting ??= current
           .stop()
@@ -670,6 +676,9 @@ final class _ControlAccess implements RunAccess {
   /// A credential was stored (`accounts.setKey`) or a login succeeded while in [bootstrap] mode.
   bool credentialsChanged = false;
 
+  /// The omp binary and version the process was last started with.
+  ({String path, String version})? launched;
+
   @override
   bool get persistent => false;
 
@@ -690,6 +699,7 @@ final class _ControlAccess implements RunAccess {
       ],
     );
     final channel = _channel = await AttachedChannel.start(ready.link, ready.probe, spec);
+    launched = (path: spec.omp, version: spec.ompVersion);
     return _ProcessChannel(channel, bootstrap ? this : null);
   }
 

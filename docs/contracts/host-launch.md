@@ -72,6 +72,10 @@ Homebrew and every directory `~/.zshrc` prepends.
 - **Attached POSIX run** (the control process): the statement from `HostProbe.loginPathExport` before omp's
   command line.
 - **One-shot `omp` CLI calls** (`runOmp`): the same statement.
+- **`omp update`** (`updateOmp`, `packages/omp_core/lib/src/host/install.dart`): the same statement, then the
+  directory of the omp the app drives in front of it. omp's updater replaces the `omp` its PATH resolves to, which
+  must be that one, not another omp earlier on the login PATH; the login PATH stays for what the updater runs
+  (`brew`, `mise`, `bun`, `npm`, `gh` for a GitHub token). On Windows only that directory goes in front.
 - The login PATH is **prepended**, never substituted: `PATH=<login PATH>:"$PATH"`. omp and the scripts keep
   finding the system directories even when the user's PATH is odd.
 - **Windows**: nothing changes. An exec session's PATH comes from the registry (machine PATH plus user

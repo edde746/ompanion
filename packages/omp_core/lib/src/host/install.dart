@@ -182,6 +182,35 @@ Future<String> uploadOmp(
   }
 }
 
+/// Runs omp's own updater, `omp update`, with the omp the app drives ([HostProbe.ompPath]). The updater installs the
+/// newest release the way the `omp` its PATH resolves to was installed (the installers' binary, Homebrew, mise, bun
+/// or npm) and checks the download against GitHub's release digest. So that binary's directory goes in front of PATH,
+/// ahead of the login shell's ([HostProbe.loginPathExport]), which stays for the tools the updater runs itself
+/// (`brew`, `mise`, `bun`, `npm`, and `gh` for a GitHub token). A binary install's old file is renamed aside, so
+/// running omp processes keep it. Returns what omp printed; throws [HostLinkException] with omp's reason when it fails.
+Future<String> updateOmp(HostLink link, HostProbe probe) async {
+  final omp = probe.ompPath;
+  if (omp == null) throw HostLinkException('omp is not installed on ${link.label}');
+  final result = probe.isWindows
+      ? await runPowerShell(
+          link,
+          probe.commandShell,
+          '\$o = ${psQuote(omp)}\n'
+          '\$env:PATH = (Split-Path -Parent \$o) + \';\' + \$env:PATH\n'
+          '& \$o update\n'
+          'exit \$LASTEXITCODE\n',
+        )
+      : await runPosixScript(
+          link,
+          '${probe.loginPathExport}\n'
+          'o=${shQuote(omp)}; d=\${o%/*}\n'
+          'PATH="\${d:-/}:\$PATH"; export PATH\n'
+          'exec "\$o" update\n',
+        );
+  if (result.exit.code != 0) throw result.failure('omp update failed');
+  return result.stdout;
+}
+
 String _posixPlaceScript(String marker, String upload, String target, String digest, String version) =>
     '''
 m=${shQuote(marker)}; f=${shQuote(upload)}; t=${shQuote(target)}; want=${shQuote(digest)}; v=${shQuote(version)}

@@ -471,6 +471,15 @@ class Translations$machines$en {
 	/// en: 'Failed: $error'
 	String failed({required Object error}) => 'Failed: ${error}';
 
+	/// en: 'Update omp'
+	String get updateOmp => 'Update omp';
+
+	/// en: 'Running omp update on the machine…'
+	String get updatingOmp => 'Running omp update on the machine…';
+
+	/// en: 'Updated omp from $from to $to. Sessions already running keep $from until their omp exits.'
+	String ompUpdated({required Object from, required Object to}) => 'Updated omp from ${from} to ${to}. Sessions already running keep ${from} until their omp exits.';
+
 	/// en: 'Trusted host keys'
 	String get hostKeys => 'Trusted host keys';
 
@@ -4253,6 +4262,9 @@ extension on Translations {
 			'machines.connecting' => 'Connecting…',
 			'machines.connectedIn' => ({required Object ms}) => 'Connected in ${ms} ms.',
 			'machines.failed' => ({required Object error}) => 'Failed: ${error}',
+			'machines.updateOmp' => 'Update omp',
+			'machines.updatingOmp' => 'Running omp update on the machine…',
+			'machines.ompUpdated' => ({required Object from, required Object to}) => 'Updated omp from ${from} to ${to}. Sessions already running keep ${from} until their omp exits.',
 			'machines.hostKeys' => 'Trusted host keys',
 			'machines.noHostKeys' => 'No host key trusted yet. The first connection asks.',
 			'machines.forgetHostKey' => 'Forget this host key',
@@ -4494,11 +4506,11 @@ extension on Translations {
 			'themeEditor.uses.selected' => 'Hover, selected rows, focused fields, tab indicators',
 			'themeEditor.uses.popover' => 'Menus and pop-up lists',
 			'themeEditor.uses.text' => 'Primary text and icons',
+			_ => null,
+		} ?? switch (path) {
 			'themeEditor.uses.textMuted' => 'Secondary text and icons',
 			'themeEditor.uses.accent' => 'Primary buttons, switches that are on, progress',
 			'themeEditor.uses.onAccent' => 'Text and icons on the accent',
-			_ => null,
-		} ?? switch (path) {
 			'themeEditor.uses.error' => 'Errors and failed runs',
 			'themeEditor.uses.errorSurface' => 'Behind error messages',
 			'themeEditor.uses.warning' => 'Warnings, paused goals and loops',
@@ -5008,11 +5020,11 @@ extension on Translations {
 			'config.accounts.sticky' => 'pinned',
 			'config.accounts.expires' => ({required Object date}) => 'expires ${date}',
 			'config.accounts.pin' => 'Pin to session',
+			_ => null,
+		} ?? switch (path) {
 			'config.accounts.pinned' => 'Account pinned to the session.',
 			'config.accounts.logout' => 'Log out',
 			'config.accounts.logoutTitle' => ({required Object account}) => 'Log out ${account}?',
-			_ => null,
-		} ?? switch (path) {
 			'config.accounts.logoutBody' => ({required Object provider}) => 'The stored credential for ${provider} is removed from this machine.',
 			'config.accounts.oauthLocal' => 'The browser opens on this computer.',
 			'config.accounts.oauthRemote' => 'The browser opens on this device; the app forwards omp\'s callback port to the machine.',

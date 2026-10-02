@@ -3,6 +3,7 @@ library;
 
 import 'dart:io';
 
+import 'package:omp_core/host.dart';
 import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:test/test.dart';
@@ -275,5 +276,33 @@ void main() {
       {'path': 'speech.enabled', 'value': false, 'provenance': 'overlay'},
     ]);
     expect(await machineRuntime.control(), same(control));
+  });
+
+  test('after omp was updated, the next control call ends the old control and starts one on the new omp', () async {
+    final machineRuntime = runtime('device-a');
+    final old = await machineRuntime.control();
+    // An update replaces the binary at the same path; a wrapper that reports the next version stands in for it.
+    final omp = '${machine.home}/.local/bin/omp';
+    final pinned = await Link(omp).target();
+    await Link(omp).delete();
+    addTearDown(() async {
+      await File(omp).delete();
+      await Link(omp).create(pinned);
+    });
+    await File(omp).writeAsString(
+      '#!/bin/sh\n[ "\$1" = --version ] && { echo omp/18.3.2; exit 0; }\nexec ${shQuote(pinned)} "\$@"\n',
+    );
+    await Process.run('chmod', ['+x', omp]);
+    expect(await machineRuntime.control(), same(old), reason: 'no probe has seen the new omp yet');
+
+    expect((await machineRuntime.reprobe()).ompVersion, '18.3.2');
+    final updated = await machineRuntime.control();
+    expect(updated, isNot(same(old)));
+    expect(old.linkState, isA<LinkClosed>());
+    expect(await machineRuntime.control(), same(updated));
+    final result = await updated.companion.call('settings.get', {
+      'paths': ['speech.enabled'],
+    });
+    expect((result! as Map<String, Object?>)['settings'], hasLength(1));
   });
 }

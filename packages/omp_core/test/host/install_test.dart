@@ -98,6 +98,47 @@ void main() {
     expect(Directory(dir).listSync(), isEmpty);
     expect(File('${temp.path}/ran').existsSync(), isFalse);
   });
+
+  /// An `omp` at [path] that runs [body] as `sh`.
+  Future<String> fakeOmp(String path, String body) async {
+    await File(path).create(recursive: true);
+    await File(path).writeAsString('#!/bin/sh\n$body\n');
+    await Process.run('chmod', ['+x', path]);
+    return path;
+  }
+
+  HostProbe probe(String omp, {String? loginPath}) => HostProbe(
+    commandShell: CommandShell.posix,
+    os: HostOs.macos,
+    kernel: 'Darwin',
+    arch: 'arm64',
+    home: temp.path,
+    agentDir: '${temp.path}/.omp/agent',
+    ompPath: omp,
+    loginPath: loginPath,
+  );
+
+  test('omp update runs the probed omp and resolves `omp` to it, ahead of another one on the login PATH', () async {
+    // omp's updater replaces the `omp` its PATH resolves to; the login PATH stays for brew, bun, npm and gh.
+    final omp = await fakeOmp('${temp.path}/bin/omp', r'printf "%s\n" "$0 $*" "$(command -v omp)" "$PATH"');
+    await fakeOmp('${temp.path}/brew/omp', 'exit 9');
+    final login = '${temp.path}/brew:/opt/tools';
+    final systemPath = LocalLink(environment: {'HOME': temp.path, 'PATH': '/usr/bin:/bin'});
+    addTearDown(systemPath.close);
+    final output = await updateOmp(systemPath, probe(omp, loginPath: login));
+    expect(output.split('\n'), ['$omp update', omp, '${temp.path}/bin:$login:/usr/bin:/bin', '']);
+  });
+
+  test('a failed omp update throws with what omp said', () async {
+    final omp = await fakeOmp(
+      '${temp.path}/bin/omp',
+      'echo "Current version: 18.3.1"; echo "Update failed: offline" >&2; exit 1',
+    );
+    await expectLater(
+      updateOmp(link, probe(omp)),
+      throwsA(isA<HostLinkException>().having((e) => e.message, 'message', contains('Update failed: offline'))),
+    );
+  });
 }
 
 /// This computer until [dropped] is set; from then on every file operation fails, as over an SSH link that went away.

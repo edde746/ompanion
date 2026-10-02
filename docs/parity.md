@@ -17,9 +17,8 @@ their own:
   `/share`, `/move`, `/wt`, `/add-dir`, `/dirs`, `/fast`, `/extended-context`, `/skillful`, `/computer`, `/browser`,
   `/prewalk`, `/advisor`, `/rename`, `/pin`, `/session delete`, `/tools`, `/dump`, `/context`, `/jobs`, `/memory`,
   `/ssh`, `/security`, `/changelog`.
-- Partly: the model catalog (no models page; the roles page refreshes the RPC model list), updating omp (the app
-  installs 18.3.1 where omp is missing or older; it never runs `omp update`), and omp's TUI theme (generic rows on
-  the settings page).
+- Partly: the model catalog (no models page; the roles page refreshes the RPC model list) and omp's TUI theme (generic
+  rows on the settings page).
 
 Route codes:
 

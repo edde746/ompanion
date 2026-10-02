@@ -59,7 +59,7 @@ decisions.
 | D9 | Desktop reads `~/.ssh/config` through `ssh -G <alias>` and lists aliases from `Host` lines and `Include`. Phones: manual entry, pasted config, or import from a desktop. | No maintained Dart parser exists. `ssh -G` gives the effective config including `Match`. |
 | D10 | Tailscale through the OS client; machines are dialed over SSH by MagicDNS name or 100.x address. Discovery: `tailscale status --json` on desktop, and machine import from a desktop (records only, never private keys). A peer added from `tailscale status` uses `none` auth (Tailscale SSH), and desktop pre-trusts its `sshHostKeys`. | User choices (OS client; CLI status and import). Phones need the Tailscale app running. `none` auth is tested against an sshd that allows it, not against a tailnet (§12). |
 | D11 | Port forwards per machine: automatic `-L` for OAuth callback ports during `login` is built; user-defined `-L` for previews and `-R 9224` for the browser relay are not. | RPC `login` redirects to the host's loopback (anthropic 54545, openai-codex 1455, …). Phones fall back to pasting the redirect URL. |
-| D12 | Bootstrap: probe (POSIX `sh -s` script; Windows `powershell -EncodedCommand`), then install with the official installer pinned to a release and `--binary` (`-Binary` on Windows), or upload a release asset and check its SHA-256. Manual mode shows the commands. The absolute omp path is stored. | Auto and manual install were both requested. Without `--binary` the installer prefers `bun install -g`; on Windows `-Ref` alone means a source install. Non-login shells and fresh Windows sessions miss the install dir on PATH. |
+| D12 | Bootstrap: probe (POSIX `sh -s` script; Windows `powershell -EncodedCommand`), then install with the official installer pinned to a release and `--binary` (`-Binary` on Windows), or upload a release asset and check its SHA-256. Manual mode shows the commands. The absolute omp path is stored. Updating is omp's own `omp update`, run from the machine page by the stored omp with its directory first on PATH (`updateOmp`), then a probe. | Auto and manual install were both requested. Without `--binary` the installer prefers `bun install -g`; on Windows `-Ref` alone means a source install. Non-login shells and fresh Windows sessions miss the install dir on PATH. `omp update` replaces the `omp` its PATH resolves to, the way that one was installed (binary, Homebrew, mise, bun, npm; a Nix install says it cannot), checking the download against GitHub's digest; a binary install's old file is renamed aside, so running sessions keep their omp until it exits. |
 | D13 | TUI sessions on the same machine are listed from disk and opened by resuming them in a new rpc process, unless another omp process still holds the file (D21). | User choice. omp has no liveness marker for a TUI holding a session (`.lock.os` is a per-write gate), so the app probes for one itself (D21, R6). |
 | D14 | The app sends a slash command as prompt text only if the live `get_available_commands` list contains it. The companion registers its channel command, `ompx`, and `goal`, `guided-goal` and `loop`, which it runs itself; any other typed TUI-only name (`/pause`, `/tree`, `/btw`, …) is not listed and is not sent; pause and the session tree have controls of their own in the app. | 40 TUI-only builtins are not handled in RPC; sent as text they reach the model as a paid turn (#13281). RPC does not reserve those names, so the companion may claim them. |
 | D15 | License GPLv3 (`LICENSE`), with no additional permissions. | User choice as the sole copyright holder, who publishes the store builds (R11). Third-party AGPL/GPL code stays out of every build, which is why the terminal is MIT (D17). |
@@ -264,7 +264,9 @@ with the login shell's PATH like every other launch (`contracts/host-launch.md`)
 machine with no usable model ("No models available"); the control then runs in bootstrap mode:
 `--model minimax/MiniMax-M2 --api-key ompanion-bootstrap`. The model is bundled in omp's catalog and has no
 discovery. `--api-key` is a runtime override that is never persisted. The channel refuses every model call (prompts other than `/ompx`, `btw` and `tree.navigate` calls, `compact`, `handoff`). After
-`accounts.setKey` or a successful `login`, the next `control()` starts a normal process.
+`accounts.setKey` or a successful `login`, the next `control()` starts a normal process. After a probe found another
+omp binary or version than the control runs (an update), the next `control()` ends it and starts one on the new omp,
+so settings and the model list (cached per omp version) come from the omp new sessions get.
 
 ### Windows hosts (and this computer on Windows)
 
@@ -390,7 +392,7 @@ Hub, todos, session tree, files, terminal. Phone: the same screens, one at a tim
 
 | Surface | Contents |
 |---|---|
-| Machines | add/edit, jump chain, keys, host-key trust, probe and install status, omp version, forwards, import/export |
+| Machines | add/edit, jump chain, keys, host-key trust, probe and install status, omp version and update, forwards, import/export |
 | Session browser | all projects on a machine, search, pin, rename, delete, fork, recent-activity warning |
 | Transcript | markdown, math, code, thinking, images, per-tool cards (bash, read, edit/write diff, eval, todo, task subagents, web, browser screenshots, tts), compaction dividers, virtualized |
 | Composer | prompt, steer, follow-up, queue list with dequeue, attachments, `@` files, `/` palette from `get_available_commands`, model and thinking pickers, context and cost meter, push-to-talk |
