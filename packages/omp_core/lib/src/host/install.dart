@@ -31,6 +31,16 @@ const ompReleases = [
     'omp-windows-arm64.exe': '401cab4f1f21ecff0952123103715976c0bdb115d676e74496a68bf012214537',
     'omp-windows-x64.exe': '66d1f0b193749782f119a776a2b02b0b71909c36ee12e8f1d310a3c53e66da26',
   }),
+  OmpRelease('18.4.12', {
+    'omp-darwin-arm64': '1a81bd323ba6d67374adf5645fe52e194671416e15c69ef17ac18e32b42c55ff',
+    'omp-darwin-x64': 'd3305b641d3e62c30f8cd5a44343d219cdc45c3ad9a6c13729df61749ff40ac6',
+    'omp-linux-arm64': '7e9c91e9f34765abfd775b8f87c00bb82d5c14025d58770fe4213791452f3182',
+    'omp-linux-musl-arm64': '27e9ccf165ec356a706b04a870c5066075a60aafd2dee2e3836da4a313b19d3f',
+    'omp-linux-musl-x64': 'f3a526cc97f49534d0e1ba349ea98bf05be0cf77930cae9dd205fe838b5a64db',
+    'omp-linux-x64': '8178466631d09c2165c19c14c92ee7f4e3e68c5f41953e8815adfb1214a64999',
+    'omp-windows-arm64.exe': 'b61df7f7849ce83c73c2a18916b8cb43ee9a236d62cddc61d884d8ee0a4659ec',
+    'omp-windows-x64.exe': '41f749a49d99fbc7daa8dfd571c20b396f4cfd4b2cd16735624bc416137f67ab',
+  }),
 ];
 
 OmpRelease? ompRelease(String version) {

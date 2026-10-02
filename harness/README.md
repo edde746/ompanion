@@ -112,6 +112,7 @@ replaces the same key of the base config wholesale; other keys are added.
 | `lsp.enabled: false` | no language servers started by tests |
 | `ttsr.enabled: false` | no stream rules interrupting scripted output |
 | `dev.autoqa: false` | no issue-reporting tool note in the system prompt |
+| `disabledProviders: [apple]` | no keyless Apple on-device model next to the fake provider (omp 18.4.12 offers it on Apple silicon Macs with Apple Intelligence; it changes model lists and keeps a home without credentials from refusing rpc mode) |
 
 RPC mode itself turns off title generation, the advisor and memory.
 
@@ -141,7 +142,8 @@ server shares its cycle among all its sessions.
 
 `dev-machine.sh <home> <port>` runs `omp-home.sh <home> <port>`, adds `modelRoles.default: fake/fake-1`
 so an omp started without `--model` uses the fake provider, links `<home>/.local/bin/omp` to
-`.tools/omp/18.3.1/omp-<darwin-arm64|linux-arm64|linux-x64>` and creates `<home>/demo-project/README.md`
+`.tools/omp/<version>/omp-<darwin-arm64|linux-arm64|linux-x64>` (`harness/omp-version`, or `$OMP_VERSION`) and
+creates `<home>/demo-project/README.md`
 unless it exists. It prints `HOME=<home>` and `OMP=<home>/.local/bin/omp` as absolute paths and can run
 again, e.g. after changing the port. Open sessions in `<home>/demo-project`: demo scenario 3 edits the
 `README.md` of the session's directory.
@@ -179,7 +181,8 @@ shared by all sessions:
 bun harness/record.ts <scenario|all> harness/fixtures
 ```
 
-Needs `.tools/omp/18.3.1/omp-<platform>-<arch>` (`scripts/fetch_omp.sh`). Each scenario gets its own
+Needs the tested omp in `.tools/omp/<version>/omp-<platform>-<arch>` (`harness/omp-version`, or `$OMP_VERSION`;
+`scripts/fetch_omp.sh`); the checked-in fixtures were recorded with `OMP_VERSION=18.3.1`. Each scenario gets its own
 fake provider, home and working directory in the system temp directory. The recorder fails, and keeps
 that directory with `out.jsonl`, `in.jsonl` and `requests.json`, when a model request got the default
 reply, a scripted turn went unused, a command failed, or omp exited non-zero. After writing it re-reads
@@ -196,7 +199,7 @@ ports, durations and `auto_retry_start.delayMs` change between recordings; the f
 not.
 
 `companion-*` scenarios need the built companion (`cd companion && bun run build`). The recorder copies
-`companion/dist/ompx.js` to `<home>/.ompanion/companion/18.3.1/ompx.js`, where the app uploads it on a
+`companion/dist/ompx.js` to `<home>/.ompanion/companion/<version>/ompx.js`, where the app uploads it on a
 host, and starts omp with `-e` on that copy. `available_commands_update` then also lists `ompx`
 (`source: "extension"`). Companion calls are prompts `/ompx {"callId":"recorder:<id>",…}` with RPC id
 `<id>`; each gets its `response`, the `ompx` `reply` and a `prompt_result` with `agentInvoked: false`.

@@ -10,8 +10,9 @@ import 'package:test/test.dart';
 
 import 'support.dart';
 
-/// MachineRuntime and LiveSession against omp 18.3.1 on this computer: an isolated dev machine, the fake provider,
-/// the built companion. Needs `bun`, this computer's omp in `.tools/omp/18.3.1/` and `companion/dist/ompx.js`.
+/// MachineRuntime and LiveSession against the tested omp on this computer: an isolated dev machine, the fake provider,
+/// the built companion. Needs `bun`, this computer's omp in `.tools/omp/<version>/` (`scripts/fetch_omp.sh`) and
+/// `companion/dist/ompx.js`.
 void main() {
   late FakeProvider fake;
   late DevMachine machine;
@@ -281,7 +282,7 @@ void main() {
   test('after omp was updated, the next control call ends the old control and starts one on the new omp', () async {
     final machineRuntime = runtime('device-a');
     final old = await machineRuntime.control();
-    // An update replaces the binary at the same path; a wrapper that reports the next version stands in for it.
+    // An update replaces the binary at the same path; a wrapper that reports another version stands in for it.
     final omp = '${machine.home}/.local/bin/omp';
     final pinned = await Link(omp).target();
     await Link(omp).delete();
@@ -290,12 +291,12 @@ void main() {
       await Link(omp).create(pinned);
     });
     await File(omp).writeAsString(
-      '#!/bin/sh\n[ "\$1" = --version ] && { echo omp/18.3.2; exit 0; }\nexec ${shQuote(pinned)} "\$@"\n',
+      '#!/bin/sh\n[ "\$1" = --version ] && { echo omp/99.0.0; exit 0; }\nexec ${shQuote(pinned)} "\$@"\n',
     );
     await Process.run('chmod', ['+x', omp]);
     expect(await machineRuntime.control(), same(old), reason: 'no probe has seen the new omp yet');
 
-    expect((await machineRuntime.reprobe()).ompVersion, '18.3.2');
+    expect((await machineRuntime.reprobe()).ompVersion, '99.0.0');
     final updated = await machineRuntime.control();
     expect(updated, isNot(same(old)));
     expect(old.linkState, isA<LinkClosed>());

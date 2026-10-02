@@ -24,11 +24,12 @@ barrel file re-exporting everything.
 
 ## Running omp in tests
 
-- Binaries: `.tools/omp/18.3.1/omp-<os>-<arch>`, fetched by `scripts/fetch_omp.sh <os>-<arch>...` (e.g.
+- Binaries: `.tools/omp/<version>/omp-<os>-<arch>`, fetched by `scripts/fetch_omp.sh <os>-<arch>...` (e.g.
   `darwin-arm64 linux-arm64` for a macOS host and the Linux SSH test machines) and SHA-256 checked
-  against the release's `SHA256SUMS.txt`. Dart tests pick them through `packages/omp_core/test/omp_binary.dart`
-  (this computer's, and Docker's architecture for the SSH test machines); Bun tests by `process.platform`
-  and `process.arch`.
+  against the release's `SHA256SUMS.txt`. The version is the tested one in `harness/omp-version`, or
+  `$OMP_VERSION` for every script and test (`OMP_VERSION=18.3.1` runs the minimum). Dart tests pick the binary
+  through `packages/omp_core/test/omp_binary.dart` (this computer's, and Docker's architecture for the SSH test
+  machines); Bun tests through `harness/omp-home.ts`, by `process.platform` and `process.arch`.
 - Always run omp with an isolated `HOME` (a temp dir). Never touch the real `~/.omp`: it holds the
   user's sessions and credentials, and a running omp's natives cache is deleted by a newer omp.
 - omp refuses to start RPC mode without a model. The isolated home gets a `models.yml` pointing at the

@@ -51,8 +51,10 @@ providers:
 EOF
 
 # Off: network checks (updates, marketplace), host side effects (sleep assertions), processes the
-# fixtures do not need (LSP servers), and stream rules that could interrupt scripted output (TTSR).
-# RPC mode already disables title generation, advisor and memory.
+# fixtures do not need (LSP servers), stream rules that could interrupt scripted output (TTSR), and the
+# keyless Apple on-device model, which omp offers on Apple silicon Macs with Apple Intelligence (measured with
+# omp 18.4.12 on macOS 27), so the fake provider stays the only one. RPC mode already disables title generation,
+# advisor and memory.
 base='startup:
   checkUpdate: false
 marketplace:
@@ -64,7 +66,9 @@ lsp:
 ttsr:
   enabled: false
 dev:
-  autoqa: false'
+  autoqa: false
+disabledProviders:
+  - apple'
 
 if [ -z "$extra" ]; then
 	printf '%s\n' "$base" >"$agent/config.yml"

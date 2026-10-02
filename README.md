@@ -125,7 +125,8 @@ Or build it yourself: [Building from Source](#building-from-source).
 ### Prerequisites
 - Flutter SDK 3.47.0+
 - [Bun](https://bun.sh), to build the companion extension
-- omp 18.3.1 or newer on each machine you connect to; the app can install 18.3.1 on a machine that lacks it
+- omp 18.3.1 or newer on each machine you connect to; the app can install omp 18.4.12 on a machine that lacks it
+  and update omp with `omp update` from the machine's page
 
 ### Setup
 
@@ -151,7 +152,7 @@ Without it `pubspec.yaml` names a missing asset and the build fails; a build tha
 <details>
 <summary>Dev machine</summary>
 
-Run the app against an isolated omp home and the fake provider, never your real `~/.omp`. It needs the omp 18.3.1 [release binary](https://github.com/can1357/oh-my-pi/releases/tag/v18.3.1) for your platform in `.tools/omp/18.3.1/`; `scripts/fetch_omp.sh` downloads it there and checks it against the release's `SHA256SUMS.txt`.
+Run the app against an isolated omp home and the fake provider, never your real `~/.omp`. It needs the tested omp [release binary](https://github.com/can1357/oh-my-pi/releases) for your platform (the version in `harness/omp-version`, or `$OMP_VERSION`) in `.tools/omp/<version>/`; `scripts/fetch_omp.sh` downloads it there and checks it against the release's `SHA256SUMS.txt`.
 
 ```bash
 scripts/fetch_omp.sh darwin-arm64                          # or linux-x64, linux-arm64

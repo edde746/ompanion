@@ -1,10 +1,17 @@
 /**
- * Bun helpers for running a real omp against the fake provider: the same home `omp-home.sh` writes,
- * and an environment that keeps the user's own omp configuration, profiles and API keys out.
+ * Bun helpers for running a real omp against the fake provider: the tested omp binary, the same home
+ * `omp-home.sh` writes, and an environment that keeps the user's own omp configuration, profiles and API keys out.
  */
+import * as fs from "node:fs";
 import * as path from "node:path";
 
 const SCRIPT = path.join(import.meta.dir, "omp-home.sh");
+
+/** The omp version the tests run: `$OMP_VERSION`, else `harness/omp-version`. */
+export const OMP_VERSION = process.env.OMP_VERSION || fs.readFileSync(path.join(import.meta.dir, "omp-version"), "utf8").trim();
+
+/** This computer's release binary of [OMP_VERSION], where `scripts/fetch_omp.sh` puts it. */
+export const OMP_BINARY = path.join(import.meta.dir, "..", ".tools", "omp", OMP_VERSION, `omp-${process.platform}-${process.arch}`);
 
 /** Runs `harness/omp-home.sh`; `extraConfigYaml` becomes its third argument. */
 export async function createOmpHome(home: string, port: number, extraConfigYaml?: string): Promise<void> {

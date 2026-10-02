@@ -12,7 +12,7 @@ import 'package:test/test.dart';
 
 import 'support.dart';
 
-/// Sessions the app did not start, against omp 18.3.1 on this computer with the fake provider:
+/// Sessions the app did not start, against the tested omp on this computer with the fake provider:
 ///
 /// - another omp process holds the session file (a second writer must never be launched; the app reads the file),
 /// - a run the app started that is already busy when a device attaches (the attaching device must see it running,

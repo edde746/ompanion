@@ -45,9 +45,9 @@ void main() {
     expect(commands.firstWhere((command) => command.name == 'ompx').source, 'extension');
   });
 
-  test('hello reports the companion, omp 18.3.1 and the output channel', () async {
+  test('hello reports the companion, the omp version and the output channel', () async {
     final hello = await companion.hello();
-    expect(hello.ompVersion, '18.3.1');
+    expect(hello.ompVersion, testedOmpVersion);
     expect(hello.channel, CompanionChannel.output);
     expect(hello.verbs, contains('hello'));
   });

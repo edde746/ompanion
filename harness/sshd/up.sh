@@ -1,7 +1,8 @@
 #!/bin/sh
 # Starts the SSH test machines on docker network omp-sshd, recreating them if present:
 #   bastion  127.0.0.1:22220
-#   target   127.0.0.1:22221, and target:22 from the bastion; omp 18.3.1 at /home/omp/.local/bin/omp
+#   target   127.0.0.1:22221, and target:22 from the bastion; the tested omp ($OMP_VERSION, else
+#            harness/omp-version) at /home/omp/.local/bin/omp
 # Users: omp (key), pw (password), kbd (password as a keyboard-interactive prompt), nopw (`none` auth).
 # Password for pw and kbd: omp-test-password.
 # Both resolve host.docker.internal to Docker's host gateway: this computer's loopback under colima, the
@@ -19,9 +20,10 @@ keys="$root/.tools/ssh-test"
 image=omp-sshd:test
 network=omp-sshd
 
+version=${OMP_VERSION:-$(tr -d '[:space:]' <"$root/harness/omp-version")}
 case "$(docker version --format '{{.Server.Arch}}')" in
-  arm64 | aarch64) omp="$root/.tools/omp/18.3.1/omp-linux-arm64" ;;
-  amd64 | x86_64) omp="$root/.tools/omp/18.3.1/omp-linux-x64" ;;
+  arm64 | aarch64) omp="$root/.tools/omp/$version/omp-linux-arm64" ;;
+  amd64 | x86_64) omp="$root/.tools/omp/$version/omp-linux-x64" ;;
   *) echo "unsupported docker architecture" >&2; exit 1 ;;
 esac
 [ -x "$omp" ] || { echo "missing $omp" >&2; exit 1; }

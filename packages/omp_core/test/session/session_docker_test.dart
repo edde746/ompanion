@@ -100,7 +100,7 @@ void main() {
     final first = runtime('device-a');
     final probe = await first.connectAndProbe();
     expect(first.status, isA<MachineOnline>());
-    expect((probe.os, probe.ompVersion), (HostOs.linux, '18.3.1'));
+    expect((probe.os, probe.ompVersion), (HostOs.linux, testedOmpVersion));
 
     final session = await first.open(const NewSession(project, model: 'fake/fake-1'));
     final path = session.sessionPath!;

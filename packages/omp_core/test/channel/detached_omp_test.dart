@@ -36,7 +36,7 @@ void main() {
   test('the probe finds the isolated omp and nothing of the user', () {
     expect(probe.releaseAsset, thisComputer.releaseAsset);
     expect(probe.ompPath, '${host.home}/.local/bin/omp');
-    expect(probe.ompVersion, '18.3.1');
+    expect(probe.ompVersion, testedOmpVersion);
     expect(probe.agentDir, '${host.home}/.omp/agent');
   });
 

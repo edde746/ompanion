@@ -1,6 +1,7 @@
 /**
- * Drives a real omp 18.3.1 `--mode rpc-ui` process with the built companion (`dist/ompx.js`) over
- * JSONL RPC, against the fake provider in an isolated HOME. Used by the `*.e2e.test.ts` files.
+ * Drives a real omp `--mode rpc-ui` process (the tested version: `$OMP_VERSION`, else `harness/omp-version`) with
+ * the built companion (`dist/ompx.js`) over JSONL RPC, against the fake provider in an isolated HOME. Used by the
+ * `*.e2e.test.ts` files.
  *
  *   const omp = await OmpDriver.start();
  *   await omp.fake.enqueue({ steps: [{ text: "hi" }] });
@@ -14,14 +15,12 @@ import { tmpdir } from "node:os";
 import * as path from "node:path";
 import type { Subprocess } from "bun";
 import { FakeProvider, type RecordedRequest } from "../../harness/fake-provider/client.ts";
-import { createOmpHome, ompEnv } from "../../harness/omp-home.ts";
+import { createOmpHome, OMP_BINARY, OMP_VERSION, ompEnv } from "../../harness/omp-home.ts";
 import { isRecord } from "../src/args.ts";
 import type { EventFrame, ReplyErrorFrame, ReplyOkFrame, RequestFrame } from "../src/channel.ts";
 import type { ErrorCode } from "../src/protocol.ts";
 
-export const OMP_VERSION = "18.3.1";
-const REPO = path.join(import.meta.dir, "..", "..");
-export const OMP_BINARY = path.join(REPO, ".tools", "omp", OMP_VERSION, `omp-${process.platform}-${process.arch}`);
+export { OMP_VERSION };
 export const COMPANION = path.join(import.meta.dir, "..", "dist", "ompx.js");
 const DEFAULT_TIMEOUT_MS = 15_000;
 

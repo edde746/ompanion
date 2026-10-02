@@ -6,8 +6,14 @@ import 'package:omp_core/host.dart';
 /// Repository root; tests run from packages/omp_core.
 final String repoRoot = Directory.current.parent.parent.path;
 
-/// An omp 18.3.1 release asset in `.tools/`, where `scripts/fetch_omp.sh` puts it.
-String ompAsset(String name) => '$repoRoot/.tools/omp/18.3.1/$name';
+/// The omp version the tests run: `$OMP_VERSION`, else `harness/omp-version`.
+final String testedOmpVersion = switch (Platform.environment['OMP_VERSION']) {
+  final version? when version.isNotEmpty => version,
+  _ => File('$repoRoot/harness/omp-version').readAsStringSync().trim(),
+};
+
+/// A release asset of [testedOmpVersion] in `.tools/`, where `scripts/fetch_omp.sh` puts it.
+String ompAsset(String name) => '$repoRoot/.tools/omp/$testedOmpVersion/$name';
 
 /// This computer as a probe of it reads (glibc on Linux); its [HostProbe.releaseAsset] names [ompBinary].
 final HostProbe thisComputer = HostProbe(
@@ -17,14 +23,14 @@ final HostProbe thisComputer = HostProbe(
   arch: switch (Abi.current()) {
     Abi.macosArm64 || Abi.linuxArm64 => 'arm64',
     Abi.macosX64 || Abi.linuxX64 => 'x64',
-    final abi => throw UnsupportedError('omp 18.3.1 has no build for $abi'),
+    final abi => throw UnsupportedError('omp has no build for $abi'),
   },
   libc: Platform.isLinux ? 'glibc' : null,
   home: '/unused',
   agentDir: '/unused',
 );
 
-/// The omp 18.3.1 release binary for this computer.
+/// The [testedOmpVersion] release binary for this computer.
 String get ompBinary => ompAsset(thisComputer.releaseAsset!);
 
 /// The architecture of the Docker test machines as omp names it: Docker's server architecture, mapped as
@@ -35,6 +41,6 @@ Future<String> dockerArch() async {
   return switch ((result.stdout as String).trim()) {
     'arm64' || 'aarch64' => 'arm64',
     'amd64' || 'x86_64' => 'x64',
-    final arch => throw UnsupportedError('omp 18.3.1 has no build for docker architecture $arch'),
+    final arch => throw UnsupportedError('omp has no build for docker architecture $arch'),
   };
 }

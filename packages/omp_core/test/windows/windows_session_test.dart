@@ -96,7 +96,7 @@ void main() {
       ]);
       final first = runtime('device-a');
       final probed = await first.connectAndProbe();
-      expect((probed.os, probed.ompVersion), (HostOs.windows, '18.3.1'));
+      expect((probed.os, probed.ompVersion), (HostOs.windows, testedOmpVersion));
 
       final session = await first.open(NewSession(project, model: 'fake/fake-1'));
       final path = session.sessionPath!;

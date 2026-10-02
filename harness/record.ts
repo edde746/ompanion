@@ -1,5 +1,5 @@
 /**
- * Records RPC fixtures from a real omp: runs `.tools/omp/18.3.1/omp-<os>-<arch> --mode rpc-ui` in an
+ * Records RPC fixtures from a real omp: runs the tested omp (`OMP_BINARY`, harness/omp-home.ts) `--mode rpc-ui` in an
  * isolated home against the fake provider, negotiates protocol v2, drives one scenario and writes
  * `<out-dir>/<scenario>.out.jsonl` (omp stdout, byte for byte) and `<scenario>.in.jsonl` (every line
  * sent, in order). Every scenario ends with `{"id":"final-messages","type":"get_messages"}` once the
@@ -13,9 +13,8 @@ import * as path from "node:path";
 import type { Subprocess } from "bun";
 import { FakeProvider } from "./fake-provider/client.ts";
 import { isRecord } from "./json.ts";
-import { createOmpHome, ompEnv } from "./omp-home.ts";
+import { createOmpHome, OMP_BINARY, OMP_VERSION, ompEnv } from "./omp-home.ts";
 
-const OMP = path.join(import.meta.dir, "..", ".tools", "omp", "18.3.1", `omp-${process.platform}-${process.arch}`);
 const WAIT_MS = 30_000;
 const EXIT_WAIT_MS = 15_000;
 
@@ -75,7 +74,7 @@ class OmpProcess {
 	#failure: Error | undefined;
 
 	constructor(args: string[], cwd: string, home: string) {
-		this.#proc = Bun.spawn([OMP, "--mode", "rpc-ui", ...args], {
+		this.#proc = Bun.spawn([OMP_BINARY, "--mode", "rpc-ui", ...args], {
 			cwd,
 			env: ompEnv(home),
 			stdin: "pipe",
@@ -239,7 +238,7 @@ const COMPANION = path.join(import.meta.dir, "..", "companion", "dist", "ompx.js
  */
 async function withCompanion({ home }: Context): Promise<string[]> {
 	if (!fs.existsSync(COMPANION)) throw new Error(`companion not built: run \`cd companion && bun run build\` (${COMPANION})`);
-	const target = path.join(home, ".ompanion", "companion", "18.3.1", "ompx.js");
+	const target = path.join(home, ".ompanion", "companion", OMP_VERSION, "ompx.js");
 	fs.mkdirSync(path.dirname(target), { recursive: true });
 	fs.copyFileSync(COMPANION, target);
 	return ["-e", target];
@@ -888,7 +887,7 @@ if (import.meta.main) {
 		for (const [scenarioName, { summary }] of Object.entries(SCENARIOS)) console.error(`  ${scenarioName}: ${summary}`);
 		process.exit(2);
 	}
-	if (!fs.existsSync(OMP)) throw new Error(`omp binary missing: ${OMP}`);
+	if (!fs.existsSync(OMP_BINARY)) throw new Error(`omp binary missing: ${OMP_BINARY}`);
 	fs.mkdirSync(outDir, { recursive: true });
 	for (const [scenarioName, scenario] of Object.entries(SCENARIOS)) {
 		if (name === "all" || name === scenarioName) await record(scenarioName, scenario, outDir);

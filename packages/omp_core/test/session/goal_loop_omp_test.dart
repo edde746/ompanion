@@ -9,8 +9,8 @@ import 'package:test/test.dart';
 
 import 'support.dart';
 
-/// Goal mode and loop mode run in the companion inside omp, so they go on while no device is attached. omp 18.3.1 on
-/// this computer, the fake provider, the built companion (see session_omp_test.dart).
+/// Goal mode and loop mode run in the companion inside omp, so they go on while no device is attached. The tested omp
+/// on this computer, the fake provider, the built companion (see session_omp_test.dart).
 void main() {
   late FakeProvider fake;
   late DevMachine machine;

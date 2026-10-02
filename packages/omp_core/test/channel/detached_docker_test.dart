@@ -71,7 +71,7 @@ void main() {
     expect(probe.arch, arch);
     expect(probe.libc, 'glibc');
     expect(probe.ompPath, '${probe.home}/.local/bin/omp');
-    expect(probe.ompVersion, '18.3.1');
+    expect(probe.ompVersion, testedOmpVersion);
     expect(probe.releaseAsset, 'omp-linux-$arch');
   });
 
@@ -191,11 +191,11 @@ void main() {
     final installed = await uploadOmp(
       link,
       probe,
-      '18.3.1',
+      testedOmpVersion,
       asset: File(asset).openRead(),
       installDir: '${probe.home}/upload',
     );
     final version = await runPosixScript(link, '${shQuote(installed)} --version');
-    expect(version.stdout.trim(), 'omp/18.3.1');
+    expect(version.stdout.trim(), 'omp/$testedOmpVersion');
   }, timeout: const Timeout(Duration(minutes: 10)));
 }

@@ -71,7 +71,7 @@ String _inJson(String text) {
   return encoded.substring(1, encoded.length - 1);
 }
 
-/// omp 18.3.1 against the fake provider: what a prompt with an uploaded file, a paste, a large paste and an image
+/// The tested omp against the fake provider: what a prompt with an uploaded file, a paste, a large paste and an image
 /// makes omp send to the model.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

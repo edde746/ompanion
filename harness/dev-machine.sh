@@ -1,7 +1,8 @@
 #!/bin/sh
 # Prepares a local dev machine for the app: an isolated omp home wired to the fake provider on
-# 127.0.0.1:<port> (omp-home.sh), `<home>/.local/bin/omp` linked to the repository's pinned omp, and
-# `<home>/demo-project/README.md`, the file the fake provider's `--demo` rotation reads and edits.
+# 127.0.0.1:<port> (omp-home.sh), `<home>/.local/bin/omp` linked to the tested omp in .tools/
+# ($OMP_VERSION, else harness/omp-version), and `<home>/demo-project/README.md`, the file the fake
+# provider's `--demo` rotation reads and edits.
 #
 #   harness/dev-machine.sh <home> <port>
 #
@@ -23,7 +24,8 @@ Linux-x86_64) platform=linux-x64 ;;
 	exit 1
 	;;
 esac
-omp=$(dirname "$harness")/.tools/omp/18.3.1/omp-$platform
+version=${OMP_VERSION:-$(tr -d '[:space:]' <"$harness/omp-version")}
+omp=$(dirname "$harness")/.tools/omp/$version/omp-$platform
 if [ ! -x "$omp" ]; then
 	echo "omp binary missing: $omp" >&2
 	exit 1

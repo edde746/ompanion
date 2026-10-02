@@ -26,7 +26,7 @@ void main() {
       final asset = File(ompAsset(request.uri.pathSegments.last));
       if (request.uri.pathSegments.first == 'tampered') {
         // The expected version and a trace: only the digest check keeps it from running and being installed.
-        response.write('#!/bin/sh\ntouch "\$HOME/tampered-ran"\necho omp/18.3.1\n');
+        response.write('#!/bin/sh\ntouch "\$HOME/tampered-ran"\necho omp/$testedOmpVersion\n');
       } else if (request.uri.pathSegments.first == 'release' && asset.existsSync()) {
         response.contentLength = asset.lengthSync();
         await response.addStream(asset.openRead());
@@ -83,7 +83,7 @@ printf '%s' "\$d"
   for (final tool in ['curl', 'wget']) {
     test('$tool downloads the release asset, which is checked and installed', () async {
       requests.clear();
-      final script = posixInstallCommand(probe, '18.3.1', assetBase: base('release'));
+      final script = posixInstallCommand(probe, testedOmpVersion, assetBase: base('release'));
       final result = await runPosixScript(
         link,
         tool == 'curl' ? script : withPath(await pathWithout(['curl']), script),
@@ -94,7 +94,7 @@ printf '%s' "\$d"
       final installed = await runPosixScript(link, 'ls -A "\$HOME/.local/bin"; "\$HOME/.local/bin/omp" --version');
       expect(
         installed.stdout,
-        'omp\nomp/18.3.1\n',
+        'omp\nomp/$testedOmpVersion\n',
         reason: 'the download was moved into place, nothing left beside it',
       );
     }, timeout: const Timeout(Duration(minutes: 5)));
@@ -104,7 +104,7 @@ printf '%s' "\$d"
     final dir = '${probe.home}/tampered';
     final result = await runPosixScript(
       link,
-      posixInstallCommand(probe, '18.3.1', installDir: dir, assetBase: base('tampered')),
+      posixInstallCommand(probe, testedOmpVersion, installDir: dir, assetBase: base('tampered')),
     );
     expect(result.exit.code, 1);
     expect(result.stderr, contains('SHA-256 mismatch'));

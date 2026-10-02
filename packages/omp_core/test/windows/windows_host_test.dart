@@ -85,18 +85,18 @@ void main() {
     final installed = await runPowerShell(
       link,
       probe.commandShell,
-      windowsInstallCommand(probe, '18.3.1', installDir: good, assetBase: base('release')),
+      windowsInstallCommand(probe, testedOmpVersion, installDir: good, assetBase: base('release')),
     );
     expect(installed.exit.code, 0, reason: installed.stderr);
     expect(Directory(good).listSync().map((e) => e.uri.pathSegments.last), ['omp.exe']);
     final version = await Process.run('$good\\omp.exe', ['--version']);
-    expect('${version.stdout}'.trim(), 'omp/18.3.1');
+    expect('${version.stdout}'.trim(), 'omp/$testedOmpVersion');
 
     final bad = '${scratch.path}\\omp bad';
     final refused = await runPowerShell(
       link,
       probe.commandShell,
-      windowsInstallCommand(probe, '18.3.1', installDir: bad, assetBase: base('tampered')),
+      windowsInstallCommand(probe, testedOmpVersion, installDir: bad, assetBase: base('tampered')),
     );
     expect(refused.exit.code, isNot(0));
     expect(refused.stderr, contains('SHA-256 mismatch'));

@@ -229,16 +229,35 @@ jobs:
         run: docker build --tag ompanion-push-relay .
 
   integration:
-    name: Integration (omp and Docker)
+    name: Integration (omp ${{ matrix.omp }}, Docker)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       contents: read
+    # The tested omp (harness/omp-version, what every other job runs) and the oldest one the app drives
+    # (minimumOmpVersion): a companion that works on one can fail on the other.
+    strategy:
+      fail-fast: false
+      matrix:
+        omp: [tested, minimum]
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+
+      # Every later step, the scripts and the tests read OMP_VERSION.
+      - name: Choose the omp version
+        env:
+          MATRIX_OMP: ${{ matrix.omp }}
+        run: |
+          if [ "$MATRIX_OMP" = minimum ]; then
+            version=$(sed -n "s/^const minimumOmpVersion = '\(.*\)';\$/\1/p" packages/omp_core/lib/src/host/probe.dart)
+          else
+            version=$(tr -d '[:space:]' <harness/omp-version)
+          fi
+          [ -n "$version" ] || { echo "no omp version for $MATRIX_OMP" >&2; exit 1; }
+          echo "OMP_VERSION=$version" >>"$GITHUB_ENV"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -302,7 +321,7 @@ jobs:
         run: harness/sshd/down.sh
 
   # The Windows machine support end to end: this runner's own Win32-OpenSSH server, reached over dartssh2 with key
-  # authentication, runs the omp_core tests tagged windows (test/windows/) with the pinned omp and the fake provider.
+  # authentication, runs the omp_core tests tagged windows (test/windows/) with the tested omp and the fake provider.
   windows-host:
     name: Windows host (Win32-OpenSSH)
     runs-on: windows-latest

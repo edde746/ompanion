@@ -52,7 +52,7 @@ final _machine = SshMachine(
   target: const SshEndpoint(id: 'm1', host: 'dev.example', user: 'me', auth: AuthMethod.agent),
 );
 
-/// omp 18.3.1 against the fake provider: a model tagged in the composer becomes omp's pseudonym `m1`, the message
+/// The tested omp against the fake provider: a model tagged in the composer becomes omp's pseudonym `m1`, the message
 /// carries its tag, and `task` with `agent: "m1"` runs a subagent on that model.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

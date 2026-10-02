@@ -25,10 +25,16 @@ void main() {
 
   test('uploading the release asset installs a working omp', () async {
     final dir = '${temp.path}/bin';
-    final installed = await uploadOmp(link, thisComputer, '18.3.1', asset: File(ompBinary).openRead(), installDir: dir);
+    final installed = await uploadOmp(
+      link,
+      thisComputer,
+      testedOmpVersion,
+      asset: File(ompBinary).openRead(),
+      installDir: dir,
+    );
     expect(installed, '$dir/omp');
     final version = await Process.run(installed, ['--version'], environment: {'HOME': temp.path});
-    expect((version.stdout as String).trim(), 'omp/18.3.1');
+    expect((version.stdout as String).trim(), 'omp/$testedOmpVersion');
     expect(Directory(dir).listSync().map((e) => e.path), ['$dir/omp']);
   });
 
@@ -43,14 +49,14 @@ void main() {
     final dir = '${temp.path}/bin';
     final script = posixInstallCommand(
       thisComputer,
-      '18.3.1',
+      testedOmpVersion,
       installDir: dir,
       assetBase: Uri.parse('http://127.0.0.1:${server.port}/'),
     );
     final result = await Process.run('/bin/sh', ['-c', script], environment: {'HOME': temp.path});
     expect(result.exitCode, 0, reason: '${result.stderr}');
     final version = await Process.run('$dir/omp', ['--version'], environment: {'HOME': temp.path});
-    expect((version.stdout as String).trim(), 'omp/18.3.1');
+    expect((version.stdout as String).trim(), 'omp/$testedOmpVersion');
     expect(Directory(dir).listSync().map((e) => e.path), ['$dir/omp']);
   });
 }

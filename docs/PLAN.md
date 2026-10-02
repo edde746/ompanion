@@ -39,7 +39,7 @@ decisions.
 - Host platforms: macOS, Linux, Windows.
 - Beyond omp: integrated terminal, file explorer and editor, port forwards, notifications (push on phones, local on
   desktops).
-- omp versions: 18.3.1 (the newest release today) and every later release as it ships. Nothing older.
+- omp versions: 18.3.1 and every later release as it ships. Nothing older.
 - Out of scope: T3-style git/PR panels, worktree-per-thread orchestration,
   live attach to running TUI sessions, omp's `/git` overlay, `omp commit`, collab, recording and
   streaming, Codex realtime voice (omp's `/live` model), plan mode and plan review, vibe mode.
@@ -379,10 +379,13 @@ logic in the app would stop with it.
   phone registered in `~/.ompanion/push/` when a dialog opens, a run settles or a run fails, and posts it to the relay;
   `notify.test` sends one on request. Texts, triggers and the relay API: `contracts/push.md`.
 
-Version policy: the app drives omp 18.3.1 and later (`minimumOmpVersion`, `packages/omp_core/lib/src/host/probe.dart`).
-One companion build serves every such release and feature-checks what it uses (`lib/sessions/companion_asset.dart`);
-an omp release that breaks it needs a build of its own. CI runs the companion's tests against 18.3.1. A machine
-whose omp is older gets the install offer; a newer omp gets the same build and no warning.
+Version policy: the app drives omp 18.3.1 and later (`minimumOmpVersion`, `packages/omp_core/lib/src/host/probe.dart`)
+and installs the newest release it has digests for (`ompReleases`, `packages/omp_core/lib/src/host/install.dart`:
+18.4.12). One companion build serves every such release and feature-checks what it uses
+(`lib/sessions/companion_asset.dart`); an omp release that breaks it needs a build of its own. The tests run the
+omp named in `harness/omp-version` (18.4.12), and CI's integration job runs the omp and Docker tests and the
+companion's end-to-end tests against both that omp and the minimum. A machine whose omp is older gets the install
+offer; a newer omp gets the same build and no warning.
 
 ## 7. Surfaces
 

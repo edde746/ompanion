@@ -1,21 +1,22 @@
 #!/bin/sh
 # Downloads omp release binaries into .tools/omp/<version>/, where the tests and harness/ scripts find
-# them, and checks each against the release's SHA256SUMS.txt:
+# them, and checks each against the release's SHA256SUMS.txt. The version is $OMP_VERSION, else the one the
+# tests run by default (harness/omp-version):
 #
 #   scripts/fetch_omp.sh <platform-arch>...     e.g. darwin-arm64 linux-x64 linux-arm64 windows-x64
+#   OMP_VERSION=18.3.1 scripts/fetch_omp.sh darwin-arm64
 #
 # A binary already present with the right checksum is kept. A download that does not match is deleted
 # and the script exits 1.
 set -eu
-
-version=18.3.1
-release="https://github.com/can1357/oh-my-pi/releases/download/v$version"
 
 if [ $# -eq 0 ]; then
   echo "usage: $0 <platform-arch>...   e.g. darwin-arm64 linux-x64" >&2
   exit 2
 fi
 root=$(cd "$(dirname "$0")/.." && pwd)
+version=${OMP_VERSION:-$(tr -d '[:space:]' <"$root/harness/omp-version")}
+release="https://github.com/can1357/oh-my-pi/releases/download/v$version"
 dir="$root/.tools/omp/$version"
 mkdir -p "$dir"
 
