@@ -15,10 +15,10 @@ const inlineAppendLimit = 64 * 1024;
 
 /// A [RunChannel] to a run on a POSIX machine, over exec channels: [followScript] for [lines] (with `tail -F`),
 /// `tail -F in.jsonl` for [inbox] (started on listen), and a long-running appender that adds each sent line to
-/// `in.jsonl` under the `in.lock` `mkdir` lock (started on the first [send]). Each script ends when its stdin closes,
+/// `in.jsonl` under the `in.lock` `mkdir` lock (started with the attach). Each script ends when its stdin closes,
 /// so nothing outlives the channel on the machine, even when the connection drops.
 final class DetachedChannel implements RunChannel {
-  DetachedChannel._(this._link, this.dir, this._inboxFrom, this._log);
+  DetachedChannel._(this._link, this.dir, this._inboxFrom);
 
   /// Attaches to the run in [dir] (host path). See `attachRun` for [generation], [offset], [inboxOffset] and [tools];
   /// [window] is [attachWindow].
@@ -31,17 +31,27 @@ final class DetachedChannel implements RunChannel {
     int? inboxOffset,
     int window = attachWindow,
   }) async {
-    final log = await LogFollower.start(
-      link,
-      CommandShell.posix,
-      FollowSource.tail,
-      dir,
-      tools,
-      generation: generation,
-      offset: offset,
-      window: window,
-    );
-    return DetachedChannel._(link, dir, inboxOffset, log);
+    final channel = DetachedChannel._(link, dir, inboxOffset);
+    // Started alongside the log follower: the client's first send (`negotiate_protocol`, right after `ready` or the
+    // attach) waited up to 190 ms for this exec channel and its script over SSH to an M3 MacBook Air. A failed start
+    // reaches the sends.
+    channel._appender = channel._startAppender()..ignore();
+    try {
+      channel._log = await LogFollower.start(
+        link,
+        CommandShell.posix,
+        FollowSource.tail,
+        dir,
+        tools,
+        generation: generation,
+        offset: offset,
+        window: window,
+      );
+    } on Object {
+      await channel._endAppender();
+      rethrow;
+    }
+    return channel;
   }
 
   final HostLink _link;
@@ -50,7 +60,7 @@ final class DetachedChannel implements RunChannel {
   final String dir;
   final int? _inboxFrom;
   bool _closed = false;
-  final LogFollower _log;
+  late final LogFollower _log;
 
   Follower? _inboxFollow;
   late final _inbox = RunInbox(onListen: _startInbox);
@@ -136,13 +146,26 @@ final class DetachedChannel implements RunChannel {
   Future<RunAppender> _startAppender() async =>
       RunAppender(await startPosixScript(_link, _appenderScript(dir)), dir, () => _appender = null);
 
+  /// Ends the appender, once it started. A start that failed has no script to end; the sends that waited for it
+  /// failed with its error.
+  Future<void> _endAppender() async {
+    final starting = _appender;
+    if (starting == null) return;
+    final RunAppender appender;
+    try {
+      appender = await starting;
+    } on Object {
+      return;
+    }
+    await appender.finish();
+  }
+
   @override
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
     await _writes;
-    final appender = _appender;
-    if (appender != null) await (await appender).finish();
+    await _endAppender();
     await Future.wait([_log.stop(), if (_inboxFollow case final follow?) follow.stop()]);
     _inbox.close();
   }

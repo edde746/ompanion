@@ -297,7 +297,50 @@ String newRunId() {
 const _processFunctions = r'''
 cmdline() { if [ -r "/proc/$1/cmdline" ]; then tr '\000' ' ' < "/proc/$1/cmdline"; else ps -p "$1" -o args= 2>/dev/null; fi; }
 running() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null && cmdline "$1" | grep -qF "$2"; }
-size() { if [ -f "$1" ]; then wc -c < "$1" | tr -d ' '; else echo 0; fi; }
+''';
+
+/// `runs <dir>...` prints the run listing [parsePosixRunList] reads. Builtins read each run's files and probe its pids;
+/// one `stat` sizes every log and one `ps` (one `tr` per live pid where `/proc` exists) reads the command lines. Commands
+/// per run would start about twelve processes per run: measured with 41 runs, 0.7 s on an M5 Pro Mac and 4.1 s on an
+/// M3 MacBook Air (10 ms per process start).
+const _runsFunction = r'''
+runs() {
+  rs_csv=; rs_list=
+  for rs_d; do
+    [ -d "$rs_d" ] || continue
+    rs_p=; rs_t=; rs_e=; rs_meta=
+    { IFS= read -r rs_p < "$rs_d/omp.pid"; } 2>/dev/null
+    { IFS= read -r rs_t < "$rs_d/tail.pid"; } 2>/dev/null
+    { IFS= read -r rs_e < "$rs_d/exit"; } 2>/dev/null
+    { IFS= read -r rs_meta < "$rs_d/meta.json"; } 2>/dev/null
+    printf 'run\t%s\t%s\t%s\t%s\n%s\n' "${rs_d##*/}" "$rs_p" "$rs_t" "$rs_e" "$rs_meta"
+    for rs_x in "$rs_p" "$rs_t"; do
+      case $rs_x in '' | 0 | *[!0-9]*) continue ;; esac
+      if kill -0 "$rs_x" 2>/dev/null; then rs_csv="$rs_csv${rs_csv:+,}$rs_x"; rs_list="$rs_list $rs_x"; fi
+    done
+  done
+  printf 'files\n'
+  for rs_d; do
+    shift
+    [ -d "$rs_d" ] || continue
+    for rs_x in "$rs_d/out.jsonl" "$rs_d/in.jsonl"; do if [ -f "$rs_x" ]; then set -- "$@" "$rs_x"; fi; done
+  done
+  if [ $# -gt 0 ]; then
+    if stat -c %s / >/dev/null 2>&1; then stat -c '%s %Y %n' "$@"; else stat -f '%z %m %N' "$@"; fi 2>/dev/null
+  fi
+  printf 'procs\n'
+  if [ -z "$rs_csv" ]; then return 0; fi
+  if [ -r /proc/self/cmdline ]; then
+    for rs_x in $rs_list; do
+      printf '%s ' "$rs_x"
+      { tr '\000' ' ' < "/proc/$rs_x/cmdline"; } 2>/dev/null
+      echo
+    done
+  else
+    ps -o pid=,args= -p "$rs_csv" 2>/dev/null
+  fi
+  return 0
+}
 ''';
 
 Future<({DetachedRun run, bool launched})> _openPosixRun(HostLink link, HostProbe probe, RunSpec spec) async {
@@ -308,10 +351,12 @@ Future<({DetachedRun run, bool launched})> _openPosixRun(HostLink link, HostProb
     posixLaunchScript(marker, root, newRunId(), spec, loginPath: probe.loginPath),
   );
   if (result.exit.code != 0) throw result.failure('launching omp in ${spec.cwd} failed');
-  final reply = result.payload(marker).trim().split(' ');
+  final payload = result.payload(marker);
+  final reply = payload.split('\n').first.split(' ');
   if (reply.length != 2) throw result.failure('unexpected launch reply "${reply.join(' ')}"');
-  final run = (await _listPosixRuns(link, root)).where((r) => r.id == reply[1]).firstOrNull;
-  if (run == null) throw HostLinkException('run ${reply[1]} vanished right after the launch');
+  // The reply's first line names the run; the run listing of that one directory follows.
+  final run = parsePosixRunList(payload.substring(payload.indexOf('\n') + 1), root).singleOrNull;
+  if (run == null || run.id != reply[1]) throw result.failure('the launch reply does not list run ${reply[1]}');
   return (run: run, launched: reply[0] == 'launched');
 }
 
@@ -322,7 +367,8 @@ Future<({DetachedRun run, bool launched})> _openPosixRun(HostLink link, HostProb
 /// `run.sh` starts with the launching shell's umask, so the files omp and its tools create get the same
 /// permissions as under an attached omp. [loginPath] is the login shell's PATH ([HostProbe.loginPath]): it
 /// goes in front of omp's own PATH, and only there — the wrapper's `tail`, `ps` and `mkdir` keep resolving
-/// through the PATH sshd gave this script.
+/// through the PATH sshd gave this script. The reply is `launched <id>` or `found <id>`, then that run's listing
+/// (`runs`), so opening a run reads no other run directory.
 String posixLaunchScript(String marker, String root, String id, RunSpec spec, {String? loginPath}) {
   final dir = '$root/$id';
   final args = spec.ompArgs('$dir/overlay.yml');
@@ -352,7 +398,7 @@ m=${shQuote(marker)}; R=${shQuote(root)}; D=${shQuote(dir)}; cwd=${shQuote(spec.
 overlay=${shQuote(overlay)}
 meta=${shQuote(jsonEncode(meta.toJson()))}
 runsh=${shQuote(runsh)}
-$posixLockFunctions$_processFunctions$_launchBody''';
+$posixLockFunctions$_processFunctions$_runsFunction$_launchBody''';
 }
 
 /// `run.sh`: the pipeline's right side runs omp, records its exit code in `code`, and pipes its stdout through the
@@ -361,7 +407,8 @@ $posixLockFunctions$_processFunctions$_launchBody''';
 /// it too. (`wait $!` cannot be used: bash and dash wait for the whole background pipeline.) [loginPath], the login
 /// shell's PATH, reaches omp as `$1` of the inner `sh -c` and is prepended there: the pipeline's own commands keep the
 /// PATH sshd gave `run.sh`. With [idleExit], omp gets the run directory and the idle time in its environment.
-/// `BUN_BE_BUN` reaches the pump alone.
+/// `BUN_BE_BUN` reaches the pump alone. Both inner shells get the path that identifies their process (`in.jsonl`,
+/// `overlay.yml`) as an argument, so a command line names it as soon as the pid file exists, before `exec`.
 String posixRunScript(
   String dir,
   String omp,
@@ -377,7 +424,7 @@ String posixRunScript(
 d=${shQuote(dir)}
 $_processFunctions
 $posixTailPoll
-sh -c 'echo \$\$ > "\$0/tail.pid"; exec tail \$1 -c +1 -f "\$0/in.jsonl"' "\$d" "\$tailpoll" 2>/dev/null | {
+sh -c 'echo \$\$ > "\$0/tail.pid"; exec tail \$1 -c +1 -f "\$2"' "\$d" "\$tailpoll" "\$d/in.jsonl" 2>/dev/null | {
   { ${idle}sh -c '$_ompExecBody' "\$d" ${shQuote(loginPath ?? '')} ${[omp, ...args].map(shQuote).join(' ')} 2>> "\$d/err.log"; echo \$? > "\$d/code"; } |
     BUN_BE_BUN=1 $pump "\$d" ${pumpArguments(limits)} 2>> "\$d/err.log"
 $_runTail}
@@ -417,7 +464,9 @@ if [ -n "$session" ]; then
     [ -f "$x/meta.json" ] || continue
     grep -qF "$session" "$x/meta.json" || continue
     if running "$(cat "$x/omp.pid" 2>/dev/null)" "$x/overlay.yml" && running "$(cat "$x/tail.pid" 2>/dev/null)" "$x/in.jsonl"; then
-      printf '%s:begin\nfound %s\n%s:end\n' "$m" "${x##*/}" "$m"
+      printf '%s:begin\nfound %s\n' "$m" "${x##*/}"
+      runs "$x"
+      printf '%s:end\n' "$m"
       exit 0
     fi
   done
@@ -440,58 +489,81 @@ while { [ ! -s "$D/omp.pid" ] || [ ! -s "$D/tail.pid" ]; } && [ $i -lt 1000 ]; d
   i=$((i + 1))
 done
 if [ ! -s "$D/omp.pid" ]; then echo "omp did not start; see $D/err.log" >&2; exit 1; fi
-printf '%s:begin\nlaunched %s\n%s:end\n' "$m" "${D##*/}" "$m"
+printf '%s:begin\nlaunched %s\n' "$m" "${D##*/}"
+runs "$D"
+printf '%s:end\n' "$m"
 ''';
 
 Future<List<DetachedRun>> _listPosixRuns(HostLink link, String root) async {
   final marker = newMarker();
-  final result = await runPosixScript(
-    link,
-    'm=${shQuote(marker)}; R=${shQuote(root)}\n$posixLockFunctions$_processFunctions$_listBody',
-  );
+  final result = await runPosixScript(link, 'm=${shQuote(marker)}; R=${shQuote(root)}\n$_runsFunction$_listBody');
   if (result.exit.code != 0) throw result.failure('listing runs failed');
   return parsePosixRunList(result.payload(marker), root);
 }
 
 const _listBody = r'''
 printf '%s:begin\n' "$m"
-for d in "$R"/*; do
-  [ -d "$d" ] || continue
-  p=$(cat "$d/omp.pid" 2>/dev/null)
-  a=0; if running "$p" "$d/overlay.yml"; then a=1; fi
-  f=0; if running "$(cat "$d/tail.pid" 2>/dev/null)" "$d/in.jsonl"; then f=1; fi
-  e=$(cat "$d/exit" 2>/dev/null)
-  printf 'run\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${d##*/}" "$p" "$a" "$f" "$e" \
-    "$(size "$d/out.jsonl")" "$(size "$d/in.jsonl")" "$(mtime "$d/out.jsonl")"
-  printf '%s\n' "$(head -n 1 "$d/meta.json" 2>/dev/null)"
-done
+runs "$R"/*
 printf '%s:end\n' "$m"
 ''';
 
-/// Parses the payload of the POSIX run listing: two lines per run, its fields and its `meta.json`.
+/// Parses the POSIX run listing (`runs`): two lines per run, `run<TAB>id<TAB>omp pid<TAB>feeder pid<TAB>exit code` and
+/// the first line of its `meta.json`; then a `files` line and `<size> <mtime> <path>` per log; then a `procs` line and
+/// `<pid> <command line>` per live pid. omp runs while its pid's command line names the run's `overlay.yml`, the
+/// feeder while its pid's names the run's `in.jsonl`; a recycled pid names neither.
 List<DetachedRun> parsePosixRunList(String payload, String root) {
   final lines = const LineSplitter().convert(payload);
-  final runs = <DetachedRun>[];
-  for (var i = 0; i + 1 < lines.length; i += 2) {
+  var i = 0;
+  final rows = <(List<String>, String)>[];
+  for (; i < lines.length && lines[i] != 'files'; i += 2) {
     final fields = lines[i].split('\t');
-    if (fields.length != 9 || fields.first != 'run') throw FormatException('run list: bad line "${lines[i]}"');
-    final exitCode = int.tryParse(fields[5]);
-    final written = int.tryParse(fields[8]);
+    if (fields.length != 5 || fields.first != 'run' || i + 1 == lines.length) {
+      throw FormatException('run list: bad line "${lines[i]}"');
+    }
+    rows.add((fields, lines[i + 1]));
+  }
+  if (i == lines.length) throw const FormatException('run list: no files section');
+  final files = <String, ({int size, int mtime})>{};
+  for (i++; i < lines.length && lines[i] != 'procs'; i++) {
+    final match = RegExp(r'^(\d+) (\d+) (.+)$').firstMatch(lines[i]);
+    if (match == null) throw FormatException('run list: bad file line "${lines[i]}"');
+    files[match[3]!] = (size: int.parse(match[1]!), mtime: int.parse(match[2]!));
+  }
+  if (i == lines.length) throw const FormatException('run list: no procs section');
+  final commands = <int, String>{};
+  int? last;
+  for (i++; i < lines.length; i++) {
+    final match = RegExp(r'^\s*(\d+) ?(.*)$').firstMatch(lines[i]);
+    if (match != null) {
+      commands[last = int.parse(match[1]!)] = match[2]!;
+    } else if (last != null) {
+      // An argument holding a newline continues the previous command line.
+      commands[last] = '${commands[last]}\n${lines[i]}';
+    } else {
+      throw FormatException('run list: bad process line "${lines[i]}"');
+    }
+  }
+  bool names(String pid, String path) => commands[int.tryParse(pid)]?.contains(path) ?? false;
+  final runs = <DetachedRun>[];
+  for (final (fields, meta) in rows) {
+    final dir = '$root/${fields[1]}';
+    final exitCode = int.tryParse(fields[4]);
+    final out = files['$dir/out.jsonl'];
     runs.add(
       DetachedRun(
         id: fields[1],
-        dir: '$root/${fields[1]}',
-        state: switch ((fields[3] == '1', fields[4] == '1')) {
+        dir: dir,
+        state: switch ((names(fields[2], '$dir/overlay.yml'), names(fields[3], '$dir/in.jsonl'))) {
           (true, true) => RunState.running,
           (true, false) => RunState.stopping,
           (false, _) => exitCode != null ? RunState.exited : RunState.dead,
         },
-        meta: parseRunMeta(lines[i + 1]),
+        meta: parseRunMeta(meta),
         ompPid: int.tryParse(fields[2]),
         exitCode: exitCode,
-        outSize: int.tryParse(fields[6]) ?? 0,
-        inSize: int.tryParse(fields[7]) ?? 0,
-        lastWrite: written == null ? null : DateTime.fromMillisecondsSinceEpoch(written * 1000, isUtc: true),
+        outSize: out?.size ?? 0,
+        inSize: files['$dir/in.jsonl']?.size ?? 0,
+        lastWrite: out == null ? null : DateTime.fromMillisecondsSinceEpoch(out.mtime * 1000, isUtc: true),
       ),
     );
   }

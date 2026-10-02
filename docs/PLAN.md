@@ -178,7 +178,11 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   `tail -f in.jsonl | { omp --mode rpc-ui --config overlay.yml --cwd <cwd> -e <companion> [--session <file>]
   [--model …] [--thinking …] 2>> err.log; echo $? > code; } | BUN_BE_BUN=1 omp log.js pump <run dir> …`, then records
   omp's exit code. omp runs with the login shell's PATH in front of its own, and the pipeline's `tail`/`ps` keeps
-  sshd's (`contracts/host-launch.md`). The pump is the only writer of `out.jsonl` while omp runs (Pump, below).
+  sshd's (`contracts/host-launch.md`). The pump is the only writer of `out.jsonl` while omp runs (Pump, below). The
+  launch replies with the listing of its run, so opening a session reads no other run directory.
+- Listing (`listRuns`): shell builtins read every run's pid files, exit code and `meta.json`; one `stat` sizes the logs
+  and one `ps` (a `tr` of `/proc/<pid>/cmdline` per live pid on Linux) reads the command lines, whatever the number of
+  runs. A pid is omp's while its command line names the run's `overlay.yml`, the feeder's while it names `in.jsonl`.
 - Session file: a new session starts without `--session`, so omp names its file
   (`sessions/<cwd>/<time>_<id>.jsonl`) and writes it with the first message. The first attach reads
   `get_state.sessionFile` and records it in `meta.json` before `open` returns; every later switch inside
@@ -212,8 +216,8 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   scrolls up); plain `get_entries` when there is no file or omp does not
   know that entry. Every frame, and every `extension_ui_response` any device appends, goes through the
   reducer.
-- Send: one long-running appender per channel takes `in.lock` per line; lines over 64 KiB are uploaded
-  first.
+- Send: one long-running appender per channel, started with the attach, takes `in.lock` per line; lines over 64 KiB
+  are uploaded first.
 - Link loss: a session reconnects with jittered backoff (1 s doubling to 30 s) and continues from the last
   frame boundary it read; a rotation it missed rebuilds the view from RPC. Refused credentials or host
   keys, a removed run and an omp that cannot start end the session.
