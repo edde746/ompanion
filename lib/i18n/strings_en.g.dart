@@ -533,6 +533,15 @@ class Translations$machines$en {
 
 	/// en: 'Connect to read the machine's OS, shell and omp.'
 	String get notProbed => 'Connect to read the machine\'s OS, shell and omp.';
+
+	/// en: 'Power'
+	String get power => 'Power';
+
+	/// en: 'Keep this Mac awake while omp works'
+	String get keepAwake => 'Keep this Mac awake while omp works';
+
+	/// en: 'While omp works in a session from ompanion, the Mac does not sleep, also right after a request woke it. Only on power; the display still turns off. Every device sees this switch.'
+	String get keepAwakeDetail => 'While omp works in a session from ompanion, the Mac does not sleep, also right after a request woke it. Only on power; the display still turns off. Every device sees this switch.';
 }
 
 // Path: auth
@@ -4283,6 +4292,9 @@ extension on Translations {
 			'machines.companionMissing' => 'Not uploaded',
 			'machines.notFound' => 'Not found',
 			'machines.notProbed' => 'Connect to read the machine\'s OS, shell and omp.',
+			'machines.power' => 'Power',
+			'machines.keepAwake' => 'Keep this Mac awake while omp works',
+			'machines.keepAwakeDetail' => 'While omp works in a session from ompanion, the Mac does not sleep, also right after a request woke it. Only on power; the display still turns off. Every device sees this switch.',
 			'auth.key' => 'Key',
 			'auth.password' => 'Password',
 			'auth.agent' => 'SSH config and agent (like ssh)',
@@ -4503,11 +4515,11 @@ extension on Translations {
 			'themeEditor.uses.pane' => 'Sidebar, dock, config navigation',
 			'themeEditor.uses.card' => 'Cards, composer, code blocks, dialogs',
 			'themeEditor.uses.field' => 'Text fields, chips, secondary buttons',
+			_ => null,
+		} ?? switch (path) {
 			'themeEditor.uses.selected' => 'Hover, selected rows, focused fields, tab indicators',
 			'themeEditor.uses.popover' => 'Menus and pop-up lists',
 			'themeEditor.uses.text' => 'Primary text and icons',
-			_ => null,
-		} ?? switch (path) {
 			'themeEditor.uses.textMuted' => 'Secondary text and icons',
 			'themeEditor.uses.accent' => 'Primary buttons, switches that are on, progress',
 			'themeEditor.uses.onAccent' => 'Text and icons on the accent',
@@ -5017,11 +5029,11 @@ extension on Translations {
 			'config.accounts.machineWide' => 'Credentials are stored per machine.',
 			'config.accounts.sessionView' => ({required Object path}) => 'In use and pinned marks refer to the session in ${path}.',
 			'config.accounts.active' => 'in use',
+			_ => null,
+		} ?? switch (path) {
 			'config.accounts.sticky' => 'pinned',
 			'config.accounts.expires' => ({required Object date}) => 'expires ${date}',
 			'config.accounts.pin' => 'Pin to session',
-			_ => null,
-		} ?? switch (path) {
 			'config.accounts.pinned' => 'Account pinned to the session.',
 			'config.accounts.logout' => 'Log out',
 			'config.accounts.logoutTitle' => ({required Object account}) => 'Log out ${account}?',

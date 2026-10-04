@@ -322,7 +322,7 @@ with `speech.enabled: false` forced (otherwise the `ask` tool speaks on the host
 
 A TypeScript extension in `companion/`, uploaded to `~/.ompanion/companion/<omp-version>/` (outside omp's
 auto-discovery roots, so the user's TUI never loads it) and passed with `-e`. It imports only exported
-subpaths of `@oh-my-pi/pi-coding-agent`, which the compiled omp serves from its own bundle.
+subpaths of omp's `@oh-my-pi/*` packages, which the compiled omp serves from its own bundle.
 
 Wire:
 
@@ -379,6 +379,10 @@ logic in the app would stop with it.
 - Notifications (`companion/src/notify.ts`, D23): in a detached run the companion encrypts a notification for every
   phone registered in `~/.ompanion/push/` when a dialog opens, a run settles or a run fails, and posts it to the relay;
   `notify.test` sends one on request. Texts, triggers and the relay API: `contracts/push.md`.
+- Keep awake (`companion/src/keep-awake.ts`): on a Mac whose `~/.ompanion/keep-awake` exists, the companion holds
+  `PreventSystemSleep` while omp works, so a Mac that a device's request woke from sleep stays awake for the turn. omp's
+  own `PreventUserIdleSystemSleep` has no effect in that dark wake. The machine page's Power card sets the file.
+  Contract: `contracts/host-launch.md` ("Keep awake").
 
 Version policy: the app drives omp 18.3.1 and later (`minimumOmpVersion`, `packages/omp_core/lib/src/host/probe.dart`)
 and installs the newest release it has digests for (`ompReleases`, `packages/omp_core/lib/src/host/install.dart`:

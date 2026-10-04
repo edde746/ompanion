@@ -3,6 +3,7 @@ import { CallParseError, parseCall } from "./args.ts";
 import { askDialog } from "./ask.ts";
 import { bindChannel, type Channel, channel, errorFrame, eventFrame, replyFrame } from "./channel.ts";
 import { IDLE_EXIT_EVENT, idleRun, installIdleExit, tracked } from "./idle.ts";
+import { installKeepAwake } from "./keep-awake.ts";
 import { installNotifications, notifyVerbs } from "./notify.ts";
 import { type CallRequest, Refusal, VerbError, type VerbTable } from "./protocol.ts";
 import { coreEvents, coreVerbs, helloVerb, watchCore } from "./verbs/core.ts";
@@ -56,6 +57,7 @@ async function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> 
 	}
 	watchCore(session);
 	await installSessionHooks(pi, session);
+	if (process.platform === "darwin") installKeepAwake(session);
 	// Last: a broken launch environment throws here, after everything else is in place. Notifications subscribe after
 	// the goal and loop hooks, which schedule the next turn in the same `agent_end`.
 	const run = idleRun(process.env, process.argv);

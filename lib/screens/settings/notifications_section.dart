@@ -94,7 +94,7 @@ class _NotificationsSectionState extends State<NotificationsSection> {
     final on = push == null ? settings.get(Prefs.desktopNotifications) : push.enabled;
     final kinds = [
       for (final kind in NotificationKind.values)
-        _SwitchRow(
+        SettingsSwitchRow(
           label: switch (kind) {
             NotificationKind.input => n.kindInput,
             NotificationKind.done => n.kindDone,
@@ -112,14 +112,14 @@ class _NotificationsSectionState extends State<NotificationsSection> {
         SettingsCard(
           children: [
             if (push == null)
-              _SwitchRow(
+              SettingsSwitchRow(
                 label: n.desktop,
                 detail: n.desktopDetail,
                 value: on,
                 onChanged: (value) => settings.set(Prefs.desktopNotifications, value),
               )
             else
-              _SwitchRow(
+              SettingsSwitchRow(
                 label: n.push,
                 detail: availability?.available == false
                     ? n.pushUnavailable(reason: availability?.reason ?? '')
@@ -188,45 +188,6 @@ class _TestCard extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// A setting that is on or off: the label, an optional muted line under it, and the switch at the end.
-class _SwitchRow extends StatelessWidget {
-  const _SwitchRow({required this.label, this.detail, required this.value, required this.onChanged});
-
-  final String label;
-  final String? detail;
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(left: 16, right: 8, top: 4, bottom: 4),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppSizes.control),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: theme.textTheme.bodyMedium),
-                  if (detail case final detail?)
-                    Text(detail, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSizes.gap),
-            Switch(value: value, onChanged: onChanged),
-          ],
-        ),
-      ),
     );
   }
 }

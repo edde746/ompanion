@@ -19,7 +19,9 @@ import '../../sessions/sessions_provider.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/activity_mark.dart';
 import '../chat/transcript/code_style.dart';
+import '../config/config_widgets.dart';
 import '../sessions/machine_status.dart';
+import '../settings/settings_card.dart';
 import 'connect_dialogs.dart';
 import 'machine_editor.dart';
 
@@ -199,6 +201,13 @@ class _MachineDetailPaneState extends State<MachineDetailPane> {
           builder: (context, status) =>
               _Facts(status: status, onConnect: () => unawaited(context.read<SessionsProvider>().refresh(machine))),
         ),
+        MachineStatusBuilder(
+          runtime: runtime,
+          builder: (context, status) => switch (status) {
+            MachineOnline(:final probe) when probe.os == HostOs.macos => _KeepAwake(runtime: runtime),
+            _ => const SizedBox.shrink(),
+          },
+        ),
         if (machine is SshMachine) ...[
           const SizedBox(height: 24),
           Text(t.machines.route, style: theme.textTheme.titleMedium),
@@ -354,6 +363,70 @@ String osLabel(HostProbe probe) {
     HostOs.other => probe.kernel,
   };
   return probe.libc == null ? name : '$name (${probe.libc})';
+}
+
+/// The machine's keep-awake switch (`~/.ompanion/keep-awake`), read from the machine when shown.
+class _KeepAwake extends StatefulWidget {
+  const _KeepAwake({required this.runtime});
+
+  final MachineRuntime runtime;
+
+  @override
+  State<_KeepAwake> createState() => _KeepAwakeState();
+}
+
+class _KeepAwakeState extends State<_KeepAwake> {
+  /// The file's state; null until read.
+  bool? _on;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // The snack bar of a failed read needs the inherited widgets, which initState may not look up.
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_read()));
+  }
+
+  Future<void> _read() async {
+    if (!mounted) return;
+    await runReporting(context, () async {
+      final on = await keepAwake(widget.runtime.link);
+      if (mounted) setState(() => _on = on);
+    });
+  }
+
+  Future<void> _set(bool on) async {
+    setState(() => _busy = true);
+    await runReporting(context, () async {
+      await setKeepAwake(widget.runtime.link, on);
+      if (mounted) setState(() => _on = on);
+    });
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = context.t.machines;
+    final on = _on;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 24),
+        Text(m.power, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSizes.gap),
+        SettingsCard(
+          children: [
+            SettingsSwitchRow(
+              label: m.keepAwake,
+              detail: m.keepAwakeDetail,
+              value: on ?? false,
+              onChanged: on == null || _busy ? null : (value) => unawaited(_set(value)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _RunStatus extends StatelessWidget {

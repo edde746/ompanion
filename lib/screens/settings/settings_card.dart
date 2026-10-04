@@ -62,3 +62,43 @@ class SettingsLinkRow extends StatelessWidget {
     );
   }
 }
+
+/// A setting that is on or off in a [SettingsCard]: the label, an optional muted line under it, and the switch at the
+/// end.
+class SettingsSwitchRow extends StatelessWidget {
+  const SettingsSwitchRow({super.key, required this.label, this.detail, required this.value, required this.onChanged});
+
+  final String label;
+  final String? detail;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, right: 8, top: 4, bottom: 4),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AppSizes.control),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: theme.textTheme.bodyMedium),
+                  if (detail case final detail?)
+                    Text(detail, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSizes.gap),
+            Switch(value: value, onChanged: onChanged),
+          ],
+        ),
+      ),
+    );
+  }
+}

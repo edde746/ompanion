@@ -334,7 +334,10 @@
     "companionReady": "Uploaded",
     "companionMissing": "Not uploaded",
     "notFound": "Not found",
-    "notProbed": "Connect to read the machine's OS, shell and omp."
+    "notProbed": "Connect to read the machine's OS, shell and omp.",
+    "power": "Power",
+    "keepAwake": "Keep this Mac awake while omp works",
+    "keepAwakeDetail": "While omp works in a session from ompanion, the Mac does not sleep, also right after a request woke it. Only on power; the display still turns off. Every device sees this switch."
   },
   "auth": {
     "key": "Key",

@@ -1,9 +1,10 @@
 # host-launch: the environment omp runs with
 
-What environment omp gets when the app starts it, per host kind: the login-shell PATH the probe learns, and the
-variables that turn on a run's idle exit. Code: `packages/omp_core/lib/src/host/probe.dart` (the probe),
-`lib/src/channel/detached_run.dart`, `lib/src/channel/windows_run.dart`, `lib/src/channel/attached_channel.dart` and
-`lib/config/omp_cli.dart` (the launches).
+What environment omp gets when the app starts it, per host kind: the login-shell PATH the probe learns, the
+variables that turn on a run's idle exit, and the file that keeps a Mac awake while omp works. Code:
+`packages/omp_core/lib/src/host/probe.dart` (the probe), `lib/src/channel/detached_run.dart`,
+`lib/src/channel/windows_run.dart`, `lib/src/channel/attached_channel.dart` and `lib/config/omp_cli.dart` (the
+launches), `lib/src/host/keep_awake.dart` and `companion/src/keep-awake.ts` (keep awake).
 
 ## Why this contract exists
 
@@ -98,6 +99,30 @@ in milliseconds). The companion then ends that omp once the run sat idle that lo
   (`\` on Windows), the overlay path the launch passes with `--config`, so no other omp takes itself for the run's.
 - **Malformed**: an `OMPANION_IDLE_EXIT_MS` that is not a positive integer throws in the companion's start, which
   omp reports as an `extension_error`.
+
+## Keep awake (`~/.ompanion/keep-awake`)
+
+A Mac in a dark wake ignores omp's own sleep prevention: `power.sleepPrevention` defaults to `idle`
+(`caffeinate -i`), a `PreventUserIdleSystemSleep` assertion, which "has no effect if the system is in Dark Wake"
+(`IOPMLib.h`). A sleeping Mac that a device's request wakes goes back to sleep 10 to 60 s later, in the middle of the
+model request. The stream dies, and omp's stall watchdog reports it at the next wake: the next request from a device,
+or the Mac's own maintenance wake about every 15 minutes. Measured 2026-10-03 with `pmset -g log` on a MacBook on AC
+power with `sleep 1`: a phone started a session at 16:04 on a Mac asleep since 15:21, which did not fully wake until
+23:48. Each of the session's 28 failed attempts started within 1.2 s of a dark wake.
+
+- **Switch**: the empty file `~/.ompanion/keep-awake` (0600), one per machine and the same for every device. The
+  machine page's Power card creates and removes it (`setKeepAwake`). The card shows only for macOS machines.
+- **Companion** (macOS only, in every omp that loads it): when omp starts work (`agent_start`, `turn_start`,
+  `auto_compaction_start`, `auto_retry_start`) and the file exists, it takes `PowerAssertion.start({idle, system})`
+  from `@oh-my-pi/pi-natives`. These are `PreventUserIdleSystemSleep` and `PreventSystemSleep` (`caffeinate -i -s`),
+  named `ompanion: omp is working`. Every 5 s it checks two things: whether omp still works (streaming or a prompt in
+  flight, a retry, a compaction, a handoff, user bash or Python), and whether the file still exists. When either
+  stops, it releases the assertion. While nothing is held, the companion reads the file only when work starts.
+- **Power**: `PreventSystemSleep` keeps a dark wake going on AC power only. On battery only the idle assertion is
+  left, which a dark wake ignores. Neither assertion wakes the display or keeps it on.
+- **Runs**: a run uses the companion it was launched with. Runs launched before an app with this feature keep omp's
+  behaviour until they exit.
+- **Untested**: a Mac with its lid closed.
 
 ## Not carried over
 
