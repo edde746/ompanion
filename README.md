@@ -125,7 +125,7 @@ Or build it yourself: [Building from Source](#building-from-source).
 ### Prerequisites
 - Flutter SDK 3.47.0+
 - [Bun](https://bun.sh), to build the companion extension
-- omp 18.3.1 or newer on each machine you connect to; the app can install omp 18.4.12 on a machine that lacks it
+- omp 18.3.1 or newer on each machine you connect to; the app can install omp 18.6.3 on a machine that lacks it
   and update omp with `omp update` from the machine's page
 
 ### Setup

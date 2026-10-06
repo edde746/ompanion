@@ -390,9 +390,9 @@ logic in the app would stop with it.
 
 Version policy: the app drives omp 18.3.1 and later (`minimumOmpVersion`, `packages/omp_core/lib/src/host/probe.dart`)
 and installs the newest release it has digests for (`ompReleases`, `packages/omp_core/lib/src/host/install.dart`:
-18.4.12). One companion build serves every such release and feature-checks what it uses
+18.6.3). One companion build serves every such release and feature-checks what it uses
 (`lib/sessions/companion_asset.dart`); an omp release that breaks it needs a build of its own. The tests run the
-omp named in `harness/omp-version` (18.4.12), and CI's integration job runs the omp and Docker tests and the
+omp named in `harness/omp-version` (18.6.3), and CI's integration job runs the omp and Docker tests and the
 companion's end-to-end tests against both that omp and the minimum. A machine whose omp is older gets the install
 offer; a newer omp gets the same build and no warning.
 
