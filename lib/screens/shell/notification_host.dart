@@ -11,6 +11,7 @@ import '../../providers/machines_provider.dart';
 import '../../providers/shell_provider.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../sessions/show_session.dart';
+import '../config/model_picker.dart' show resumeModelChooser;
 import '../machines/connect_dialogs.dart';
 
 /// Opens the session a tapped notification points at: taps while the app runs, and the one that launched the app once
@@ -83,6 +84,7 @@ class _NotificationHostState extends State<NotificationHost> {
         machine,
         runId: target.runId,
         sessionPath: target.sessionPath,
+        chooseModel: resumeModelChooser(context),
       );
     } on Object catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: describeConnectError(t, error)))));

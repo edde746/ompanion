@@ -21,6 +21,7 @@ import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../utils/byte_size.dart';
 import '../../widgets/activity_mark.dart';
+import '../config/model_picker.dart' show resumeModelChooser;
 import '../dock/machine_access.dart';
 import '../machines/connect_dialogs.dart';
 import 'attachment_chips.dart';
@@ -304,7 +305,7 @@ class _ComposerState extends State<Composer> {
     if (session.linkState is LinkClosed && session.view.idleExit != null) {
       setState(() => _sending = true);
       try {
-        session = await sessions.reopen(session);
+        session = await sessions.reopen(session, chooseModel: resumeModelChooser(context));
       } on Object catch (error) {
         messenger.showSnackBar(SnackBar(content: Text(t.chat.reopenFailed(error: describeConnectError(t, error)))));
         return;
@@ -950,12 +951,12 @@ class _ExternalComposer extends StatelessWidget {
     final t = context.t;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final taken = await context.read<SessionsProvider>().reopen(session);
+      final taken = await context.read<SessionsProvider>().reopen(session, chooseModel: resumeModelChooser(context));
       if (identical(taken, session)) {
         messenger.showSnackBar(SnackBar(content: Text(t.composer.externalWait)));
       }
     } on Object catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: '$error'))));
+      messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: describeConnectError(t, error)))));
     }
   }
 

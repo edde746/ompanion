@@ -18,6 +18,7 @@ import '../../sessions/session_reads.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../sessions/show_session.dart';
 import '../../widgets/app_search_field.dart';
+import '../config/model_picker.dart' show resumeModelChooser;
 import '../machines/connect_dialogs.dart';
 import '../machines/machine_editor.dart';
 import '../machines/transfer_dialogs.dart';
@@ -144,7 +145,14 @@ class SidebarState extends State<Sidebar> {
     final path = entry.path;
     if (path != null) setState(() => _opening.add(path));
     try {
-      await showSession(sessions, shell, machine, runId: entry.session?.runId, sessionPath: path);
+      await showSession(
+        sessions,
+        shell,
+        machine,
+        runId: entry.session?.runId,
+        sessionPath: path,
+        chooseModel: resumeModelChooser(context),
+      );
     } on Object catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(t.sessions.openFailed(error: describeConnectError(t, error)))));
     } finally {

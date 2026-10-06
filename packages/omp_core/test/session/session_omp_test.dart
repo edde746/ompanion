@@ -8,6 +8,7 @@ import 'package:omp_core/session.dart';
 import 'package:omp_core/store.dart';
 import 'package:test/test.dart';
 
+import '../omp_binary.dart';
 import 'support.dart';
 
 /// MachineRuntime and LiveSession against the tested omp on this computer: an isolated dev machine, the fake provider,
@@ -263,6 +264,39 @@ void main() {
     expect(again.runId, isNot(session.runId));
     expect(prompts(again.view), ['Remember this.']);
     expect(answers(again.view), ['Noted.']);
+  });
+
+  test('a session whose model omp cannot restore resumes on the model given instead', () async {
+    await fake.enqueue([
+      {
+        'steps': [
+          {'text': 'Noted.'},
+        ],
+      },
+    ]);
+    final first = runtime('device-a', idleExit: const Duration(seconds: 2));
+    final session = await first.open(NewSession(machine.project, model: 'fake/fake-think'));
+    final path = session.sessionPath!;
+    await session.rpc.prompt('Remember this.');
+    await viewWhere(session, (view) => idle(view) && answers(view).isNotEmpty);
+    await linkWhere(session, (state) => state is LinkClosed);
+
+    // The model leaves omp's list, as a model dropped from models.yml or a provider signed out of does.
+    final models = File('${machine.home}/.omp/agent/models.yml');
+    final original = models.readAsStringSync();
+    addTearDown(() => models.writeAsStringSync(original));
+    models.writeAsStringSync(original.replaceFirst(RegExp(r'      - id: fake-think\n(        .*\n)*'), ''));
+    // Older omp continued such a session on its default model without saying so.
+    if (compareOmpVersions(testedOmpVersion, '18.6.3') >= 0) {
+      await expectLater(
+        first.open(ResumeSession(path)),
+        throwsA(isA<OmpStartFailed>().having((error) => error.unrestorableModel, 'model', 'fake/fake-think')),
+      );
+    }
+
+    final again = await first.open(ResumeSession(path, model: 'fake/fake-1'));
+    expect(prompts(again.view), ['Remember this.']);
+    await viewWhere(again, (view) => view.config.model?.selector == 'fake/fake-1');
   });
 
   test('the control session serves companion settings', () async {

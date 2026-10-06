@@ -56,6 +56,13 @@ final class OmpStartFailed implements Exception {
   final int? exitCode;
   final String stderr;
 
+  /// The model omp could not restore for the session it was asked to resume (`provider/id`), or null. omp 18.6.3 and
+  /// later exit with `Could not restore model <provider/id>` then, instead of continuing the session on another model;
+  /// [ResumeSession.model] resumes it on a model the user picks. Bun prints the throwing source line first, whose
+  /// template names no `provider/id`.
+  String? get unrestorableModel =>
+      RegExp(r'Could not restore model ([^\s/]+/\S+?)\.?(?=\s|$)').firstMatch(stderr)?.group(1);
+
   @override
   String toString() =>
       'omp exited${exitCode == null ? '' : ' with code $exitCode'} before it was ready'

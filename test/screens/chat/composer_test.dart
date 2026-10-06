@@ -223,7 +223,7 @@ final class _ReopeningSessions extends SessionsProvider {
   final reopened = <LiveSession>[];
 
   @override
-  Future<LiveSession> reopen(LiveSession session) async {
+  Future<LiveSession> reopen(LiveSession session, {ModelChooser? chooseModel}) async {
     reopened.add(session);
     return replacement;
   }

@@ -160,7 +160,7 @@ final class _Sessions extends ChangeNotifier implements SessionsProvider {
   );
 
   @override
-  Future<LiveSession> open(Machine machine, SessionOpen request) async {
+  Future<LiveSession> open(Machine machine, SessionOpen request, {ModelChooser? chooseModel}) async {
     opened.add(request);
     return openPending?.future ?? FakeSession();
   }

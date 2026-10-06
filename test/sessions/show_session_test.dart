@@ -22,19 +22,21 @@ final class _Sessions extends Fake implements SessionsProvider {
   Machine? machineOf(LiveSession session) => testMachine;
 
   @override
-  Future<LiveSession> open(Machine machine, SessionOpen request) =>
+  Future<LiveSession> open(Machine machine, SessionOpen request, {ModelChooser? chooseModel}) =>
       opening.putIfAbsent((request as AttachRun).runId, Completer.new).future;
 
   @override
   void select(LiveSession session) => selected = session;
 }
 
+Future<String?> _noModel(Machine machine, String missing) async => null;
+
 void main() {
   test('of two sessions still opening, the one clicked last shows, whichever opens first', () async {
     final sessions = _Sessions();
     final shell = ShellProvider();
-    final first = showSession(sessions, shell, testMachine, runId: 'a');
-    final second = showSession(sessions, shell, testMachine, runId: 'b');
+    final first = showSession(sessions, shell, testMachine, runId: 'a', chooseModel: _noModel);
+    final second = showSession(sessions, shell, testMachine, runId: 'b', chooseModel: _noModel);
 
     sessions.opening['a']!.complete(FakeSession(runId: 'a'));
     await first;
@@ -51,7 +53,7 @@ void main() {
   test('a session that opens after the user went elsewhere leaves them there', () async {
     final sessions = _Sessions();
     final shell = ShellProvider();
-    final opening = showSession(sessions, shell, testMachine, runId: 'a');
+    final opening = showSession(sessions, shell, testMachine, runId: 'a', chooseModel: _noModel);
     shell.select(const SettingsSelection());
 
     sessions.opening['a']!.complete(FakeSession(runId: 'a'));

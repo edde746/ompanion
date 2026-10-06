@@ -86,11 +86,14 @@ final class NewSession extends SessionOpen {
 }
 
 /// The session in file [sessionPath]: attaches to the live run holding it, or launches one in the session's
-/// directory (the home directory when that is gone).
+/// directory (the home directory when that is gone). A launch with [model] (`provider/id`) passes it as omp's
+/// `--model`, so the session continues on it instead of its saved model: omp 18.6.3 and later refuse to resume a
+/// session whose saved model they cannot restore ([OmpStartFailed.unrestorableModel]). An attach keeps the run's model.
 final class ResumeSession extends SessionOpen {
-  const ResumeSession(this.sessionPath);
+  const ResumeSession(this.sessionPath, {this.model});
 
   final String sessionPath;
+  final String? model;
 }
 
 /// The live run [runId] (`DetachedRun.id`). Throws [RunEnded] for a run whose omp exited: resume its session
@@ -241,7 +244,7 @@ final class MachineRuntime {
         if (run == null) throw RunGone('no run $runId on ${ready.link.label}');
         if (!run.live) throw RunEnded(runId, run.exitCode);
         return _openRun(run, ready.probe);
-      case ResumeSession(:final sessionPath):
+      case ResumeSession(:final sessionPath, :final model):
         for (final session in _sessions) {
           // The open's future: completes once a session still attaching is ready.
           if (session.sessionPath == sessionPath) return _opens[session.runId] ?? session;
@@ -284,7 +287,18 @@ final class MachineRuntime {
           return external;
         }
         // The launch looks for a live run of the session again, under the machine's launch lock.
-        final (:run, launched: _) = await openRun(ready.link, ready.probe, _spec(ready, cwd, sessionPath: sessionPath));
+        final (:run, launched: _) = await openRun(
+          ready.link,
+          ready.probe,
+          _spec(
+            ready,
+            cwd,
+            sessionPath: sessionPath,
+            args: [
+              if (model != null) ...['--model', model],
+            ],
+          ),
+        );
         return _openRun(run, ready.probe);
       case NewSession(:final cwd, :final model, :final thinkingLevel):
         final args = [

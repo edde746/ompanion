@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:omp_core/session.dart' show OmpStartFailed;
 import 'package:omp_core/ssh.dart';
 import 'package:omp_core/transport.dart';
 import 'package:provider/provider.dart';
@@ -82,6 +83,7 @@ String describeConnectError(Translations t, Object error) => switch (error) {
     // The transport's own wording names the underlying cause, e.g. "Connection refused".
     '$error',
   ].join('\n'),
+  OmpStartFailed(:final unrestorableModel?) => t.sessions.modelUnavailable(model: unrestorableModel),
   HostLinkException(:final message, :final cause) => cause == null ? message : '$message: $cause',
   _ => '$error',
 };

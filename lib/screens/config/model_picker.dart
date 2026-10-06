@@ -1,31 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
+import 'package:provider/provider.dart';
 
 import '../../app/theme.dart';
 import '../../config/accounts.dart';
 import '../../i18n/strings.g.dart';
+import '../../sessions/sessions_provider.dart';
 import '../../utils/token_count.dart';
 import '../../widgets/app_search_field.dart';
 import '../../widgets/app_select.dart';
 
 /// Picks a model selector (`provider/id[:thinking]`) from omp's available models, or a typed one. Returns
-/// null when dismissed.
+/// null when dismissed. [message] explains the choice above the list.
 Future<String?> pickModel(
   BuildContext context, {
   required List<RpcModel> models,
   required String title,
+  String? message,
   String? current,
 }) => showDialog<String>(
   context: context,
-  builder: (context) => _ModelPicker(models: models, title: title, current: current),
+  builder: (context) => _ModelPicker(models: models, title: title, message: message, current: current),
 );
 
+/// The [ModelChooser] of [context]'s session opens: omp cannot restore the model a session ran on, so the user picks
+/// the one its conversation continues on from the machine's available models, or leaves it closed.
+ModelChooser resumeModelChooser(BuildContext context) {
+  final sessions = context.read<SessionsProvider>();
+  final t = context.t;
+  return (machine, missing) async {
+    final control = await sessions.control(machine);
+    final models = await sessions.models(machine, control.rpc);
+    if (!context.mounted) return null;
+    return pickModel(
+      context,
+      models: models,
+      title: t.sessions.resumeModelTitle,
+      message: t.sessions.resumeModelBody(model: missing, machine: machine.name),
+    );
+  };
+}
+
 class _ModelPicker extends StatefulWidget {
-  const _ModelPicker({required this.models, required this.title, this.current});
+  const _ModelPicker({required this.models, required this.title, this.message, this.current});
 
   final List<RpcModel> models;
   final String title;
+  final String? message;
   final String? current;
 
   @override
@@ -63,6 +85,10 @@ class _ModelPickerState extends State<_ModelPicker> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (widget.message case final message?) ...[
+                Text(message, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                const SizedBox(height: AppSizes.gap * 2),
+              ],
               Row(
                 children: [
                   Expanded(

@@ -1463,6 +1463,15 @@ class Translations$sessions$en {
 	/// en: 'Could not open the session: $error'
 	String openFailed({required Object error}) => 'Could not open the session: ${error}';
 
+	/// en: 'omp cannot use $model, the model this session ran on'
+	String modelUnavailable({required Object model}) => 'omp cannot use ${model}, the model this session ran on';
+
+	/// en: 'Continue on another model'
+	String get resumeModelTitle => 'Continue on another model';
+
+	/// en: 'omp on $machine cannot use $model, the model this session ran on. Pick the model the conversation continues on.'
+	String resumeModelBody({required Object machine, required Object model}) => 'omp on ${machine} cannot use ${model}, the model this session ran on. Pick the model the conversation continues on.';
+
 	/// en: 'Could not list sessions: $error'
 	String listFailed({required Object error}) => 'Could not list sessions: ${error}';
 
@@ -4633,6 +4642,9 @@ extension on Translations {
 			'sessions.opening' => 'Opening…',
 			'sessions.unread' => 'Unread',
 			'sessions.openFailed' => ({required Object error}) => 'Could not open the session: ${error}',
+			'sessions.modelUnavailable' => ({required Object model}) => 'omp cannot use ${model}, the model this session ran on',
+			'sessions.resumeModelTitle' => 'Continue on another model',
+			'sessions.resumeModelBody' => ({required Object machine, required Object model}) => 'omp on ${machine} cannot use ${model}, the model this session ran on. Pick the model the conversation continues on.',
 			'sessions.listFailed' => ({required Object error}) => 'Could not list sessions: ${error}',
 			'sessions.folder' => 'Folder',
 			'sessions.noFolder' => 'No folder',
@@ -5029,11 +5041,11 @@ extension on Translations {
 			'config.roles.context' => ({required Object tokens}) => '${tokens} context',
 			'config.roles.vision' => 'images',
 			'config.roles.noModels' => 'No model matches.',
+			_ => null,
+		} ?? switch (path) {
 			'config.accounts.machineWide' => 'Credentials are stored per machine.',
 			'config.accounts.sessionView' => ({required Object path}) => 'In use and pinned marks refer to the session in ${path}.',
 			'config.accounts.active' => 'in use',
-			_ => null,
-		} ?? switch (path) {
 			'config.accounts.sticky' => 'pinned',
 			'config.accounts.expires' => ({required Object date}) => 'expires ${date}',
 			'config.accounts.pin' => 'Pin to session',

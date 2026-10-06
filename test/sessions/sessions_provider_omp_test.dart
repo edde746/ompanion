@@ -24,6 +24,12 @@ import 'package:omp_core/transport.dart';
 /// Tests run from the repository root.
 final String _root = Directory.current.path;
 
+/// The omp `harness/dev-machine.sh` links: `$OMP_VERSION`, else `harness/omp-version`.
+final String _ompVersion = switch (Platform.environment['OMP_VERSION']) {
+  final version? when version.isNotEmpty => version,
+  _ => File('$_root/harness/omp-version').readAsStringSync().trim(),
+};
+
 /// This computer with the isolated home of `harness/dev-machine.sh`: the pinned omp, the fake provider, no user omp.
 final class _Connector extends MachineConnector {
   _Connector(super.secrets, super.knownHosts, this.environment);
@@ -168,4 +174,55 @@ void main() {
     await sessions.stop(reopened);
     await sessions.stop(second);
   });
+
+  test(
+    'a session whose model omp cannot restore opens on the model the user picks, or stays closed',
+    () async {
+      final first = await sessions.open(_machine, NewSession(project(), model: 'fake/fake-think'));
+      await first.rpc.prompt('hello');
+      if (!first.view.transcript.any((item) => item is AssistantItem) || first.view.run.running) {
+        await first.views
+            .firstWhere((view) => !view.run.running && view.transcript.any((item) => item is AssistantItem))
+            .timeout(const Duration(seconds: 30));
+      }
+      final path = first.sessionPath!;
+      await sessions.stop(first);
+      // The model leaves omp's list, as a model dropped from models.yml or a provider signed out of does.
+      final models = File('${environment['HOME']}/.omp/agent/models.yml');
+      final original = models.readAsStringSync();
+      addTearDown(() => models.writeAsStringSync(original));
+      models.writeAsStringSync(original.replaceFirst(RegExp(r'      - id: fake-think\n(        .*\n)*'), ''));
+
+      final asked = <String>[];
+      await expectLater(
+        sessions.open(
+          _machine,
+          ResumeSession(path),
+          chooseModel: (machine, missing) async {
+            asked.add(missing);
+            return null;
+          },
+        ),
+        throwsA(isA<OmpStartFailed>()),
+      );
+      final reopened = await sessions.open(
+        _machine,
+        ResumeSession(path),
+        chooseModel: (machine, missing) async {
+          asked.add(missing);
+          return 'fake/fake-1';
+        },
+      );
+      expect(asked, ['fake/fake-think', 'fake/fake-think']);
+      if (reopened.view.config.model?.selector != 'fake/fake-1') {
+        await reopened.views
+            .firstWhere((view) => view.config.model?.selector == 'fake/fake-1')
+            .timeout(const Duration(seconds: 30));
+      }
+      await sessions.stop(reopened);
+    },
+    skip: compareOmpVersions(_ompVersion, '18.6.3') < 0
+        ? 'omp before 18.6.3 continues such a session on another model by itself'
+        : false,
+  );
 }

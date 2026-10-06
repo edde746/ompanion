@@ -20,6 +20,10 @@ import 'turn_expansion.dart';
 
 typedef _Hop = (String host, int port, String user, AuthMethod auth, String? keyId);
 
+/// Picks the model a session continues on when omp on [machine] cannot restore [missing] (`provider/id`), the model
+/// the session ran on; null leaves the session closed.
+typedef ModelChooser = Future<String?> Function(Machine machine, String missing);
+
 /// The session files and live runs of one machine, as last listed.
 final class SessionListing {
   const SessionListing({this.sessions = const [], this.loading = false, this.error, this.loadedAt});
@@ -137,10 +141,11 @@ class SessionsProvider extends ChangeNotifier {
 
   /// Opens [request] on [machine] and adds it to [openSessions]; [select] makes it [active]. A session this device
   /// already has open is returned instead of opened twice; one whose link closed is opened again in its place.
-  Future<LiveSession> open(Machine machine, SessionOpen request) async {
+  /// [chooseModel] answers a resume that omp refuses for the session's model ([_launch]).
+  Future<LiveSession> open(Machine machine, SessionOpen request, {ModelChooser? chooseModel}) async {
     final same = _open.where((s) => _machineIds[s] == machine.id && _opens(request, s)).firstOrNull;
-    if (same != null) return same.linkState is LinkClosed ? await reopen(same) : same;
-    final session = await runtimeFor(machine).open(request);
+    if (same != null) return same.linkState is LinkClosed ? await reopen(same, chooseModel: chooseModel) : same;
+    final session = await _launch(machine, request, chooseModel);
     if (_disposed) {
       await session.detach();
       return session;
@@ -163,10 +168,26 @@ class SessionsProvider extends ChangeNotifier {
     NewSession() => false,
   };
 
+  /// [request] on [machine]'s runtime. omp 18.6.3 and later refuse to resume a session whose saved model they cannot
+  /// restore rather than continue it on another one ([OmpStartFailed.unrestorableModel]); the resume then runs again
+  /// on the model [chooseModel] picks, and fails as it was when there is no chooser or the user picks none.
+  Future<LiveSession> _launch(Machine machine, SessionOpen request, ModelChooser? chooseModel) async {
+    try {
+      return await runtimeFor(machine).open(request);
+    } on OmpStartFailed catch (error) {
+      final missing = error.unrestorableModel;
+      if (request is! ResumeSession || missing == null || chooseModel == null) rethrow;
+      final model = await chooseModel(machine, missing);
+      if (model == null) rethrow;
+      return runtimeFor(machine).open(ResumeSession(request.sessionPath, model: model));
+    }
+  }
+
   /// Opens the session again, replacing [session] in [openSessions]: after its link closed (the omp process exited or
   /// reconnecting gave up), or to take over a session file another omp process held ([ExternalSession]). Returns
   /// [session] itself when the runtime hands the same one back, such as a reader whose file is still held.
-  Future<LiveSession> reopen(LiveSession session) async {
+  /// [chooseModel] answers a resume that omp refuses for the session's model ([_launch]).
+  Future<LiveSession> reopen(LiveSession session, {ModelChooser? chooseModel}) async {
     final machine = machineOf(session);
     if (machine == null) throw StateError('the machine of this session was deleted');
     final request = switch (session.sessionPath) {
@@ -175,7 +196,7 @@ class SessionsProvider extends ChangeNotifier {
       _ when session.view.idleExit != null && session.view.transcript.isEmpty => NewSession(session.cwd),
       final path => ResumeSession(path),
     };
-    final replacement = await runtimeFor(machine).open(request);
+    final replacement = await _launch(machine, request, chooseModel);
     if (identical(replacement, session)) {
       select(session);
       return session;

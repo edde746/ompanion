@@ -40,14 +40,19 @@ final class SessionTarget {
 /// Shows a session of [machine] in the center pane, through [openAndShow]. The one this device has open for [runId] or
 /// [sessionPath] is selected; otherwise the live run [runId] is attached, or once it ended the file [sessionPath] is
 /// resumed, which attaches to the live run holding the file or launches one. A session whose link closed is opened
-/// again in place.
+/// again in place. [chooseModel] answers a resume omp refuses for the session's model.
 Future<void> showSession(
   SessionsProvider sessions,
   ShellProvider shell,
   Machine machine, {
   String? runId,
   String? sessionPath,
-}) => openAndShow(sessions, shell, () => _openSession(sessions, machine, runId: runId, sessionPath: sessionPath));
+  required ModelChooser chooseModel,
+}) => openAndShow(
+  sessions,
+  shell,
+  () => _openSession(sessions, machine, runId: runId, sessionPath: sessionPath, chooseModel: chooseModel),
+);
 
 /// Opens a session with [open] and shows it in the center pane, unless the user navigated elsewhere while it opened:
 /// their last choice wins ([ShellProvider.isLatest]). The session stays open either way.
@@ -64,6 +69,7 @@ Future<LiveSession> _openSession(
   Machine machine, {
   required String? runId,
   required String? sessionPath,
+  required ModelChooser chooseModel,
 }) async {
   final open = sessions.openSessions
       .where(
@@ -81,5 +87,5 @@ Future<LiveSession> _openSession(
     }
   }
   if (sessionPath == null) throw ArgumentError('a session to show needs a run id or a session file');
-  return sessions.open(machine, ResumeSession(sessionPath));
+  return sessions.open(machine, ResumeSession(sessionPath), chooseModel: chooseModel);
 }

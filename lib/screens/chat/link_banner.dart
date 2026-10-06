@@ -10,6 +10,7 @@ import '../../i18n/strings.g.dart';
 import '../../sessions/session_view_builder.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../utils/compact_duration.dart';
+import '../config/model_picker.dart' show resumeModelChooser;
 import '../machines/connect_dialogs.dart';
 
 /// The connection of [session] when it is not live: a progress line while connecting, the retry countdown
@@ -94,7 +95,7 @@ class _ClosedState extends State<_Closed> {
     final sessions = context.read<SessionsProvider>();
     setState(() => _reopening = true);
     try {
-      await sessions.reopen(widget.session);
+      await sessions.reopen(widget.session, chooseModel: resumeModelChooser(context));
     } on Object catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(t.chat.reopenFailed(error: describeConnectError(t, error)))));
       if (mounted) setState(() => _reopening = false);

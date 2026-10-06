@@ -189,6 +189,10 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   the run (`new_session`, `switch_session`, `branch`, fork, `/clear`, tree navigation) is recorded the same
   way, and so is the move to a new file that omp makes from 18.4.9 when another omp process owns the session file
   (`contracts/session-writer.md`). A device opening that file attaches to the run instead of launching a second omp.
+- Resume: a session file launches with `--session <file>`. From 18.6.3 omp exits with `Could not restore model
+  <provider/id>` when the model the session ran on is gone (a provider signed out of, a model dropped from models.yml)
+  instead of continuing on another model; the app then asks which model the conversation continues on (Continue on
+  another model) and launches again with that `--model`, or leaves the session closed.
 - Attach: `in.jsonl` through `tail -F` from its saved offset; `out.jsonl` through the follow script (`followScript`,
   uploaded next to the companion and run by omp as Bun, the same script on Windows hosts), which sends what the log
   holds with a plain read, then follows it with `tail -F` (BSD `tail -F` copies byte by byte; on macOS it delivers an
