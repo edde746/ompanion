@@ -1,9 +1,25 @@
-First release.
+Works with omp 18.6, and installs omp 18.6.3 on a machine that lacks it.
 
-- Chat with a streaming transcript, markdown, LaTeX math, collapsible thinking and images
-- Tool cards with word-level diffs; approvals, questions and extension dialogs answered inline
-- Session tree with search, filters, labels and branching; subagents in the Agent Hub; todos by phase
-- Files with an editor, git diffs and an SSH terminal on the machine
-- Machines over SSH, directly or through chains of jump hosts; omp installed on a machine that lacks it
-- Configuration for settings, model roles, providers, MCP servers, plugins, skills and usage limits
-- No accounts, no analytics, no tracking; open source (GPLv3)
+New
+- Keep a Mac awake while omp works, switched per machine on its page: a Mac that a request from your iPhone woke no longer falls back asleep mid-turn
+- Update omp on a machine from its page
+- Start a session without a project folder, or straight from a project row
+- Mark sessions, folders and machines read from the sidebar
+- A custom theme: pick every color the app draws
+- On iPad, resize the sidebar and the dock by dragging their edge
+- Images omp keeps in its blob store show in the chat
+- Hide emails and organizations on the usage pane, for screenshots
+
+Changed
+- When omp cannot use the model a session ran on, the app asks which model to continue on instead of failing to open the session
+- Stream rule matches show as a note in the chat instead of a toast
+- Sessions started from your device get a title, as in omp's terminal
+- Faster opening of long runs: a compacted replay, images sent once, progress updates collapsed
+
+Fixed
+- With omp 18.4.9 and later, live updates, goal and loop modes, notifications and idle exit work again
+- A run that omp moves to a new session file is followed there
+- The queue and goal mode match omp 18.4
+- A session's earlier subagents show when omp opens it
+- The session you tapped last shows, whichever finishes opening first
+- The ask form's "other" answer takes spaces typed on a keyboard

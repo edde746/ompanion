@@ -1,1 +1,7 @@
-First release. Chat with a streaming transcript, tool cards with diffs, inline approvals, the session tree, subagents, todos, files and a terminal. Run omp on this PC or on your machines over SSH, jump hosts included; omp is installed on a machine that lacks it. No accounts, no analytics, no tracking. Open source (GPLv3).
+Works with omp 18.6, and installs omp 18.6.3 on a machine that lacks it.
+
+New: keep a Mac awake while omp works, switched per machine on its page. Update omp on a machine from its page. Start a session without a project folder, or straight from a project row. Mark sessions, folders and machines read from the sidebar. A custom theme with every color pickable. Resize the sidebar and the dock by dragging their edge. Images omp keeps in its blob store show in the chat. Hide emails and organizations on the usage pane, for screenshots.
+
+Changed: when omp cannot use the model a session ran on, the app asks which model to continue on instead of failing to open the session. Stream rule matches show as a note in the chat instead of a toast. Sessions started from a device get a title, as in omp's terminal. Long runs open faster, and their logs rotate on Windows machines too.
+
+Fixed: with omp 18.4.9 and later, live updates, goal and loop modes, notifications and idle exit work again. A run that omp moves to a new session file is followed there. The queue and goal mode match omp 18.4. The ask form's "other" answer takes spaces typed on a keyboard.
