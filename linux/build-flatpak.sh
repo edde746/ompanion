@@ -30,6 +30,10 @@ trap 'rm -rf "$stage"' EXIT
 cp "$root/linux/flatpak/$app_id.yml" "$root/linux/flatpak/$app_id.desktop" "$root/linux/flatpak/release-tty.c" \
   "$root/linux/ompanion.png" "$stage/"
 cp -a "$bundle" "$stage/bundle"
+# jni (a dependency of path_provider_android) builds libdartjni.so only where CMake finds a JDK, as on GitHub's
+# runners, and links it to that JDK's libjvm.so, which neither the runtime nor a user's system has. Dart opens it
+# only to call Java, which only Android does, so the Flatpak leaves it out, as a build without a JDK does.
+rm -f "$stage/bundle/lib/libdartjni.so"
 sed "s|</component>|  <releases>\n    <release version=\"$version\" date=\"$(date -u +%F)\"/>\n  </releases>\n</component>|" \
   "$root/linux/flatpak/$app_id.metainfo.xml" >"$stage/$app_id.metainfo.xml"
 
