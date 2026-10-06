@@ -260,7 +260,7 @@ flutter drive --profile -d macos --driver=integration_test/driver/report_driver.
 <details>
 <summary>Releasing</summary>
 
-To publish a release, set `version` in `pubspec.yaml`, push it to main, and run Actions → Build → Run workflow on main with every platform selected and the release tag set to that version (e.g. `1.0.0`). Before building anything the run checks the branch, the tag (it must equal `pubspec.yaml`'s version and not exist yet), the platforms, and the macOS signing secrets, the update key and the Android signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip`, `ompanion-linux-x64.flatpak`, `ompanion-linux-x64.zip` and `appcast.xml` to a draft release. Write the notes and publish the draft; publishing creates the tag on the commit that was built, and offers the release to installed Mac apps.
+A release is one command on a Mac: `uv run scripts/release/deploy.py release --version 1.1.0` (The stores, below). It bumps `pubspec.yaml`, pushes main and runs Actions → Build → Run workflow on main with every platform selected and the release tag set to that version, which can also be done by hand. Before building anything the run checks the branch, the tag (it must equal `pubspec.yaml`'s version and not exist yet), the platforms, and the macOS signing secrets, the update key and the Android signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip`, `ompanion-linux-x64.flatpak`, `ompanion-linux-x64.zip` and `appcast.xml` to a draft release. Publishing the draft creates the tag on the commit that was built, and offers the release to installed Mac apps.
 
 [build.yml](.github/workflows/build.yml), run from Actions → Build → Run workflow, signs the macOS app, notarizes the app and the DMG, and staples the tickets so Gatekeeper accepts the DMG in the artifact named `ompanion-macos-<sha>`. It reads six repository secrets, the same names [Plezy](https://github.com/edde746/plezy) uses:
 
@@ -314,7 +314,7 @@ keytool -genkeypair -v -keystore upload-keystore.jks -alias ompanion -keyalg RSA
 base64 -i upload-keystore.jks | pbcopy      # ANDROID_KEYSTORE_BASE64
 ```
 
-Keep the keystore and its passwords: with [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756) Google holds the app signing key, and losing the upload key means asking Google to reset it. Locally the same four values live in `android/key.properties` (gitignored, `storeFile` relative to `android/app`). Without all four secrets the job builds a debug-signed APK and bundle and warns; with only some of them it fails and names the missing ones. The job also builds `flutter build appbundle --release --dart-define=OMPANION_CHANNEL=play` and uploads it as `ompanion-android-aab-<sha>`, which no release carries: the store lanes below build their own bundle.
+Keep the keystore and its passwords: with [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756) Google holds the app signing key, and losing the upload key means asking Google to reset it. Locally the same four values live in `android/key.properties` (gitignored, `storeFile` relative to `android/app`). Without all four secrets the job builds a debug-signed APK and bundle and warns; with only some of them it fails and names the missing ones. The job also builds `flutter build appbundle --release --dart-define=OMPANION_CHANNEL=play` and uploads it as `ompanion-android-aab-<sha>`, which no release carries: the release pipeline (The stores, below) uploads that bundle to Google Play.
 
 The Linux job packs the bundle it zips into `ompanion-linux-x64.flatpak` with [linux/build-flatpak.sh](linux/build-flatpak.sh) and the manifest in [linux/flatpak/](linux/flatpak/) (the freedesktop 26.08 runtime from Flathub), installs it, and runs [linux/check-flatpak.sh](linux/check-flatpak.sh) in its sandbox: every library of the app resolves in the runtime, and `flatpak-spawn --host` reaches the host. The Flatpak is the `direct` build: "this computer" starts omp, its commands and the terminal's shell on the host through `flatpak-spawn --host` (the manifest's `org.freedesktop.Flatpak` permission, which lifts the sandbox), and reads the host's files at their own paths (`--filesystem=host`). Locally, on an x64 or arm64 Linux machine with `flatpak` and `flatpak-builder`:
 
@@ -328,13 +328,54 @@ linux/check-flatpak.sh
 
 ### The stores
 
-The App Store and Google Play uploads run from a Mac, not from CI, through a fastlane lane next to each platform. `.env` in the repository root (gitignored) holds the credentials:
+[scripts/release/deploy.py](scripts/release/deploy.py), a port of [Plezy](https://github.com/edde746/plezy)'s pipeline, releases to the App Store, Google Play, the Microsoft Store and GitHub from a Mac. It needs [uv](https://docs.astral.sh/uv/), `gh` signed in to GitHub, Flutter, Xcode with the Apple Distribution certificate of an account that can reach `com.edde746.ompanion` (the Runner target signs automatically with team `G88U5B5783`), and Claude Code's `claude` CLI when a store's notes must be written:
+
+```bash
+uv run scripts/release/deploy.py release --version 1.1.0 --dry-run   # print every action, perform none
+uv run scripts/release/deploy.py release --version 1.1.0             # release; asks before publishing
+uv run scripts/release/deploy.py release                             # resume after a failure
+uv run scripts/release/deploy.py status
+python3 scripts/release/test_deploy.py                               # its tests; CI runs them in the App job
+```
+
+The phases run in this order. `--only` and `--skip` pick some; `build/deploy/state.json` records the finished ones, so a failed run resumes where it stopped, and `--fresh` discards it.
+
+| Phase | What it does |
+|---|---|
+| `preflight` | checks the branch (main), uncommitted changes (only the notes files below may have some), the version, the tag, and the tools and `.env` keys of the phases that will run |
+| `changelog` | writes the store notes files (below) |
+| `bump` | sets `pubspec.yaml` to `<version>+<build>`, the build number one above the current one unless `--build-number` is given; commits it with the four notes files as `chore(release): <version>`; pushes main |
+| `farm_start` | runs Actions → Build on main with the release tag |
+| `ios` | `flutter build ipa --release --dart-define=OMPANION_CHANNEL=appstore`, uploaded with `xcrun altool` |
+| `asc` | waits for App Store Connect to process the build, creates the version, sets What's New, attaches the build; with `--submit` it asks whether the review demo server was reset and verified ([store/README.md](store/README.md), App Store step 11), then submits for review |
+| `farm_wait` | waits for the run and downloads `ompanion-android-aab-<sha>` and `ompanion-windows-msix-<sha>`, only from a release run: that run does not start without the four Android signing secrets, so its bundle is signed with the upload key |
+| `play` | uploads that bundle through the Play Developer API and releases it on `PLAY_TRACK`, status completed, with the en-US notes |
+| `release` | checks that the draft release holds exactly the seven files above and sets its notes |
+| `msstore` | creates a submission through the Microsoft Store Submission API, replaces its package with that `ompanion-windows.msixbundle`, sets What's new, pins the price to `MSSTORE_PRICE_ID` and checks the price the API stored, commits |
+| `publish` | publishes the draft and marks it latest, after asking |
+
+The release notes are committed files. Write the GitHub notes; a store's file is kept when it is new or changed since the last release tag (the highest one below the version, after fetching tags from GitHub) and fits its limit, and otherwise `changelog` generates it from the GitHub notes with `claude`:
+
+| Notes | File | Limit (characters) |
+|---|---|---|
+| GitHub release (`--notes` names another source) | `store/release-notes/<version>.md` | none |
+| Google Play | `android/fastlane/metadata/android/en-US/changelogs/<build>.txt` | 500 |
+| App Store What's New | `ios/fastlane/metadata/en-US/release_notes.txt` | 4,000 |
+| Microsoft Store What's new | `store/microsoft/release_notes.txt` | 1,500 |
+
+`.env` in the repository root (gitignored) holds the credentials of the pipeline and of the fastlane lanes:
 
 | Key | Value |
 |---|---|
 | `APP_STORE_CONNECT_API_KEY_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH` | an App Store Connect API key: [Users and Access → Integrations → App Store Connect API](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api) → Team Keys → `+`, then the key ID, the issuer ID and the downloaded `.p8` |
-| `FASTLANE_USER`, `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD` | or, instead of the API key, the Apple ID and an app-specific password for it |
+| `FASTLANE_USER`, `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD` | fastlane only: instead of the API key, the Apple ID and an app-specific password for it |
 | `PLAY_JSON_KEY_PATH` | the Play service account's JSON key: [create it](https://developers.google.com/android-publisher/getting_started) in Google Cloud and invite the account in Play Console → Users and permissions |
+| `PLAY_TRACK` | the Play track the pipeline releases on: the closed-testing track's id from Play Console (`alpha` for the default closed track) until production access is granted, then `production`; without it `preflight` stops |
+| `MSSTORE_TENANT_ID`, `MSSTORE_CLIENT_ID`, `MSSTORE_CLIENT_SECRET` | the Azure AD application associated with the Partner Center account ([Submission API prerequisites](https://learn.microsoft.com/en-us/windows/uwp/monetize/create-and-manage-submissions-using-windows-store-services)); the account is Plezy's, so it is the application Plezy's pipeline uses |
+| `MSSTORE_APP_ID` | `9P9DVTKZ3SB9`, ompanion's Store ID |
+| `MSSTORE_PRICE_ID` | the Partner Center price tier for US$4.99 ([store/README.md](store/README.md), Later releases) |
+
+The fastlane lanes stay for the whole listing (texts and screenshots) and for uploads by hand:
 
 ```bash
 gem install fastlane
@@ -343,11 +384,11 @@ gem install fastlane
 (cd android && fastlane release track:production release_status:completed)
 ```
 
-`ios/fastlane/metadata` and `ios/fastlane/screenshots` are the App Store listing; `android/fastlane/metadata/android` is the Play listing. A new Play app only accepts a draft release, so the default uploads to internal testing as a draft that is rolled out in Play Console; nothing reaches production until `track:production` is passed. The iOS lane never submits for review: it uploads the build, and the submission happens in App Store Connect with the notes and the demo machine from [store/README.md](store/README.md).
+`ios/fastlane/metadata` and `ios/fastlane/screenshots` are the App Store listing; `android/fastlane/metadata/android` is the Play listing. A new Play app only accepts a draft release, so the Android lane's default uploads to internal testing as a draft that is rolled out in Play Console, and it builds its own bundle, signed only with `android/key.properties` in place. The iOS lane never submits for review: it uploads the build, and the submission happens in App Store Connect with the notes and the demo machine from [store/README.md](store/README.md).
 
-`deploy_appstore` signs with the Apple Distribution certificate of the Xcode account that can reach `com.edde746.ompanion` (the Runner target signs automatically with team `G88U5B5783`). fastlane rejects screenshots whose pixel size its own list does not know, so `fastlane deploy_appstore skip_screenshots:true` uploads everything else and leaves the screenshots to App Store Connect by hand.
+`deploy_appstore` signs like the pipeline's `ios` phase. fastlane rejects screenshots whose pixel size its own list does not know, so `fastlane deploy_appstore skip_screenshots:true` uploads everything else and leaves the screenshots to App Store Connect by hand.
 
-The Microsoft Store upload is by hand in Partner Center, and its package comes from CI: the Windows job runs [windows/build-msix.ps1](windows/build-msix.ps1) on the Release folder it zips and uploads the unsigned `ompanion-windows.msixbundle` as the artifact `ompanion-windows-msix-<sha>`, which no release carries. The Store signs the bundle after certification. Locally, `pwsh windows/build-msix.ps1` packs `build\windows\x64\runner\Release` (and `arm64` when it exists) into `build\windows\msix\` with the Windows SDK's `makeappx` and `makepri`; `-EmitManifestOnly` writes only the manifests, on any system with PowerShell 7. The package identity must match the name reserved in Partner Center: [store/README.md](store/README.md), Microsoft Store.
+The Microsoft Store package comes from CI: the Windows job runs [windows/build-msix.ps1](windows/build-msix.ps1) on the Release folder it zips and uploads the unsigned `ompanion-windows.msixbundle` as the artifact `ompanion-windows-msix-<sha>`, which no release carries. The pipeline's `msstore` phase submits it; without the pipeline it is uploaded by hand in Partner Center. The Store signs the bundle after certification. Locally, `pwsh windows/build-msix.ps1` packs `build\windows\x64\runner\Release` (and `arm64` when it exists) into `build\windows\msix\` with the Windows SDK's `makeappx` and `makepri`; `-EmitManifestOnly` writes only the manifests, on any system with PowerShell 7. The package identity must match the name reserved in Partner Center: [store/README.md](store/README.md), Microsoft Store.
 
 </details>
 

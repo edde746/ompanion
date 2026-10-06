@@ -72,6 +72,10 @@ so the copyright line uses the same legal name for consistency. Change it if you
 Check all three URLs in an incognito window before submitting; a dead privacy-policy URL is an automatic
 5.1.1(i) rejection.
 
+Later versions: `scripts/release/deploy.py` (`store/README.md`, Later releases) uploads the build from
+`flutter build ipa`, creates the version, sets What's New from `en-US/release_notes.txt` and attaches the build;
+it changes no other field. `(cd ios && fastlane deploy_appstore)` uploads the whole listing when it changes.
+
 ## 4. App Review information
 
 `ios/fastlane/metadata/review_information/` holds these files, which `deliver` uploads. The file name is the

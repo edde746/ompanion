@@ -6,6 +6,8 @@ reading and the SSH agent, none of which this build has.
 
 Field-by-field console answers: `store/app-store.md` and `store/google-play.md`. Privacy policy:
 <https://ompanion.app/privacy>, from `website/src/routes/privacy/`. Review demo host: `store/review-demo/`.
+The checklists below are each store's first submission; every later version goes out with one command (Later
+releases).
 
 ## Before anything else
 
@@ -30,8 +32,9 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
 | Apple Developer Program team | `ios/Runner.xcodeproj` pins `DEVELOPMENT_TEAM = G88U5B5783`; clear it if that id should not be public and pick the team in Xcode once per Mac |
 | Apple Team ID, App Store Connect API key (or Apple ID + app-specific password) | `.env`, see Build below |
 | Play upload keystore + 4 GitHub secrets | `keytool -genkeypair -v -keystore upload-keystore.jks -alias ompanion -keyalg RSA -keysize 4096 -validity 10000`; keep the file and both passwords; set `ANDROID_KEYSTORE_BASE64`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS` as repo secrets and in `android/key.properties` for local store builds |
-| Play service-account JSON key | Google Cloud service account with the Play Developer API enabled, invited under Play Console → Users and permissions; point `PLAY_JSON_KEY_PATH` in `.env` at the JSON |
-| App Store Connect API key, or Apple ID | `.env`: `APP_STORE_CONNECT_API_KEY_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH`, or `FASTLANE_USER` + `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD`; without the API key, fastlane asks for the Apple ID password and a two-factor code |
+| Play service-account JSON key and track | Google Cloud service account with the Play Developer API enabled, invited under Play Console → Users and permissions; point `PLAY_JSON_KEY_PATH` in `.env` at the JSON. `PLAY_TRACK` in `.env` is the track the release pipeline releases on (Later releases) |
+| App Store Connect API key, or Apple ID | `.env`: `APP_STORE_CONNECT_API_KEY_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH`, or `FASTLANE_USER` + `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD`; without the API key, fastlane asks for the Apple ID password and a two-factor code, and the release pipeline does not run |
+| Microsoft Store Submission API | `.env`: `MSSTORE_TENANT_ID`, `MSSTORE_CLIENT_ID`, `MSSTORE_CLIENT_SECRET` of the Azure AD application Plezy's pipeline uses (same Partner Center account), `MSSTORE_APP_ID=9P9DVTKZ3SB9`, and `MSSTORE_PRICE_ID` (Later releases) |
 | Firebase project and push relay | Push notifications need a Firebase project with the Android and iOS apps registered, the APNs auth key uploaded to it, `android/firebase.properties` and `ios/Flutter/Firebase.xcconfig` committed (README, Push notifications), and the relay running at `push.ompanion.app` with a service-account key that may only send FCM messages (`relay/README.md`). A build without the two config files ships without push, and the settings switch says so. |
 
 ## Google Play, in order
@@ -55,10 +58,12 @@ Field-by-field console answers: `store/app-store.md` and `store/google-play.md`.
        --dart-define=OMPANION_CHANNEL=play` (with `android/key.properties` in place, or the bundle is signed with
        the debug key) and upload `build/app/outputs/bundle/release/app-release.aab` in Play Console → Testing →
        Internal testing → Create new release. Play's API knows no package until the console has received a
-       bundle, so `(cd android && fastlane release)` fails with "Package not found" before that
+       bundle, so every API upload (the release pipeline's and `(cd android && fastlane release)`) fails with
+       "Package not found" before that
        ([fastlane's `upload_to_play_store` docs](https://github.com/fastlane/fastlane/blob/master/fastlane/lib/fastlane/actions/docs/upload_to_play_store.md)).
-       Later releases use the lane: a draft/internal test by default, and it refuses to run without
-       `android/key.properties`.
+       Later releases go through the release pipeline (Later releases), which uploads the bundle the release run
+       built and signed in CI. The lane stays as the manual path: a draft/internal test by default, and it
+       refuses to run without `android/key.properties`.
 9. [ ] **New personal developer account only:** run a closed test with at least 12 testers opted in for 14
        continuous days, then apply for production access. Internal testing does not count. Recruit 15–20
        testers. Source: <https://support.google.com/googleplay/android-developer/answer/14151465>. The closed
@@ -154,6 +159,39 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
         up for the whole certification window.
 11. [ ] Submit to the Store.
 
+## Later releases
+
+Every version after the first goes to the three stores and GitHub with `scripts/release/deploy.py` (README,
+Releasing → The stores); the checklists above are not repeated.
+
+1. Write the GitHub release notes in `store/release-notes/<version>.md`. Edit a store's notes by hand when it
+   should say something else: `android/fastlane/metadata/android/en-US/changelogs/<build>.txt` (Play, 500
+   characters; `<build>` is `pubspec.yaml`'s build number plus one), `ios/fastlane/metadata/en-US/release_notes.txt`
+   (App Store, 4,000) and `store/microsoft/release_notes.txt` (Microsoft Store, 1,500). The pipeline keeps a file
+   that is new or changed since the last release tag and fits its limit, and generates the others from the GitHub notes
+   with `claude`. "Length check" below measures them.
+2. Fill `.env` (README, The stores). `PLAY_TRACK` is `alpha`, the default closed-testing track, while the app
+   has no production access (Google Play step 9), then `production`. `MSSTORE_PRICE_ID` is below.
+3. `uv run scripts/release/deploy.py release --version <version> --dry-run` prints every action; the same
+   command without `--dry-run` releases. It asks before it publishes the GitHub release.
+4. App Store review: with `--submit`, the `asc` phase submits the version for review after asking whether App
+   Store step 11 (demo server reset, `verify.dart`, OpenRouter credit) is done; a no leaves the phase pending for
+   a later `release --submit`. Without `--submit`, submit in App Store Connect after step 11. Play review and
+   Microsoft Store certification sign in to the same demo server: keep it up through them too.
+
+Microsoft Store pricing: Partner Center's pricing page stores US$4.99 as a base price that the Submission API
+reads back as `Base` and refuses on PUT, and a submission without a price publishes the app for free (Plezy
+2.19.1 shipped at $0 that way). `MSSTORE_PRICE_ID` names the tier instead; the `msstore` phase accepts only a
+`TierNNNN` id and checks the tier the API stored before it commits. Tier ids are one per row of Pricing and
+availability → view conversion table, ascending. Plezy's pipeline documents this account's rows as Tier1012 =
+0.99 USD up to Tier1062 = 5.99 USD, so 4.99 USD reads as Tier1052 if the rows step by 0.10 USD: confirm it in
+that table before setting it.
+
+The Submission API only works on a product with one submission completed in Partner Center
+([create an app submission](https://learn.microsoft.com/en-us/windows/uwp/monetize/create-an-app-submission)),
+so the `msstore` phase works from the second version on. A submission still pending in Partner Center stops
+it unless `--msstore-replace-pending` deletes that submission.
+
 ## Where every asset lives
 
 | Asset | Path |
@@ -163,7 +201,8 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
 | App Store review notes and contacts | `ios/fastlane/metadata/review_information/*.txt` |
 | App Store screenshots | `ios/fastlane/screenshots/en-US/*.png` |
 | Play listing texts | `android/fastlane/metadata/android/en-US/*.txt` |
-| Play release notes | `android/fastlane/metadata/android/en-US/changelogs/1.txt` |
+| Play release notes | `android/fastlane/metadata/android/en-US/changelogs/<build number>.txt` |
+| GitHub release notes | `store/release-notes/<version>.md` |
 | Play images | `android/fastlane/metadata/android/en-US/images/{icon.png,featureGraphic.png,phoneScreenshots/,sevenInchScreenshots/,tenInchScreenshots/}` |
 | Microsoft Store package and manifest | `windows/build-msix.ps1` |
 | Microsoft Store package images | `windows/msix/assets/`, generated by `scripts/generate_icons.sh` |
@@ -174,16 +213,21 @@ that publishes Plezy: publisher `CN=AA9C53CB-AD3C-48DA-B3E3-D1E8986D4E25`, publi
 | Console answers | `store/app-store.md`, `store/google-play.md` |
 | Privacy policy | `website/src/routes/privacy/+page.svelte`, served at <https://ompanion.app/privacy> |
 | fastlane lanes | `ios/fastlane/Fastfile`, `android/fastlane/Fastfile` |
+| Release pipeline | `scripts/release/deploy.py` |
 
 ## Length check
 
 Throwaway script, re-run after any edit to a listing text. It measures the stripped value the way `deliver`
 and `supply` do: characters everywhere, **bytes** for the App Store keyword field and the App Review notes.
 The notes file is the exact text of the field. The Microsoft Store's product features and search terms
-are one per line and measured per line.
+are one per line and measured per line. The Play changelog it measures is the newest, the one with the highest
+build number. The three release-notes limits (Play 500, App Store 4,000, Microsoft Store 1,500) are the ones
+`scripts/release/deploy.py` enforces.
 
 ```bash
 python3 - <<'PY'
+from pathlib import Path
+changelog = max(Path("android/fastlane/metadata/android/en-US/changelogs").glob("*.txt"), key=lambda p: int(p.stem))
 LIMITS = [
     ("App Store name",          "ios/fastlane/metadata/en-US/name.txt",            30,   "chars"),
     ("App Store subtitle",      "ios/fastlane/metadata/en-US/subtitle.txt",        30,   "chars"),
@@ -194,7 +238,7 @@ LIMITS = [
     ("Play title",              "android/fastlane/metadata/android/en-US/title.txt", 30, "chars"),
     ("Play short description",  "android/fastlane/metadata/android/en-US/short_description.txt", 80, "chars"),
     ("Play full description",   "android/fastlane/metadata/android/en-US/full_description.txt", 4000, "chars"),
-    ("Play changelog 1",        "android/fastlane/metadata/android/en-US/changelogs/1.txt", 500, "chars"),
+    (f"Play changelog {changelog.stem}", str(changelog),                         500,  "chars"),
     ("App Review notes",        "ios/fastlane/metadata/review_information/notes.txt", 4000, "bytes"),
     ("MS Store description",    "store/microsoft/description.txt",               10000,  "chars"),
     ("MS Store what's new",     "store/microsoft/release_notes.txt",              1500,  "chars"),
@@ -219,7 +263,7 @@ for label, n, limit in [
 PY
 ```
 
-Run it from the repository root. Output on this revision (2026-09-28):
+Run it from the repository root. Output on this revision (2026-10-06, with the 1.1.0 notes):
 
 ```
 ok   App Store name              20 chars limit 30
@@ -227,14 +271,14 @@ ok   App Store subtitle          21 chars limit 30
 ok   App Store keywords          88 bytes limit 100
 ok   App Store promo text       139 chars limit 170
 ok   App Store description     3932 chars limit 4000
-ok   App Store release notes    637 chars limit 4000
+ok   App Store release notes   1414 chars limit 4000
 ok   Play title                  20 chars limit 30
 ok   Play short description      70 chars limit 80
 ok   Play full description     3855 chars limit 4000
-ok   Play changelog 1           303 chars limit 500
+ok   Play changelog 2           393 chars limit 500
 ok   App Review notes          3980 bytes limit 4000
 ok   MS Store description      4394 chars limit 10000
-ok   MS Store what's new        323 chars limit 1500
+ok   MS Store what's new       1152 chars limit 1500
 ok   MS Store short descr.       85 chars limit 1000
 ok   MS Store copyright          19 chars limit 200
 ok   MS Store features           17       limit 20
@@ -295,10 +339,12 @@ review notes by 20 bytes: re-run this after any wording change.
   Play's requirement to target API 36 for new apps and updates from 31 August 2026. The permissions are
   `INTERNET`, `POST_NOTIFICATIONS` (asked for when push is turned on) and the normal ones Firebase Messaging and
   flutter_local_notifications add (`store/google-play.md` §3); `android:allowBackup` is false.
-- **Uploads come from the Mac with fastlane, not CI:** `(cd ios && fastlane deploy_appstore)` and
-  `(cd android && fastlane release)`, except Play's first bundle, which goes through the console by hand
-  (checklist step 8). A brand-new Play app accepts only a draft release, so the lane's default is a
-  draft/internal test; the Fastfile's `track:production release_status:completed` publishes.
+- **Uploads start on the Mac, not in CI:** `scripts/release/deploy.py` (Later releases) uploads the IPA it builds
+  there, and the Play bundle and the Microsoft Store package the release run built in CI. The fastlane lanes,
+  `(cd ios && fastlane deploy_appstore)` and `(cd android && fastlane release)`, upload the whole listing and are
+  the manual path. Play's first bundle goes through the console by hand (checklist step 8). A brand-new Play app
+  accepts only a draft release, so the Android lane's default is a draft/internal test; the Fastfile's
+  `track:production release_status:completed` publishes.
 - **iOS screenshots must be a pixel size fastlane knows**; an unknown size aborts that step even when App
   Store Connect would accept it. The sets are 1320×2868 (iPhone 6.9-inch, portrait) and 2048×2732 (iPad
   13-inch, portrait), both on `deliver`'s list.

@@ -12,7 +12,7 @@ Flutter client for omp. Architecture, decisions and milestones: `docs/PLAN.md`. 
 | `companion/` | TypeScript companion extension loaded into omp with `-e` |
 | `relay/` | push relay: a Bun server on our VPS that forwards encrypted notifications to FCM (`relay/README.md`) |
 | `harness/` | fake OpenAI-compatible provider, isolated omp homes, recorded fixtures, SSH test containers |
-| `scripts/` | build the companion, fetch an omp release binary, regenerate icons, sign and notarize the macOS app |
+| `scripts/` | build the companion, fetch an omp release binary, regenerate icons, sign and notarize the macOS app, release to the stores and GitHub (`scripts/release/deploy.py`) |
 | `.github/workflows/` | CI (Linux and a Windows host), the per-platform build and release |
 | `store/` | the store submission checklist and console answers, the review demo host, screenshot captions |
 | `website/` | ompanion.app (SvelteKit, static), deployed by Cloudflare Workers Builds (`website/README.md`) |
