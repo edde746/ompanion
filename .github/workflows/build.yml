@@ -293,9 +293,9 @@ jobs:
     if: ${{ inputs.build_macos }}
     # Xcode 26 or newer: the app icons are Icon Composer .icon bundles.
     runs-on: macos-26
-    # Two notarizations wait on Apple's queue: under a minute each on 2026-09-27, but the app's alone ran past
-    # this job's old 45-minute limit on 2026-10-06, which cancels a release run.
-    timeout-minutes: 120
+    # Two notarizations wait on Apple's queue: under a minute each on 2026-09-27, but 54 minutes for the app and 16
+    # for the DMG on 2026-10-06. A cancelled job cancels a release run, so the limit leaves room for a slow queue.
+    timeout-minutes: 240
     permissions:
       contents: read
     env:
