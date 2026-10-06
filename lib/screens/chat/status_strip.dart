@@ -398,5 +398,4 @@ String noticeText(Translations t, Notice notice) => switch (notice) {
   ),
   CompactionNotice(aborted: true) => t.chat.compactionCancelled,
   CompactionNotice(:final errorMessage) => t.chat.compactionFailed(error: errorMessage ?? ''),
-  RulesNotice(:final rules) => t.chat.rulesInterrupted(rules: rules.join(', ')),
 };

@@ -90,10 +90,7 @@ SessionView _reduce(SessionView view, Map<String, Object?> frame) => switch (fra
       source: frame.optString('source'),
     ),
   ),
-  'ttsr_triggered' => _notice(
-    view,
-    (seq) => RulesNotice(seq, rules: [for (final rule in frame.objects('rules')) rule.string('name')]),
-  ),
+  'ttsr_triggered' => _rulesApplied(view, [for (final rule in frame.objects('rules')) rule.string('name')]),
   'prompt_result' => _promptResult(view, frame),
   'session_settled' => _settle(view),
   'available_commands_update' => view.copyWith(commands: _decodeCommands(frame.objects('commands'))),
@@ -719,6 +716,18 @@ ModelRef _decodeModel(Map<String, Object?> model) => ModelRef(
 
 SessionView _appendMarker(SessionView view, TranscriptItem Function(String key) build) =>
     view.copyWith(transcript: _append(view.transcript, build('marker:${view.nextSeq}')), nextSeq: view.nextSeq + 1);
+
+/// Notes the rules of a `ttsr_triggered` frame. While the last row is a rule note (the tool calls of one response
+/// match one after another), the rules join it, as omp's TUI merges consecutive notes into one block.
+SessionView _rulesApplied(SessionView view, List<String> rules) {
+  if (view.transcript.lastOrNull case final RulesItem last) {
+    final joined = {...last.rules, ...rules}.toList();
+    return view.copyWith(
+      transcript: _replaceAt(view.transcript, view.transcript.length - 1, RulesItem(key: last.key, rules: joined)),
+    );
+  }
+  return _appendMarker(view, (key) => RulesItem(key: key, rules: rules));
+}
 
 // Extension UI -------------------------------------------------------------------------------------------------------
 

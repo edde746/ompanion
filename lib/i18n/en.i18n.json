@@ -805,7 +805,6 @@
     "fallbackApplied": "Switched from $from to the fallback model $to. $reason",
     "compactionCancelled": "Compaction was cancelled.",
     "compactionFailed": "Compaction failed: $error",
-    "rulesInterrupted": "Stream rules interrupted the response: $rules",
     "cannotBranch": "Branching is only possible from your own messages.",
     "branch": "Branch",
     "branchTitle": "Branch from this message?",
@@ -1081,6 +1080,10 @@
     "modelRoleChange": "Model ($role): $model",
     "thinkingLevel": "Thinking: $level",
     "thinkingOff": "Thinking: off",
+    "rulesApplied": {
+      "one": "Rule applied: $rules",
+      "other": "$n rules applied: $rules"
+    },
     "mentionedFiles": {
       "one": "Attached $n file",
       "other": "Attached $n files"

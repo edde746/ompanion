@@ -80,7 +80,7 @@ class TranscriptRowView extends StatelessWidget {
 
   static double _gapBefore(TranscriptItem item) => switch (item) {
     UserItem() => 24,
-    ModelChangeItem() || ThinkingChangeItem() => 6,
+    ModelChangeItem() || ThinkingChangeItem() || RulesItem() => 6,
     _ => 10,
   };
 
@@ -112,6 +112,10 @@ class TranscriptRowView extends StatelessWidget {
     final ThinkingChangeItem item => _Marker(
       icon: Symbols.neurology,
       text: (t) => item.level == null || item.level == 'off' ? t.thinkingOff : t.thinkingLevel(level: item.level!),
+    ),
+    final RulesItem item => _Marker(
+      icon: Symbols.gpp_maybe,
+      text: (t) => t.rulesApplied(n: item.rules.length, rules: item.rules.join(', ')),
     ),
     // Assistant messages and tool results have rows of their own (transcript_rows.dart); a hidden prompt has none.
     AssistantItem() || ToolResultItem() || HiddenPromptItem() => const SizedBox.shrink(),
@@ -943,7 +947,7 @@ class _SummaryMarkerState extends State<_SummaryMarker> {
   }
 }
 
-/// A thin centered note: a model or thinking-level change.
+/// A thin centered note: a model or thinking-level change, or stream rules that applied.
 class _Marker extends StatelessWidget {
   const _Marker({required this.icon, required this.text});
 

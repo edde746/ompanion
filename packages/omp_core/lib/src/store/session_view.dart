@@ -690,14 +690,6 @@ final class CompactionNotice extends Notice {
   final String? errorMessage;
 }
 
-/// Time-travelling stream rules interrupted the response (`ttsr_triggered`).
-final class RulesNotice extends Notice {
-  const RulesNotice(super.seq, {required this.rules});
-
-  /// Rule names.
-  final List<String> rules;
-}
-
 final class CommandOutput {
   const CommandOutput(this.seq, this.text);
 

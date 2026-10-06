@@ -1748,9 +1748,6 @@ class Translations$chat$en {
 	/// en: 'Compaction failed: $error'
 	String compactionFailed({required Object error}) => 'Compaction failed: ${error}';
 
-	/// en: 'Stream rules interrupted the response: $rules'
-	String rulesInterrupted({required Object rules}) => 'Stream rules interrupted the response: ${rules}';
-
 	/// en: 'Branching is only possible from your own messages.'
 	String get cannotBranch => 'Branching is only possible from your own messages.';
 
@@ -2376,6 +2373,12 @@ class Translations$transcript$en {
 
 	/// en: 'Thinking: off'
 	String get thinkingOff => 'Thinking: off';
+
+	/// en: '(one) {Rule applied: $rules} (other) {$n rules applied: $rules}'
+	String rulesApplied({required num n, required Object rules}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: 'Rule applied: ${rules}',
+		other: '${n} rules applied: ${rules}',
+	);
 
 	/// en: '(one) {Attached $n file} (other) {Attached $n files}'
 	String mentionedFiles({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
@@ -4719,7 +4722,6 @@ extension on Translations {
 			'chat.fallbackApplied' => ({required Object from, required Object to, required Object reason}) => 'Switched from ${from} to the fallback model ${to}. ${reason}',
 			'chat.compactionCancelled' => 'Compaction was cancelled.',
 			'chat.compactionFailed' => ({required Object error}) => 'Compaction failed: ${error}',
-			'chat.rulesInterrupted' => ({required Object rules}) => 'Stream rules interrupted the response: ${rules}',
 			'chat.cannotBranch' => 'Branching is only possible from your own messages.',
 			'chat.branch' => 'Branch',
 			'chat.branchTitle' => 'Branch from this message?',
@@ -4944,6 +4946,7 @@ extension on Translations {
 			'transcript.modelRoleChange' => ({required Object role, required Object model}) => 'Model (${role}): ${model}',
 			'transcript.thinkingLevel' => ({required Object level}) => 'Thinking: ${level}',
 			'transcript.thinkingOff' => 'Thinking: off',
+			'transcript.rulesApplied' => ({required num n, required Object rules}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Rule applied: ${rules}', other: '${n} rules applied: ${rules}', ), 
 			'transcript.mentionedFiles' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Attached ${n} file', other: 'Attached ${n} files', ), 
 			'transcript.skippedTooLarge' => 'too large',
 			'transcript.skippedBinary' => 'binary',

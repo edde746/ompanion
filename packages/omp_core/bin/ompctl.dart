@@ -287,6 +287,9 @@ final class _Printer {
           _once(item.key, '── model $model ──');
         case ThinkingChangeItem(:final level):
           _once(item.key, '── thinking ${level ?? 'off'} ──');
+        // A note grows while the matches of one response arrive; print it again with each new rule.
+        case RulesItem(:final rules):
+          _once('${item.key}/${rules.length}', '── rules applied: ${rules.join(', ')} ──');
         default:
       }
     }
@@ -363,7 +366,6 @@ final class _Printer {
     ExtensionErrorNotice(:final extensionPath, :final error) => 'extension $extensionPath failed: $error',
     RetryFallbackNotice(:final to, :final succeeded) => 'fallback to $to${succeeded ? ' succeeded' : ''}',
     CompactionNotice(:final action, :final errorMessage) => 'compaction $action: ${errorMessage ?? 'cancelled'}',
-    RulesNotice(:final rules) => 'rules ${rules.join(', ')} interrupted the response',
   };
 
   static String _clip(String text, [int max = 160]) {

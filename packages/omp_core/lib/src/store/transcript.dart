@@ -544,6 +544,21 @@ final class ThinkingChangeItem extends TranscriptItem {
       ThinkingChangeItem(key: key, entryId: entryId, level: level, configured: configured);
 }
 
+/// Stream rules (TTSR) matched (`ttsr_triggered`): omp interrupted the response or added the rules as a reminder. Seen
+/// live only, like the note omp's TUI shows; omp keeps no entry for most matches, so a reopened session has none.
+final class RulesItem extends TranscriptItem {
+  RulesItem({required String super.key, required this.rules});
+
+  /// Rule names, in the order they first matched.
+  final List<String> rules;
+
+  @override
+  String get identity => key;
+
+  @override
+  RulesItem rekeyed(String key, String? entryId) => RulesItem(key: key, rules: rules);
+}
+
 /// Decodes one `AgentMessage`. Returns null for roles the transcript does not show (a `developer` message that is not
 /// a synthetic prompt) and roles this build does not know.
 TranscriptItem? decodeMessage(

@@ -340,6 +340,39 @@ void main() {
       expect(identities(view), ['assistant:200:fake:fake-1', 'toolResult:call_a', 'toolResult:call_b']);
     });
 
+    test('stream rule matches note the transcript instead of a toast; matches in a row join one note', () {
+      Map<String, Object?> rules(List<String> names) => {
+        'type': 'ttsr_triggered',
+        'rules': [
+          for (final name in names) {'name': name, 'path': '/rules/$name.md', 'content': 'Avoid it.'},
+        ],
+      };
+      final call = assistant(200, [
+        toolCall('call_a', 'write', {'path': 'a.ts'}),
+        toolCall('call_b', 'write', {'path': 'b.ts'}),
+      ], stopReason: 'toolUse');
+      final view = apply(SessionView(), [
+        running,
+        messageStart(call, 'msg-2'),
+        rules(['ts-no-any']),
+        rules(['ts-set-map', 'ts-no-any']),
+        messageEnd(call, 'msg-2'),
+        toolStart('call_a', 'write', {'path': 'a.ts'}),
+        rules(['ts-no-any']),
+      ]);
+      expect(view.notices, isEmpty);
+      expect(
+        [
+          for (final item in view.transcript)
+            if (item is RulesItem) item.rules,
+        ],
+        [
+          ['ts-no-any', 'ts-set-map'],
+          ['ts-no-any'],
+        ],
+      );
+    });
+
     test('a background task stays open until its final update, or until the session settles', () {
       const running = {
         'async': {'state': 'running'},

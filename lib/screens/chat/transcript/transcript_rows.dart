@@ -649,7 +649,7 @@ final class TranscriptRowModel {
 
 /// Whether [row] of a folded turn shows while the turn is closed. [answer] is the turn's last assistant message.
 bool _keeps(TranscriptRow row, AssistantItem? answer) => switch (row) {
-  ItemRow(:final item) => item is! CustomItem,
+  ItemRow(:final item) => item is! CustomItem && item is! RulesItem,
   AssistantTextRow(:final item) => identical(item, answer),
   AssistantFooterRow(:final item) => identical(item, answer) || _failed(item),
   ThinkingRow() ||
