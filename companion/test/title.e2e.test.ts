@@ -1,12 +1,9 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
+import { TITLE_REQUEST } from "../../harness/fake-provider/client.ts";
 import { isRecord } from "../src/args.ts";
 import { OmpDriver } from "./driver.ts";
 
 setDefaultTimeout(60_000);
-
-// The first line of omp 18.3.1's title prompt (prompts/system/title-system.md): a turn matching it answers only
-// title requests (harness/README.md).
-const TITLE_REQUEST = "Write a ~5 word title";
 
 let omp: OmpDriver;
 

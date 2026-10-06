@@ -89,8 +89,11 @@ export interface RecordedRequest {
 
 const DEFAULT_TURN: StreamTurn = { steps: [{ text: "ok" }] };
 
-/** The first line of omp 18.3.1's title prompt (`prompts/system/title-system.md`): only title requests carry it. */
-const TITLE_REQUEST = "Write a ~5 word title";
+/**
+ * A phrase of every omp title prompt (`prompts/system/title-system.md`): "Write a ~5 word title" from omp 18.3.1 to
+ * 18.5.0, "Write a 3-6 word title" from 18.5.1. Only title requests carry it.
+ */
+export const TITLE_REQUEST = " word title ";
 
 /** omp's answer for a message that names no task: the session stays untitled, as before omp titled it. */
 const DECLINED_TITLE: StreamTurn = { steps: [{ text: "<title/>" }] };

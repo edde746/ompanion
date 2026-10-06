@@ -23,6 +23,7 @@ export type {
 	Usage,
 	WaitTurn,
 } from "./server.ts";
+export { TITLE_REQUEST } from "./server.ts";
 
 const SERVER = path.join(import.meta.dir, "server.ts");
 
