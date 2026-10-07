@@ -2769,6 +2769,12 @@ class Translations$dock$hub$en {
 	/// en: 'Show as tree'
 	String get showTree => 'Show as tree';
 
+	/// en: 'Active'
+	String get active => 'Active';
+
+	/// en: 'Inactive'
+	String get inactive => 'Inactive';
+
 	/// en: 'advisor'
 	String get advisor => 'advisor';
 
@@ -4481,6 +4487,8 @@ extension on Translations {
 			'dock.hub.summary' => ({required Object count, required Object running}) => 'Agents: ${count} · running: ${running}',
 			'dock.hub.showList' => 'Show as list',
 			'dock.hub.showTree' => 'Show as tree',
+			'dock.hub.active' => 'Active',
+			'dock.hub.inactive' => 'Inactive',
 			'dock.hub.advisor' => 'advisor',
 			'dock.hub.tokens' => ({required Object count}) => '${count} tok',
 			'dock.hub.tools' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} tool', other: '${n} tools', ), 
@@ -4808,10 +4816,10 @@ extension on Translations {
 			'transfer.keysTrusted' => 'Trusted',
 			'settings.theme' => 'Theme',
 			'settings.themeSystem' => 'System',
-			'settings.themeLight' => 'Light',
-			'settings.themeDark' => 'Dark',
 			_ => null,
 		} ?? switch (path) {
+			'settings.themeLight' => 'Light',
+			'settings.themeDark' => 'Dark',
 			'settings.themeCustom' => 'Custom',
 			'settings.editColors' => 'Edit colors',
 			'settings.customBase' => ({required Object base}) => '${base} base',
@@ -5322,10 +5330,10 @@ extension on Translations {
 			'transcript.fileWritten' => 'written',
 			'transcript.fileReadWritten' => 'read and written',
 			'transcript.filesElided' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} more file', other: '${n} more files', ), 
-			'transcript.modelChange' => ({required Object model}) => 'Model: ${model}',
-			'transcript.modelRoleChange' => ({required Object role, required Object model}) => 'Model (${role}): ${model}',
 			_ => null,
 		} ?? switch (path) {
+			'transcript.modelChange' => ({required Object model}) => 'Model: ${model}',
+			'transcript.modelRoleChange' => ({required Object role, required Object model}) => 'Model (${role}): ${model}',
 			'transcript.thinkingLevel' => ({required Object level}) => 'Thinking: ${level}',
 			'transcript.thinkingOff' => 'Thinking: off',
 			'transcript.rulesApplied' => ({required num n, required Object rules}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Rule applied: ${rules}', other: '${n} rules applied: ${rules}', ), 

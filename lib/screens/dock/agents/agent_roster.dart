@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:omp_core/store.dart';
 
 /// Where an agent is in its life. Merges the registry's [AgentStatus] with a task subagent's [SubagentStatus].
@@ -25,6 +27,7 @@ final class RosterAgent {
     this.contextTokens,
     this.contextWindow,
     this.createdAt,
+    this.lastActivity,
     this.order = 0,
   });
 
@@ -57,8 +60,14 @@ final class RosterAgent {
   /// Epoch milliseconds; null for a subagent the registry does not list yet.
   final int? createdAt;
 
+  /// Epoch milliseconds of its last status or activity change; null for a subagent the registry does not list yet.
+  final int? lastActivity;
+
   /// Spawn index of a task subagent, for ordering agents without [createdAt].
   final int order;
+
+  /// Working, or about to: the roster lists these first.
+  bool get active => status == RosterStatus.running || status == RosterStatus.pending;
 
   /// Advisors are transcripts only, as in the TUI's agent hub.
   bool get readOnly => kind == AgentKind.advisor;
@@ -72,8 +81,7 @@ final class RosterAgent {
 }
 
 /// Joins [agents] and [subagents] by id, leaving out the main agent (it is the chat itself). Registry rows decide
-/// kind, parent and life state; a task snapshot adds its outcome, task text and live counters. Ordered by creation,
-/// then spawn index.
+/// kind, parent and life state; a task snapshot adds its outcome, task text and live counters. Ordered by [_byRecency].
 List<RosterAgent> buildRoster(List<AgentRow> agents, List<Subagent> subagents) {
   final byId = {for (final subagent in subagents) subagent.id: subagent};
   final roster = <RosterAgent>[];
@@ -86,14 +94,25 @@ List<RosterAgent> buildRoster(List<AgentRow> agents, List<Subagent> subagents) {
   for (final subagent in subagents) {
     if (!listed.contains(subagent.id)) roster.add(_fromSubagent(subagent));
   }
-  roster.sort((a, b) {
-    final byCreation = (a.createdAt ?? _unknownTime).compareTo(b.createdAt ?? _unknownTime);
-    return byCreation != 0 ? byCreation : a.order.compareTo(b.order);
-  });
+  roster.sort(_byRecency);
   return roster;
 }
 
-/// Agents without a creation time sort after the ones the registry knows.
+/// Active agents first, the newest started on top: a running agent's activity time moves with every tool call, so
+/// ordering by it would shuffle the rows under the pointer. Then the rest, the most recently active on top.
+int _byRecency(RosterAgent a, RosterAgent b) {
+  if (a.active != b.active) return a.active ? -1 : 1;
+  final byTime = a.active ? _newestFirst(a.createdAt, b.createdAt) : _newestFirst(a.lastActivity, b.lastActivity);
+  if (byTime != 0) return byTime;
+  final byCreation = _newestFirst(a.createdAt, b.createdAt);
+  if (byCreation != 0) return byCreation;
+  final bySpawn = b.order.compareTo(a.order);
+  return bySpawn != 0 ? bySpawn : a.id.compareTo(b.id);
+}
+
+/// A subagent the registry does not list yet has just been spawned: it counts as the newest.
+int _newestFirst(int? a, int? b) => (b ?? _unknownTime).compareTo(a ?? _unknownTime);
+
 const _unknownTime = 1 << 53;
 
 RosterAgent _merge(AgentRow row, Subagent? subagent) {
@@ -122,6 +141,7 @@ RosterAgent _merge(AgentRow row, Subagent? subagent) {
     contextTokens: live ? progress.contextTokens : metrics?.contextTokens,
     contextWindow: live ? progress.contextWindow : metrics?.contextWindow,
     createdAt: row.createdAt,
+    lastActivity: row.lastActivity,
     order: subagent?.index ?? 0,
   );
 }
@@ -193,36 +213,62 @@ final class RosterRow {
   final int depth;
 }
 
-/// The rows to show: [roster] in its order, or as a parent/child tree when [tree] is set. An agent whose parent is
-/// not in [roster] (the main agent, or one that is gone) is a root.
-List<RosterRow> rosterRows(List<RosterAgent> roster, {required bool tree}) {
-  if (!tree) return [for (final agent in roster) RosterRow(agent, 0)];
-  final ids = {for (final agent in roster) agent.id};
+/// The rows to show under "Active" and "Inactive": [roster] in its order, or as a parent/child tree when [tree] is
+/// set. An agent whose parent is not in [roster] (the main agent, or one that is gone) is a root. A branch of the tree
+/// is active while any of its agents is, so a running child is not buried under its idle parent; a branch takes the
+/// place of its highest-ranked agent.
+({List<RosterRow> active, List<RosterRow> inactive}) rosterSections(List<RosterAgent> roster, {required bool tree}) {
+  if (!tree) {
+    return (
+      active: [
+        for (final agent in roster)
+          if (agent.active) RosterRow(agent, 0),
+      ],
+      inactive: [
+        for (final agent in roster)
+          if (!agent.active) RosterRow(agent, 0),
+      ],
+    );
+  }
+  final rank = {for (final (index, agent) in roster.indexed) agent.id: index};
   final children = <String, List<RosterAgent>>{};
   final roots = <RosterAgent>[];
   for (final agent in roster) {
     final parent = agent.parentId;
-    if (parent != null && parent != agent.id && ids.contains(parent)) {
+    if (parent != null && parent != agent.id && rank.containsKey(parent)) {
       (children[parent] ??= []).add(agent);
     } else {
       roots.add(agent);
     }
   }
-  final rows = <RosterRow>[];
   final seen = <String>{};
-  final stack = [for (final root in roots.reversed) RosterRow(root, 0)];
-  while (stack.isNotEmpty) {
-    final row = stack.removeLast();
-    // A parent cycle would otherwise loop forever.
-    if (!seen.add(row.agent.id)) continue;
-    rows.add(row);
-    for (final child in (children[row.agent.id] ?? const <RosterAgent>[]).reversed) {
-      stack.add(RosterRow(child, row.depth + 1));
+  List<RosterRow> branch(RosterAgent root) {
+    final rows = <RosterRow>[];
+    final stack = [RosterRow(root, 0)];
+    while (stack.isNotEmpty) {
+      final row = stack.removeLast();
+      // A parent cycle would otherwise loop forever.
+      if (!seen.add(row.agent.id)) continue;
+      rows.add(row);
+      for (final child in (children[row.agent.id] ?? const <RosterAgent>[]).reversed) {
+        stack.add(RosterRow(child, row.depth + 1));
+      }
     }
+    return rows;
   }
+
+  final branches = [for (final root in roots) branch(root)];
   // Agents only reachable through a cycle.
   for (final agent in roster) {
-    if (!seen.contains(agent.id)) rows.add(RosterRow(agent, 0));
+    if (!seen.contains(agent.id)) branches.add(branch(agent));
   }
-  return rows;
+  final ranked = [for (final rows in branches) (best: rows.map((row) => rank[row.agent.id]!).reduce(min), rows: rows)]
+    ..sort((a, b) => a.best.compareTo(b.best));
+  final active = <RosterRow>[];
+  final inactive = <RosterRow>[];
+  for (final (:best, :rows) in ranked) {
+    // The roster lists every active agent before the inactive ones, so a branch's best agent is active if any is.
+    (roster[best].active ? active : inactive).addAll(rows);
+  }
+  return (active: active, inactive: inactive);
 }

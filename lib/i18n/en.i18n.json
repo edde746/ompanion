@@ -217,6 +217,8 @@
       "summary": "Agents: $count · running: $running",
       "showList": "Show as list",
       "showTree": "Show as tree",
+      "active": "Active",
+      "inactive": "Inactive",
       "advisor": "advisor",
       "tokens": "$count tok",
       "tools": {

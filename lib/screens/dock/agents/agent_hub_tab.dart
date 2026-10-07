@@ -106,8 +106,7 @@ class _AgentHubTabState extends State<AgentHubTab> {
           });
         }
         if (selected != null) {
-          final transcript = _transcriptFor(selected)
-            ..live = selected.status == RosterStatus.running || selected.status == RosterStatus.pending;
+          final transcript = _transcriptFor(selected)..live = selected.active;
           return _AgentDetail(
             key: ValueKey(selected.id),
             session: widget.session,
@@ -141,7 +140,7 @@ class _Roster extends StatelessWidget {
     final t = context.t.dock.hub;
     final theme = Theme.of(context);
     if (roster.isEmpty) return DockEmptyState(icon: Symbols.hub, message: t.empty);
-    final rows = rosterRows(roster, tree: tree);
+    final sections = rosterSections(roster, tree: tree);
     final running = roster.where((agent) => agent.status == RosterStatus.running).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -167,20 +166,44 @@ class _Roster extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            itemCount: rows.length,
-            itemBuilder: (context, index) {
-              final row = rows[index];
-              return _RosterTile(
-                key: ValueKey(row.agent.id),
-                agent: row.agent,
-                depth: row.depth,
-                onTap: () => onSelect(row.agent),
-              );
-            },
+          child: CustomScrollView(
+            slivers: [
+              for (final (label, rows) in [(t.active, sections.active), (t.inactive, sections.inactive)])
+                if (rows.isNotEmpty) ...[
+                  SliverToBoxAdapter(child: _SectionLabel(label)),
+                  SliverList.builder(
+                    itemCount: rows.length,
+                    itemBuilder: (context, index) {
+                      final row = rows[index];
+                      return _RosterTile(
+                        key: ValueKey(row.agent.id),
+                        agent: row.agent,
+                        depth: row.depth,
+                        onTap: () => onSelect(row.agent),
+                      );
+                    },
+                  ),
+                ],
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// "Active" or "Inactive" over its part of the roster, in line with the tiles' status icons.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Text(text, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     );
   }
 }

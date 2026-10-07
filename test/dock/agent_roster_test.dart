@@ -8,6 +8,7 @@ AgentRow row(
   AgentStatus status = AgentStatus.running,
   String? parentId,
   int createdAt = 0,
+  int? lastActivity,
   AgentMetrics? metrics,
   String? activity,
 }) => AgentRow(
@@ -18,7 +19,7 @@ AgentRow row(
   status: status,
   sessionFile: '/s/$id.jsonl',
   createdAt: createdAt,
-  lastActivity: createdAt,
+  lastActivity: lastActivity ?? createdAt,
   activity: activity,
   agent: 'task',
   resolvedModel: 'fake/fake-1',
@@ -56,11 +57,11 @@ void main() {
         [row('main', kind: AgentKind.main), row('A', createdAt: 5)],
         [subagent('B', SubagentStatus.pending, index: 1)],
       );
-      expect(
-        [for (final agent in roster) (agent.id, agent.status)],
-        [('A', RosterStatus.running), ('B', RosterStatus.pending)],
-      );
-      expect(roster.last.name, 'B');
+      expect([
+        for (final agent in roster) (agent.id, agent.status),
+      ], unorderedEquals([('A', RosterStatus.running), ('B', RosterStatus.pending)]));
+      final b = roster.singleWhere((agent) => agent.id == 'B');
+      expect((b.name, b.agentType), ('B', 'scout'));
       // A registry row named after its agent type shows its id instead.
       final typed = buildRoster([
         AgentRow(
@@ -74,7 +75,6 @@ void main() {
         ),
       ], const []);
       expect(typed.single.name, 'Echo');
-      expect(roster.last.agentType, 'scout');
     });
 
     test('the registry status wins; an idle task agent shows how its task ended', () {
@@ -106,12 +106,20 @@ void main() {
       expect(done.model, 'fake/fake-1');
     });
 
-    test('orders by creation, then spawn index for agents the registry has not listed', () {
+    test('active agents first, newest started on top; then the rest, most recently active on top', () {
       final roster = buildRoster(
-        [row('late', createdAt: 20), row('early', createdAt: 10)],
-        [subagent('y', SubagentStatus.running, index: 2), subagent('x', SubagentStatus.running, index: 1)],
+        [
+          // Ran more recently, but started first.
+          row('oldRun', createdAt: 10, lastActivity: 99),
+          row('newRun', createdAt: 20, lastActivity: 21),
+          // Started later, but idle for longer.
+          row('stale', status: AgentStatus.parked, createdAt: 30, lastActivity: 40),
+          row('fresh', status: AgentStatus.idle, createdAt: 5, lastActivity: 50),
+        ],
+        // Not in the registry yet: just spawned, the later spawn on top.
+        [subagent('x', SubagentStatus.pending, index: 1), subagent('y', SubagentStatus.running, index: 2)],
       );
-      expect([for (final agent in roster) agent.id], ['early', 'late', 'x', 'y']);
+      expect([for (final agent in roster) agent.id], ['y', 'x', 'newRun', 'oldRun', 'fresh', 'stale']);
     });
 
     test('actions follow kind and state', () {
@@ -120,44 +128,51 @@ void main() {
         row('gone', status: AgentStatus.aborted),
         row('advisor', kind: AgentKind.advisor, status: AgentStatus.idle),
       ], const []);
-      final parked = roster[0];
-      final gone = roster[1];
-      final advisor = roster[2];
+      RosterAgent agent(String id) => roster.singleWhere((agent) => agent.id == id);
+      final parked = agent('parked');
+      final gone = agent('gone');
+      final advisor = agent('advisor');
       expect((parked.canSteer, parked.canKill, parked.canRevive), (true, true, true));
       expect((gone.canSteer, gone.canKill, gone.canRevive), (false, false, false));
       expect((advisor.readOnly, advisor.canSteer, advisor.canKill, advisor.canRevive), (true, false, false, false));
     });
   });
 
-  group('rosterRows', () {
+  group('rosterSections', () {
+    // Roster order: child (running), then sibling 40, root2 30, orphan 20, root1 10, grandchild 5 by last activity.
     final roster = buildRoster([
-      row('root1', createdAt: 1, parentId: 'main'),
+      row('root1', status: AgentStatus.idle, createdAt: 1, lastActivity: 10, parentId: 'main'),
       row('child', createdAt: 2, parentId: 'root1'),
-      row('root2', createdAt: 3),
-      row('grandchild', createdAt: 4, parentId: 'child'),
-      row('orphan', createdAt: 5, parentId: 'missing'),
+      row('root2', status: AgentStatus.idle, createdAt: 3, lastActivity: 30),
+      row('grandchild', status: AgentStatus.parked, createdAt: 4, lastActivity: 5, parentId: 'child'),
+      row('orphan', status: AgentStatus.idle, createdAt: 5, lastActivity: 20, parentId: 'missing'),
+      row('sibling', status: AgentStatus.idle, createdAt: 6, lastActivity: 40, parentId: 'root1'),
     ], const []);
+    List<(String, int)> ids(List<RosterRow> rows) => [for (final row in rows) (row.agent.id, row.depth)];
 
-    test('flat keeps the roster order at depth 0', () {
-      final rows = rosterRows(roster, tree: false);
-      expect(
-        [for (final row in rows) (row.agent.id, row.depth)],
-        [('root1', 0), ('child', 0), ('root2', 0), ('grandchild', 0), ('orphan', 0)],
-      );
+    test('flat splits the roster order at depth 0', () {
+      final sections = rosterSections(roster, tree: false);
+      expect(ids(sections.active), [('child', 0)]);
+      expect(ids(sections.inactive), [('sibling', 0), ('root2', 0), ('orphan', 0), ('root1', 0), ('grandchild', 0)]);
     });
 
-    test('tree nests children under their parent; unknown parents make roots', () {
-      final rows = rosterRows(roster, tree: true);
-      expect(
-        [for (final row in rows) (row.agent.id, row.depth)],
-        [('root1', 0), ('child', 1), ('grandchild', 2), ('root2', 0), ('orphan', 0)],
-      );
+    test('tree nests children under their parent; a branch is active while any of its agents is', () {
+      final sections = rosterSections(roster, tree: true);
+      // The idle root1 comes along with its running child, the more recently active sibling after the running one.
+      expect(ids(sections.active), [('root1', 0), ('child', 1), ('grandchild', 2), ('sibling', 1)]);
+      // Unknown parents make roots.
+      expect(ids(sections.inactive), [('root2', 0), ('orphan', 0)]);
     });
 
     test('a parent cycle still lists every agent once', () {
       final cyclic = buildRoster([row('a', parentId: 'b'), row('b', parentId: 'a', createdAt: 1)], const []);
-      final rows = rosterRows(cyclic, tree: true);
-      expect([for (final row in rows) row.agent.id]..sort(), ['a', 'b']);
+      final sections = rosterSections(cyclic, tree: true);
+      expect(
+        [
+          for (final row in [...sections.active, ...sections.inactive]) row.agent.id,
+        ]..sort(),
+        ['a', 'b'],
+      );
     });
   });
 }
