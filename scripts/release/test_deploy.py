@@ -1,8 +1,11 @@
 import json
 import os
+import plistlib
+import shutil
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -191,21 +194,53 @@ class AppleUploadTest(unittest.TestCase):
             ]
         )
 
-    def test_builds_the_appstore_channel_and_uploads_its_ipa(self) -> None:
+    @staticmethod
+    def _write_ipa(path: Path, version: str, build: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        info = plistlib.dumps({"CFBundleShortVersionString": version, "CFBundleVersion": build})
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("Payload/Runner.app/Info.plist", info)
+
+    def _run_phase(self, export: tuple[str, str] | None, stale: bool = True):
+        """phase_ios with a build/ios/ipa holding an older export, where the build exports `export` or nothing."""
         ctx = self._context()
-        ipa = Path("/tmp/Runner.ipa")
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp)
+        ipa_dir = tmp / "build/ios/ipa"
+        if stale:
+            self._write_ipa(ipa_dir / "ompanion.ipa", "1.0.0", "1")
+
+        def build(_cmd):
+            # flutter build ipa exits 0 even when the export fails.
+            self.assertFalse(ipa_dir.exists(), "the previous export is removed before the build")
+            if export is not None:
+                self._write_ipa(ipa_dir / "ompanion.ipa", *export)
+
         with (
+            mock.patch.object(deploy, "IPA_DIR", ipa_dir),
             mock.patch.object(deploy, "_asc_has_uploaded_build", return_value=False),
-            mock.patch.object(deploy, "run") as run_command,
-            mock.patch.object(deploy, "_find_single_ipa", return_value=ipa),
+            mock.patch.object(deploy, "run", side_effect=build) as run_command,
             mock.patch.object(deploy, "_upload_ipa") as upload,
         ):
-            deploy.phase_ios(ctx)
+            try:
+                deploy.phase_ios(ctx)
+            finally:
+                run_command.assert_called_once_with(
+                    ["flutter", "build", "ipa", "--release", "--dart-define=OMPANION_CHANNEL=appstore"]
+                )
+        return ctx, upload, ipa_dir / "ompanion.ipa"
 
-        run_command.assert_called_once_with(
-            ["flutter", "build", "ipa", "--release", "--dart-define=OMPANION_CHANNEL=appstore"]
-        )
+    def test_builds_the_appstore_channel_and_uploads_its_ipa(self) -> None:
+        ctx, upload, ipa = self._run_phase(("1.1.0", "2"))
         upload.assert_called_once_with(ctx, ipa)
+
+    def test_a_failed_export_never_uploads_the_previous_ipa(self) -> None:
+        with self.assertRaisesRegex(deploy.DeployError, "exported no IPA"):
+            self._run_phase(None)
+
+    def test_an_ipa_of_another_build_is_refused(self) -> None:
+        with self.assertRaisesRegex(deploy.DeployError, "is 1.1.0\\+1, not 1.1.0\\+2"):
+            self._run_phase(("1.1.0", "1"), stale=False)
 
     def test_ios_resume_skips_an_already_uploaded_build(self) -> None:
         ctx = self._context()

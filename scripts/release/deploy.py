@@ -1101,11 +1101,26 @@ def phase_play(ctx: Context) -> None:
 # ---------------------------------------------------------------------------
 
 
+IPA_DIR = ROOT / "build/ios/ipa"
+
+
 def _find_single_ipa(directory: Path, label: str) -> Path:
     ipas = sorted(directory.rglob("*.ipa")) if directory.is_dir() else []
     if len(ipas) != 1:
         raise DeployError(f"{label}: expected one exported IPA in {directory}, found {len(ipas)}")
     return ipas[0]
+
+
+def ipa_version(ipa: Path) -> tuple[str, str]:
+    """CFBundleShortVersionString and CFBundleVersion of the app inside an IPA."""
+    import plistlib  # noqa: PLC0415
+
+    with zipfile.ZipFile(ipa) as archive:
+        names = [n for n in archive.namelist() if re.fullmatch(r"Payload/[^/]+\.app/Info\.plist", n)]
+        if len(names) != 1:
+            raise DeployError(f"ios: {ipa} holds {len(names)} app Info.plist files, not one")
+        info = plistlib.loads(archive.read(names[0]))
+    return str(info.get("CFBundleShortVersionString", "")), str(info.get("CFBundleVersion", ""))
 
 
 def _upload_ipa(ctx: Context, ipa: Path) -> None:
@@ -1143,8 +1158,22 @@ def phase_ios(ctx: Context) -> None:
     if _asc_has_uploaded_build(ctx):
         log(f"ios: App Store Connect already has build {ctx.build_number}; skipping upload")
         return
+    # flutter build ipa exits 0 when only the export fails (no Xcode account to sign with) and leaves the last
+    # export in build/ios/ipa: 1.1.0's first run uploaded 1.0.0's IPA that way. So the old export goes first, and
+    # the new one must carry this release's version and build number.
+    if IPA_DIR.exists():
+        shutil.rmtree(IPA_DIR)
     run(["flutter", "build", "ipa", "--release", "--dart-define=OMPANION_CHANNEL=appstore"])
-    _upload_ipa(ctx, _find_single_ipa(ROOT / "build/ios/ipa", "ios"))
+    if not IPA_DIR.is_dir() or not any(IPA_DIR.rglob("*.ipa")):
+        raise DeployError(
+            "ios: flutter build ipa exported no IPA (its errors are above). It signs through the Apple ID signed in "
+            "to Xcode (Settings -> Accounts) with team G88U5B5783's cloud-managed distribution certificate"
+        )
+    ipa = _find_single_ipa(IPA_DIR, "ios")
+    expected = (ctx.version, str(ctx.build_number))
+    if ipa_version(ipa) != expected:
+        raise DeployError(f"ios: {ipa} is {'+'.join(ipa_version(ipa))}, not {'+'.join(expected)}")
+    _upload_ipa(ctx, ipa)
 
 
 # ---------------------------------------------------------------------------
