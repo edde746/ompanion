@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:omp_core/host.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
 import 'package:provider/provider.dart';
@@ -15,17 +16,23 @@ import '../../models/machine.dart';
 import '../../providers/machines_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../utils/byte_size.dart';
 import '../../widgets/activity_mark.dart';
+import '../../widgets/app_segmented.dart';
+import '../../widgets/app_select.dart';
 import '../config/config_widgets.dart';
 import '../machines/connect_dialogs.dart';
 import '../sessions/install_omp_dialog.dart';
 import '../sessions/machine_status.dart';
 import '../shell/layout.dart';
+import 'activity_overview.dart';
+import 'activity_view.dart';
 import 'usage_overview.dart';
 
-/// What `omp usage` prints, for every machine at once: each machine that is online with omp runs `omp usage --json`
-/// on its own, so a slow or failing machine never holds up the others, and the same account on several machines
-/// shows once. Machines that are not connected get a line with a way to connect; the pane never dials on its own.
+/// What `omp usage` prints, for every machine at once, and on the Stats tab the activity in every machine's session
+/// files as one. Each machine that is online with omp answers on its own, so a slow or failing machine never holds up
+/// the others, and the same account on several machines shows once. Machines that are not connected get a line with a
+/// way to connect; the pane never dials on its own.
 class UsagePane extends StatefulWidget {
   const UsagePane({super.key});
 
@@ -33,34 +40,48 @@ class UsagePane extends StatefulWidget {
   State<UsagePane> createState() => _UsagePaneState();
 }
 
-sealed class _Fetch {
+sealed class _Fetch<T> {
   const _Fetch();
 }
 
-final class _Loading extends _Fetch {
+final class _Loading<T> extends _Fetch<T> {
   const _Loading();
 }
 
-final class _Loaded extends _Fetch {
-  const _Loaded(this.usage);
+final class _Loaded<T> extends _Fetch<T> {
+  const _Loaded(this.value);
 
-  final MachineUsage usage;
+  final T value;
 }
 
-final class _Failed extends _Fetch {
+final class _Failed<T> extends _Fetch<T> {
   const _Failed(this.error);
 
   final Object error;
 }
 
+enum _Tab { limits, stats }
+
 class _UsagePaneState extends State<UsagePane> {
   List<Machine> _machines = const [];
   final _runtimes = <String, MachineRuntime>{};
   final _subscriptions = <String, StreamSubscription<MachineStatus>>{};
-  final _fetches = <String, _Fetch>{};
+  final _fetches = <String, _Fetch<MachineUsage>>{};
+
+  /// What each machine's stats script answered; asked for once the Stats tab shows.
+  final _activity = <String, _Fetch<MachineActivity>>{};
 
   /// Per machine, bumped by every fetch and disconnect, so a late answer of an older one is dropped.
   final _generations = <String, int>{};
+  final _activityGenerations = <String, int>{};
+
+  var _tab = _Tab.limits;
+
+  /// The Stats tab's range, an index into [activityRanges]: 30 days at first.
+  var _range = 1;
+
+  /// The machine the Stats tab shows alone; null for every machine.
+  String? _machineFilter;
 
   /// Keeps the relative times ("resets in 2h13m") current.
   late final Timer _clock;
@@ -111,10 +132,12 @@ class _UsagePaneState extends State<UsagePane> {
     }
   }
 
-  /// A machine that comes online is asked; one that goes away drops what it answered.
+  /// A machine that comes online is asked (for its stats only once the Stats tab showed); one that goes away drops
+  /// what it answered.
   void _onStatus(String id, MachineStatus status) {
     if (status is MachineOnline) {
       if (!_fetches.containsKey(id)) unawaited(_fetch(id));
+      if (_tab == _Tab.stats && !_activity.containsKey(id)) unawaited(_fetchActivity(id));
     } else {
       _forget(id);
     }
@@ -123,6 +146,8 @@ class _UsagePaneState extends State<UsagePane> {
   void _forget(String id) {
     _fetches.remove(id);
     _generations[id] = (_generations[id] ?? 0) + 1;
+    _activity.remove(id);
+    _activityGenerations[id] = (_activityGenerations[id] ?? 0) + 1;
   }
 
   /// Runs `omp usage --json` on the machine, and the policy settings for the policy lines; [fresh] drops omp's cached
@@ -133,7 +158,7 @@ class _UsagePaneState extends State<UsagePane> {
     final generation = _generations[id] = (_generations[id] ?? 0) + 1;
     _fetches[id] = const _Loading();
     final target = ConfigTarget(machine: machine, sessions: context.read<SessionsProvider>());
-    _Fetch result;
+    _Fetch<MachineUsage> result;
     try {
       if (fresh) await target.omp(const ['usage', 'invalidate']);
       final usage = target.omp(const ['usage', '--json']);
@@ -170,8 +195,73 @@ class _UsagePaneState extends State<UsagePane> {
     });
   }
 
+  /// Runs the stats script on the machine (docs/contracts/activity-stats.md) for the device's zone and today. The
+  /// caller rebuilds for the loading state.
+  Future<void> _fetchActivity(String id) async {
+    final machine = _machines.firstWhere((machine) => machine.id == id);
+    final generation = _activityGenerations[id] = (_activityGenerations[id] ?? 0) + 1;
+    _activity[id] = const _Loading();
+    final target = ConfigTarget(machine: machine, sessions: context.read<SessionsProvider>());
+    _Fetch<MachineActivity> result;
+    try {
+      final watch = Stopwatch()..start();
+      final probe = target.probe;
+      final stats = await readActivityStats(target.runtime.link, probe, ActivityQuery.local(DateTime.now()));
+      result = _Loaded((machine: machine.name, home: probe.home, stats: stats, elapsed: watch.elapsed));
+    } on Object catch (error) {
+      result = _Failed(error);
+    }
+    if (!mounted || _activityGenerations[id] != generation) return;
+    setState(() => _activity[id] = result);
+  }
+
+  /// Shows [tab]; the Stats tab asks every online machine that has not answered yet.
+  void _showTab(_Tab tab) {
+    setState(() {
+      _tab = tab;
+      if (tab != _Tab.stats) return;
+      for (final machine in _machines) {
+        if (_runtimes[machine.id]?.status is MachineOnline && !_activity.containsKey(machine.id)) {
+          unawaited(_fetchActivity(machine.id));
+        }
+      }
+    });
+  }
+
+  void _fetchAllActivity() {
+    setState(() {
+      for (final machine in _machines) {
+        if (_runtimes[machine.id]?.status is MachineOnline) unawaited(_fetchActivity(machine.id));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final t = context.t;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 8),
+          child: ConfigPills<_Tab>(
+            value: _tab,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            items: [(_Tab.limits, t.usage.tabs.limits, null), (_Tab.stats, t.usage.tabs.stats, null)],
+            onChanged: _showTab,
+          ),
+        ),
+        Expanded(
+          child: switch (_tab) {
+            _Tab.limits => _limits(context),
+            _Tab.stats => _stats(context),
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _limits(BuildContext context) {
     final t = context.t;
     final theme = Theme.of(context);
     final settings = context.watch<SettingsProvider>();
@@ -179,7 +269,7 @@ class _UsagePaneState extends State<UsagePane> {
     final now = DateTime.now();
     final loaded = [
       for (final machine in _machines)
-        if (_fetches[machine.id] case _Loaded(:final usage)) usage,
+        if (_fetches[machine.id] case _Loaded(value: final usage)) usage,
     ];
     final overview = mergeUsage(loaded);
     final loading = _fetches.values.any((fetch) => fetch is _Loading);
@@ -240,10 +330,18 @@ class _UsagePaneState extends State<UsagePane> {
             child: Column(
               children: [
                 for (final machine in _machines)
-                  _MachineRow(
+                  _MachineRow<MachineUsage>(
                     machine: machine,
                     status: _runtimes[machine.id]!.status,
                     fetch: _fetches[machine.id],
+                    asking: t.usage.asking,
+                    describe: (probe, usage) => t.usage.machineAccounts(
+                      n:
+                          usage.snapshot.reports.length +
+                          usage.snapshot.accountsWithoutUsage.length +
+                          usage.snapshot.disabledCredentials.length,
+                      version: probe.ompVersion ?? '?',
+                    ),
                     onRetry: () => setState(() => unawaited(_fetch(machine.id))),
                   ),
               ],
@@ -256,6 +354,133 @@ class _UsagePaneState extends State<UsagePane> {
             ),
           for (final provider in overview.providers) _ProviderSection(provider: provider, now: now, hide: hide),
         ],
+      ],
+    );
+  }
+
+  Widget _stats(BuildContext context) {
+    final t = context.t;
+    final s = t.usage.stats;
+    final theme = Theme.of(context);
+    final secondary = theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final answered = [
+      for (final machine in _machines)
+        if (_activity[machine.id] case _Loaded(value: final activity)) (id: machine.id, activity: activity),
+    ];
+    final filter = answered.any((entry) => entry.id == _machineFilter) ? _machineFilter : null;
+    final overview = mergeActivity([
+      for (final entry in answered)
+        if (filter == null || entry.id == filter) entry.activity,
+    ]);
+    final loading = _activity.values.any((fetch) => fetch is _Loading);
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          sliver: SliverList.list(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // A phone puts the machine choice under the ranges.
+                  Expanded(
+                    child: Wrap(
+                      spacing: AppSizes.gap,
+                      runSpacing: AppSizes.gap,
+                      children: [
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: AppSegmented<int>(
+                            value: _range,
+                            segments: [
+                              for (final (index, days) in activityRanges.indexed)
+                                (
+                                  index,
+                                  switch (days) {
+                                    7 => s.ranges.week,
+                                    30 => s.ranges.month,
+                                    365 => s.ranges.year,
+                                    _ => s.ranges.all,
+                                  },
+                                  null,
+                                ),
+                            ],
+                            onChanged: (range) => setState(() => _range = range),
+                          ),
+                        ),
+                        if (answered.length > 1)
+                          AppSelect<String?>(
+                            value: filter,
+                            tooltip: s.machineFilter,
+                            options: [
+                              (null, s.allMachines),
+                              for (final entry in answered) (entry.id, entry.activity.machine),
+                            ],
+                            onChanged: (id) => setState(() => _machineFilter = id),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSizes.gap),
+                  IconButton(
+                    tooltip: t.config.refresh,
+                    onPressed: _fetchAllActivity,
+                    icon: const Icon(Symbols.refresh),
+                  ),
+                ],
+              ),
+              if (_machines.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(t.usage.noMachines, style: secondary),
+                )
+              else ...[
+                _Heading(t.usage.machines),
+                ConfigBlock(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: Column(
+                    children: [
+                      for (final machine in _machines)
+                        _MachineRow<MachineActivity>(
+                          machine: machine,
+                          status: _runtimes[machine.id]!.status,
+                          fetch: _activity[machine.id],
+                          asking: s.reading,
+                          describe: (_, activity) {
+                            final scan = activity.stats.scan;
+                            final scanned = s.scanned(
+                              files: formatCount(scan.files),
+                              size: formatBytes(scan.bytes),
+                              time: '${formatCount(activity.elapsed.inMilliseconds)} ms',
+                            );
+                            if (scan.errors == 0) return scanned;
+                            return '$scanned · ${s.unreadable(n: scan.errors, error: scan.error ?? '')}';
+                          },
+                          onRetry: () => setState(() => unawaited(_fetchActivity(machine.id))),
+                        ),
+                    ],
+                  ),
+                ),
+                if (overview.isEmpty && answered.isNotEmpty && !loading)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Text(s.none, style: secondary),
+                  ),
+              ],
+            ],
+          ),
+        ),
+        if (!overview.isEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+            sliver: ActivityView(
+              overview: overview,
+              range: _range,
+              today: localDay(DateTime.now()),
+              showMachines: filter == null && answered.length > 1,
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
     );
   }
@@ -289,13 +514,24 @@ class _Heading extends StatelessWidget {
   }
 }
 
-/// One machine: its status, what `omp usage` answered or why not, and the action that helps.
-class _MachineRow extends StatelessWidget {
-  const _MachineRow({required this.machine, required this.status, required this.fetch, required this.onRetry});
+/// One machine: its status, what it answered ([describe]) or why not, and the action that helps.
+class _MachineRow<T> extends StatelessWidget {
+  const _MachineRow({
+    required this.machine,
+    required this.status,
+    required this.fetch,
+    required this.asking,
+    required this.describe,
+    required this.onRetry,
+  });
 
   final Machine machine;
   final MachineStatus status;
-  final _Fetch? fetch;
+  final _Fetch<T>? fetch;
+
+  /// The line while the machine answers.
+  final String asking;
+  final String Function(HostProbe probe, T answer) describe;
   final VoidCallback onRetry;
 
   @override
@@ -311,22 +547,13 @@ class _MachineRow extends StatelessWidget {
           children: [
             const ActivityMark(size: 12),
             const SizedBox(width: AppSizes.gap),
-            Flexible(child: Text(t.usage.asking, style: secondary)),
+            Flexible(child: Text(asking, style: secondary)),
           ],
         ),
         null,
       ),
-      (MachineOnline(:final probe), _Loaded(:final usage)) => (
-        Text(
-          t.usage.machineAccounts(
-            n:
-                usage.snapshot.reports.length +
-                usage.snapshot.accountsWithoutUsage.length +
-                usage.snapshot.disabledCredentials.length,
-            version: probe.ompVersion ?? '?',
-          ),
-          style: secondary,
-        ),
+      (MachineOnline(:final probe), _Loaded(:final value)) => (
+        Text(describe(probe, value), style: secondary, overflow: TextOverflow.ellipsis),
         null,
       ),
       (MachineOnline(), _Failed(error: final cause)) => (

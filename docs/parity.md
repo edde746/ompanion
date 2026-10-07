@@ -97,7 +97,7 @@ what stock lacks.
 | Account pin | `/session pin` | CE `pinCurrentProviderOAuthAccount` | providers page | M5 |
 | Provider setup wizard | `/setup` | CE-R over `get_login_providers`, `login`, auth storage, settings | onboarding | M5 |
 | Usage limits | `/usage`, `omp usage` | CLI `usage --json` per machine, `usage invalidate`; `config get auth.accountPolicies`, `retry.usageReservePct` for policy lines | usage pane (all machines, one entry per account; a hide toggle masks emails, account ids and organizations for screenshots) | M5 |
-| Stats | `/stats`, `/trace` | CLI `stats --json` | stats page | M5 |
+| Stats | `/stats`, `/trace` | FS stats script run by omp's own Bun over every session file, numbers kept per file between calls (`contracts/activity-stats.md`); CLI `stats --json` for the per-machine page | usage pane, Stats tab (all machines merged: totals, streaks, contribution grid, charts); stats page per machine | M5 |
 
 ## Sessions
 

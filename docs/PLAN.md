@@ -419,7 +419,7 @@ Hub, todos, session tree, files, terminal. Phone: the same screens, one at a tim
 | Session tree | branches, labels, branch from message, navigate with summary |
 | Modes | goal (status, budget, pause/resume/drop), loop (prompt, limit, condition), pause/resume, fast, advisor, prewalk, with state in the composer bar; pause-all per machine in the sidebar |
 | Config | settings, model roles, providers, MCP, plugins and marketplace, skills, memory, agents, advisor and WATCHDOG, extensions, the agent's own SSH hosts, omp's TUI theme |
-| Usage and stats | `omp usage --json`, `omp stats --json` |
+| Usage and stats | `omp usage --json`; the activity stats script on omp's Bun (`contracts/activity-stats.md`), `omp stats --json` for the per-machine page |
 | Terminal | PTY on the machine, tabs |
 | Files | tree, viewer, editor, diff against git |
 

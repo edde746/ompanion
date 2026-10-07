@@ -347,6 +347,9 @@ class Translations$usage$en {
 		one: '${used}/${n} account used · ${left}× quota left',
 		other: '${used}/${n} accounts used · ${left}× quota left',
 	);
+
+	late final Translations$usage$tabs$en tabs = Translations$usage$tabs$en.internal(_root);
+	late final Translations$usage$stats$en stats = Translations$usage$stats$en.internal(_root);
 }
 
 // Path: dock
@@ -2472,6 +2475,247 @@ class Translations$usage$units$en {
 	String bytes({required Object value}) => '${value} bytes';
 }
 
+// Path: usage.tabs
+class Translations$usage$tabs$en {
+	Translations$usage$tabs$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Limits'
+	String get limits => 'Limits';
+
+	/// en: 'Stats'
+	String get stats => 'Stats';
+}
+
+// Path: usage.stats
+class Translations$usage$stats$en {
+	Translations$usage$stats$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Reading session files…'
+	String get reading => 'Reading session files…';
+
+	/// en: '$files session files · $size · $time'
+	String scanned({required Object files, required Object size, required Object time}) => '${files} session files · ${size} · ${time}';
+
+	/// en: '(one) {$n file could not be read: $error} (other) {$n files could not be read: $error}'
+	String unreadable({required num n, required Object error}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} file could not be read: ${error}',
+		other: '${n} files could not be read: ${error}',
+	);
+
+	/// en: 'All machines'
+	String get allMachines => 'All machines';
+
+	/// en: 'Machines'
+	String get machineFilter => 'Machines';
+
+	late final Translations$usage$stats$ranges$en ranges = Translations$usage$stats$ranges$en.internal(_root);
+
+	/// en: 'No model requests in any session file yet.'
+	String get none => 'No model requests in any session file yet.';
+
+	/// en: 'Requests'
+	String get requests => 'Requests';
+
+	/// en: 'Tokens'
+	String get tokens => 'Tokens';
+
+	/// en: 'Cost'
+	String get cost => 'Cost';
+
+	/// en: 'Sessions'
+	String get sessions => 'Sessions';
+
+	/// en: 'Current streak'
+	String get currentStreak => 'Current streak';
+
+	/// en: 'Longest streak'
+	String get longestStreak => 'Longest streak';
+
+	/// en: 'Active days'
+	String get activeDays => 'Active days';
+
+	/// en: 'Speed'
+	String get speed => 'Speed';
+
+	/// en: '$n failed ($percent)'
+	String failed({required Object n, required Object percent}) => '${n} failed (${percent})';
+
+	/// en: '$percent read from cache'
+	String fromCache({required Object percent}) => '${percent} read from cache';
+
+	/// en: '$cost per active day'
+	String perActiveDay({required Object cost}) => '${cost} per active day';
+
+	/// en: '(one) {$count prompt} (other) {$count prompts}'
+	String prompts({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${count} prompt',
+		other: '${count} prompts',
+	);
+
+	/// en: '(one) {$n day} (other) {$n days}'
+	String days({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} day',
+		other: '${n} days',
+	);
+
+	/// en: 'since $date'
+	String since({required Object date}) => 'since ${date}';
+
+	/// en: '$from – $to'
+	String span({required Object from, required Object to}) => '${from} – ${to}';
+
+	/// en: 'of $n days'
+	String ofDays({required Object n}) => 'of ${n} days';
+
+	/// en: 'none yet'
+	String get noStreak => 'none yet';
+
+	/// en: '$ms ms to first token'
+	String ttft({required Object ms}) => '${ms} ms to first token';
+
+	/// en: '$n tok/s'
+	String tokensPerSecond({required Object n}) => '${n} tok/s';
+
+	/// en: '(one) {$count request in $period} (other) {$count requests in $period}'
+	String heatmap({required num n, required Object count, required Object period}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${count} request in ${period}',
+		other: '${count} requests in ${period}',
+	);
+
+	/// en: 'the last year'
+	String get lastYear => 'the last year';
+
+	/// en: 'Last year'
+	String get lastYearOption => 'Last year';
+
+	/// en: 'Less'
+	String get less => 'Less';
+
+	/// en: 'More'
+	String get more => 'More';
+
+	/// en: '(one) {$count request} (other) {$count requests}'
+	String requestCount({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${count} request',
+		other: '${count} requests',
+	);
+
+	/// en: '$tokens tokens'
+	String tokenCount({required Object tokens}) => '${tokens} tokens';
+
+	/// en: 'Busiest day: $date, $requests'
+	String busiestDay({required Object date, required Object requests}) => 'Busiest day: ${date}, ${requests}';
+
+	/// en: 'Activity'
+	String get activity => 'Activity';
+
+	late final Translations$usage$stats$metrics$en metrics = Translations$usage$stats$metrics$en.internal(_root);
+
+	/// en: 'Week of $date'
+	String weekOf({required Object date}) => 'Week of ${date}';
+
+	/// en: '$month $year'
+	String monthOf({required Object month, required Object year}) => '${month} ${year}';
+
+	/// en: 'Models'
+	String get models => 'Models';
+
+	/// en: 'Week by hour'
+	String get weekHours => 'Week by hour';
+
+	/// en: '$weekday $from:00–$to:00'
+	String hourSpan({required Object weekday, required Object from, required Object to}) => '${weekday} ${from}:00–${to}:00';
+
+	/// en: 'Busiest hour: $hour'
+	String busiestHour({required Object hour}) => 'Busiest hour: ${hour}';
+
+	/// en: 'Tokens by kind'
+	String get tokenKinds => 'Tokens by kind';
+
+	/// en: 'Input'
+	String get input => 'Input';
+
+	/// en: 'Output'
+	String get output => 'Output';
+
+	/// en: 'Cache read'
+	String get cacheRead => 'Cache read';
+
+	/// en: 'Cache write'
+	String get cacheWrite => 'Cache write';
+
+	/// en: 'Agents'
+	String get agents => 'Agents';
+
+	/// en: 'Main sessions'
+	String get mainSessions => 'Main sessions';
+
+	/// en: 'Subagents'
+	String get subagents => 'Subagents';
+
+	/// en: 'Advisor'
+	String get advisor => 'Advisor';
+
+	/// en: 'Projects'
+	String get projects => 'Projects';
+
+	/// en: '(no project)'
+	String get noProject => '(no project)';
+
+	/// en: 'Tools'
+	String get tools => 'Tools';
+
+	/// en: '(one) {$count call} (other) {$count calls}'
+	String callCount({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${count} call',
+		other: '${count} calls',
+	);
+
+	/// en: '$n failed'
+	String toolErrors({required Object n}) => '${n} failed';
+
+	/// en: 'Machines'
+	String get machines => 'Machines';
+
+	List<String> get weekdays => [
+		'Mon',
+		'Tue',
+		'Wed',
+		'Thu',
+		'Fri',
+		'Sat',
+		'Sun',
+	];
+	List<String> get months => [
+		'Jan',
+		'Feb',
+		'Mar',
+		'Apr',
+		'May',
+		'Jun',
+		'Jul',
+		'Aug',
+		'Sep',
+		'Oct',
+		'Nov',
+		'Dec',
+	];
+
+	/// en: '$weekday, $month $day, $year'
+	String date({required Object weekday, required Object month, required Object day, required Object year}) => '${weekday}, ${month} ${day}, ${year}';
+
+	/// en: '$month $day'
+	String shortDate({required Object month, required Object day}) => '${month} ${day}';
+}
+
 // Path: dock.todo
 class Translations$dock$todo$en {
 	Translations$dock$todo$en.internal(this._root);
@@ -3872,6 +4116,45 @@ class Translations$config$stats$en {
 	String get agent => 'Agent';
 }
 
+// Path: usage.stats.ranges
+class Translations$usage$stats$ranges$en {
+	Translations$usage$stats$ranges$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: '7 days'
+	String get week => '7 days';
+
+	/// en: '30 days'
+	String get month => '30 days';
+
+	/// en: 'Year'
+	String get year => 'Year';
+
+	/// en: 'All time'
+	String get all => 'All time';
+}
+
+// Path: usage.stats.metrics
+class Translations$usage$stats$metrics$en {
+	Translations$usage$stats$metrics$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Requests'
+	String get requests => 'Requests';
+
+	/// en: 'Tokens'
+	String get tokens => 'Tokens';
+
+	/// en: 'Cost'
+	String get cost => 'Cost';
+}
+
 // Path: dock.hub.status
 class Translations$dock$hub$status$en {
 	Translations$dock$hub$status$en.internal(this._root);
@@ -4094,6 +4377,91 @@ extension on Translations {
 			'usage.reloginNow' => 'grant is past Anthropic\'s ~30d lifetime; re-login now',
 			'usage.capacity' => 'Capacity',
 			'usage.capacityWindow' => ({required num n, required Object used, required Object left}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${used}/${n} account used · ${left}× quota left', other: '${used}/${n} accounts used · ${left}× quota left', ), 
+			'usage.tabs.limits' => 'Limits',
+			'usage.tabs.stats' => 'Stats',
+			'usage.stats.reading' => 'Reading session files…',
+			'usage.stats.scanned' => ({required Object files, required Object size, required Object time}) => '${files} session files · ${size} · ${time}',
+			'usage.stats.unreadable' => ({required num n, required Object error}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} file could not be read: ${error}', other: '${n} files could not be read: ${error}', ), 
+			'usage.stats.allMachines' => 'All machines',
+			'usage.stats.machineFilter' => 'Machines',
+			'usage.stats.ranges.week' => '7 days',
+			'usage.stats.ranges.month' => '30 days',
+			'usage.stats.ranges.year' => 'Year',
+			'usage.stats.ranges.all' => 'All time',
+			'usage.stats.none' => 'No model requests in any session file yet.',
+			'usage.stats.requests' => 'Requests',
+			'usage.stats.tokens' => 'Tokens',
+			'usage.stats.cost' => 'Cost',
+			'usage.stats.sessions' => 'Sessions',
+			'usage.stats.currentStreak' => 'Current streak',
+			'usage.stats.longestStreak' => 'Longest streak',
+			'usage.stats.activeDays' => 'Active days',
+			'usage.stats.speed' => 'Speed',
+			'usage.stats.failed' => ({required Object n, required Object percent}) => '${n} failed (${percent})',
+			'usage.stats.fromCache' => ({required Object percent}) => '${percent} read from cache',
+			'usage.stats.perActiveDay' => ({required Object cost}) => '${cost} per active day',
+			'usage.stats.prompts' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${count} prompt', other: '${count} prompts', ), 
+			'usage.stats.days' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} day', other: '${n} days', ), 
+			'usage.stats.since' => ({required Object date}) => 'since ${date}',
+			'usage.stats.span' => ({required Object from, required Object to}) => '${from} – ${to}',
+			'usage.stats.ofDays' => ({required Object n}) => 'of ${n} days',
+			'usage.stats.noStreak' => 'none yet',
+			'usage.stats.ttft' => ({required Object ms}) => '${ms} ms to first token',
+			'usage.stats.tokensPerSecond' => ({required Object n}) => '${n} tok/s',
+			'usage.stats.heatmap' => ({required num n, required Object count, required Object period}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${count} request in ${period}', other: '${count} requests in ${period}', ), 
+			'usage.stats.lastYear' => 'the last year',
+			'usage.stats.lastYearOption' => 'Last year',
+			'usage.stats.less' => 'Less',
+			'usage.stats.more' => 'More',
+			'usage.stats.requestCount' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${count} request', other: '${count} requests', ), 
+			'usage.stats.tokenCount' => ({required Object tokens}) => '${tokens} tokens',
+			'usage.stats.busiestDay' => ({required Object date, required Object requests}) => 'Busiest day: ${date}, ${requests}',
+			'usage.stats.activity' => 'Activity',
+			'usage.stats.metrics.requests' => 'Requests',
+			'usage.stats.metrics.tokens' => 'Tokens',
+			'usage.stats.metrics.cost' => 'Cost',
+			'usage.stats.weekOf' => ({required Object date}) => 'Week of ${date}',
+			'usage.stats.monthOf' => ({required Object month, required Object year}) => '${month} ${year}',
+			'usage.stats.models' => 'Models',
+			'usage.stats.weekHours' => 'Week by hour',
+			'usage.stats.hourSpan' => ({required Object weekday, required Object from, required Object to}) => '${weekday} ${from}:00–${to}:00',
+			'usage.stats.busiestHour' => ({required Object hour}) => 'Busiest hour: ${hour}',
+			'usage.stats.tokenKinds' => 'Tokens by kind',
+			'usage.stats.input' => 'Input',
+			'usage.stats.output' => 'Output',
+			'usage.stats.cacheRead' => 'Cache read',
+			'usage.stats.cacheWrite' => 'Cache write',
+			'usage.stats.agents' => 'Agents',
+			'usage.stats.mainSessions' => 'Main sessions',
+			'usage.stats.subagents' => 'Subagents',
+			'usage.stats.advisor' => 'Advisor',
+			'usage.stats.projects' => 'Projects',
+			'usage.stats.noProject' => '(no project)',
+			'usage.stats.tools' => 'Tools',
+			'usage.stats.callCount' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${count} call', other: '${count} calls', ), 
+			'usage.stats.toolErrors' => ({required Object n}) => '${n} failed',
+			'usage.stats.machines' => 'Machines',
+			'usage.stats.weekdays.0' => 'Mon',
+			'usage.stats.weekdays.1' => 'Tue',
+			'usage.stats.weekdays.2' => 'Wed',
+			'usage.stats.weekdays.3' => 'Thu',
+			'usage.stats.weekdays.4' => 'Fri',
+			'usage.stats.weekdays.5' => 'Sat',
+			'usage.stats.weekdays.6' => 'Sun',
+			'usage.stats.months.0' => 'Jan',
+			'usage.stats.months.1' => 'Feb',
+			'usage.stats.months.2' => 'Mar',
+			'usage.stats.months.3' => 'Apr',
+			'usage.stats.months.4' => 'May',
+			'usage.stats.months.5' => 'Jun',
+			'usage.stats.months.6' => 'Jul',
+			'usage.stats.months.7' => 'Aug',
+			'usage.stats.months.8' => 'Sep',
+			'usage.stats.months.9' => 'Oct',
+			'usage.stats.months.10' => 'Nov',
+			'usage.stats.months.11' => 'Dec',
+			'usage.stats.date' => ({required Object weekday, required Object month, required Object day, required Object year}) => '${weekday}, ${month} ${day}, ${year}',
+			'usage.stats.shortDate' => ({required Object month, required Object day}) => '${month} ${day}',
 			'dock.agents' => 'Agents',
 			'dock.todos' => 'Todos',
 			'dock.tree' => 'Tree',
@@ -4442,6 +4810,8 @@ extension on Translations {
 			'settings.themeSystem' => 'System',
 			'settings.themeLight' => 'Light',
 			'settings.themeDark' => 'Dark',
+			_ => null,
+		} ?? switch (path) {
 			'settings.themeCustom' => 'Custom',
 			'settings.editColors' => 'Edit colors',
 			'settings.customBase' => ({required Object base}) => '${base} base',
@@ -4527,8 +4897,6 @@ extension on Translations {
 			'themeEditor.uses.pane' => 'Sidebar, dock, config navigation',
 			'themeEditor.uses.card' => 'Cards, composer, code blocks, dialogs',
 			'themeEditor.uses.field' => 'Text fields, chips, secondary buttons',
-			_ => null,
-		} ?? switch (path) {
 			'themeEditor.uses.selected' => 'Hover, selected rows, focused fields, tab indicators',
 			'themeEditor.uses.popover' => 'Menus and pop-up lists',
 			'themeEditor.uses.text' => 'Primary text and icons',
@@ -4956,6 +5324,8 @@ extension on Translations {
 			'transcript.filesElided' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} more file', other: '${n} more files', ), 
 			'transcript.modelChange' => ({required Object model}) => 'Model: ${model}',
 			'transcript.modelRoleChange' => ({required Object role, required Object model}) => 'Model (${role}): ${model}',
+			_ => null,
+		} ?? switch (path) {
 			'transcript.thinkingLevel' => ({required Object level}) => 'Thinking: ${level}',
 			'transcript.thinkingOff' => 'Thinking: off',
 			'transcript.rulesApplied' => ({required num n, required Object rules}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Rule applied: ${rules}', other: '${n} rules applied: ${rules}', ), 
@@ -5041,8 +5411,6 @@ extension on Translations {
 			'config.roles.context' => ({required Object tokens}) => '${tokens} context',
 			'config.roles.vision' => 'images',
 			'config.roles.noModels' => 'No model matches.',
-			_ => null,
-		} ?? switch (path) {
 			'config.accounts.machineWide' => 'Credentials are stored per machine.',
 			'config.accounts.sessionView' => ({required Object path}) => 'In use and pinned marks refer to the session in ${path}.',
 			'config.accounts.active' => 'in use',

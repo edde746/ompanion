@@ -1,3 +1,4 @@
+export 'src/host/activity_stats.dart';
 export 'src/host/companion.dart';
 export 'src/host/host_image.dart';
 export 'src/host/install.dart';

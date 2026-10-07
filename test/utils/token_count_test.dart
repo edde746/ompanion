@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/utils/token_count.dart';
 
 void main() {
-  test('whole values drop the decimal, others keep one, in K below a million and M from there', () {
+  test('whole values drop the decimal, others keep one, in K below a million, M below a billion, B from there', () {
     final cases = {
       0: '0',
       999: '999',
@@ -20,6 +20,9 @@ void main() {
       1500000: '1.5M',
       2000000: '2M',
       10250000: '10.3M',
+      999949999: '999.9M',
+      999960000: '1B',
+      17406968354: '17.4B',
     };
     for (final MapEntry(key: tokens, value: text) in cases.entries) {
       expect(formatTokens(tokens), text, reason: '$tokens tokens');

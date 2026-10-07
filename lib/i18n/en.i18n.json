@@ -98,6 +98,100 @@
     "capacityWindow": {
       "one": "$used/$n account used · $left× quota left",
       "other": "$used/$n accounts used · $left× quota left"
+    },
+    "tabs": {
+      "limits": "Limits",
+      "stats": "Stats"
+    },
+    "stats": {
+      "reading": "Reading session files…",
+      "scanned": "$files session files · $size · $time",
+      "unreadable": {
+        "one": "$n file could not be read: $error",
+        "other": "$n files could not be read: $error"
+      },
+      "allMachines": "All machines",
+      "machineFilter": "Machines",
+      "ranges": {
+        "week": "7 days",
+        "month": "30 days",
+        "year": "Year",
+        "all": "All time"
+      },
+      "none": "No model requests in any session file yet.",
+      "requests": "Requests",
+      "tokens": "Tokens",
+      "cost": "Cost",
+      "sessions": "Sessions",
+      "currentStreak": "Current streak",
+      "longestStreak": "Longest streak",
+      "activeDays": "Active days",
+      "speed": "Speed",
+      "failed": "$n failed ($percent)",
+      "fromCache": "$percent read from cache",
+      "perActiveDay": "$cost per active day",
+      "prompts": {
+        "one": "$count prompt",
+        "other": "$count prompts"
+      },
+      "days": {
+        "one": "$n day",
+        "other": "$n days"
+      },
+      "since": "since $date",
+      "span": "$from – $to",
+      "ofDays": "of $n days",
+      "noStreak": "none yet",
+      "ttft": "$ms ms to first token",
+      "tokensPerSecond": "$n tok/s",
+      "heatmap": {
+        "one": "$count request in $period",
+        "other": "$count requests in $period"
+      },
+      "lastYear": "the last year",
+      "lastYearOption": "Last year",
+      "less": "Less",
+      "more": "More",
+      "requestCount": {
+        "one": "$count request",
+        "other": "$count requests"
+      },
+      "tokenCount": "$tokens tokens",
+      "busiestDay": "Busiest day: $date, $requests",
+      "activity": "Activity",
+      "metrics": {
+        "requests": "Requests",
+        "tokens": "Tokens",
+        "cost": "Cost"
+      },
+      "weekOf": "Week of $date",
+      "monthOf": "$month $year",
+      "models": "Models",
+      "weekHours": "Week by hour",
+      "hourSpan": "$weekday $from:00–$to:00",
+      "busiestHour": "Busiest hour: $hour",
+      "tokenKinds": "Tokens by kind",
+      "input": "Input",
+      "output": "Output",
+      "cacheRead": "Cache read",
+      "cacheWrite": "Cache write",
+      "agents": "Agents",
+      "mainSessions": "Main sessions",
+      "subagents": "Subagents",
+      "advisor": "Advisor",
+      "projects": "Projects",
+      "noProject": "(no project)",
+      "tools": "Tools",
+      "callCount": {
+        "one": "$count call",
+        "other": "$count calls"
+      },
+      "toolErrors": "$n failed",
+      "machines": "Machines",
+      "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+      "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+      "date": "$weekday, $month $day, $year",
+      "shortDate": "$month $day"
     }
   },
   "dock": {
