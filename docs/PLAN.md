@@ -387,6 +387,12 @@ logic in the app would stop with it.
   `PreventSystemSleep` while omp works, so a Mac that a device's request woke from sleep stays awake for the turn. omp's
   own `PreventUserIdleSystemSleep` has no effect in that dark wake. The machine page's Power card sets the file.
   Contract: `contracts/host-launch.md` ("Keep awake").
+- Credential sync (`companion/src/verbs/session/accounts.ts`): every 2 s the companion polls `agent.db`'s data
+  version and reloads omp's stored credentials when another process committed. A sign-in or a stored key goes through
+  the control process, and omp reads stored credentials only while it resolves a request's key, which a provider keyed
+  in models.yml never does (can1357/oh-my-pi#14596): without the poll, a running session's model list lacked the new
+  provider and `set_model` refused its models. A provider whose models come only from online discovery is not
+  refreshed in other sessions.
 
 Version policy: the app drives omp 18.3.1 and later (`minimumOmpVersion`, `packages/omp_core/lib/src/host/probe.dart`)
 and installs the newest release it has digests for (`ompReleases`, `packages/omp_core/lib/src/host/install.dart`:

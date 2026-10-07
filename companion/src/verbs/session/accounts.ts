@@ -1,4 +1,4 @@
-import type { AuthCredential } from "@oh-my-pi/pi-coding-agent";
+import { type AgentSession, type AuthCredential, logger } from "@oh-my-pi/pi-coding-agent";
 import { toLogoutAccounts } from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/logout";
 import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
 import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
@@ -10,6 +10,34 @@ import { VerbError, type VerbTable } from "../../protocol.ts";
 
 /** omp's /login providers whose login is a pasted key, from the omp release the companion is built against. */
 const KEY_LOGINS: Record<string, LoginKind> = keyLogins();
+
+/** How often a running session looks for credentials another omp process stored. */
+const CREDENTIAL_POLL_MS = 2_000;
+
+/**
+ * omp keeps stored credentials in memory and reads `agent.db` again only while it resolves a request's key, which a
+ * provider keyed in models.yml never does (can1357/oh-my-pi#14596). The app signs in and stores keys through the
+ * machine's control process, so a session already running kept its old providers: its model list lacked the new
+ * provider and `set_model` answered "Model not found". A poll reads the database's data version and reloads only after
+ * another process committed.
+ */
+export function installCredentialSync(session: AgentSession): void {
+	const credentials = session.modelRegistry.authStorage.credentials;
+	let polling = false;
+	const timer = setInterval(() => {
+		if (polling) return;
+		polling = true;
+		credentials
+			.poll()
+			.catch((error: unknown) => {
+				logger.warn("ompanion credential poll failed", { error: error instanceof Error ? error.message : String(error) });
+			})
+			.finally(() => {
+				polling = false;
+			});
+	}, CREDENTIAL_POLL_MS);
+	timer.unref();
+}
 
 function requireCredentialId(args: Record<string, unknown>): number {
 	const credentialId = optionalInteger(args, "credentialId", 1, Number.MAX_SAFE_INTEGER);

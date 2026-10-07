@@ -29,7 +29,7 @@ import {
 } from "../args.ts";
 import { isSessionFilePath } from "../paths.ts";
 import { type CommandTable, VerbError, type VerbTable } from "../protocol.ts";
-import { accountVerbs } from "./session/accounts.ts";
+import { accountVerbs, installCredentialSync } from "./session/accounts.ts";
 import { agentVerbs, installAgentRoster } from "./session/agents.ts";
 import { btwVerbs } from "./session/btw.ts";
 import { announceChange, sessionState } from "./session/changes.ts";
@@ -62,6 +62,7 @@ export async function installSessionHooks(pi: ExtensionAPI, session: AgentSessio
 	installCompactionEvents(pi, session);
 	installLoopMode(session);
 	installAutoTitle(pi, session);
+	installCredentialSync(session);
 	await installGoalMode(pi, session);
 }
 
