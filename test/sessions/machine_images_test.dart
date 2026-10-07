@@ -66,6 +66,48 @@ void main() {
     expect(machine.fetches, hasLength(1));
   });
 
+  test('two fetches of a machine run at once; a waiting one runs only while a load still wants it', () async {
+    for (final name in ['b', 'c', 'd']) {
+      machine.files['/home/u/$name.png'] = (size: 1000, modified: DateTime.utc(2026));
+    }
+    final cache = images();
+    machine.gate = Completer();
+    Future<void> until(bool Function() done, String what) async {
+      for (var waited = 0; !done(); waited++) {
+        if (waited == 2000) fail('$what did not happen within 2 s');
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+    }
+
+    final running = [cache.load(machine, '/home/u/a.png'), cache.load(machine, '/home/u/b.png')];
+    await until(() => machine.fetches.length == 2, 'fetching a and b');
+    // A load is asked whether it still wants its image once it reached the fetch.
+    final asked = <String>{};
+    var cShown = true;
+    bool Function() shown(String name, bool Function() answer) => () {
+      asked.add(name);
+      return answer();
+    };
+    final c = cache.load(machine, '/home/u/c.png', wanted: shown('c', () => cShown));
+    final d = [
+      cache.load(machine, '/home/u/d.png', wanted: () => false),
+      cache.load(machine, '/home/u/d.png', wanted: shown('d', () => true)),
+    ];
+    await until(() => asked.containsAll(['c', 'd']), 'c and d reaching the fetch');
+    expect(machine.fetches, hasLength(2), reason: 'c and d wait for a turn');
+
+    cShown = false;
+    final abandoned = expectLater(c, throwsA(isA<ImageLoadAbandoned>()));
+    machine.gate!.complete();
+    await Future.wait([...running, ...d]);
+    await abandoned;
+    expect(
+      machine.fetches.map((fetch) => fetch.$1),
+      unorderedEquals(['/home/u/a.png', '/home/u/b.png', '/home/u/d.png']),
+      reason: 'c scrolled away before its turn; one of d\'s two loads still showed it',
+    );
+  });
+
   test('the original, once loaded, stands in for the preview', () async {
     final cache = images();
     final original = await cache.load(machine, '/home/u/a.png', original: true) as HostImageBytes;

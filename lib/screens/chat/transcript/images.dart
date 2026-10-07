@@ -4,12 +4,14 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/store.dart';
 
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
+import '../../../sessions/machine_images.dart';
 import '../../../utils/app_logger.dart';
 import '../../../utils/byte_size.dart';
 import '../../../widgets/activity_mark.dart';
@@ -105,10 +107,14 @@ class _Thumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = _bytesSize(bytes);
     var width = _maxWidth, height = _maxHeight;
+    int? decodeWidth;
     if (size != null && size.width > 0 && size.height > 0) {
       final scale = [_maxWidth / size.width, _maxHeight / size.height, 1.0].reduce((a, b) => a < b ? a : b);
       width = size.width * scale;
       height = size.height * scale;
+      // Decoded at the pixels it covers: a 3840×2160 screenshot decoded whole holds 33 MB for a 480 px thumbnail.
+      final pixels = (width * MediaQuery.devicePixelRatioOf(context)).ceil();
+      if (pixels < size.width) decodeWidth = pixels;
     }
     return Semantics(
       image: true,
@@ -125,6 +131,7 @@ class _Thumbnail extends StatelessWidget {
               bytes,
               fit: BoxFit.contain,
               gaplessPlayback: true,
+              cacheWidth: decodeWidth,
               errorBuilder: (context, error, stack) => ColoredBox(
                 color: AppColors.of(context).errorSurface,
                 child: Center(child: Icon(Symbols.broken_image, color: AppColors.of(context).error)),
@@ -239,9 +246,10 @@ class FittedImage extends StatelessWidget {
 
 /// An image file of the session's machine, named by [path] (host-native, `~/…` or relative to the session's
 /// directory), or kept in omp's blob store ([MachineImage.blob]). It loads on its own: it comes from the user's own
-/// machine over the session's link and cannot reach the network. A placeholder shows while it loads, then the image
-/// with its name and an "Open in Files" action ([caption]), or a notice of what is wrong; a file too large to send on
-/// its own offers its original. Without a machine to load from (no [TranscriptActions.images]) the path shows as text.
+/// machine over the session's link and cannot reach the network. It does not load while its list scrolls too fast
+/// for it to be looked at, nor once it left the list. A placeholder shows while it loads, then the image with its
+/// name and an "Open in Files" action ([caption]), or a notice of what is wrong; a file too large to send on its own
+/// offers its original. Without a machine to load from (no [TranscriptActions.images]) the path shows as text.
 class MachineImage extends StatefulWidget {
   const MachineImage({super.key, required String this.path, this.caption = true}) : blob = null, thumbnail = false;
 
@@ -263,6 +271,7 @@ class _MachineImageState extends State<MachineImage> {
   HostImage? _image;
   Object? _error;
   var _loadingOriginal = false;
+  var _started = false;
 
   // Read once: this lookup adds no dependency, and the screen passes new actions on every build.
   late final _images = context.getInheritedWidgetOfExactType<TranscriptScope>()?.actions.images;
@@ -271,8 +280,11 @@ class _MachineImageState extends State<MachineImage> {
   String get _label => widget.path ?? 'blob:sha256:${widget.blob}';
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Not in initState: whether the list scrolls too fast to load ([_request]) depends on the window's size.
+    if (_started) return;
+    _started = true;
     _start();
   }
 
@@ -290,25 +302,40 @@ class _MachineImageState extends State<MachineImage> {
       final blob? => _images?.peekBlob(blob),
       null => _images?.peek(widget.path!),
     };
-    if (_images != null) unawaited(_load(original: false));
+    if (_images != null) _request();
+  }
+
+  /// Loads the image unless its list scrolls too fast for it to be looked at; then, as Flutter's
+  /// [ScrollAwareImageProvider] does, asks again next frame, so an image a fling carries past never loads.
+  void _request() {
+    if (!mounted) return;
+    if (Scrollable.recommendDeferredLoadingForContext(context)) {
+      SchedulerBinding.instance.scheduleFrameCallback((_) => _request());
+      return;
+    }
+    unawaited(_load(original: false));
   }
 
   Future<void> _load({required bool original}) async {
     final label = _label;
+    bool wanted() => mounted && label == _label;
     try {
       final image = await switch (widget.blob) {
-        final blob? => _images!.loadBlob(blob, original: original),
-        null => _images!.load(widget.path!, original: original),
+        final blob? => _images!.loadBlob(blob, original: original, wanted: wanted),
+        null => _images!.load(widget.path!, original: original, wanted: wanted),
       };
-      if (!mounted || label != _label) return;
+      if (!wanted()) return;
       setState(() {
         _image = image;
         _error = null;
         _loadingOriginal = false;
       });
+    } on ImageLoadAbandoned {
+      // The load this one joined was dropped just before: ask again.
+      if (wanted()) unawaited(_load(original: original));
     } on Object catch (error) {
       appLogger.w('loading the image $label failed: $error');
-      if (!mounted || label != _label) return;
+      if (!wanted()) return;
       setState(() {
         _error = error;
         _loadingOriginal = false;

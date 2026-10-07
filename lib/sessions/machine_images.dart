@@ -33,8 +33,7 @@ abstract interface class ImageHost {
 }
 
 /// A machine of a [MachineRuntime]. Its image loads share one SFTP channel, reopened after the link changed or an
-/// operation failed, and run at most two image scripts at a time: SSH servers cap a connection's channels
-/// (OpenSSH's `MaxSessions` is 10), and the machine's sessions, terminals and Files tab need theirs.
+/// operation failed.
 final class RuntimeImageHost implements ImageHost {
   RuntimeImageHost(this.id, this.runtime);
 
@@ -44,8 +43,6 @@ final class RuntimeImageHost implements ImageHost {
 
   Future<HostFiles>? _files;
   HostLink? _filesLink;
-  var _running = 0;
-  final _waiting = Queue<Completer<void>>();
 
   @override
   HostProbe? get probe => switch (runtime.status) {
@@ -61,20 +58,9 @@ final class RuntimeImageHost implements ImageHost {
 
   @override
   Future<HostImage> fetch(String path, {required bool original}) async {
-    if (_running >= 2) {
-      final turn = Completer<void>();
-      _waiting.add(turn);
-      await turn.future;
-    }
-    _running++;
-    try {
-      final probe = await connect();
-      final tools = await runtime.imageTools();
-      return await _withFiles((files) => fetchHostImage(runtime.link, files, probe, tools, path, original: original));
-    } finally {
-      _running--;
-      if (_waiting.isNotEmpty) _waiting.removeFirst().complete();
-    }
+    final probe = await connect();
+    final tools = await runtime.imageTools();
+    return _withFiles((files) => fetchHostImage(runtime.link, files, probe, tools, path, original: original));
   }
 
   Future<T> _withFiles<T>(Future<T> Function(HostFiles files) action) async {
@@ -130,10 +116,26 @@ final class _Entry {
   };
 }
 
+/// What [MachineImages.load] throws when no load of the image wanted it anymore by the time its fetch could start.
+final class ImageLoadAbandoned implements Exception {
+  const ImageLoadAbandoned();
+
+  @override
+  String toString() => 'ImageLoadAbandoned: nothing shows the image anymore';
+}
+
+/// The fetches of one machine: how many run, and the ones waiting for a turn with whether their image is still wanted.
+final class _Fetches {
+  var running = 0;
+  final waiting = Queue<({Completer<void> turn, bool Function() wanted})>();
+}
+
 /// Images of the machines for transcripts. An image is keyed by machine, path, size and modification time: in a
 /// bounded in-memory LRU, whose entries count as current for [fresh] after the last check, then in a bounded cache on
 /// disk, and only then fetched from the machine ([fetchHostImage]), so rebuilds, scrolling and reopening a session do
-/// not fetch again. Problems (a missing file, one too large) are remembered in memory only.
+/// not fetch again. Problems (a missing file, one too large) are remembered in memory only. At most
+/// [_fetchesPerMachine] fetches of a machine run at once, and a fetch starts only while something still shows its
+/// image, so the images a reader scrolled past do not hold up the one they stopped at.
 final class MachineImages {
   MachineImages({
     required this._cacheDir,
@@ -152,7 +154,8 @@ final class MachineImages {
   /// Insertion-ordered: [_lookup] moves a hit to the end, so the first entry is the least recently used.
   final _memory = <String, _Entry>{};
   var _memoryUsed = 0;
-  final _loading = <String, Future<HostImage>>{};
+  final _loading = <String, ({Future<HostImage> future, List<bool Function()> wanted})>{};
+  final _fetches = <String, _Fetches>{};
   final _hosts = <String, RuntimeImageHost>{};
   Future<_DiskCache>? _disk;
 
@@ -172,18 +175,29 @@ final class MachineImages {
   /// The image last loaded for [path] (SFTP) on [host], from memory only: the original when one was loaded.
   HostImage? peek(ImageHost host, String path) => _lookup(host, path, original: false)?.image;
 
+  /// At most this many fetches of a machine run at once: SSH servers cap a connection's channels (OpenSSH's
+  /// `MaxSessions` is 10), and the machine's sessions, terminals and Files tab need theirs.
+  static const _fetchesPerMachine = 2;
+
   /// The image at [path] (SFTP) on [host]: a preview or the file where [fetchHostImage] chooses, or with [original]
-  /// the file itself. Loads of the same image at the same time share one fetch. Throws when the machine cannot be
+  /// the file itself. Loads of the same image at the same time share one fetch, which starts only while one of them is
+  /// still [wanted] (always, when null); else they throw [ImageLoadAbandoned]. Throws when the machine cannot be
   /// reached or the transfer fails.
-  Future<HostImage> load(ImageHost host, String path, {bool original = false}) {
+  Future<HostImage> load(ImageHost host, String path, {bool original = false, bool Function()? wanted}) {
     final key = _key(host, path, original);
-    // The callback must not return the removed future: whenComplete would wait for itself.
-    return _loading[key] ??= _load(host, path, original).whenComplete(() {
-      _loading.remove(key);
-    });
+    var load = _loading[key];
+    if (load == null) {
+      final wants = <bool Function()>[];
+      final future = _load(host, path, original, () => wants.any((wanted) => wanted())).whenComplete(() {
+        _loading.remove(key);
+      });
+      load = _loading[key] = (future: future, wanted: wants);
+    }
+    load.wanted.add(wanted ?? () => true);
+    return load.future;
   }
 
-  Future<HostImage> _load(ImageHost host, String path, bool original) async {
+  Future<HostImage> _load(ImageHost host, String path, bool original, bool Function() wanted) async {
     final cached = _lookup(host, path, original: original);
     if (cached != null && _clock().difference(cached.checked) < fresh) return cached.image;
     final stat = await host.stat(path);
@@ -210,7 +224,7 @@ final class MachineImages {
         return stored;
       }
     }
-    final image = await host.fetch(hostPath(path), original: original);
+    final image = await _fetch(host, hostPath(path), original, wanted);
     if (image is! HostImageBytes) return remember(image);
     final fetched = _Entry(image, size: image.size, modified: _seconds(image.modified), checked: _clock());
     _remember(key, fetched);
@@ -220,6 +234,39 @@ final class MachineImages {
       appLogger.w('caching an image on disk failed: $error');
     }
     return image;
+  }
+
+  /// [ImageHost.fetch] in one of the machine's turns, while [wanted]. A fetch waiting for a turn that is not wanted
+  /// anymore once one frees throws [ImageLoadAbandoned] instead.
+  Future<HostImage> _fetch(ImageHost host, String path, bool original, bool Function() wanted) async {
+    if (!wanted()) throw const ImageLoadAbandoned();
+    final fetches = _fetches[host.id] ??= _Fetches();
+    if (fetches.running < _fetchesPerMachine) {
+      fetches.running++;
+    } else {
+      final turn = Completer<void>();
+      fetches.waiting.add((turn: turn, wanted: wanted));
+      // [_handOn] passes the turn on with its count, so no fetch started in between takes it.
+      await turn.future;
+    }
+    try {
+      return await host.fetch(path, original: original);
+    } finally {
+      _handOn(host.id, fetches);
+    }
+  }
+
+  /// Gives a finished fetch's turn to the first waiting fetch that is still wanted.
+  void _handOn(String id, _Fetches fetches) {
+    while (fetches.waiting.isNotEmpty) {
+      final (:turn, :wanted) = fetches.waiting.removeFirst();
+      if (wanted()) {
+        turn.complete();
+        return;
+      }
+      turn.completeError(const ImageLoadAbandoned());
+    }
+    if (--fetches.running == 0) _fetches.remove(id);
   }
 
   /// The memory entry for [path]: with [original] false the original wins over the preview when both are there.
@@ -262,9 +309,9 @@ final class MachineImages {
     final prefix = '$id\n';
     _hosts.remove(id)?.close();
     await Future.wait([
-      for (final MapEntry(:key, value: loading) in _loading.entries)
+      for (final MapEntry(:key, value: (:future, wanted: _)) in _loading.entries)
         // Only their end matters here; their errors reach the callers of [load].
-        if (key.startsWith(prefix)) loading.then((_) {}, onError: (Object _) {}),
+        if (key.startsWith(prefix)) future.then((_) {}, onError: (Object _) {}),
     ]);
     for (final key in [..._memory.keys.where((key) => key.startsWith(prefix))]) {
       _memoryUsed -= _memory.remove(key)!.cost;
@@ -392,8 +439,8 @@ final class SessionImages {
   }
 
   /// Loads the image [path] names (host-native, `~/…` or relative to [cwd]); see [MachineImages.load].
-  Future<HostImage> load(String path, {bool original = false}) async =>
-      _images.load(_host, _resolve(path, await _host.connect()), original: original);
+  Future<HostImage> load(String path, {bool original = false, required bool Function() wanted}) async =>
+      _images.load(_host, _resolve(path, await _host.connect()), original: original, wanted: wanted);
 
   /// The blob [hash] ([BlobImageBlock]), from memory; null when it was not loaded or the machine is not connected.
   HostImage? peekBlob(String hash) {
@@ -402,11 +449,13 @@ final class SessionImages {
   }
 
   /// Loads the blob [hash] ([BlobImageBlock]); see [MachineImages.load].
-  Future<HostImage> loadBlob(String hash, {bool original = false}) async => _images.load(
-    _host,
-    blobPath(hash, sessionPath: sessionPath, probe: await _host.connect()),
-    original: original,
-  );
+  Future<HostImage> loadBlob(String hash, {bool original = false, required bool Function() wanted}) async =>
+      _images.load(
+        _host,
+        blobPath(hash, sessionPath: sessionPath, probe: await _host.connect()),
+        original: original,
+        wanted: wanted,
+      );
 
   String _resolve(String path, HostProbe probe) =>
       resolveMachinePath(path, home: probe.home, cwd: cwd, windows: probe.isWindows);

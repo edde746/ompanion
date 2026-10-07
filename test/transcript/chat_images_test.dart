@@ -43,31 +43,32 @@ void main() {
     height: 2000,
   );
 
-  Future<void> pump(WidgetTester tester, Widget child, {bool machine = true, Key? key}) => tester.pumpWidget(
-    TranslationProvider(
-      child: MaterialApp(
-        home: Scaffold(
-          body: TranscriptScope(
-            key: key,
-            actions: TranscriptActions(
-              onCopy: (_) {},
-              onOpenFile: (path, {line}) => opened.add(path),
-              onOpenSubagent: (_) {},
-              images: machine
-                  ? SessionImages(
-                      loader,
-                      host,
-                      cwd: '/home/u/proj',
-                      sessionPath: '/home/u/.local/share/omp/sessions/-home-u-proj/s.jsonl',
-                    )
-                  : null,
+  Future<void> pump(WidgetTester tester, Widget child, {bool machine = true, Key? key, bool scroll = true}) =>
+      tester.pumpWidget(
+        TranslationProvider(
+          child: MaterialApp(
+            home: Scaffold(
+              body: TranscriptScope(
+                key: key,
+                actions: TranscriptActions(
+                  onCopy: (_) {},
+                  onOpenFile: (path, {line}) => opened.add(path),
+                  onOpenSubagent: (_) {},
+                  images: machine
+                      ? SessionImages(
+                          loader,
+                          host,
+                          cwd: '/home/u/proj',
+                          sessionPath: '/home/u/.local/share/omp/sessions/-home-u-proj/s.jsonl',
+                        )
+                      : null,
+                ),
+                child: scroll ? SingleChildScrollView(child: child) : child,
+              ),
             ),
-            child: SingleChildScrollView(child: child),
           ),
         ),
-      ),
-    ),
-  );
+      );
 
   /// Lets the loader's file I/O, which fake async does not run, finish.
   Future<void> settle(WidgetTester tester) async {
@@ -133,6 +134,44 @@ void main() {
       await settle(tester);
       expect(find.text('Image not found: gone.png'), findsOneWidget);
       expect(find.text('No permission to read /secret.png'), findsOneWidget);
+    });
+
+    testWidgets('a fling loads none of the images it carries past', (tester) async {
+      for (var i = 0; i < 200; i++) {
+        host.files['/home/u/proj/$i.png'] = (size: 1000, modified: modified);
+      }
+      await pump(
+        tester,
+        ListView.builder(
+          itemCount: 200,
+          itemExtent: 400,
+          itemBuilder: (context, i) => MachineImage(path: '$i.png', caption: false),
+        ),
+        scroll: false,
+      );
+      await settle(tester);
+      int index(String path) => int.parse(RegExp(r'(\d+)\.png$').firstMatch(path)![1]!);
+      final shownFirst = {for (final (path, _) in host.fetches) index(path)};
+
+      await tester.fling(find.byType(ListView), const Offset(0, -300), 20000);
+      await tester.pumpAndSettle();
+      await settle(tester);
+      final top = (tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels / 400).floor();
+      final built = {
+        for (final image in tester.widgetList<MachineImage>(find.byType(MachineImage, skipOffstage: false)))
+          index(image.path!),
+      };
+      expect(top, greaterThan(10), reason: 'the fling carried the list far');
+      expect(
+        {for (final path in host.stats) index(path)}.difference(shownFirst).where((i) => i < top - 5),
+        isEmpty,
+        reason: 'only where the fling slowed down do images ask the machine about their file',
+      );
+      expect(
+        {for (final (path, _) in host.fetches) index(path)}.difference(shownFirst),
+        everyElement(isIn(built)),
+        reason: 'an image that left the list before its fetch started is not fetched',
+      );
     });
   });
 
