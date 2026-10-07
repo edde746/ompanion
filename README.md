@@ -347,7 +347,7 @@ The phases run in this order. `--only` and `--skip` pick some; `build/deploy/sta
 | `bump` | sets `pubspec.yaml` to `<version>+<build>`, the build number one above the current one unless `--build-number` is given; commits it with the four notes files as `chore(release): <version>`; pushes main |
 | `farm_start` | runs Actions → Build on main with the release tag |
 | `ios` | `flutter build ipa --release --dart-define=OMPANION_CHANNEL=appstore`, uploaded with `xcrun altool` |
-| `asc` | waits for App Store Connect to process the build, creates the version, sets What's New, attaches the build; with `--submit` it asks whether the review demo server was reset and verified ([store/README.md](store/README.md), App Store step 11), then submits for review |
+| `asc` | waits for App Store Connect to process the build, creates the version, sets What's New, attaches the build; with `--submit` it asks whether the review demo server was reset and verified ([store/README.md](store/README.md), App Store step 11), then submits for review; without it the phase stays pending until `release --submit` |
 | `farm_wait` | waits for the run and downloads `ompanion-android-aab-<sha>` and `ompanion-windows-msix-<sha>`, only from a release run: that run does not start without the four Android signing secrets, so its bundle is signed with the upload key |
 | `play` | uploads that bundle through the Play Developer API and releases it on `PLAY_TRACK`, status completed, with the en-US notes |
 | `release` | checks that the draft release holds exactly the seven files above and sets its notes |

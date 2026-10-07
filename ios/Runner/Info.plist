@@ -32,6 +32,10 @@
 	<false/>
 	<key>FirebaseMessagingInstallationIdEnabled</key>
 	<true/>
+	<!-- Export compliance (store/app-store.md §8): only exempt encryption, as for builds 1 and 2 and as Plezy declares,
+	     so App Store Connect never holds an uploaded build for the questionnaire. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<!-- SSH to a machine on the same network triggers iOS local network privacy (Apple TN3179). -->

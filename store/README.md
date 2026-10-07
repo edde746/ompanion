@@ -175,12 +175,11 @@ Releasing → The stores); the checklists above are not repeated.
 3. `uv run scripts/release/deploy.py release --version <version> --dry-run` prints every action; the same
    command without `--dry-run` releases. It asks before it publishes the GitHub release.
 4. App Store review: with `--submit`, the `asc` phase submits the version for review after asking whether App
-   Store step 11 (demo server reset, `verify.dart`, OpenRouter credit) is done; a no leaves the phase pending for
-   a later `release --submit`. Without `--submit`, submit in App Store Connect after step 11. Play review and
-   Microsoft Store certification sign in to the same demo server: keep it up through them too. App Store
-   Connect copies the review information (demo account, notes, contact) to a new version by itself; the `asc`
-   phase gives the new build the previous build's export compliance answer (`store/app-store.md` §8), so answer
-   it by hand for a release that changes the app's SSH or TLS code.
+   Store step 11 (demo server reset, `verify.dart`, OpenRouter credit) is done. Without `--submit`, or after a no,
+   the phase stays pending: a later `release --submit` resumes it, or submit in App Store Connect after step 11.
+   Play review and Microsoft Store certification sign in to the same demo server: keep it up through them too.
+   App Store Connect copies the review information (demo account, notes, contact) to a new version by itself,
+   and `Info.plist` answers export compliance (`store/app-store.md` §8).
 5. The `ios` phase signs through the Apple ID signed in to Xcode (Settings → Accounts), with team
    `G88U5B5783`'s cloud-managed Apple Distribution certificate: the App Store Connect API key gets "Cloud
    signing permission error". Without an account, `flutter build ipa` archives but exports nothing, and the
@@ -332,10 +331,10 @@ review notes by 20 bytes: re-run this after any wording change.
 - **Export compliance:** `dartssh2` implements SSH in Dart (ChaCha20-Poly1305, AES-GCM and AES-CTR as
   `packages/omp_core/lib/src/ssh/ssh_link.dart` orders them; Curve25519/ECDH/DH key exchange; Ed25519, RSA
   and ECDSA signatures), and the omp download's HTTPS goes through `dart:io`'s BoringSSL. So the app is
-  **not** limited to encryption Apple's OS provides. `ITSAppUsesNonExemptEncryption` is deliberately not set
-  in `Info.plist`, so App Store Connect asks per submission: "uses encryption — yes", standard algorithms not
-  provided by the OS, and nothing is uploaded unless France is in your territories. Apple notes that
-  exempt-encryption apps may owe the U.S. BIS a year-end self-classification report.
+  **not** limited to encryption Apple's OS provides. `Info.plist` sets `ITSAppUsesNonExemptEncryption` to `NO`,
+  the answer App Store Connect recorded for builds 1 and 2 and the one Plezy declares, so no build waits on the
+  questionnaire; `store/app-store.md` §8 has what that declares. Apple notes that exempt-encryption apps may owe the
+  U.S. BIS a year-end self-classification report.
 - **iOS purpose strings now in `Info.plist`:** `NSLocalNetworkUsageDescription` (SSH to a machine on the same
   network triggers iOS local-network privacy) and `NSPhotoLibraryUsageDescription` (the bundled file picker
   references `PHPhotoLibrary`/`PHPickerViewController`, so validation requires the string). No camera,

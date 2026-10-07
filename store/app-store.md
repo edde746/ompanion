@@ -211,7 +211,9 @@ Reasoning, checked against the code:
 
 ## 8. Export compliance
 
-Answer per the store build, from
+`ios/Runner/Info.plist` sets `ITSAppUsesNonExemptEncryption` to `NO`, so App Store Connect asks nothing about an
+uploaded build. It is the answer App Store Connect recorded for builds 1 and 2 and the one Plezy declares. What the
+app uses, from
 [Export compliance documentation for encryption](https://developer.apple.com/help/app-store-connect/reference/app-information/export-compliance-documentation-for-encryption)
 and [Complying with encryption export regulations](https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations):
 
@@ -223,15 +225,11 @@ and [Complying with encryption export regulations](https://developer.apple.com/d
   ECDH and Diffie-Hellman key exchange, and Ed25519, RSA and ECDSA signatures; key generation is Ed25519
   (`pinenacl`). The one HTTPS request, the omp download, uses `dart:io`'s TLS, which is BoringSSL inside the
   Dart runtime, not Apple's. Nothing proprietary.
-- **Documentation:** the French encryption declaration, and only if France is in your territories; upload it
-  when App Store Connect asks. Outside France nothing is uploaded.
-- `Info.plist` deliberately does **not** set `ITSAppUsesNonExemptEncryption`, so each uploaded build arrives
-  unanswered. The release pipeline's `asc` phase gives a new build the answer App Store Connect recorded for the
-  previous build (build 1: `usesNonExemptEncryption` false); answer by hand for a release that changes the SSH
-  or TLS code. Without France, no documentation is required, which is what `ITSAppUsesNonExemptEncryption` =
-  `NO` declares ("only uses forms of encryption that are exempt from export compliance documentation
-  requirements"); with France, Apple returns a key after approving the declaration, and
-  `ITSEncryptionExportComplianceCode` holds it. France is among the app's territories (checked 2026-10-07).
+- **What `NO` declares:** the app "only uses forms of encryption that are exempt from export compliance
+  documentation requirements", so no documentation is uploaded. Apple asks for the French encryption declaration
+  when an app that needs documentation is offered in France, and France is among the app's territories (checked
+  2026-10-07). An answer that needs documentation would replace the key with `ITSEncryptionExportComplianceCode`,
+  the key Apple returns after approving the declaration.
 - Apple also notes that an app using exempt encryption "might alternatively be required to submit a year-end
   self-classification report to the U.S. government":
   <https://www.bis.gov/learn-support/encryption-controls/annual-self-classification>.
