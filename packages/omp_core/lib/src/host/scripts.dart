@@ -131,7 +131,8 @@ Future<HostProcess> startPosixScript(HostLink link, String script) async {
 /// disk, a read-only or unwritable directory), and after waiting four times the stale age for a lock it cannot
 /// break. Its variables are prefixed, since shell functions share the script's. It reads the clock every tenth try:
 /// a Mac that coalesces timers sleeps about 0.11 s for `sleep 0.01` (measured 2026-10-07), so with every hundredth
-/// try a lock was broken or given up on 11 s late.
+/// try a lock was broken or given up on 11 s late. `date +%s` counts whole seconds, so both waits compare with `-gt`:
+/// a difference of more than N whole seconds is at least N real ones.
 const posixLockFunctions = r'''
 mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
 lock() {
@@ -148,7 +149,7 @@ lock() {
       [ -n "$lock_s" ] || lock_s=$lock_now
       lock_t=$(mtime "$1")
       if [ -n "$lock_t" ] && [ $((lock_now - lock_t)) -gt "$2" ] && rmdir "$1" 2>/dev/null; then continue; fi
-      if [ $((lock_now - lock_s)) -ge $(($2 * 4)) ]; then echo "$1 is still held after $(($2 * 4)) s" >&2; return 1; fi
+      if [ $((lock_now - lock_s)) -gt $(($2 * 4)) ]; then echo "$1 is still held after $(($2 * 4)) s" >&2; return 1; fi
     fi
     sleep 0.01 2>/dev/null || sleep 1
   done
