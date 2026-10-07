@@ -373,7 +373,7 @@ The release notes are committed files. Write the GitHub notes; a store's file is
 | `PLAY_TRACK` | the Play track the pipeline releases on: the closed-testing track's id from Play Console (`alpha` for the default closed track) until production access is granted, then `production`; without it `preflight` stops |
 | `MSSTORE_TENANT_ID`, `MSSTORE_CLIENT_ID`, `MSSTORE_CLIENT_SECRET` | the Azure AD application associated with the Partner Center account ([Submission API prerequisites](https://learn.microsoft.com/en-us/windows/uwp/monetize/create-and-manage-submissions-using-windows-store-services)); the account is Plezy's, so it is the application Plezy's pipeline uses |
 | `MSSTORE_APP_ID` | `9P9DVTKZ3SB9`, ompanion's Store ID |
-| `MSSTORE_PRICE_ID` | the Partner Center price tier for US$4.99 ([store/README.md](store/README.md), Later releases) |
+| `MSSTORE_PRICE_ID` | `Tier1052`, the Partner Center price tier for US$4.99 ([store/README.md](store/README.md), Later releases) |
 
 The fastlane lanes stay for the whole listing (texts and screenshots) and for uploads by hand:
 

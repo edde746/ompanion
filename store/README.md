@@ -182,10 +182,12 @@ Releasing → The stores); the checklists above are not repeated.
 Microsoft Store pricing: Partner Center's pricing page stores US$4.99 as a base price that the Submission API
 reads back as `Base` and refuses on PUT, and a submission without a price publishes the app for free (Plezy
 2.19.1 shipped at $0 that way). `MSSTORE_PRICE_ID` names the tier instead; the `msstore` phase accepts only a
-`TierNNNN` id and checks the tier the API stored before it commits. Tier ids are one per row of Pricing and
-availability → view conversion table, ascending. Plezy's pipeline documents this account's rows as Tier1012 =
-0.99 USD up to Tier1062 = 5.99 USD, so 4.99 USD reads as Tier1052 if the rows step by 0.10 USD: confirm it in
-that table before setting it.
+`TierNNNN` id and checks the tier the API stored before it commits. US$4.99 is `Tier1052`: Tier1012 to Tier1102 are
+$0.99 to $9.99 in steps of $0.10, in the table a Microsoft maintainer posted on
+[msstore-cli#175](https://github.com/microsoft/msstore-cli/pull/175) on 2026-09-23 (Partner Center's Pricing and
+availability → view conversion table also lists the ids). A tier is one base price spread to every market by that
+table; ompanion's only market overrides are Lebanon and Western Sahara as not available (checked 2026-10-07), which
+the cloned submission keeps.
 
 The Submission API only works on a product with one submission completed in Partner Center
 ([create an app submission](https://learn.microsoft.com/en-us/windows/uwp/monetize/create-an-app-submission)),

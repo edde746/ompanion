@@ -83,13 +83,10 @@ Microsoft Store caveat: the Submission API reports priceId "Base" for a price
 set in Partner Center's current pricing UI and rejects it on PUT, and a
 submission sent without a priceId publishes as free (Plezy 2.19.1 shipped at $0
 that way). So MSSTORE_PRICE_ID is required, must be a TierNNNN id, and the
-phase checks the tier the API stored before committing. Tier ids are one per
-row of Partner Center's conversion table in ascending order; Plezy's pipeline
-documents this account's table as Tier1012 = 0.99 USD and Tier1062 = 5.99 USD. If the
-rows between them step by 0.10 USD, ompanion's 4.99 USD is Tier1052: confirm it
-at Pricing and availability -> view conversion table before setting it. The
-Submission API also needs one submission of the app completed in Partner Center
-first.
+phase checks the tier the API stored before committing. Tier1012 to Tier1102 are
+0.99 to 9.99 USD in steps of 0.10 USD (Microsoft's table in msstore-cli#175), so
+ompanion's 4.99 USD is Tier1052. The Submission API also needs one submission of
+the app completed in Partner Center first.
 """
 
 from __future__ import annotations
