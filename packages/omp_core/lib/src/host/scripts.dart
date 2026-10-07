@@ -129,7 +129,9 @@ Future<HostProcess> startPosixScript(HostLink link, String script) async {
 /// one older than the given age (only a holder that died leaves one behind). It fails, with the reason on stderr,
 /// when the directory that should contain the lock is gone, when mkdir keeps failing while no lock exists (a full
 /// disk, a read-only or unwritable directory), and after waiting four times the stale age for a lock it cannot
-/// break. Its variables are prefixed, since shell functions share the script's.
+/// break. Its variables are prefixed, since shell functions share the script's. It reads the clock every tenth try:
+/// a Mac that coalesces timers sleeps about 0.11 s for `sleep 0.01` (measured 2026-10-07), so with every hundredth
+/// try a lock was broken or given up on 11 s late.
 const posixLockFunctions = r'''
 mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
 lock() {
@@ -141,7 +143,7 @@ lock() {
       if [ "$lock_e" -ge 5 ]; then mkdir "$1" && return 0; return 1; fi
     fi
     lock_n=$((lock_n + 1))
-    if [ $((lock_n % 100)) -eq 0 ]; then
+    if [ $((lock_n % 10)) -eq 0 ]; then
       lock_now=$(date +%s)
       [ -n "$lock_s" ] || lock_s=$lock_now
       lock_t=$(mtime "$1")
