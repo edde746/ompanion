@@ -1255,6 +1255,46 @@ def _asc_wait_for_build(client: AscClient, build_number: int) -> str:
     raise DeployError(f"asc: timed out waiting for iOS build {build_number}")
 
 
+def previous_export_compliance(builds: list[dict], build_number: int) -> bool | None:
+    """The usesNonExemptEncryption answer of the newest build before `build_number` that has one."""
+    answered = [
+        (int(b["attributes"]["version"]), b["attributes"]["usesNonExemptEncryption"])
+        for b in builds
+        if str(b["attributes"].get("version", "")).isdigit()
+        and int(b["attributes"]["version"]) < build_number
+        and b["attributes"].get("usesNonExemptEncryption") is not None
+    ]
+    return max(answered)[1] if answered else None
+
+
+def _asc_carry_export_compliance(client: AscClient, build_id: str, build_number: int) -> None:
+    """Gives an unanswered build the export compliance answer of the previous build.
+
+    Info.plist leaves ITSAppUsesNonExemptEncryption unset on purpose (store/app-store.md §8), so every upload
+    arrives unanswered, and App Store Connect refuses to submit a version whose build has no answer. The app's
+    encryption only changes with its SSH or TLS code, which a release that changes it must answer by hand.
+    """
+    build = client.request("GET", f"/builds/{build_id}").json()["data"]["attributes"]
+    if build.get("usesNonExemptEncryption") is not None:
+        return
+    earlier = client.request(
+        "GET", "/builds", params={"filter[app]": APP_STORE_APP_ID, "sort": "-uploadedDate", "limit": 50}
+    ).json()["data"]
+    answer = previous_export_compliance(earlier, build_number)
+    if answer is None:
+        raise DeployError(
+            f"asc: build {build_number} has no export compliance answer and no earlier build has one; answer it "
+            "in App Store Connect (store/app-store.md §8)"
+        )
+    client.request(
+        "PATCH",
+        f"/builds/{build_id}",
+        json={"data": {"type": "builds", "id": build_id, "attributes": {"usesNonExemptEncryption": answer}}},
+    )
+    log(f"asc: export compliance of build {build_number} set as the previous build's: usesNonExemptEncryption {answer}")
+
+
+
 def _asc_ensure_version(client: AscClient, version: str) -> str:
     data = client.request(
         "GET",
@@ -1363,6 +1403,7 @@ def phase_asc(ctx: Context) -> None:
         f"/appStoreVersions/{version_id}/relationships/build",
         json={"data": {"type": "builds", "id": build_id}},
     )
+    _asc_carry_export_compliance(client, build_id, ctx.build_number)
     log(f"asc: iOS version {ctx.version} ready with build {ctx.build_number} attached")
     if not ctx.args.submit:
         log("asc: not submitted (pass --submit to submit for review)")

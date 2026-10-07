@@ -225,11 +225,13 @@ and [Complying with encryption export regulations](https://developer.apple.com/d
   Dart runtime, not Apple's. Nothing proprietary.
 - **Documentation:** the French encryption declaration, and only if France is in your territories; upload it
   when App Store Connect asks. Outside France nothing is uploaded.
-- `Info.plist` deliberately does **not** set `ITSAppUsesNonExemptEncryption`, so App Store Connect asks on
-  each submission, which is right while the territories are undecided. Once they are: without France, no
-  documentation is required, which is what `ITSAppUsesNonExemptEncryption` = `NO` declares ("only uses forms
-  of encryption that are exempt from export compliance documentation requirements"); with France, Apple
-  returns a key after approving the declaration, and `ITSEncryptionExportComplianceCode` holds it.
+- `Info.plist` deliberately does **not** set `ITSAppUsesNonExemptEncryption`, so each uploaded build arrives
+  unanswered. The release pipeline's `asc` phase gives a new build the answer App Store Connect recorded for the
+  previous build (build 1: `usesNonExemptEncryption` false); answer by hand for a release that changes the SSH
+  or TLS code. Without France, no documentation is required, which is what `ITSAppUsesNonExemptEncryption` =
+  `NO` declares ("only uses forms of encryption that are exempt from export compliance documentation
+  requirements"); with France, Apple returns a key after approving the declaration, and
+  `ITSEncryptionExportComplianceCode` holds it. France is among the app's territories (checked 2026-10-07).
 - Apple also notes that an app using exempt encryption "might alternatively be required to submit a year-end
   self-classification report to the U.S. government":
   <https://www.bis.gov/learn-support/encryption-controls/annual-self-classification>.

@@ -177,7 +177,14 @@ Releasing → The stores); the checklists above are not repeated.
 4. App Store review: with `--submit`, the `asc` phase submits the version for review after asking whether App
    Store step 11 (demo server reset, `verify.dart`, OpenRouter credit) is done; a no leaves the phase pending for
    a later `release --submit`. Without `--submit`, submit in App Store Connect after step 11. Play review and
-   Microsoft Store certification sign in to the same demo server: keep it up through them too.
+   Microsoft Store certification sign in to the same demo server: keep it up through them too. App Store
+   Connect copies the review information (demo account, notes, contact) to a new version by itself; the `asc`
+   phase gives the new build the previous build's export compliance answer (`store/app-store.md` §8), so answer
+   it by hand for a release that changes the app's SSH or TLS code.
+5. The `ios` phase signs through the Apple ID signed in to Xcode (Settings → Accounts), with team
+   `G88U5B5783`'s cloud-managed Apple Distribution certificate: the App Store Connect API key gets "Cloud
+   signing permission error". Without an account, `flutter build ipa` archives but exports nothing, and the
+   phase stops.
 
 Microsoft Store pricing: Partner Center's pricing page stores US$4.99 as a base price that the Submission API
 reads back as `Base` and refuses on PUT, and a submission without a price publishes the app for free (Plezy

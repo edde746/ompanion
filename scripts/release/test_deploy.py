@@ -860,6 +860,7 @@ class AscPhaseTest(TempRootTest):
             "wait": mock.patch.object(deploy, "_asc_wait_for_build", return_value="build-2"),
             "version": mock.patch.object(deploy, "_asc_ensure_version", return_value="version-1"),
             "whats_new": mock.patch.object(deploy, "_asc_set_whats_new"),
+            "compliance": mock.patch.object(deploy, "_asc_carry_export_compliance"),
             "submit": mock.patch.object(deploy, "_asc_submit_for_review"),
         }
         self.mocks = {}
@@ -894,6 +895,21 @@ class AscPhaseTest(TempRootTest):
         self.mocks["submit"].assert_called_once_with(
             self.mocks["AscClient"].return_value, "version-1"
         )
+
+
+class PreviousExportComplianceTest(unittest.TestCase):
+    @staticmethod
+    def _build(version: str, answer: bool | None) -> dict:
+        return {"attributes": {"version": version, "usesNonExemptEncryption": answer}}
+
+    def test_takes_the_newest_earlier_answered_build(self) -> None:
+        builds = [self._build("3", None), self._build("2", None), self._build("1", False), self._build("10", True)]
+        self.assertIs(deploy.previous_export_compliance(builds, 3), False)
+        self.assertIs(deploy.previous_export_compliance(builds, 11), True, "10 is newer than 1, not older")
+
+    def test_nothing_earlier_answered(self) -> None:
+        self.assertIsNone(deploy.previous_export_compliance([self._build("1", None)], 2))
+        self.assertIsNone(deploy.previous_export_compliance([self._build("2", False)], 2))
 
 
 class SplitPhaseListsTest(unittest.TestCase):
