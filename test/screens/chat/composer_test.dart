@@ -161,6 +161,12 @@ final class _Source implements AttachmentSource {
   Uint8List? image;
   String? text;
 
+  /// What the system's own Paste would insert (iOS), and the images it inserted.
+  bool systemImage = false;
+  final systemPastes = StreamController<Uint8List>.broadcast();
+
+  Future<void> dispose() => systemPastes.close();
+
   /// The drop target's callbacks while it is enabled.
   ValueChanged<bool>? hover;
   ValueChanged<List<String>>? drop;
@@ -173,6 +179,12 @@ final class _Source implements AttachmentSource {
 
   @override
   Future<String?> clipboardText() async => text;
+
+  @override
+  Future<bool> systemPastesImage() async => systemImage;
+
+  @override
+  Stream<Uint8List> get systemPastedImages => systemPastes.stream;
 
   @override
   Widget dropTarget({
@@ -267,7 +279,10 @@ void main() {
     Directory('${dir.path}/docs').createSync();
   });
 
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() async {
+    dir.deleteSync(recursive: true);
+    await source.dispose();
+  });
 
   Future<_Session> attachedSession(WidgetTester tester) async {
     final session = _Session(SessionView());
@@ -669,6 +684,62 @@ void main() {
 
       await tearDownProviders(tester);
     });
+
+    testWidgets('on iOS a copied image gets the system menu\'s Paste, whose image goes into the focused composer', (
+      tester,
+    ) async {
+      final menus = <List<Object?>>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'ContextMenu.showSystemContextMenu') {
+          final items = (call.arguments as Map<Object?, Object?>)['items']! as List<Object?>;
+          menus.add([for (final item in items) (item! as Map<Object?, Object?>)['type']]);
+        }
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      tester.platformDispatcher.supportsShowingSystemContextMenu = true;
+      // The app's MediaQuery reads the dispatcher again only on a metrics change.
+      tester.binding.handleMetricsChanged();
+      addTearDown(() {
+        tester.platformDispatcher.resetSupportsShowingSystemContextMenu();
+        tester.binding.handleMetricsChanged();
+      });
+      final session = await pumpComposer(tester);
+      final draft = sessions.draftOf(session);
+      await tester.enterText(composer, 'word');
+      final field = tester.state<EditableTextState>(find.byType(EditableText));
+
+      Future<List<Object?>> openMenu() async {
+        field.hideToolbar();
+        await tester.pump();
+        field.showToolbar();
+        // The menu waits for the clipboard check.
+        await tester.pump();
+        await tester.pump();
+        return menus.last;
+      }
+
+      expect(await openMenu(), isNot(contains('paste')));
+      source.systemImage = true;
+      // The system's Paste, not one of ours: iOS refuses the app's own read of another app's image.
+      final menu = await openMenu();
+      expect(menu, contains('paste'));
+      expect(menu, isNot(contains('custom')));
+
+      source.systemPastes.add(_png);
+      await tester.pump();
+      expect(draft.attachments.map(_describe), ['image image/png null']);
+      expect(draft.text.text, 'word');
+
+      // Only the focused composer takes the image.
+      FocusManager.instance.primaryFocus!.unfocus();
+      await tester.pump();
+      source.systemPastes.add(_png);
+      await tester.pump();
+      expect(draft.attachments, hasLength(1));
+
+      await tearDownProviders(tester);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
     testWidgets('a chip removes its attachment; a pasted text previews and goes inline at the cursor', (tester) async {
       final session = await pumpComposer(tester);

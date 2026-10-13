@@ -1847,6 +1847,12 @@ class Translations$composer$en {
 	/// en: 'Attach files'
 	String get attach => 'Attach files';
 
+	/// en: 'Photo Library'
+	String get attachPhotos => 'Photo Library';
+
+	/// en: 'Files'
+	String get attachFiles => 'Files';
+
 	/// en: 'Remove'
 	String get remove => 'Remove';
 
@@ -5133,6 +5139,8 @@ extension on Translations {
 			'composer.steer' => 'Steer',
 			'composer.followUp' => 'Follow-up',
 			'composer.attach' => 'Attach files',
+			'composer.attachPhotos' => 'Photo Library',
+			'composer.attachFiles' => 'Files',
 			'composer.remove' => 'Remove',
 			'composer.pastedImage' => 'Pasted image',
 			'composer.pastedText' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'Pasted text · ${n} line', other: 'Pasted text · ${n} lines', ), 
@@ -5328,10 +5336,10 @@ extension on Translations {
 			'transcript.summaryFiles' => 'Files',
 			'transcript.fileRead' => 'read',
 			'transcript.fileWritten' => 'written',
-			'transcript.fileReadWritten' => 'read and written',
-			'transcript.filesElided' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} more file', other: '${n} more files', ), 
 			_ => null,
 		} ?? switch (path) {
+			'transcript.fileReadWritten' => 'read and written',
+			'transcript.filesElided' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} more file', other: '${n} more files', ), 
 			'transcript.modelChange' => ({required Object model}) => 'Model: ${model}',
 			'transcript.modelRoleChange' => ({required Object role, required Object model}) => 'Model (${role}): ${model}',
 			'transcript.thinkingLevel' => ({required Object level}) => 'Thinking: ${level}',

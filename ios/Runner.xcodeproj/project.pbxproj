@@ -26,6 +26,7 @@
 		982550C1D4BAF18E4CD5994F /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 963BABEDC46B9F85AD786C16 /* FirebaseCore */; };
 		DF20CEC7517FD1A65D2A18E4 /* PushKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4034C24BA24B3E8A52BD22 /* PushKeychain.swift */; };
 		E17284AC57CB2B2AB052BD2D /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC4A8215CACA4228368D7EB /* Push.swift */; };
+		3E5A1C2B7D9F4E6A8B0C1D2E /* ImagePaste.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F6B2D3C8E0A5F7B9C1D2E3F /* ImagePaste.swift */; };
 		FAC0AD46CB92DAF590C20441 /* PushCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = F474B949EC6D6C205E97339C /* PushCrypto.swift */; };
 /* End PBXBuildFile section */
 
@@ -92,6 +93,7 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		ACC4A8215CACA4228368D7EB /* Push.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Push.swift; sourceTree = "<group>"; };
+		4F6B2D3C8E0A5F7B9C1D2E3F /* ImagePaste.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImagePaste.swift; sourceTree = "<group>"; };
 		B0B4FF9D8CC67941CD1E6ADE /* NotificationService.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NotificationService.entitlements; sourceTree = "<group>"; };
 		BB4464A085856B76C599FA1D /* ompanion.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = ompanion.icon; sourceTree = "<group>"; };
 		C77E8FD9426715D21F4EA940 /* NotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -191,6 +193,7 @@
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				70A1B2C3D4E5F60718293A4B /* PrivacyInfo.xcprivacy */,
 				ACC4A8215CACA4228368D7EB /* Push.swift */,
+				4F6B2D3C8E0A5F7B9C1D2E3F /* ImagePaste.swift */,
 				6016CA9F5B0B760A870FABD2 /* Runner.entitlements */,
 			);
 			path = Runner;
@@ -399,6 +402,7 @@
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				E17284AC57CB2B2AB052BD2D /* Push.swift in Sources */,
+				3E5A1C2B7D9F4E6A8B0C1D2E /* ImagePaste.swift in Sources */,
 				DF20CEC7517FD1A65D2A18E4 /* PushKeychain.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

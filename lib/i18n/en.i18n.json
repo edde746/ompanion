@@ -931,6 +931,8 @@
     "steer": "Steer",
     "followUp": "Follow-up",
     "attach": "Attach files",
+    "attachPhotos": "Photo Library",
+    "attachFiles": "Files",
     "remove": "Remove",
     "pastedImage": "Pasted image",
     "pastedText": {

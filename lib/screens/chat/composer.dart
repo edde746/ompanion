@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -91,10 +92,17 @@ class _ComposerState extends State<Composer> {
   /// Bytes of this prompt's files uploaded so far, while a send uploads.
   ({int sent, int total})? _upload;
 
+  /// The system's Paste of a copied image (iOS), which every composer hears and the focused one takes.
+  late final StreamSubscription<Uint8List> _systemPastes;
+
   @override
   void initState() {
     super.initState();
     _attach();
+    _systemPastes = context.read<AttachmentSource>().systemPastedImages.listen(
+      _systemPaste,
+      onError: _systemPasteFailed,
+    );
   }
 
   @override
@@ -108,6 +116,7 @@ class _ComposerState extends State<Composer> {
 
   @override
   void dispose() {
+    unawaited(_systemPastes.cancel());
     _detach();
     _focus.dispose();
     super.dispose();
@@ -408,13 +417,20 @@ class _ComposerState extends State<Composer> {
     }
   }
 
-  /// The attach button: any files; images omp takes as image content become images, as a paste of them does.
-  Future<void> _attachFiles() async {
+  /// The attach button: any files; images omp takes as image content become images, as a paste of them does. With
+  /// [photos], iOS's photo library, which its file picker does not reach.
+  Future<void> _attachFiles({bool photos = false}) async {
     final t = context.t;
     final messenger = ScaffoldMessenger.of(context);
     final draft = _draft;
     try {
-      final files = await FilePicker.pickFiles();
+      final files = photos
+          ? await FilePicker.pickFiles(
+              type: FileType.image,
+              // A HEIC photo comes as JPEG, which omp takes as image content.
+              darwinOptions: const DarwinOptions(assetRepresentationMode: DarwinAssetRepresentationMode.compatible),
+            )
+          : await FilePicker.pickFiles();
       final attachments = [
         for (final file in files)
           ...switch (file.path) {
@@ -449,6 +465,23 @@ class _ComposerState extends State<Composer> {
     }
   }
 
+  void _systemPaste(Uint8List image) {
+    if (!_focus.hasFocus) return;
+    final ComposerAttachment attachment;
+    try {
+      attachment = pastedImage(image);
+    } on FormatException catch (error) {
+      return _systemPasteFailed(error);
+    }
+    _draft.addAttachments([attachment]);
+  }
+
+  void _systemPasteFailed(Object error) {
+    if (!_focus.hasFocus) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(context.t.composer.pasteFailed(error: '$error'))));
+  }
+
   /// An image an Android keyboard inserts: a GIF, a sticker, an image from its clipboard.
   void _insertContent(KeyboardInsertedContent content) {
     final bytes = content.data;
@@ -462,8 +495,9 @@ class _ComposerState extends State<Composer> {
 
   /// The field's context menu with its Paste taking [_paste]'s way. The field offers Paste only while the clipboard
   /// holds text; a copied file or image pastes too, so Paste is always there. iOS keeps its own menu, whose Paste
-  /// inserts text without asking for the clipboard; for anything else the menu gets a Paste of ours. Copy and Cut of a
-  /// selection holding a model chip take [_copyChips]'s way.
+  /// inserts text without asking for the clipboard, and reads another app's image only through that Paste: a Paste of
+  /// ours there would be refused, so a copied image gets the system's ([_ImagePasteMenu], [_systemPaste]). Copy and Cut
+  /// of a selection holding a model chip take [_copyChips]'s way.
   Widget _contextMenu(BuildContext context, EditableTextState field) {
     void paste() {
       field.hideToolbar();
@@ -497,24 +531,25 @@ class _ComposerState extends State<Composer> {
         _copyChips(cut: cut);
       }
 
-      return SystemContextMenu.editableText(
-        editableTextState: field,
-        items: [
-          for (final item in SystemContextMenu.getDefaultItems(field))
-            switch (item) {
-              IOSSystemContextMenuItemCopy() when holdsChip => IOSSystemContextMenuItemCustom(
-                title: localizations.copyButtonLabel,
-                onPressed: () => copy(cut: false),
-              ),
-              IOSSystemContextMenuItemCut() when holdsChip => IOSSystemContextMenuItemCustom(
-                title: localizations.cutButtonLabel,
-                onPressed: () => copy(cut: true),
-              ),
-              _ => item,
-            },
-          if (canPaste && !offersPaste)
-            IOSSystemContextMenuItemCustom(title: localizations.pasteButtonLabel, onPressed: paste),
-        ],
+      final systemItems = [
+        for (final item in SystemContextMenu.getDefaultItems(field))
+          switch (item) {
+            IOSSystemContextMenuItemCopy() when holdsChip => IOSSystemContextMenuItemCustom(
+              title: localizations.copyButtonLabel,
+              onPressed: () => copy(cut: false),
+            ),
+            IOSSystemContextMenuItemCut() when holdsChip => IOSSystemContextMenuItemCustom(
+              title: localizations.cutButtonLabel,
+              onPressed: () => copy(cut: true),
+            ),
+            _ => item,
+          },
+      ];
+      if (!canPaste || offersPaste) return SystemContextMenu.editableText(editableTextState: field, items: systemItems);
+      return _ImagePasteMenu(
+        field: field,
+        items: systemItems,
+        pastesImage: context.read<AttachmentSource>().systemPastesImage,
       );
     }
     if (canPaste && !offersPaste) {
@@ -746,12 +781,11 @@ class _ComposerState extends State<Composer> {
                                           ),
                                         ),
                                 ),
-                                IconButton(
-                                  tooltip: t.composer.attach,
-                                  icon: const Icon(Symbols.attach_file, size: 20),
-                                  constraints: _toolbarIcon,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  onPressed: closed && !reopens ? null : () => unawaited(_attachFiles()),
+                                _AttachButton(
+                                  above: _block,
+                                  onAttach: closed && !reopens
+                                      ? null
+                                      : ({required photos}) => unawaited(_attachFiles(photos: photos)),
                                 ),
                                 const SizedBox(width: 4),
                                 if (_upload case (:final sent, :final total))
@@ -852,6 +886,118 @@ final class _CopyChips extends ContextAction<CopySelectionTextIntent> {
     if (copy(cut: intent.collapseSelection)) return null;
     return callingAction?.invoke(intent);
   }
+}
+
+/// The toolbar's attach button. iOS keeps the photo library out of its file picker, so there it opens a menu of the
+/// two above the composer block [above]; elsewhere the file picker's own places hold the photos.
+class _AttachButton extends StatefulWidget {
+  const _AttachButton({required this.above, required this.onAttach});
+
+  final GlobalKey above;
+
+  /// Null while there is nothing to attach to.
+  final void Function({required bool photos})? onAttach;
+
+  @override
+  State<_AttachButton> createState() => _AttachButtonState();
+}
+
+class _AttachButtonState extends State<_AttachButton> {
+  Offset _offset = Offset.zero;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final onAttach = widget.onAttach;
+    Widget button(VoidCallback? onPressed) => IconButton(
+      key: const ValueKey('attach'),
+      tooltip: t.composer.attach,
+      icon: const Icon(Symbols.attach_file, size: 20),
+      constraints: _toolbarIcon,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      onPressed: onPressed,
+    );
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      return button(onAttach == null ? null : () => onAttach(photos: false));
+    }
+    return MenuAnchor(
+      alignmentOffset: _offset,
+      menuChildren: [
+        MenuItemButton(
+          key: const ValueKey('attach-photos'),
+          leadingIcon: const Icon(Symbols.photo_library),
+          onPressed: onAttach == null ? null : () => onAttach(photos: true),
+          child: Text(t.composer.attachPhotos),
+        ),
+        MenuItemButton(
+          key: const ValueKey('attach-files'),
+          leadingIcon: const Icon(Symbols.folder_open),
+          onPressed: onAttach == null ? null : () => onAttach(photos: false),
+          child: Text(t.composer.attachFiles),
+        ),
+      ],
+      builder: (context, controller, _) => button(
+        onAttach == null
+            ? null
+            : () {
+                if (controller.isOpen) return controller.close();
+                setState(() => _offset = menuOffsetAbove(context, widget.above, alignStart: false));
+                controller.open();
+              },
+      ),
+    );
+  }
+}
+
+/// iOS's own menu for [field] with the system's Paste once the clipboard turns out to hold an image
+/// ([AttachmentSource.systemPastesImage]); nothing shows until the answer is in, so the menu does not jump.
+class _ImagePasteMenu extends StatefulWidget {
+  const _ImagePasteMenu({required this.field, required this.items, required this.pastesImage});
+
+  final EditableTextState field;
+  final List<IOSSystemContextMenuItem> items;
+  final Future<bool> Function() pastesImage;
+
+  @override
+  State<_ImagePasteMenu> createState() => _ImagePasteMenuState();
+}
+
+class _ImagePasteMenuState extends State<_ImagePasteMenu> {
+  bool? _image;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_check());
+  }
+
+  Future<void> _check() async {
+    bool image;
+    try {
+      image = await widget.pastesImage();
+    } on Object catch (error, stack) {
+      // The menu still shows, without the image's Paste.
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'composer',
+          context: ErrorDescription('while checking the clipboard for an image'),
+        ),
+      );
+      image = false;
+    }
+    if (mounted) setState(() => _image = image);
+  }
+
+  @override
+  Widget build(BuildContext context) => switch (_image) {
+    null => const SizedBox.shrink(),
+    final image => SystemContextMenu.editableText(
+      editableTextState: widget.field,
+      items: [...widget.items, if (image) const IOSSystemContextMenuItemPaste()],
+    ),
+  };
 }
 
 enum _Picker { model, thinking, meter, goal, loop }

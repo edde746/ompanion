@@ -13,6 +13,7 @@ import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/models/machine.dart';
 import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/screens/chat/attachment_input.dart';
 import 'package:ompanion/screens/chat/composer.dart';
 import 'package:ompanion/screens/chat/model_mention_palette.dart';
 import 'package:ompanion/screens/dock/agents/agent_roster.dart';
@@ -186,8 +187,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: sessions,
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: sessions),
+          Provider<AttachmentSource>.value(value: const SystemAttachmentSource()),
+        ],
         child: TranslationProvider(
           child: MaterialApp(
             home: Scaffold(

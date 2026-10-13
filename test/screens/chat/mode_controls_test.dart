@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/providers/machines_provider.dart';
+import 'package:ompanion/screens/chat/attachment_input.dart';
 import 'package:ompanion/screens/chat/composer.dart';
 import 'package:ompanion/services/known_hosts_store.dart';
 import 'package:ompanion/services/machine_connector.dart';
@@ -181,8 +182,11 @@ void main() {
     await tester.pump();
     await attached;
     await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: sessions,
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: sessions),
+          Provider<AttachmentSource>.value(value: const SystemAttachmentSource()),
+        ],
         child: TranslationProvider(
           child: MaterialApp(
             home: Scaffold(

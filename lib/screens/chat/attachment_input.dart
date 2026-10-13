@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -22,6 +23,13 @@ abstract interface class AttachmentSource {
 
   /// The plain text on the clipboard, or null.
   Future<String?> clipboardText();
+
+  /// Whether the system's own Paste would insert a copied image (iOS). The text field offers Paste for text only, and
+  /// iOS lets the app read another app's copy without asking only through that Paste.
+  Future<bool> systemPastesImage();
+
+  /// The images the system's own Paste inserted (iOS); an error when it could not read the copied one.
+  Stream<Uint8List> get systemPastedImages;
 
   /// [child] as a target for files dragged in from the OS while [enabled]: [onHover] reports a drag entering (true)
   /// and leaving (false), [onDrop] the dropped paths.
@@ -59,15 +67,18 @@ Future<Paste?> readPaste(AttachmentSource source) async {
   final files = await attachmentsFromPaths(await source.clipboardFiles());
   if (files.isNotEmpty) return PasteAttachments(files);
   final image = await source.clipboardImage();
-  if (image != null) {
-    final mimeType = imageMimeType(image);
-    if (mimeType == null) throw const FormatException('The clipboard image is not PNG, JPEG, GIF or WebP.');
-    return PasteAttachments([ImageAttachment(RpcImage(data: base64Encode(image), mimeType: mimeType))]);
-  }
+  if (image != null) return PasteAttachments([pastedImage(image)]);
   final raw = await source.clipboardText();
   if (raw == null || raw.isEmpty) return null;
   final text = raw.replaceAll(RegExp('\r\n?'), '\n');
   return isLargePaste(text) ? PasteAttachments([TextAttachment(text)]) : PasteText(text);
+}
+
+/// A copied image as an attachment; omp takes PNG, JPEG, GIF and WebP as image content.
+ImageAttachment pastedImage(Uint8List image) {
+  final mimeType = imageMimeType(image);
+  if (mimeType == null) throw const FormatException('The clipboard image is not PNG, JPEG, GIF or WebP.');
+  return ImageAttachment(RpcImage(data: base64Encode(image), mimeType: mimeType));
 }
 
 /// Whether the TUI collapses a paste of [text] into a chip: over 10 lines or 1000 characters (its editor's
@@ -144,12 +155,31 @@ ComposerAttachment attachmentFromBytes(String name, Uint8List bytes) {
         );
 }
 
-/// The system clipboard through `pasteboard`, drops through `desktop_drop`. Copied files and drops exist on macOS,
-/// Windows and Linux only: Android hands out content URIs, not paths, and iOS has neither.
+/// The system clipboard through `pasteboard`, drops through `desktop_drop`, iOS's Paste of a copied image through
+/// `ios/Runner/ImagePaste.swift`. Copied files and drops exist on macOS, Windows and Linux only: Android hands out
+/// content URIs, not paths, and iOS has neither.
 final class SystemAttachmentSource implements AttachmentSource {
   const SystemAttachmentSource();
 
   static bool get _desktop => Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+
+  static const _clipboard = MethodChannel('ompanion/clipboard');
+
+  /// iOS's Paste of a copied image, heard while a composer listens; the focused one takes it.
+  static final _systemPastes = StreamController<Uint8List>.broadcast(
+    onListen: () => _clipboard.setMethodCallHandler(_systemPaste),
+    onCancel: () => _clipboard.setMethodCallHandler(null),
+  );
+
+  static Future<void> _systemPaste(MethodCall call) async {
+    if (call.method != 'paste') throw MissingPluginException('ompanion/clipboard has no ${call.method}');
+    switch (call.arguments) {
+      case final Uint8List image:
+        _systemPastes.add(image);
+      case _:
+        _systemPastes.addError(const FormatException('iOS did not hand over the copied image.'));
+    }
+  }
 
   @override
   Future<List<String>> clipboardFiles() async {
@@ -178,6 +208,12 @@ final class SystemAttachmentSource implements AttachmentSource {
 
   @override
   Future<String?> clipboardText() async => (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+
+  @override
+  Future<bool> systemPastesImage() async => Platform.isIOS && (await _clipboard.invokeMethod<bool>('hasImage'))!;
+
+  @override
+  Stream<Uint8List> get systemPastedImages => Platform.isIOS ? _systemPastes.stream : const Stream.empty();
 
   @override
   Widget dropTarget({

@@ -5,6 +5,7 @@ import UserNotifications
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let push = Push()
+  private let imagePaste = ImagePaste()
 
   override func application(
     _ application: UIApplication,
@@ -13,12 +14,20 @@ import UserNotifications
     // Before launch finishes, so the tap on a notification that launched the app reaches userNotificationCenter.
     UNUserNotificationCenter.current().delegate = self
     push.start()
+    // Flutter's text field declines `paste:` while the pasteboard holds no text, so iOS asks on up the responder
+    // chain; accepting images here keeps the system's Paste for a copied one (ImagePaste.swift).
+    pasteConfiguration = ImagePaste.configuration
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     push.attach(engineBridge.applicationRegistrar.messenger())
+    imagePaste.attach(engineBridge.applicationRegistrar.messenger())
+  }
+
+  override func paste(itemProviders: [NSItemProvider]) {
+    imagePaste.paste(itemProviders)
   }
 
   override func application(
