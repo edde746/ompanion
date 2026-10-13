@@ -10,6 +10,7 @@ import 'package:omp_core/host.dart';
 import 'package:omp_core/ssh.dart';
 import 'package:test/test.dart';
 
+import '../host/fixtures.dart';
 import '../omp_binary.dart';
 import '../ssh/docker_env.dart';
 import 'support.dart';
@@ -78,6 +79,10 @@ void main() {
   test('a run survives the SSH connection that launched it and is resumed from another', () async {
     final session = '${probe.home}/work/session one.jsonl';
     await runPosixScript(link, 'mkdir -p "\$HOME/work"');
+    // omp 18.7.0 and later resume only a session file that exists.
+    final files = await link.files();
+    await files.write(session, utf8.encode(sessionFile(id: 'one', cwd: probe.home)));
+    await files.close();
     final launcher = await connect();
     final run = (await openRun(launcher, probe, spec(session: session))).run;
     final first = await attachRun(launcher, probe, run, tools: tools);
@@ -107,7 +112,7 @@ void main() {
     expect(more.raw.any((line) => line.contains('"type":"ready"')), isFalse);
     expect(more.frames.first['id'], 'b:1', reason: 'nothing before the saved offset is delivered again');
 
-    // omp wrote the session file where --session pointed; the listing reads its title slot and header.
+    // The listing reads the title slot and header of the file the run resumed.
     final listed = await listSessions(link, probe, sessionDirs: ['${probe.home}/work']);
     final summary = listed.singleWhere((s) => s.path == session);
     expect(summary.cwd, probe.home);

@@ -55,9 +55,18 @@ typedef CapacityStat = ({
   double remainingAccounts,
 });
 
+/// What a policy line says of the account's quota: its state after the reserve.
+enum PolicyStanding { eligible, insideReserve, exhausted, unknown }
+
 /// A policy line (`formatPolicyLine`). [remainingPercent] is left of the most-consumed limit; null when no limit
 /// reports a fraction.
-typedef PolicyState = ({num priority, num reservePercent, bool inherited, double? remainingPercent});
+typedef PolicyState = ({
+  num priority,
+  num reservePercent,
+  bool inherited,
+  PolicyStanding standing,
+  double? remainingPercent,
+});
 
 /// A stored account no report covers, on [machine].
 typedef MachineAccount = ({String machine, UsageAccount account, PolicyState? policy});
@@ -368,18 +377,35 @@ AccountPolicy? _policyFor(MachineUsage machine, String provider, UsageIdentity i
   return null;
 }
 
-/// `formatPolicyLine`: the account's priority and reserve, and what is left of its most-consumed limit.
+/// `isWithinUsageReserve`'s slack: a remaining fraction derived as `1 - used` still matches a reserve it sits exactly
+/// on (70 % used against a 30 % reserve).
+const _reserveEpsilon = 1e-9;
+
+/// `formatPolicyLine` of omp 18.10.3: the account's priority and reserve, and what is left of its most-consumed limit.
+/// omp before 18.8.4 never says exhausted and before 18.8.5 compares without slack; the app reports the 18.10.3 state
+/// for every omp, from the status and amounts every release puts in `omp usage --json`.
 PolicyState policyState(MachineUsage machine, String provider, UsageIdentity identity, List<UsageLimit>? limits) {
   final policy = _policyFor(machine, provider, identity);
+  final reservePercent = (policy?.reservePct ?? machine.reservePct).clamp(0, 100);
+  final measured = limits ?? const <UsageLimit>[];
+  // A provider-reported exhausted status wins over the fraction, as on the limit rows.
+  final exhausted = measured.any((limit) => usageLimitStatus(limit) == UsageStatus.exhausted);
   final fractions = [
-    for (final limit in limits ?? const <UsageLimit>[])
+    for (final limit in measured)
       if (limit.usedFraction case final fraction? when fraction.isFinite) fraction,
   ];
+  final remaining = fractions.isEmpty ? null : math.max(0.0, 1 - fractions.reduce(math.max));
   return (
     priority: policy?.priority ?? 0,
-    reservePercent: (policy?.reservePct ?? machine.reservePct).clamp(0, 100),
+    reservePercent: reservePercent,
     inherited: policy?.reservePct == null,
-    remainingPercent: fractions.isEmpty ? null : math.max(0, 1 - fractions.reduce(math.max)) * 100,
+    standing: switch (remaining) {
+      null => exhausted ? PolicyStanding.exhausted : PolicyStanding.unknown,
+      final left when exhausted || left <= 0 => PolicyStanding.exhausted,
+      final left when left <= reservePercent / 100 + _reserveEpsilon => PolicyStanding.insideReserve,
+      _ => PolicyStanding.eligible,
+    },
+    remainingPercent: remaining == null ? null : remaining * 100,
   );
 }
 

@@ -129,11 +129,13 @@ void main() {
     // omp usage: "policy: priority 0 · reserve 10% (global) · eligible · 17.0% left" for dev@example.com,
     // "policy: priority 5 · reserve 15% (override) · inside reserve · 7.0% left" for team@example.com.
     final [dev, team] = [for (final account in anthropic.accounts) account.policies.single.policy];
-    expect((dev.priority, dev.reservePercent, dev.inherited), (0, 10, true));
+    expect((dev.priority, dev.reservePercent, dev.inherited, dev.standing), (0, 10, true, PolicyStanding.eligible));
     expect(dev.remainingPercent!.toStringAsFixed(1), '17.0');
-    expect((team.priority, team.reservePercent, team.inherited), (5, 15, false));
+    expect(
+      (team.priority, team.reservePercent, team.inherited, team.standing),
+      (5, 15, false, PolicyStanding.insideReserve),
+    );
     expect(team.remainingPercent!.toStringAsFixed(1), '7.0');
-    expect(team.remainingPercent! <= team.reservePercent, isTrue);
     // Without a matching policy omp prints no policy line for the provider.
     expect(
       mergeUsage([_machine('This Mac', _mac, policies: _policies)]).providers.first.accounts.single.policies,
@@ -148,6 +150,101 @@ void main() {
       [for (final (:machine, :policy) in merged.policies) (machine, policy.remainingPercent!.toStringAsFixed(1))],
       [('target', '17.0')],
     );
+  });
+
+  test("policy state: omp 18.10.3's formatPolicyLine, with and without a provider status", () {
+    UsageLimit limit(Map<String, Object?> amount, [String? status]) => UsageLimit.fromJson({
+      'id': '5h',
+      'label': '5 Hour',
+      'scope': {'windowId': '5h'},
+      'amount': {'unit': 'percent', ...amount},
+      'status': ?status,
+    });
+    const UsageIdentity anyone = (email: null, accountId: null, projectId: null, orgId: null, orgName: null);
+    // (limits, global reserve %, state, % left): omp prints "policy: … · <state> · <left>% left", or no left.
+    final cases = <(List<UsageLimit>?, num, PolicyStanding, String?)>[
+      // The provider says exhausted with quota left: "exhausted · 0.5% left".
+      (
+        [
+          limit({'usedFraction': 0.995}, 'exhausted'),
+        ],
+        0,
+        PolicyStanding.exhausted,
+        '0.5',
+      ),
+      // No status, nothing left: "exhausted · 0.0% left", not "inside reserve" of a 0 % reserve.
+      (
+        [
+          limit({'usedFraction': 1}),
+        ],
+        0,
+        PolicyStanding.exhausted,
+        '0.0',
+      ),
+      // The provider says warning, nothing left: still exhausted.
+      (
+        [
+          limit({'used': 120, 'limit': 100}, 'warning'),
+        ],
+        10,
+        PolicyStanding.exhausted,
+        '0.0',
+      ),
+      // One window exhausted by status and unmeasured, another measured: exhausted, with the measured window left.
+      (
+        [
+          limit({'usedFraction': 0.1}, 'ok'),
+          limit({}, 'exhausted'),
+        ],
+        10,
+        PolicyStanding.exhausted,
+        '90.0',
+      ),
+      // Exhausted by status, nothing measured: "exhausted" alone.
+      ([limit({}, 'exhausted')], 10, PolicyStanding.exhausted, null),
+      // Exactly on the reserve: 1 - 0.7 is 0.30000000000000004, inside a 30 % reserve by the slack.
+      (
+        [
+          limit({'usedFraction': 0.7}),
+        ],
+        30,
+        PolicyStanding.insideReserve,
+        '30.0',
+      ),
+      (
+        [
+          limit({'usedFraction': 0.95}, 'warning'),
+        ],
+        10,
+        PolicyStanding.insideReserve,
+        '5.0',
+      ),
+      (
+        [
+          limit({'usedFraction': 0.2}),
+        ],
+        50,
+        PolicyStanding.eligible,
+        '80.0',
+      ),
+      (
+        [
+          limit({'usedFraction': 0.2}, 'ok'),
+        ],
+        50,
+        PolicyStanding.eligible,
+        '80.0',
+      ),
+      // Nothing measured, nothing exhausted: "reserve unknown".
+      ([limit({})], 10, PolicyStanding.unknown, null),
+      // An account without usage data.
+      (null, 10, PolicyStanding.unknown, null),
+    ];
+    for (final (index, (limits, reserve, standing, left)) in cases.indexed) {
+      final machine = MachineUsage(machine: 'm', snapshot: _reports(const []), reservePct: reserve);
+      final state = policyState(machine, 'anthropic', anyone, limits);
+      expect((state.standing, state.remainingPercent?.toStringAsFixed(1)), (standing, left), reason: 'case $index');
+    }
   });
 
   test('missing limits, saved resets and the disable cause as omp prints them', () {

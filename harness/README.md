@@ -51,8 +51,10 @@ type Step =
 ```
 
 - Requests take the first queued turn they are eligible for. A turn with `match` only answers a request
-  whose raw JSON body contains that text. `'"name":"yield"'` selects subagent requests: only
-  subagents are offered the `yield` tool.
+  whose raw JSON body contains that text. Before omp 18.10.3 `'"name":"yield"'` selects subagent requests:
+  only subagents are offered the `yield` tool. From 18.10.3 a `task` subagent gets no `yield` (unless
+  `task.structured` is on) and ends with its final message; match its assignment (`Complete assignment`) or
+  the model it runs on instead.
 - `wait` parks the request until another eligible turn is enqueued, which then answers it. Use it when
   the model's output depends on what omp did first, e.g. quoting the hashline tag a `read` returned.
 - With nothing eligible queued the server answers `ok`, so side calls never hang; `served: "default"`
@@ -183,7 +185,8 @@ bun harness/record.ts <scenario|all> harness/fixtures
 ```
 
 Needs the tested omp in `.tools/omp/<version>/omp-<platform>-<arch>` (`harness/omp-version`, or `$OMP_VERSION`;
-`scripts/fetch_omp.sh`); the checked-in fixtures were recorded with `OMP_VERSION=18.3.1`. Each scenario gets its own
+`scripts/fetch_omp.sh`); the checked-in fixtures were recorded with `OMP_VERSION=18.3.1`. The `subagent` scenario
+scripts the subagent's `yield`, so it records only with omp before 18.10.3. Each scenario gets its own
 fake provider, home and working directory in the system temp directory. The recorder fails, and keeps
 that directory with `out.jsonl`, `in.jsonl` and `requests.json`, when a model request got the default
 reply, a scripted turn went unused, a command failed, or omp exited non-zero. After writing it re-reads

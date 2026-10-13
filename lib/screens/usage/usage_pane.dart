@@ -810,10 +810,14 @@ String _policyLine(Translations t, PolicyState policy) {
       ? t.usage.reserveGlobal(percent: percent)
       : t.usage.reserveOverride(percent: percent);
   final head = t.usage.policy(priority: _plain(policy.priority), reserve: reserve);
+  final state = switch (policy.standing) {
+    PolicyStanding.eligible => t.usage.eligible,
+    PolicyStanding.insideReserve => t.usage.insideReserve,
+    PolicyStanding.exhausted => t.usage.exhausted,
+    PolicyStanding.unknown => t.usage.reserveUnknown,
+  };
   final remaining = policy.remainingPercent;
-  if (remaining == null) return '$head · ${t.usage.reserveUnknown}';
-  final left = remaining.toStringAsFixed(1);
-  return '$head · ${remaining <= policy.reservePercent ? t.usage.insideReserve(percent: left) : t.usage.eligible(percent: left)}';
+  return [head, state, if (remaining != null) t.usage.percentLeft(percent: remaining.toStringAsFixed(1))].join(' · ');
 }
 
 /// A number as JavaScript prints it: `5`, not `5.0`.

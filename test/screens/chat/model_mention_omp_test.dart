@@ -31,6 +31,12 @@ import 'package:provider/provider.dart';
 /// Tests run from the repository root.
 final String _root = Directory.current.path;
 
+/// The omp `harness/dev-machine.sh` links: `$OMP_VERSION`, else `harness/omp-version`.
+final String _ompVersion = switch (Platform.environment['OMP_VERSION']) {
+  final version? when version.isNotEmpty => version,
+  _ => File('$_root/harness/omp-version').readAsStringSync().trim(),
+};
+
 final class _Connector extends MachineConnector {
   _Connector(super.secrets, super.knownHosts, this.environment);
 
@@ -159,15 +165,20 @@ void main() {
             },
           ],
         },
+        // Only the subagent runs on the tagged model. omp before 18.10.3 has it answer through `yield`; from 18.10.3
+        // its final message is the answer.
         {
-          'match': '"name":"yield"',
+          'match': '"model":"fake-think"',
           'steps': [
-            {
-              'toolCall': {
-                'name': 'yield',
-                'arguments': {'i': 'Done', 'data': 'looks fine'},
-              },
-            },
+            if (compareOmpVersions(_ompVersion, '18.10.3') < 0)
+              {
+                'toolCall': {
+                  'name': 'yield',
+                  'arguments': {'i': 'Done', 'data': 'looks fine'},
+                },
+              }
+            else
+              {'text': 'looks fine'},
           ],
         },
         // `task` runs in the background: the spawn's result, then the job's completion notice, each get a turn.
@@ -246,15 +257,14 @@ void main() {
     expect(jsonEncode((user['message']! as Map)['content']), contains(jsonEncode('Have $tag review this change')));
 
     // The scripted turns (side requests such as the task's effort estimate get the default reply): the main agent on
-    // the session's model, the subagent, the one offered `yield`, on the tagged one.
+    // the session's model, the subagent on the tagged one.
     final requests = (await tester.runAsync(() => control('GET', '/control/requests')))! as List<Object?>;
-    final turns = [
+    final models = [
       for (final request in requests.cast<Map<String, Object?>>())
-        if (request['served'] == 'queue')
-          ((request['body']! as Map)['model'], jsonEncode(request['body']).contains('"name":"yield"')),
+        if (request['served'] == 'queue') (request['body']! as Map)['model'],
     ];
     // The subagent's turn and the main agent's second one run at once.
-    expect(turns, unorderedEquals([('fake-1', false), ('fake-1', false), ('fake-think', true), ('fake-1', false)]));
+    expect(models, unorderedEquals(['fake-1', 'fake-1', 'fake-think', 'fake-1']));
 
     // The Agent Hub's row: agent m1 on the tagged model (its thinking level after the colon).
     final roster = buildRoster(session.view.agents, session.view.subagents);

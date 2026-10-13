@@ -47,8 +47,8 @@ export interface Usage {
 
 /**
  * Routing for concurrent requests (a subagent streams while its parent continues): a turn with `match`
- * answers only a request whose raw JSON body contains that text, e.g. `"name":"yield"`, which only
- * subagent requests carry. Requests take the first queued turn they are eligible for.
+ * answers only a request whose raw JSON body contains that text, e.g. `"name":"yield"`, which only subagent
+ * requests carry before omp 18.10.3. Requests take the first queued turn they are eligible for.
  */
 interface Routed {
 	match?: string;

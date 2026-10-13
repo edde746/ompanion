@@ -52,14 +52,17 @@ ToolParts toolParts(BuildContext context, ToolData data) => switch (data.kind) {
 /// Footers omp appends to tool output for the model (`tui/src/tools/bash.ts`, `output-meta.ts`); the card shows the
 /// same facts in its header.
 final _notices = [
-  RegExp(r'^Wall time: [\d.]+ seconds?$', multiLine: true),
   RegExp(r'^Command exited with code -?\d+$', multiLine: true),
   RegExp(r'^Backgrounded as job .*$', multiLine: true),
 ];
 
-String _withoutNotices(String text) {
+/// The footer only `bash` appends.
+final _wallTimeNotice = RegExp(r'^Wall time: [\d.]+ seconds?$', multiLine: true);
+
+/// [text] without the last of each footer, the wall-time one only when [wallTime].
+String _withoutNotices(String text, {bool wallTime = false}) {
   var out = text;
-  for (final notice in _notices) {
+  for (final notice in [if (wallTime) _wallTimeNotice, ..._notices]) {
     final matches = notice.allMatches(out);
     if (matches.isEmpty) continue;
     final last = matches.last;
@@ -91,7 +94,9 @@ ToolParts _bash(BuildContext context, ToolData data) {
   final exitCode = _int(details?['exitCode']);
   final timedOut = details?['timedOut'] == true;
   final wall = details?['wallTimeMs'];
-  final output = _withoutNotices(data.text);
+  // omp 18.10.3 appends the footer only to runs of a second or more and says so in `wallTimeNoticeEmitted`; older
+  // omp appends it to every run and has no such field.
+  final output = _withoutNotices(data.text, wallTime: details?['wallTimeNoticeEmitted'] != false);
   // A thrown error replaces the output with its message; a failing command keeps its own output.
   final thrown = data.isError && exitCode == null && !timedOut;
   return (

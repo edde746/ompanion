@@ -10,7 +10,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import type { Subprocess } from "bun";
@@ -118,6 +118,11 @@ export class OmpDriver {
 		this.frames = [];
 		this.stderr = "";
 		this.#exited = false;
+		// Where the app uploads it, outside companion/: there no node_modules resolves an `@oh-my-pi/*` import the
+		// compiled omp does not serve itself.
+		const companion = path.join(this.home, ".ompanion", "companion", "ompx.js");
+		await mkdir(path.dirname(companion), { recursive: true });
+		await copyFile(COMPANION, companion);
 		const args = [
 			OMP_BINARY,
 			"--mode",
@@ -125,7 +130,7 @@ export class OmpDriver {
 			"--model",
 			"fake/fake-1",
 			"-e",
-			COMPANION,
+			companion,
 			...(this.#options.persist ? [] : ["--no-session"]),
 			...(this.#options.args ?? []),
 		];

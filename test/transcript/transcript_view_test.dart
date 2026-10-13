@@ -547,6 +547,69 @@ void main() {
     expect(find.textContaining('Option B'), findsOneWidget);
   });
 
+  group('tool output footers', () {
+    /// A running session whose last step is a done [tool] call with [arguments], its result [text] and [details].
+    SessionView view(String tool, Map<String, Object?> arguments, String text, Map<String, Object?> details) {
+      final call = ToolCallBlock(id: 'c1', name: tool, arguments: arguments);
+      return SessionView(
+        transcript: [
+          _user(1),
+          AssistantItem(
+            timestamp: 2,
+            content: [call],
+            provider: 'fake',
+            model: 'fake-1',
+            stopReason: StopReason.toolUse,
+          ),
+          ToolResultItem(
+            toolCallId: 'c1',
+            toolName: tool,
+            state: ToolState.done,
+            content: [TextBlock(text)],
+            details: details,
+          ),
+        ],
+        historyLength: 3,
+        run: const RunState(running: true),
+      );
+    }
+
+    const bash = {'command': 'timed'};
+
+    testWidgets('bash hides the wall-time footer omp appended, and keeps a command\'s own one', (tester) async {
+      // omp 18.10.3 appends no footer to a run under a second.
+      await tester.pumpWidget(
+        _harness(view('bash', bash, 'Wall time: 0.50 seconds', {'wallTimeMs': 500, 'wallTimeNoticeEmitted': false})),
+      );
+      expect(find.textContaining('Wall time: 0.50 seconds'), findsOneWidget);
+
+      await tester.pumpWidget(
+        _harness(
+          view('bash', bash, 'Wall time: 0.50 seconds\n\nWall time: 1.50 seconds', {
+            'wallTimeMs': 1500,
+            'wallTimeNoticeEmitted': true,
+          }),
+        ),
+      );
+      expect(find.textContaining('Wall time: 0.50 seconds'), findsOneWidget);
+      expect(find.textContaining('Wall time: 1.50 seconds'), findsNothing);
+
+      // Older omp appends the footer to every run and has no `wallTimeNoticeEmitted`.
+      await tester.pumpWidget(
+        _harness(view('bash', bash, 'Wall time: 0.50 seconds\n\nWall time: 0.60 seconds', {'wallTimeMs': 600})),
+      );
+      expect(find.textContaining('Wall time: 0.50 seconds'), findsOneWidget);
+      expect(find.textContaining('Wall time: 0.60 seconds'), findsNothing);
+    });
+
+    testWidgets('eval keeps a wall-time line: omp appends none to it', (tester) async {
+      await tester.pumpWidget(
+        _harness(view('eval', {'language': 'py', 'code': 'timed()'}, 'done\nWall time: 1.50 seconds', {})),
+      );
+      expect(find.textContaining('Wall time: 1.50 seconds'), findsOneWidget);
+    });
+  });
+
   group('folded turns', () {
     testWidgets('a summary row opens and closes its turn by tap and by keyboard, and stays where it is', (
       tester,

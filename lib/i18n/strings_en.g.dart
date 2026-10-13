@@ -280,11 +280,14 @@ class Translations$usage$en {
 	/// en: 'reserve unknown'
 	String get reserveUnknown => 'reserve unknown';
 
-	/// en: 'eligible · $percent% left'
-	String eligible({required Object percent}) => 'eligible · ${percent}% left';
+	/// en: 'eligible'
+	String get eligible => 'eligible';
 
-	/// en: 'inside reserve · $percent% left'
-	String insideReserve({required Object percent}) => 'inside reserve · ${percent}% left';
+	/// en: 'inside reserve'
+	String get insideReserve => 'inside reserve';
+
+	/// en: 'exhausted'
+	String get exhausted => 'exhausted';
 
 	/// en: '$line ($machine)'
 	String policyOn({required Object line, required Object machine}) => '${line} (${machine})';
@@ -4450,8 +4453,9 @@ extension on Translations {
 			'usage.reserveGlobal' => ({required Object percent}) => '${percent}% (global)',
 			'usage.reserveOverride' => ({required Object percent}) => '${percent}% (override)',
 			'usage.reserveUnknown' => 'reserve unknown',
-			'usage.eligible' => ({required Object percent}) => 'eligible · ${percent}% left',
-			'usage.insideReserve' => ({required Object percent}) => 'inside reserve · ${percent}% left',
+			'usage.eligible' => 'eligible',
+			'usage.insideReserve' => 'inside reserve',
+			'usage.exhausted' => 'exhausted',
 			'usage.policyOn' => ({required Object line, required Object machine}) => '${line} (${machine})',
 			'usage.noLimits' => 'no limits reported',
 			'usage.notReported' => 'not reported',
@@ -4908,9 +4912,9 @@ extension on Translations {
 			'connectError.agentKeyUnnamed' => 'a key from the ssh-agent',
 			'connectError.authorizedKeysHint' => ({required Object user, required Object host}) => 'Add the public key to ~/.ssh/authorized_keys of ${user} on ${host}.',
 			'connectError.noKeys' => ({required Object host}) => 'No key to offer ${host}. Add one to the ssh-agent with ssh-add, or name it with IdentityFile in ~/.ssh/config.',
-			'tailscale.title' => 'Tailscale devices',
 			_ => null,
 		} ?? switch (path) {
+			'tailscale.title' => 'Tailscale devices',
 			'tailscale.notInstalled' => 'Tailscale is not installed on this computer.',
 			'tailscale.failed' => ({required Object message}) => 'Tailscale did not answer: ${message}',
 			'tailscale.notRunning' => ({required Object state}) => 'Tailscale is not connected (state: ${state}).',
@@ -5422,9 +5426,9 @@ extension on Translations {
 			'transcript.tool.askWaiting' => 'Waiting for your answer below',
 			'transcript.tool.recommended' => 'Recommended',
 			'transcript.tool.cancelled' => 'Cancelled',
-			'transcript.tool.note' => ({required Object note}) => 'Note: ${note}',
 			_ => null,
 		} ?? switch (path) {
+			'transcript.tool.note' => ({required Object note}) => 'Note: ${note}',
 			'transcript.tool.autoSelected' => 'Chosen automatically after the timeout',
 			'transcript.tool.sources' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} source', other: '${n} sources', ), 
 			'transcript.tool.output' => 'Output',

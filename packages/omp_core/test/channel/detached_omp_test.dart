@@ -9,6 +9,7 @@ import 'package:omp_core/host.dart';
 import 'package:omp_core/src/channel/detached_run.dart' show newRunId, posixLaunchScript;
 import 'package:test/test.dart';
 
+import '../host/fixtures.dart';
 import '../omp_binary.dart';
 import 'support.dart';
 
@@ -42,6 +43,8 @@ void main() {
 
   test('a run outlives its launcher and its channels, and a second device attaches to it', () async {
     final session = '${host.work}/session one.jsonl';
+    // omp 18.7.0 and later resume only a session file that exists.
+    await File(session).writeAsString(sessionFile(id: 'one', cwd: host.work));
     final opened = await openRun(host.link, probe, spec(session: session));
     expect(opened.launched, isTrue);
     final run = opened.run;

@@ -465,13 +465,21 @@ Devices show the run as compacting between the two and add the entry's divider, 
 ### title.changed
 
 Event `{title: string}`, no `callId`: the open session's new title, whatever set it, because omp sends no frame for a
-title it sets itself. omp 18.3.1 titles a session automatically only in the TUI and for a CLI's initial message: rpc
-and rpc-ui mode set `PI_NO_TITLE`, and the RPC `prompt` never asks for a title. The companion clears `PI_NO_TITLE`
-and calls omp's `maybeStartTitleGeneration` with the text of every user message the main session receives (the
-messages `history.search` records), so omp's own rules apply as in the TUI: only an unnamed session, no title for
-a greeting, a retry from the conversation once a declined message has an answer, and the retitle after a todo
-replan (`title.refreshOnReplan`). The title model is omp's (`tiny`, `commit`, `smol` roles, then the session's
-model). Devices show the title at once. Code: `companion/src/verbs/session/title.ts`.
+title it sets itself. omp titles a session automatically only in the TUI and for a CLI's initial message: rpc and
+rpc-ui mode set `PI_NO_TITLE`, and the RPC `prompt` never asks for a title. The companion clears `PI_NO_TITLE`, which
+brings back the retitle after a todo replan (`title.refreshOnReplan`), and titles from the text of every user message
+the main session receives (the messages `history.search` records):
+
+- omp before 18.8.7: the companion calls omp's `maybeStartTitleGeneration`, so omp's own rules apply as in the TUI:
+  only an unnamed session, no title for a greeting, a retry from the conversation once a declined message has an
+  answer.
+- omp 18.8.7 and later: titling is private to the TUI session (`autoTitle`), so the companion calls omp's
+  `generateTitle` itself under the same gate (unnamed session, no low-signal message, one request at a time); a
+  declined message waits for the next one. The TUI's default `title.generator: fork` path is private too, so a session
+  titled this way gets a plain title, without the TUI's `<icon> <CODE>:` card.
+
+The title model is omp's (`tiny`, `commit`, `smol` roles, then the session's model). Devices show the title at once.
+Code: `companion/src/verbs/session/title.ts`.
 
 ### history.search
 
