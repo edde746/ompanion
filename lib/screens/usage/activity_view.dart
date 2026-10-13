@@ -61,6 +61,10 @@ class _ActivityViewState extends State<ActivityView> {
     final activeDays = overview.days.where((day) => day.day >= from && day.day <= today && isActive(day)).length;
     final streakEnd = overview.days.any((day) => day.day == today && isActive(day)) ? today : today - 1;
     final firstYear = overview.days.isEmpty ? dayDate(today).year : dayDate(overview.days.first.day).year;
+    final series = activitySeries(overview.days, from: from, to: today, size: bucketSizeFor(today - from + 1));
+    String sums(int requests, int tokens, double cost) =>
+        '${s.requestCount(n: requests, count: formatCount(requests))} · ${s.tokenCount(tokens: formatTokens(tokens))} · '
+        '${_money(cost)}';
     final head = [
       _Tiles(
         tiles: [
@@ -125,14 +129,25 @@ class _ActivityViewState extends State<ActivityView> {
           onChanged: (metric) => setState(() => _metric = metric),
         ),
         child: _BarChart(
-          series: activitySeries(overview.days, from: from, to: today, size: bucketSizeFor(today - from + 1)),
+          series: series,
           size: bucketSizeFor(today - from + 1),
-          metric: _metric,
-          totals: requests,
+          value: (bucket) => switch (_metric) {
+            _Metric.requests => bucket.requests.toDouble(),
+            _Metric.tokens => bucket.tokens.toDouble(),
+            _Metric.cost => bucket.cost,
+          },
+          axis: (value) => switch (_metric) {
+            _Metric.requests => formatCount(value.round()),
+            _Metric.tokens => formatTokens(value.round()),
+            _Metric.cost => _money(value),
+          },
+          describe: (bucket) => sums(bucket.requests, bucket.tokens, bucket.cost),
+          // The range's sums as the tiles show them: the days' costs are rounded each, so theirs can be off by cents.
+          total: sums(requests.requests, requests.tokens, requests.cost),
+          failures: _metric == _Metric.requests,
         ),
       ),
     ];
-    // Two to a row where the pane is wide enough.
     final grid = [
       _Card(
         title: s.models,
@@ -152,7 +167,10 @@ class _ActivityViewState extends State<ActivityView> {
       ),
       _Card(
         title: s.weekHours,
-        child: _Punchcard(hours: range.hours),
+        child: _Punchcard(
+          hours: range.hours,
+          count: (n) => s.requestCount(n: n, count: formatCount(n)),
+        ),
       ),
       _Card(
         title: s.tokenKinds,
@@ -233,22 +251,120 @@ class _ActivityViewState extends State<ActivityView> {
           ),
         ),
     ];
+    final typed = range.typed;
+    final prompts = range.prompts;
+    String typedSums(int words, int prompts) =>
+        '${s.wordCount(n: words, count: formatCount(words))} · ${s.prompts(n: prompts, count: formatCount(prompts))}';
+    final promptHead = [
+      Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Text(s.promptSection, style: Theme.of(context).textTheme.titleMedium),
+      ),
+      if (prompts == 0)
+        Text(
+          s.noPrompts,
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        )
+      else ...[
+        _Tiles(
+          tiles: [
+            (
+              s.promptsTitle,
+              formatCount(prompts),
+              activeDays == 0 ? '' : s.promptsPerDay(n: (prompts / activeDays).toStringAsFixed(1)),
+            ),
+            (s.words, formatCount(typed.words), s.perPrompt(n: formatCount((typed.words / prompts).round()))),
+            (s.questions, _percent(typed.questions / prompts), s.askedSomething(count: formatCount(typed.questions))),
+            (
+              s.longestPrompt,
+              switch (typed.longest) {
+                final longest? => s.wordCount(n: longest.words, count: formatCount(longest.words)),
+                null => '–',
+              },
+              switch (typed.longest) {
+                final longest? => _date(t, longest.day),
+                null => '',
+              },
+            ),
+          ],
+        ),
+        _Card(
+          title: s.cloud,
+          child: _WordCloud(cloud: typed.cloud),
+        ),
+      ],
+    ];
+    final promptGrid = [
+      if (prompts > 0) ...[
+        _Card(
+          title: s.promptLength,
+          child: _LengthHistogram(typed: typed, prompts: prompts),
+        ),
+        _Card(
+          title: s.promptHours,
+          child: _Punchcard(
+            hours: typed.hours,
+            count: (n) => s.prompts(n: n, count: formatCount(n)),
+          ),
+        ),
+        _Card(
+          title: s.wordsTyped,
+          child: _BarChart(
+            series: series,
+            size: bucketSizeFor(today - from + 1),
+            value: (bucket) => bucket.words.toDouble(),
+            axis: (value) => formatCount(value.round()),
+            describe: (bucket) => typedSums(bucket.words, bucket.prompts),
+            total: typedSums(typed.words, prompts),
+          ),
+        ),
+        _Card(
+          title: s.tone,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ShareList(
+                rows: [
+                  for (final (label, count) in [
+                    (s.yelling, typed.yelling),
+                    (s.profanity, typed.profanity),
+                    (s.anguish, typed.anguish),
+                    (s.negation, typed.negation),
+                    (s.repetition, typed.repetition),
+                    (s.blame, typed.blame),
+                  ])
+                    (label: Text(label), value: formatCount(count), share: count / prompts, error: null),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                s.toneNote,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ];
+    // Two to a row where the pane is wide enough.
+    List<Widget> pairs(List<Widget> cards) => [
+      for (var index = 0; index < cards.length; index += 2)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: cards[index]),
+            const SizedBox(width: 12),
+            Expanded(child: index + 1 < cards.length ? cards[index + 1] : const SizedBox()),
+          ],
+        ),
+    ];
     return SliverLayoutBuilder(
       builder: (context, constraints) {
         final rows = constraints.crossAxisExtent < 840
-            ? [...head, ...grid]
-            : [
-                ...head,
-                for (var index = 0; index < grid.length; index += 2)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: grid[index]),
-                      const SizedBox(width: 12),
-                      Expanded(child: index + 1 < grid.length ? grid[index + 1] : const SizedBox()),
-                    ],
-                  ),
-              ];
+            ? [...head, ...grid, ...promptHead, ...promptGrid]
+            : [...head, ...pairs(grid), ...promptHead, ...pairs(promptGrid)];
         return SliverList.list(
           children: [
             for (final (index, row) in rows.indexed)
@@ -445,7 +561,7 @@ List<Color> _levels(ColorScheme scheme) => [
   scheme.onSurface,
 ];
 
-/// GitHub's contribution grid: a column per week (Monday on top), a cell per day shaded by its requests, the month
+/// GitHub's contribution grid: a column per week (Monday on top), a cell per day shaded by its tokens, the month
 /// names above. The line under it names the day under the pointer, else the busiest day.
 class _Heatmap extends StatefulWidget {
   const _Heatmap({
@@ -488,19 +604,19 @@ class _HeatmapState extends State<_Heatmap> {
       for (final day in widget.days)
         if (day.day >= start && day.day <= end) day.day: day,
     };
-    final bounds = heatLevels(byDay.values.map((day) => day.requests));
-    final total = byDay.values.fold(0, (sum, day) => sum + day.requests);
+    final bounds = heatLevels(byDay.values.map((day) => day.tokens));
+    final total = byDay.values.fold(0, (sum, day) => sum + day.tokens);
     final busiest = byDay.values.fold<ActivityDay?>(
       null,
-      (best, day) => best == null || day.requests > best.requests ? day : best,
+      (best, day) => best == null || day.tokens > best.tokens ? day : best,
     );
     final hover = _hover == null ? null : byDay[_hover];
     final colors = _levels(scheme);
     final readout = switch ((_hover, hover)) {
       (final day?, final row) => _dayDetail(t, day, row),
-      (null, _) when busiest != null && busiest.requests > 0 => s.busiestDay(
+      (null, _) when busiest != null && busiest.tokens > 0 => s.busiestDay(
         date: _date(t, busiest.day),
-        requests: s.requestCount(n: busiest.requests, count: formatCount(busiest.requests)),
+        tokens: s.tokenCount(tokens: formatTokens(busiest.tokens)),
       ),
       _ => '',
     };
@@ -513,7 +629,7 @@ class _HeatmapState extends State<_Heatmap> {
             children: [
               Expanded(
                 child: Text(
-                  s.heatmap(n: total, count: formatCount(total), period: year?.toString() ?? s.lastYear),
+                  s.heatmap(tokens: formatTokens(total), period: year?.toString() ?? s.lastYear),
                   style: theme.textTheme.titleSmall,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -561,7 +677,7 @@ class _HeatmapState extends State<_Heatmap> {
                     firstMonday: firstMonday,
                     columns: columns,
                     step: step,
-                    levels: {for (final day in byDay.values) day.day: heatLevel(day.requests, bounds)},
+                    levels: {for (final day in byDay.values) day.day: heatLevel(day.tokens, bounds)},
                     colors: colors,
                     hover: _hover,
                     hoverColor: scheme.onSurface,
@@ -707,17 +823,32 @@ class _HeatmapPainter extends CustomPainter {
       old.colors != colors;
 }
 
-/// The range's activity as bars of [size], the [metric]'s value tall; requests show their failed share in the error
-/// colour at the foot. The line above names the bar under the pointer, else the range's sum.
+/// The range's activity as bars of [size], [value] tall; with [failures], a bar shows its failed requests' share in
+/// the error colour at the foot. The line above names the bar under the pointer, else shows [total].
 class _BarChart extends StatefulWidget {
-  const _BarChart({required this.series, required this.size, required this.metric, required this.totals});
+  const _BarChart({
+    required this.series,
+    required this.size,
+    required this.value,
+    required this.axis,
+    required this.describe,
+    required this.total,
+    this.failures = false,
+  });
 
   final List<ActivityBucket> series;
   final BucketSize size;
-  final _Metric metric;
+  final double Function(ActivityBucket bucket) value;
 
-  /// The range's sums, as the tiles show them: the days' costs are rounded each, so their sum can be off by cents.
-  final RequestTotals totals;
+  /// The tallest bar's value as text.
+  final String Function(double value) axis;
+
+  /// A bar's numbers.
+  final String Function(ActivityBucket bucket) describe;
+
+  /// The range's numbers.
+  final String total;
+  final bool failures;
 
   @override
   State<_BarChart> createState() => _BarChartState();
@@ -725,12 +856,6 @@ class _BarChart extends StatefulWidget {
 
 class _BarChartState extends State<_BarChart> {
   int? _hover;
-
-  double _value(ActivityBucket bucket) => switch (widget.metric) {
-    _Metric.requests => bucket.requests.toDouble(),
-    _Metric.tokens => bucket.tokens.toDouble(),
-    _Metric.cost => bucket.cost,
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -745,20 +870,11 @@ class _BarChartState extends State<_BarChart> {
       BucketSize.week => s.weekOf(date: _shortDate(t, bucket.start)),
       BucketSize.month => s.monthOf(month: s.months[dayDate(bucket.start).month - 1], year: dayDate(bucket.start).year),
     };
-    String sums(int requests, int tokens, double cost) =>
-        '${s.requestCount(n: requests, count: formatCount(requests))} · ${s.tokenCount(tokens: formatTokens(tokens))} · '
-        '${_money(cost)}';
     final hovered = _hover == null || _hover! >= series.length ? null : series[_hover!];
-    final totals = widget.totals;
-    final readout = hovered == null
-        ? sums(totals.requests, totals.tokens, totals.cost)
-        : '${label(hovered)}: ${sums(hovered.requests, hovered.tokens, hovered.cost)}';
-    final highest = series.map(_value).fold(0.0, math.max);
-    final axis = switch (widget.metric) {
-      _Metric.requests => formatCount(highest.round()),
-      _Metric.tokens => formatTokens(highest.round()),
-      _Metric.cost => _money(highest),
-    };
+    final readout = hovered == null ? widget.total : '${label(hovered)}: ${widget.describe(hovered)}';
+    final values = [for (final bucket in series) widget.value(bucket)];
+    final highest = values.fold(0.0, math.max);
+    final axis = widget.axis(highest);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -791,12 +907,10 @@ class _BarChartState extends State<_BarChart> {
                   child: CustomPaint(
                     size: Size(constraints.maxWidth, constraints.maxHeight),
                     painter: _BarPainter(
-                      values: [for (final bucket in series) _value(bucket)],
+                      values: values,
                       failed: [
                         for (final bucket in series)
-                          widget.metric == _Metric.requests && bucket.requests > 0
-                              ? bucket.errors / bucket.requests
-                              : 0.0,
+                          widget.failures && bucket.requests > 0 ? bucket.errors / bucket.requests : 0.0,
                       ],
                       highest: highest,
                       hover: _hover,
@@ -884,12 +998,190 @@ class _BarPainter extends CustomPainter {
       old.hover != hover || old.values != values || old.highest != highest || old.bar != bar || old.track != track;
 }
 
-/// Requests per weekday and hour, a row per day (Monday first), a cell per hour, shaded like the contribution grid.
+/// The words most prompts use, each sized and shaded by its prompts, the most used in the middle. The line under
+/// it names the word under the pointer.
+class _WordCloud extends StatefulWidget {
+  const _WordCloud({required this.cloud});
+
+  final List<WordUse> cloud;
+
+  @override
+  State<_WordCloud> createState() => _WordCloudState();
+}
+
+class _WordCloudState extends State<_WordCloud> {
+  WordUse? _hover;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.t.usage.stats;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final muted = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
+    final cloud = widget.cloud;
+    final counts = [for (final use in cloud) use.prompts];
+    final bounds = heatLevels(counts);
+    final low = math.log(counts.fold(counts.firstOrNull ?? 1, math.min));
+    final high = math.log(counts.fold(1, math.max));
+    // Most used first, then each next one to alternate sides: the big words meet in the middle.
+    final ordered = <WordUse>[];
+    for (final (index, use) in cloud.indexed) {
+      index.isEven ? ordered.add(use) : ordered.insert(0, use);
+    }
+    final hover = _hover;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 10,
+          runSpacing: 2,
+          children: [
+            for (final use in ordered)
+              MouseRegion(
+                onEnter: (_) => setState(() => _hover = use),
+                onExit: (_) => setState(() => _hover = null),
+                child: GestureDetector(
+                  onTap: () => setState(() => _hover = use),
+                  child: Text(
+                    use.word,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: high == low ? 18 : 13 + 21 * (math.log(use.prompts) - low) / (high - low),
+                      fontWeight: heatLevel(use.prompts, bounds) == 4 ? FontWeight.w600 : FontWeight.w400,
+                      // While a word is under the pointer the others dim, as the bar chart's bars do.
+                      color: scheme.onSurface.withValues(
+                        alpha: identical(use, hover)
+                            ? 1.0
+                            : const [0.45, 0.45, 0.6, 0.8, 1.0][heatLevel(use.prompts, bounds)] *
+                                  (hover == null ? 1 : 0.5),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          hover == null
+              ? s.cloudNote
+              : s.wordUse(n: hover.prompts, word: hover.word, count: formatCount(hover.prompts)),
+          style: muted,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
+/// Prompts by length, a bar per span of words with its upper bound under it (`≤10`; the spans' full labels do not fit
+/// a phone). The line above names the bar under the pointer and its span, else the prompts in all.
+class _LengthHistogram extends StatefulWidget {
+  const _LengthHistogram({required this.typed, required this.prompts});
+
+  final PromptTotals typed;
+  final int prompts;
+
+  @override
+  State<_LengthHistogram> createState() => _LengthHistogramState();
+}
+
+class _LengthHistogramState extends State<_LengthHistogram> {
+  int? _hover;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.t.usage.stats;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final muted = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
+    final lengths = widget.typed.lengths;
+    final bounds = widget.typed.lengthBounds;
+    final spans = [
+      for (var index = 0; index < lengths.length; index++)
+        index == 0
+            ? s.lengthUpTo(n: bounds.first)
+            : index == bounds.length
+            ? s.lengthOver(n: bounds.last + 1)
+            : s.lengthBetween(from: bounds[index - 1] + 1, to: bounds[index]),
+    ];
+    final labels = [
+      for (var index = 0; index < lengths.length; index++)
+        index < bounds.length ? s.lengthUpTo(n: bounds[index]) : s.lengthOver(n: bounds.last + 1),
+    ];
+    final values = [for (final count in lengths) count.toDouble()];
+    final prompts = widget.prompts;
+    final hover = _hover;
+    final readout = hover == null
+        ? s.prompts(n: prompts, count: formatCount(prompts))
+        : s.lengthDetail(
+            length: spans[hover],
+            prompts: s.prompts(n: lengths[hover], count: formatCount(lengths[hover])),
+            percent: _percent(prompts == 0 ? 0 : lengths[hover] / prompts),
+          );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(readout, style: muted, overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 120,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final slot = constraints.maxWidth / values.length;
+              void point(Offset position) {
+                final index = (position.dx / slot).floor();
+                final next = index < 0 || index >= values.length ? null : index;
+                if (next != _hover) setState(() => _hover = next);
+              }
+
+              return MouseRegion(
+                onHover: (event) => point(event.localPosition),
+                onExit: (_) => setState(() => _hover = null),
+                child: GestureDetector(
+                  onTapDown: (details) => point(details.localPosition),
+                  child: CustomPaint(
+                    size: Size(constraints.maxWidth, constraints.maxHeight),
+                    painter: _BarPainter(
+                      values: values,
+                      failed: List.filled(values.length, 0.0),
+                      highest: values.fold(0.0, math.max),
+                      hover: hover,
+                      bar: scheme.onSurface,
+                      dim: scheme.onSurface.withValues(alpha: 0.55),
+                      track: scheme.surfaceContainerHighest,
+                      error: AppColors.of(context).error,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (final label in labels)
+              Expanded(
+                child: Text(label, style: muted, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.clip),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Counts per weekday and hour, a row per day (Monday first), a cell per hour, shaded like the contribution grid.
 class _Punchcard extends StatefulWidget {
-  const _Punchcard({required this.hours});
+  const _Punchcard({required this.hours, required this.count});
 
   /// 168 counts, Monday 00:00 first.
   final List<int> hours;
+
+  /// A count as the readout names it (`3 requests`).
+  final String Function(int count) count;
 
   @override
   State<_Punchcard> createState() => _PunchcardState();
@@ -918,7 +1210,7 @@ class _PunchcardState extends State<_Punchcard> {
       to: ((slot % 24 + 1) % 24).toString().padLeft(2, '0'),
     );
     final readout = switch (_hover) {
-      final slot? => '${span(slot)}: ${s.requestCount(n: hours[slot], count: formatCount(hours[slot]))}',
+      final slot? => '${span(slot)}: ${widget.count(hours[slot])}',
       null when hours[busiest] > 0 => s.busiestHour(hour: span(busiest)),
       null => '',
     };
@@ -1091,9 +1383,9 @@ String _dayDetail(Translations t, int day, ActivityDay? row) {
   final s = t.usage.stats;
   final requests = row?.requests ?? 0;
   final parts = [
+    s.tokenCount(tokens: formatTokens(row?.tokens ?? 0)),
     s.requestCount(n: requests, count: formatCount(requests)),
     if (row != null) ...[
-      s.tokenCount(tokens: formatTokens(row.tokens)),
       _money(row.cost),
       if (row.prompts > 0) s.prompts(n: row.prompts, count: formatCount(row.prompts)),
     ],

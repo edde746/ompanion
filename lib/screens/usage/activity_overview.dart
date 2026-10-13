@@ -63,6 +63,7 @@ ActivityOverview mergeActivity(List<MachineActivity> machines) {
               prompts: known.prompts + day.prompts,
               sessions: known.sessions + day.sessions,
               toolCalls: known.toolCalls + day.toolCalls,
+              words: known.words + day.words,
             );
     }
   }
@@ -86,6 +87,7 @@ ActivitySummary _summary(List<MachineActivity> machines, int index) {
   final hours = List.filled(168, 0);
   final agents = List<AgentActivity>.filled(3, (requests: 0, tokens: 0, cost: 0));
   final perMachine = <({String machine, RequestTotals requests})>[];
+  final typed = [for (final machine in machines) machine.stats.ranges[index].typed];
   for (final machine in machines) {
     final range = machine.stats.ranges[index];
     requests += range.requests;
@@ -152,9 +154,52 @@ ActivitySummary _summary(List<MachineActivity> machines, int index) {
       tools: tools.values.toList()..sort((a, b) => b.calls - a.calls),
       hours: hours,
       agents: agents,
+      typed: _promptTotals(typed),
     ),
     projects: projects.values.toList()..sort((a, b) => b.tokens - a.tokens),
     machines: perMachine..sort((a, b) => b.requests.requests - a.requests.requests),
+  );
+}
+
+/// Prompt totals summed; the longest prompt is the longest of any machine (the latest of equal ones). Each machine
+/// sends only its top words, so a word outside one machine's list adds nothing for that machine.
+PromptTotals _promptTotals(List<PromptTotals> machines) {
+  int sum(int Function(PromptTotals totals) of) => machines.fold(0, (total, totals) => total + of(totals));
+  List<int> add(List<int> Function(PromptTotals totals) of, int length) => [
+    for (var index = 0; index < length; index++) sum((totals) => of(totals)[index]),
+  ];
+  final cloud = <String, int>{};
+  ({int words, int day})? longest;
+  for (final totals in machines) {
+    for (final use in totals.cloud) {
+      cloud[use.word] = (cloud[use.word] ?? 0) + use.prompts;
+    }
+    final candidate = totals.longest;
+    if (candidate != null &&
+        (longest == null ||
+            candidate.words > longest.words ||
+            (candidate.words == longest.words && candidate.day > longest.day))) {
+      longest = candidate;
+    }
+  }
+  final bounds = machines.isEmpty ? const <int>[] : machines.first.lengthBounds;
+  return PromptTotals(
+    words: sum((totals) => totals.words),
+    characters: sum((totals) => totals.characters),
+    questions: sum((totals) => totals.questions),
+    yelling: sum((totals) => totals.yelling),
+    profanity: sum((totals) => totals.profanity),
+    anguish: sum((totals) => totals.anguish),
+    negation: sum((totals) => totals.negation),
+    repetition: sum((totals) => totals.repetition),
+    blame: sum((totals) => totals.blame),
+    lengths: add((totals) => totals.lengths, bounds.length + 1),
+    lengthBounds: bounds,
+    longest: longest,
+    hours: add((totals) => totals.hours, 168),
+    cloud: [for (final MapEntry(:key, :value) in cloud.entries) (word: key, prompts: value)]
+      ..sort((a, b) => b.prompts != a.prompts ? b.prompts - a.prompts : a.word.compareTo(b.word))
+      ..length = math.min(cloud.length, 100),
   );
 }
 
@@ -205,7 +250,7 @@ BucketSize bucketSizeFor(int days) => days <= 62
     ? BucketSize.week
     : BucketSize.month;
 
-typedef ActivityBucket = ({int start, int requests, int errors, int tokens, double cost, int prompts});
+typedef ActivityBucket = ({int start, int requests, int errors, int tokens, double cost, int prompts, int words});
 
 /// Bars from the bucket holding [from] to the one holding [to] (both [localDay] numbers), empty ones included. Weeks
 /// start on Monday, months on their first day.
@@ -228,7 +273,7 @@ List<ActivityBucket> activitySeries(
   };
   final buckets = <int, ActivityBucket>{};
   for (var start = startOf(from); start <= to; start = next(start)) {
-    buckets[start] = (start: start, requests: 0, errors: 0, tokens: 0, cost: 0, prompts: 0);
+    buckets[start] = (start: start, requests: 0, errors: 0, tokens: 0, cost: 0, prompts: 0, words: 0);
   }
   for (final day in days) {
     if (day.day < from || day.day > to) continue;
@@ -241,6 +286,7 @@ List<ActivityBucket> activitySeries(
       tokens: known.tokens + day.tokens,
       cost: known.cost + day.cost,
       prompts: known.prompts + day.prompts,
+      words: known.words + day.words,
     );
   }
   return buckets.values.toList();

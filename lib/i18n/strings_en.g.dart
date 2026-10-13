@@ -2590,11 +2590,8 @@ class Translations$usage$stats$en {
 	/// en: '$n tok/s'
 	String tokensPerSecond({required Object n}) => '${n} tok/s';
 
-	/// en: '(one) {$count request in $period} (other) {$count requests in $period}'
-	String heatmap({required num n, required Object count, required Object period}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
-		one: '${count} request in ${period}',
-		other: '${count} requests in ${period}',
-	);
+	/// en: '$tokens tokens in $period'
+	String heatmap({required Object tokens, required Object period}) => '${tokens} tokens in ${period}';
 
 	/// en: 'the last year'
 	String get lastYear => 'the last year';
@@ -2617,8 +2614,8 @@ class Translations$usage$stats$en {
 	/// en: '$tokens tokens'
 	String tokenCount({required Object tokens}) => '${tokens} tokens';
 
-	/// en: 'Busiest day: $date, $requests'
-	String busiestDay({required Object date, required Object requests}) => 'Busiest day: ${date}, ${requests}';
+	/// en: 'Busiest day: $date, $tokens'
+	String busiestDay({required Object date, required Object tokens}) => 'Busiest day: ${date}, ${tokens}';
 
 	/// en: 'Activity'
 	String get activity => 'Activity';
@@ -2690,6 +2687,96 @@ class Translations$usage$stats$en {
 
 	/// en: 'Machines'
 	String get machines => 'Machines';
+
+	/// en: 'Your prompts'
+	String get promptSection => 'Your prompts';
+
+	/// en: 'Prompts'
+	String get promptsTitle => 'Prompts';
+
+	/// en: '$n per active day'
+	String promptsPerDay({required Object n}) => '${n} per active day';
+
+	/// en: 'Words'
+	String get words => 'Words';
+
+	/// en: '$n per prompt'
+	String perPrompt({required Object n}) => '${n} per prompt';
+
+	/// en: 'Questions'
+	String get questions => 'Questions';
+
+	/// en: '$count asked something'
+	String askedSomething({required Object count}) => '${count} asked something';
+
+	/// en: 'Longest prompt'
+	String get longestPrompt => 'Longest prompt';
+
+	/// en: '(one) {$count word} (other) {$count words}'
+	String wordCount({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${count} word',
+		other: '${count} words',
+	);
+
+	/// en: 'Words you use most'
+	String get cloud => 'Words you use most';
+
+	/// en: 'Sized by the prompts that use them; common words left out'
+	String get cloudNote => 'Sized by the prompts that use them; common words left out';
+
+	/// en: '(one) {$word: $count prompt} (other) {$word: $count prompts}'
+	String wordUse({required num n, required Object word, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${word}: ${count} prompt',
+		other: '${word}: ${count} prompts',
+	);
+
+	/// en: 'No prompts in this range.'
+	String get noPrompts => 'No prompts in this range.';
+
+	/// en: 'Prompt length'
+	String get promptLength => 'Prompt length';
+
+	/// en: '≤$n'
+	String lengthUpTo({required Object n}) => '≤${n}';
+
+	/// en: '$from–$to'
+	String lengthBetween({required Object from, required Object to}) => '${from}–${to}';
+
+	/// en: '$n+'
+	String lengthOver({required Object n}) => '${n}+';
+
+	/// en: '$length words: $prompts ($percent)'
+	String lengthDetail({required Object length, required Object prompts, required Object percent}) => '${length} words: ${prompts} (${percent})';
+
+	/// en: 'When you type'
+	String get promptHours => 'When you type';
+
+	/// en: 'Words typed'
+	String get wordsTyped => 'Words typed';
+
+	/// en: 'Tone'
+	String get tone => 'Tone';
+
+	/// en: 'Matches per 100 prompts, by omp's stats rules'
+	String get toneNote => 'Matches per 100 prompts, by omp\'s stats rules';
+
+	/// en: 'Shouting'
+	String get yelling => 'Shouting';
+
+	/// en: 'Swearing'
+	String get profanity => 'Swearing';
+
+	/// en: 'Exasperation'
+	String get anguish => 'Exasperation';
+
+	/// en: 'Correcting'
+	String get negation => 'Correcting';
+
+	/// en: 'Repeating yourself'
+	String get repetition => 'Repeating yourself';
+
+	/// en: 'Blaming the agent'
+	String get blame => 'Blaming the agent';
 
 	List<String> get weekdays => [
 		'Mon',
@@ -4420,14 +4507,14 @@ extension on Translations {
 			'usage.stats.noStreak' => 'none yet',
 			'usage.stats.ttft' => ({required Object ms}) => '${ms} ms to first token',
 			'usage.stats.tokensPerSecond' => ({required Object n}) => '${n} tok/s',
-			'usage.stats.heatmap' => ({required num n, required Object count, required Object period}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${count} request in ${period}', other: '${count} requests in ${period}', ), 
+			'usage.stats.heatmap' => ({required Object tokens, required Object period}) => '${tokens} tokens in ${period}',
 			'usage.stats.lastYear' => 'the last year',
 			'usage.stats.lastYearOption' => 'Last year',
 			'usage.stats.less' => 'Less',
 			'usage.stats.more' => 'More',
 			'usage.stats.requestCount' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${count} request', other: '${count} requests', ), 
 			'usage.stats.tokenCount' => ({required Object tokens}) => '${tokens} tokens',
-			'usage.stats.busiestDay' => ({required Object date, required Object requests}) => 'Busiest day: ${date}, ${requests}',
+			'usage.stats.busiestDay' => ({required Object date, required Object tokens}) => 'Busiest day: ${date}, ${tokens}',
 			'usage.stats.activity' => 'Activity',
 			'usage.stats.metrics.requests' => 'Requests',
 			'usage.stats.metrics.tokens' => 'Tokens',
@@ -4453,6 +4540,34 @@ extension on Translations {
 			'usage.stats.callCount' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${count} call', other: '${count} calls', ), 
 			'usage.stats.toolErrors' => ({required Object n}) => '${n} failed',
 			'usage.stats.machines' => 'Machines',
+			'usage.stats.promptSection' => 'Your prompts',
+			'usage.stats.promptsTitle' => 'Prompts',
+			'usage.stats.promptsPerDay' => ({required Object n}) => '${n} per active day',
+			'usage.stats.words' => 'Words',
+			'usage.stats.perPrompt' => ({required Object n}) => '${n} per prompt',
+			'usage.stats.questions' => 'Questions',
+			'usage.stats.askedSomething' => ({required Object count}) => '${count} asked something',
+			'usage.stats.longestPrompt' => 'Longest prompt',
+			'usage.stats.wordCount' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${count} word', other: '${count} words', ), 
+			'usage.stats.cloud' => 'Words you use most',
+			'usage.stats.cloudNote' => 'Sized by the prompts that use them; common words left out',
+			'usage.stats.wordUse' => ({required num n, required Object word, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${word}: ${count} prompt', other: '${word}: ${count} prompts', ), 
+			'usage.stats.noPrompts' => 'No prompts in this range.',
+			'usage.stats.promptLength' => 'Prompt length',
+			'usage.stats.lengthUpTo' => ({required Object n}) => '≤${n}',
+			'usage.stats.lengthBetween' => ({required Object from, required Object to}) => '${from}–${to}',
+			'usage.stats.lengthOver' => ({required Object n}) => '${n}+',
+			'usage.stats.lengthDetail' => ({required Object length, required Object prompts, required Object percent}) => '${length} words: ${prompts} (${percent})',
+			'usage.stats.promptHours' => 'When you type',
+			'usage.stats.wordsTyped' => 'Words typed',
+			'usage.stats.tone' => 'Tone',
+			'usage.stats.toneNote' => 'Matches per 100 prompts, by omp\'s stats rules',
+			'usage.stats.yelling' => 'Shouting',
+			'usage.stats.profanity' => 'Swearing',
+			'usage.stats.anguish' => 'Exasperation',
+			'usage.stats.negation' => 'Correcting',
+			'usage.stats.repetition' => 'Repeating yourself',
+			'usage.stats.blame' => 'Blaming the agent',
 			'usage.stats.weekdays.0' => 'Mon',
 			'usage.stats.weekdays.1' => 'Tue',
 			'usage.stats.weekdays.2' => 'Wed',
@@ -4794,6 +4909,8 @@ extension on Translations {
 			'connectError.authorizedKeysHint' => ({required Object user, required Object host}) => 'Add the public key to ~/.ssh/authorized_keys of ${user} on ${host}.',
 			'connectError.noKeys' => ({required Object host}) => 'No key to offer ${host}. Add one to the ssh-agent with ssh-add, or name it with IdentityFile in ~/.ssh/config.',
 			'tailscale.title' => 'Tailscale devices',
+			_ => null,
+		} ?? switch (path) {
 			'tailscale.notInstalled' => 'Tailscale is not installed on this computer.',
 			'tailscale.failed' => ({required Object message}) => 'Tailscale did not answer: ${message}',
 			'tailscale.notRunning' => ({required Object state}) => 'Tailscale is not connected (state: ${state}).',
@@ -4822,8 +4939,6 @@ extension on Translations {
 			'transfer.keysTrusted' => 'Trusted',
 			'settings.theme' => 'Theme',
 			'settings.themeSystem' => 'System',
-			_ => null,
-		} ?? switch (path) {
 			'settings.themeLight' => 'Light',
 			'settings.themeDark' => 'Dark',
 			'settings.themeCustom' => 'Custom',
@@ -5308,6 +5423,8 @@ extension on Translations {
 			'transcript.tool.recommended' => 'Recommended',
 			'transcript.tool.cancelled' => 'Cancelled',
 			'transcript.tool.note' => ({required Object note}) => 'Note: ${note}',
+			_ => null,
+		} ?? switch (path) {
 			'transcript.tool.autoSelected' => 'Chosen automatically after the timeout',
 			'transcript.tool.sources' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} source', other: '${n} sources', ), 
 			'transcript.tool.output' => 'Output',
@@ -5336,8 +5453,6 @@ extension on Translations {
 			'transcript.summaryFiles' => 'Files',
 			'transcript.fileRead' => 'read',
 			'transcript.fileWritten' => 'written',
-			_ => null,
-		} ?? switch (path) {
 			'transcript.fileReadWritten' => 'read and written',
 			'transcript.filesElided' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} more file', other: '${n} more files', ), 
 			'transcript.modelChange' => ({required Object model}) => 'Model: ${model}',

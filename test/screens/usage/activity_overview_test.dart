@@ -4,18 +4,30 @@ import 'package:ompanion/screens/usage/activity_overview.dart';
 
 int _day(int month, int date) => localDay(DateTime(2026, month, date));
 
-ActivityDay _active(int day, {int requests = 1, int prompts = 0}) =>
-    (day: day, requests: requests, errors: 0, tokens: 0, cost: 0, prompts: prompts, sessions: 0, toolCalls: 0);
+ActivityDay _active(int day, {int requests = 1, int prompts = 0}) => (
+  day: day,
+  requests: requests,
+  errors: 0,
+  tokens: 0,
+  cost: 0,
+  prompts: prompts,
+  sessions: 0,
+  toolCalls: 0,
+  words: 0,
+);
 
 List<Object?> _totals(int requests, double cost) => [requests, 0, 10 * requests, 0, 0, 0, cost, 0, 0, 0, 0, 0, 0];
 
-/// A machine's answer with one request row per entry of [days] (`(day, requests)`), the same in every range.
+/// A machine's answer with one request row per entry of [days] (`(day, requests)`), the same in every range; each
+/// range has two prompts of ten words.
 MachineActivity _machine(
   String name, {
   String home = '/home/me',
   List<(int, int)> days = const [],
   List<(String, int)> projects = const [],
   List<(String, int)> models = const [],
+  List<(String, int)> cloud = const [],
+  (int, int)? longest,
 }) {
   final requests = days.fold(0, (sum, day) => sum + day.$2);
   return (
@@ -23,11 +35,11 @@ MachineActivity _machine(
     home: home,
     elapsed: Duration.zero,
     stats: ActivityStats.fromJson({
-      'v': 1,
+      'v': 2,
       'first': null,
       'last': null,
       'days': [
-        for (final (day, count) in days) [day, count, 0, 10 * count, 0.5 * count, 0, 0, 0],
+        for (final (day, count) in days) [day, count, 0, 10 * count, 0.5 * count, 0, 0, 0, 3 * count],
       ],
       'ranges': [
         for (final days in activityRanges)
@@ -49,6 +61,16 @@ MachineActivity _machine(
               [0, 0, 0],
               [0, 0, 0],
             ],
+            'prompts': {
+              'sums': [20, 100, 2, 1, 0, 0, 0, 0, 0],
+              'lengths': [0, 2, 0, 0, 0, 0, 0],
+              'bounds': [5, 10, 20, 50, 100, 250],
+              'longest': longest == null ? null : [longest.$1, longest.$2],
+              'hours': [for (var slot = 0; slot < 168; slot++) slot == 10 ? 2 : 0],
+              'words': [
+                for (final (word, prompts) in cloud) [word, prompts],
+              ],
+            },
           },
       ],
       'scan': {'files': 1, 'bytes': 1, 'parsed': 1, 'appended': 0, 'read': 1, 'errors': 0, 'error': null, 'ms': 1},
@@ -74,7 +96,10 @@ void main() {
       ),
     ]);
 
-    expect(overview.days.map((day) => (day.day, day.requests, day.tokens)), [(_day(9, 1), 2, 20), (_day(9, 3), 5, 50)]);
+    expect(overview.days.map((day) => (day.day, day.requests, day.tokens, day.words)), [
+      (_day(9, 1), 2, 20, 6),
+      (_day(9, 3), 5, 50, 15),
+    ]);
     final all = overview.summaries.last;
     expect(all.range.requests.requests, 7);
     expect(all.range.requests.input, 70);
@@ -90,6 +115,30 @@ void main() {
     ]);
     expect(all.machines.map((machine) => (machine.machine, machine.requests.requests)), [('box', 4), ('mac', 3)]);
   });
+
+  test(
+    'prompt totals add up over machines; a word sums its prompts; the longest prompt is the latest of the longest',
+    () {
+      final typed = mergeActivity([
+        _machine('mac', cloud: [('flutter', 5), ('widget', 2)], longest: (40, _day(9, 1))),
+        _machine('box', cloud: [('widget', 4), ('docker', 5)], longest: (40, _day(9, 3))),
+        _machine('pi'),
+      ]).summaries.last.range.typed;
+
+      expect((typed.words, typed.characters, typed.questions, typed.yelling), (60, 300, 6, 3));
+      expect(typed.lengths, [0, 6, 0, 0, 0, 0, 0]);
+      expect(typed.hours[10], 6);
+      expect(typed.cloud, [(word: 'widget', prompts: 6), (word: 'docker', prompts: 5), (word: 'flutter', prompts: 5)]);
+      expect(typed.longest, (words: 40, day: _day(9, 3)));
+
+      final many = mergeActivity([
+        _machine('mac', cloud: [for (var index = 0; index < 60; index++) ('a$index', 2)]),
+        _machine('box', cloud: [for (var index = 0; index < 60; index++) ('b$index', 1)]),
+      ]).summaries.last.range.typed;
+      expect(many.cloud.length, 100);
+      expect(many.cloud.last.prompts, 1);
+    },
+  );
 
   group('streaks', () {
     final today = _day(9, 20);

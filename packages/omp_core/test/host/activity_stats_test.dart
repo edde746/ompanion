@@ -57,6 +57,8 @@ void main() {
   }
 
   test('sums requests, prompts, tools, sessions and agents on the zone\'s days', () async {
+    // What an older app left behind.
+    await write('${home.path}/.ompanion/stats/cache-v1.json', ['{}']);
     await write('$sessions/2026-09-25T10-00-00-000Z_main.jsonl', [
       _title,
       _header('2026-09-25T10:00:00.000Z'),
@@ -84,8 +86,28 @@ void main() {
     expect(stats.scan.parsed, 3);
     expect(stats.scan.errors, 0, reason: stats.scan.error);
     expect(stats.days, [
-      (day: day(9, 25), requests: 4, errors: 0, tokens: 4 * 430, cost: 3.75, prompts: 1, sessions: 1, toolCalls: 2),
-      (day: day(9, 27), requests: 1, errors: 1, tokens: 430, cost: 0.125, prompts: 0, sessions: 0, toolCalls: 0),
+      (
+        day: day(9, 25),
+        requests: 4,
+        errors: 0,
+        tokens: 4 * 430,
+        cost: 3.75,
+        prompts: 1,
+        sessions: 1,
+        toolCalls: 2,
+        words: 2,
+      ),
+      (
+        day: day(9, 27),
+        requests: 1,
+        errors: 1,
+        tokens: 430,
+        cost: 0.125,
+        prompts: 0,
+        sessions: 0,
+        toolCalls: 0,
+        words: 0,
+      ),
     ]);
     expect(stats.first?.toUtc(), DateTime.utc(2026, 9, 25, 10));
     expect(stats.last?.toUtc(), DateTime.utc(2026, 9, 26, 23, 59, 59, 999));
@@ -131,15 +153,54 @@ void main() {
         for (final entry in home.listSync(recursive: true))
           if (entry is File && !entry.path.startsWith('${home.path}/.omp/')) entry.path.substring(home.path.length),
       ],
-      ['/.ompanion/stats/cache-v1.json'],
-      reason: 'every call leaves its cache file and nothing else',
+      ['/.ompanion/stats/cache-v2.json'],
+      reason: 'every call leaves its cache file and nothing else; an older version\'s cache goes',
     );
   });
+
+  test(
+    'measures what a person typed as omp\'s stats do, in prose without code, and counts a cloud word once a prompt',
+    () async {
+      await write('$sessions/2026-09-25T10-00-00-000Z_main.jsonl', [
+        _header('2026-09-25T10:00:00.000Z'),
+        _user('u1', '2026-09-25T10:00:01.000Z', typed: true, text: 'fix the flutter widget test in flutter'),
+        _user('u2', '2026-09-25T10:00:02.000Z', typed: true, text: 'why did you break the flutter build?'),
+        _user('u3', '2026-09-25T10:00:03.000Z', typed: true, text: 'THIS IS STILL BROKEN DUDE'),
+        _user('u4', '2026-09-25T10:00:04.000Z', typed: true, text: 'look at this\n```\nwhy damn?\n```'),
+        _user('u5', '2026-09-25T10:00:05.000Z', typed: false, text: 'why damn flutter?'),
+      ]);
+
+      final stats = await readActivityStats(link, probe, query);
+
+      expect(stats.days.map((row) => (row.day, row.prompts, row.words)), [(day(9, 25), 4, 26)]);
+      for (final range in stats.ranges) {
+        final typed = range.typed;
+        expect(range.prompts, 4);
+        expect((typed.words, typed.characters), (26, 129));
+        expect(typed.questions, 1, reason: 'the code block\'s question is not prose');
+        expect(
+          (typed.yelling, typed.profanity, typed.anguish, typed.negation, typed.repetition, typed.blame),
+          (1, 0, 1, 0, 1, 1),
+        );
+        expect(typed.lengthBounds, [5, 10, 20, 50, 100, 250]);
+        expect(typed.lengths, [1, 3, 0, 0, 0, 0, 0]);
+        expect(typed.longest, (words: 7, day: day(9, 25)));
+        // Friday 12:00 at UTC+2.
+        expect(typed.hours[4 * 24 + 12], 4);
+        expect(typed.cloud, [
+          (word: 'flutter', prompts: 2),
+          for (final word in ['break', 'broken', 'build', 'dude', 'fix', 'look', 'still', 'test', 'widget'])
+            (word: word, prompts: 1),
+        ]);
+      }
+    },
+  );
 
   test('reads only what was appended, waits for a line to be complete, and starts over on a rewrite', () async {
     final main = await write('$sessions/2026-09-25T10-00-00-000Z_main.jsonl', [
       _title,
       _header('2026-09-25T10:00:00.000Z'),
+      _user('u1', '2026-09-25T10:00:01.000Z', typed: true, text: 'flutter widget'),
       _assistant('a1', '2026-09-25T10:00:03.000Z', cost: 1),
     ]);
     await write('$sessions/2026-09-24T10-00-00-000Z_other.jsonl', [
@@ -153,11 +214,18 @@ void main() {
 
     // omp is mid-way through writing a3: its first half is on disk.
     final a3 = _assistant('a3', '2026-09-26T10:00:00.000Z', cost: 1);
-    final appended = '${_assistant('a2', '2026-09-25T11:00:00.000Z', cost: 1)}\n${a3.substring(0, 40)}';
+    final appended =
+        '${_user('u2', '2026-09-25T10:59:00.000Z', typed: true, text: 'flutter build')}\n'
+        '${_assistant('a2', '2026-09-25T11:00:00.000Z', cost: 1)}\n${a3.substring(0, 40)}';
     main.writeAsStringSync(appended, mode: FileMode.append);
     var stats = await read();
     expect((stats.scan.parsed, stats.scan.appended, stats.scan.read), (0, 1, utf8.encode(appended).length));
     expect(stats.ranges[all].requests.requests, 3);
+    expect(stats.ranges[all].typed.cloud, [
+      (word: 'flutter', prompts: 2),
+      (word: 'build', prompts: 1),
+      (word: 'widget', prompts: 1),
+    ], reason: 'the cached words come back with the appended ones');
 
     main.writeAsStringSync('${a3.substring(40)}\n', mode: FileMode.append);
     stats = await read();
@@ -188,7 +256,7 @@ const _title = '{"type":"title","v":1,"title":"","updatedAt":"2026-09-25T10:00:0
 String _header(String timestamp) =>
     jsonEncode({'type': 'session', 'version': 3, 'id': 'x', 'timestamp': timestamp, 'cwd': '/work'});
 
-String _user(String id, String timestamp, {required bool typed}) => jsonEncode({
+String _user(String id, String timestamp, {required bool typed, String text = 'go on'}) => jsonEncode({
   'type': 'message',
   'id': id,
   'parentId': null,
@@ -196,7 +264,7 @@ String _user(String id, String timestamp, {required bool typed}) => jsonEncode({
   'message': {
     'role': 'user',
     'content': [
-      {'type': 'text', 'text': 'go on'},
+      {'type': 'text', 'text': text},
     ],
     if (!typed) 'synthetic': true,
     'attribution': typed ? 'user' : 'agent',
