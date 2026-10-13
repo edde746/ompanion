@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/app.dart';
+import 'app/app_binding.dart';
 import 'app/build_channel.dart';
 import 'database/app_database.dart';
 import 'i18n/strings.g.dart';
@@ -15,7 +16,7 @@ import 'sessions/machine_images.dart';
 import 'utils/ids.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  AppBinding();
   await LocaleSettings.useDeviceLocale();
   if (isDesktop) {
     await windowManager.ensureInitialized();
