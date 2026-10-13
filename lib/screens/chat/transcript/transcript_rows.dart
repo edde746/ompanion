@@ -300,7 +300,7 @@ typedef _Turn = ({int head, int row, _Fold fold});
 /// With [isOpen], turns fold. A turn is a user message, or a prompt omp sent itself ([HiddenPromptItem]), and the items
 /// after it up to the next one; items before the first are a turn of their own. A settled turn shows its user message,
 /// then a [TurnSummaryRow], then what always shows: the user's executions, dividers and markers, the text and footer
-/// of its last assistant message, and failures; its work (thinking, earlier text, tool calls, images, extension
+/// of its replies (see [_replies]), and failures; its work (thinking, earlier text, tool calls, images, extension
 /// messages) shows once the reader opens it. The latest turn while the session works ([update]'s `live`) shows every
 /// row, and a turn with no work has no summary row.
 final class TranscriptRowModel {
@@ -521,8 +521,8 @@ final class TranscriptRowModel {
 
   /// Shows the turn of items [head] to [end] (exclusive); folding is on.
   void _showTurn(int head, int end) {
-    final (fold, facts, answer) = end == _items.length && _live
-        ? (_Fold.live, null, null)
+    final (fold, facts, replies) = end == _items.length && _live
+        ? (_Fold.live, null, const <AssistantItem>{})
         : _foldOf(head, end, isOpen!);
     _turns.add((head: head, row: rows.length, fold: fold));
     if (facts == null) {
@@ -545,31 +545,45 @@ final class TranscriptRowModel {
       _itemRow.add(rows.length);
       final last = _endOf(item);
       for (var row = _itemStart[item]; row < last; row++) {
-        if (open || _keeps(_all[row], answer)) _show(_all[row]);
+        if (open || _keeps(_all[row], replies)) _show(_all[row]);
       }
     }
   }
 
-  /// How the settled turn of items [head] to [end] folds, its facts, and its last assistant message.
-  (_Fold, TurnFacts?, AssistantItem?) _foldOf(int head, int end, bool Function(TranscriptItem head) isOpen) {
-    AssistantItem? answer;
-    for (var item = end - 1; item >= head && answer == null; item--) {
-      if (_items[item] case final AssistantItem message when !message.silentAbort) answer = message;
-    }
+  /// How the settled turn of items [head] to [end] folds, its facts, and its replies.
+  (_Fold, TurnFacts?, Set<AssistantItem>) _foldOf(int head, int end, bool Function(TranscriptItem head) isOpen) {
+    final replies = _replies(head, end);
     var work = false;
     var toolCalls = 0;
     final files = <String>{};
     for (var index = _itemStart[head], last = _endOf(end - 1); index < last; index++) {
       final row = _all[index];
-      if (!_keeps(row, answer)) work = true;
+      if (!_keeps(row, replies)) work = true;
       if (row is ToolRow) {
         toolCalls++;
         files.addAll(_changedFiles(row));
       }
     }
-    if (!work) return (_Fold.none, null, null);
+    if (!work) return (_Fold.none, null, const {});
     final facts = (worked: _worked(head, end), toolCalls: toolCalls, filesEdited: files.length);
-    return (isOpen(_items[head]) ? _Fold.open : _Fold.closed, facts, answer);
+    return (isOpen(_items[head]) ? _Fold.open : _Fold.closed, facts, replies);
+  }
+
+  /// The assistant messages of the turn of items [head] to [end] that show while it is closed: each one the model
+  /// [_stopped] with, and the turn's last one. One turn can hold several runs: a background job's result reaches the
+  /// model as an `async-result` extension message, which starts a run without a user message, and the reply to it does
+  /// not replace the answer the model stopped with before.
+  Set<AssistantItem> _replies(int head, int end) {
+    final replies = <AssistantItem>{};
+    AssistantItem? last;
+    for (var item = head; item < end; item++) {
+      if (_items[item] case final AssistantItem message when !message.silentAbort) {
+        last = message;
+        if (_stopped(message)) replies.add(message);
+      }
+    }
+    if (last != null) replies.add(last);
+    return replies;
   }
 
   /// From the prompt to the end of the last response or tool result, when that is a second or more.
@@ -647,11 +661,11 @@ final class TranscriptRowModel {
   };
 }
 
-/// Whether [row] of a folded turn shows while the turn is closed. [answer] is the turn's last assistant message.
-bool _keeps(TranscriptRow row, AssistantItem? answer) => switch (row) {
+/// Whether [row] of a folded turn shows while the turn is closed. [replies] are the turn's [TranscriptRowModel._replies].
+bool _keeps(TranscriptRow row, Set<AssistantItem> replies) => switch (row) {
   ItemRow(:final item) => item is! CustomItem && item is! RulesItem,
-  AssistantTextRow(:final item) => identical(item, answer),
-  AssistantFooterRow(:final item) => identical(item, answer) || _failed(item),
+  AssistantTextRow(:final item) => replies.contains(item),
+  AssistantFooterRow(:final item) => replies.contains(item) || _failed(item),
   ThinkingRow() ||
   AssistantImageRow() ||
   ToolRow() ||
@@ -664,6 +678,13 @@ bool _keeps(TranscriptRow row, AssistantItem? answer) => switch (row) {
 bool _failed(AssistantItem item) =>
     (item.stopReason == StopReason.error || item.stopReason == StopReason.aborted) &&
     item.retryRecovery?.recovered != true;
+
+/// Whether the model ended its run with [item]: it stopped without calling a tool (omp's agent loop ends a run on a
+/// response with no tool call), or the token limit cut it, and no retry replaced it.
+bool _stopped(AssistantItem item) =>
+    (item.stopReason == StopReason.stop || item.stopReason == StopReason.length) &&
+    item.toolCalls.isEmpty &&
+    item.retryRecovery == null;
 
 /// Whether [item] starts a turn: a user message, or a prompt omp sent itself, which starts a run as a user message does.
 bool _startsTurn(TranscriptItem item) => item is UserItem || item is HiddenPromptItem;

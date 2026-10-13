@@ -330,6 +330,22 @@ void main() {
       ]);
     });
 
+    test('a run a background job\'s result starts in the turn keeps the reply the model stopped with before', () {
+      final job = CustomItem(
+        timestamp: 7000,
+        customType: 'async-result',
+        content: const [TextBlock('Background job Echo has completed.')],
+        display: true,
+      );
+      final noted = assistant(8000, const [TextBlock('Noted.')]);
+      expect(shown((folding({})..update([q1, s1, r1, a1, job, noted])).rows), [
+        'user a',
+        'summary',
+        'text Done.',
+        'text Noted.',
+      ]);
+    });
+
     test('the latest turn shows every row while the session works on it, and folds once it settles', () {
       final model = folding({})..update([q1, s1, r1, a1, q2, s2, r2, a2], live: true);
       expect(shown(model.rows), ['user a', 'summary', 'text Done.', 'user b', 'tool c2', 'text Also done.']);
