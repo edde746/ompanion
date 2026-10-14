@@ -385,64 +385,43 @@ final class ActivityStats {
   final ActivityScan scan;
 }
 
-/// Sums the activity in every omp session file on the machine (docs/contracts/activity-stats.md) with omp's own Bun
-/// runtime, and keeps per-file numbers in `~/.ompanion/stats/` so the next call reads only what was appended since.
+/// Sums the activity in every omp session file on the machine (docs/contracts/activity-stats.md) with the Bun that runs
+/// omp ([HostProbe.bunPath]), and keeps per-file numbers in `~/.ompanion/stats/` so the next call reads only what was
+/// appended since.
 Future<ActivityStats> readActivityStats(HostLink link, HostProbe probe, ActivityQuery query) async {
-  final omp = probe.ompPath;
-  if (omp == null) throw StateError('omp is not installed on ${link.label}');
+  final bun = probe.bunPath;
+  if (bun == null) throw StateError('${link.label} has no omp binary or bun to run the stats script');
   final marker = newMarker();
   final script = 'const input = ${jsonEncode({...query.toJson(), 'marker': marker})};\n$activityStatsScript';
   final result = probe.isWindows
-      ? await runPowerShell(link, probe.commandShell, _windowsScript(omp, marker, script))
-      : await runPosixScript(
-          link,
-          [probe.loginPathExport, 'omp=${shQuote(omp)}', _posixRun, script, _posixEnd].join('\n'),
-        );
+      ? await runPowerShell(link, probe.commandShell, _windowsScript(bun, marker, script))
+      : await runPosixScript(link, ['bun=${shQuote(bun)}', _posixRun, script, _posixEnd].join('\n'));
   if (result.exit.code != 0) throw result.failure('activity stats failed');
   return ActivityStats.fromJson(asJsonObject(jsonDecode(result.payload(marker)), 'activity stats'));
 }
 
-/// omp's standalone binary is a Bun executable that runs a script instead of omp while `BUN_BE_BUN` is set, and then
-/// prints Bun's version (`1.4.2`) for `--version`. omp installed as a package prints its own (`omp/18.6.3`); the `bun`
-/// that installed it runs the script instead. Bun's transpiler cache is off: the script differs on every call (its
+/// `bun run -` reads the script from stdin. Bun's transpiler cache is off: the script differs on every call (its
 /// marker), so each call would leave another 25 KB file in the machine's cache directory (`./bun` when
 /// `XDG_CACHE_HOME` is empty) that no call reads again.
 const _posixRun = r"""
-export BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
-case $(BUN_BE_BUN=1 "$omp" --version 2>/dev/null) in
-[0-9]*) set -- env BUN_BE_BUN=1 "$omp" ;;
-*)
-  if command -v bun >/dev/null 2>&1; then set -- bun; else
-    echo "$omp is not omp's standalone binary and bun is not on PATH: nothing can run the stats script" >&2
-    exit 3
-  fi
-  ;;
-esac
-"$@" run - <<'OMPANION_ACTIVITY_JS'""";
+BUN_BE_BUN=1 BUN_RUNTIME_TRANSPILER_CACHE_PATH=0 "$bun" run - <<'OMPANION_ACTIVITY_JS'""";
 
 const _posixEnd = 'OMPANION_ACTIVITY_JS';
 
 /// [_posixRun] for Windows PowerShell. The script goes to a file of its own: Windows PowerShell would pipe it to stdin
 /// in the console's code page.
-String _windowsScript(String omp, String marker, String script) => [
-  '\$omp = ${psQuote(omp)}',
+String _windowsScript(String bun, String marker, String script) => [
+  '\$bun = ${psQuote(bun)}',
   '\$file = Join-Path \$env:USERPROFILE ${psQuote('.ompanion\\stats\\$marker.js')}',
   r"""
 $env:BUN_BE_BUN = '1'
 $env:BUN_RUNTIME_TRANSPILER_CACHE_PATH = '0'
-$runtime = $omp
-if (((& $omp --version 2>$null) -join '') -notmatch '^\d') {
-  if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
-    throw "$omp is not omp's standalone binary and bun is not on PATH: nothing can run the stats script"
-  }
-  $runtime = 'bun'
-}
 [void](New-Item -ItemType Directory -Force -Path (Split-Path $file))
 [IO.File]::WriteAllText($file, @'""",
   script,
   r'''
 '@)
-try { & $runtime $file; $code = $LASTEXITCODE } finally { Remove-Item -LiteralPath $file -ErrorAction SilentlyContinue }
+try { & $bun $file; $code = $LASTEXITCODE } finally { Remove-Item -LiteralPath $file -ErrorAction SilentlyContinue }
 exit $code''',
 ].join('\n');
 

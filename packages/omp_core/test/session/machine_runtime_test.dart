@@ -29,25 +29,33 @@ void main() {
     expect(() => renderOverlay({'tools.approvalMode': 'a\nb: c'}), throwsArgumentError);
   });
 
-  test('omp older than 18.3.1, a pre-release of it, or none at all needs an install', () {
-    HostProbe probe({String? path = '/usr/bin/omp', String? version}) => HostProbe(
-      commandShell: CommandShell.posix,
-      os: HostOs.linux,
-      kernel: 'Linux',
-      arch: 'x64',
-      home: '/home/me',
-      agentDir: '/home/me/.omp/agent',
-      ompPath: path,
-      ompVersion: version,
-    );
-    expect(ompProblem(probe(version: '18.3.1')), isNull);
-    expect(ompProblem(probe(version: '18.10.0')), isNull);
-    expect(ompProblem(probe(version: '19.0.0-beta.1')), isNull);
-    expect(ompProblem(probe(version: '18.3.0')), 'omp 18.3.0 is older than 18.3.1');
-    expect(ompProblem(probe(version: '18.3.1-rc.2')), 'omp 18.3.1-rc.2 is older than 18.3.1');
-    expect(ompProblem(probe(path: null)), 'omp is not installed');
-    expect(ompProblem(probe(version: null)), 'omp at /usr/bin/omp did not report its version');
-  });
+  test(
+    'omp older than 18.3.1, a pre-release of it, none at all, or one with no Bun to run the scripts needs an install',
+    () {
+      HostProbe probe({String? path = '/usr/bin/omp', String? version, String? bun = '/usr/bin/omp'}) => HostProbe(
+        commandShell: CommandShell.posix,
+        os: HostOs.linux,
+        kernel: 'Linux',
+        arch: 'x64',
+        home: '/home/me',
+        agentDir: '/home/me/.omp/agent',
+        ompPath: path,
+        ompVersion: version,
+        bunPath: bun,
+      );
+      expect(ompProblem(probe(version: '18.3.1')), isNull);
+      expect(ompProblem(probe(version: '18.10.0')), isNull);
+      expect(ompProblem(probe(version: '19.0.0-beta.1')), isNull);
+      expect(ompProblem(probe(version: '18.3.0')), 'omp 18.3.0 is older than 18.3.1');
+      expect(ompProblem(probe(version: '18.3.1-rc.2')), 'omp 18.3.1-rc.2 is older than 18.3.1');
+      expect(ompProblem(probe(path: null)), 'omp is not installed');
+      expect(ompProblem(probe(version: null)), 'omp at /usr/bin/omp did not report its version');
+      expect(
+        ompProblem(probe(version: '18.3.1', bun: null)),
+        'omp at /usr/bin/omp is installed as a package and no bun was found to run it',
+      );
+    },
+  );
 
   test('reprobe finds an omp installed after the machine was found to need one', () async {
     final home = await Directory.systemTemp.createTemp('runtime home ');
@@ -55,7 +63,8 @@ void main() {
     final omp = File('${home.path}/.local/bin/omp');
     await omp.parent.create(recursive: true);
     Future<void> install(String version) async {
-      await omp.writeAsString('#!/bin/sh\necho "omp/$version"\n');
+      // omp's standalone binary: Bun itself once BUN_BE_BUN is set.
+      await omp.writeAsString('#!/bin/sh\nif [ -n "\$BUN_BE_BUN" ]; then echo 1.4.3; else echo "omp/$version"; fi\n');
       await Process.run('chmod', ['755', omp.path]);
     }
 

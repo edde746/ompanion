@@ -43,7 +43,7 @@ void main() {
       marker,
       runRoot(probe),
       id,
-      RunSpec(omp: omp.path, ompVersion: '18.3.1', cwd: work.path, tools: (omp: '/bin/sh', log: pump.path, follow: '')),
+      RunSpec(omp: omp.path, ompVersion: '18.3.1', cwd: work.path, tools: (bun: '/bin/sh', log: pump.path, follow: '')),
     );
     final result = await runPosixScript(link, 'umask 027\n$launch');
     expect(result.exit.code, 0, reason: result.stderr);

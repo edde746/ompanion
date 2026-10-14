@@ -195,6 +195,27 @@ void main() {
       final probe = await run('');
       expect(probe.loginPath, contains('/usr/bin'));
     });
+
+    test("omp's standalone binary runs the app's scripts; a package's run on the bun the login shell finds", () async {
+      final omp = File('${temp.path}/.local/bin/omp');
+      await omp.parent.create(recursive: true);
+      Future<void> install(String body) async {
+        await omp.writeAsString('#!/bin/sh\n$body\n');
+        await Process.run('chmod', ['755', omp.path]);
+      }
+
+      final bin = Directory('${temp.path}/login bin')..createSync();
+      final bun = File('${bin.path}/bun')..writeAsStringSync('#!/bin/sh\n');
+      await Process.run('chmod', ['755', bun.path]);
+      final shell = await fakeShell('PATH="${bin.path}:/usr/bin"\nexport PATH\neval "\$1"');
+
+      // The standalone binary is Bun once BUN_BE_BUN is set; a package's omp is a script that prints omp's version.
+      await install(r'if [ -n "$BUN_BE_BUN" ]; then echo 1.4.3; else echo omp/18.3.1; fi');
+      expect((await run(shell)).bunPath, omp.path);
+      await install('echo omp/18.3.1');
+      expect((await run(shell)).bunPath, bun.path);
+      expect((await run(await fakeShell(':'))).bunPath, isNull, reason: 'no bun on the login PATH or the exec PATH');
+    });
   });
 
   test('POSIX probe payloads map to release assets', () {
@@ -249,7 +270,7 @@ void main() {
     final probe = parseWindowsProbe(
       r'{"v":"1","kernel":"Windows_NT","machine":"AMD64","shell":null,"home":"C:\\Users\\Jos\u00e9",'
       r'"agentDir":"C:\\Users\\Jos\u00e9\\.omp\\agent","profile":null,'
-      r'"omps":[{"path":"C:\\Program Files\\omp\\omp.exe","version":null},{"path":"C:\\Users\\Jos\u00e9\\AppData\\Local\\omp\\omp.exe","version":"omp/18.3.1"}],'
+      r'"omps":[{"path":"C:\\Program Files\\omp\\omp.exe","version":null},{"path":"C:\\Users\\Jos\u00e9\\.bun\\bin\\omp.exe","version":"omp/18.3.1","bun":"C:\\Users\\Jos\u00e9\\.bun\\bin\\bun.exe"}],'
       r'"curl":"1","powershell":"5.1.26100.1","localAppData":"C:\\Users\\Jos\u00e9\\AppData\\Local","sshd":"9.5.0.0",'
       r'"tempDir":"C:\\Users\\Jos\u00e9\\AppData\\Local\\Temp"}',
       CommandShell.cmd,
@@ -257,7 +278,10 @@ void main() {
     expect(probe.os, HostOs.windows);
     expect(probe.arch, 'x64');
     expect(probe.home, r'C:\Users\José');
-    expect((probe.ompPath, probe.ompVersion), (r'C:\Users\José\AppData\Local\omp\omp.exe', '18.3.1'));
+    expect(
+      (probe.ompPath, probe.ompVersion, probe.bunPath),
+      (r'C:\Users\José\.bun\bin\omp.exe', '18.3.1', r'C:\Users\José\.bun\bin\bun.exe'),
+    );
     expect(probe.releaseAsset, 'omp-windows-x64.exe');
     expect(probe.powershellVersion, '5.1.26100.1');
     // omp on Windows tries only ~\tmp before its temporary directory.
@@ -319,6 +343,23 @@ void main() {
         await File(installed).delete();
         expect((await probe(path: path)).ompPath, onPath, reason: 'no usable omp: the first one found is reported');
         expect((await probe(path: path, searchSystemPaths: false)).ompPath, isNull);
+      },
+    );
+
+    test(
+      "the app's scripts run on omp's standalone binary, or for bun's omp.exe shim on the bun.exe beside it, else on PATH",
+      () async {
+        final bin = '${temp.path}/bin';
+        final path = '$bin:/usr/bin:/bin';
+        final omp = await fakeOmp('${temp.path}/Users/me/.bun/bin/omp.exe', '18.3.1');
+        expect((await probe(path: path)).bunPath, omp);
+        // `bun install -g` puts the shim's omp.bunx, which names the script it runs, beside omp.exe.
+        await File('${temp.path}/Users/me/.bun/bin/omp.bunx').writeAsString('');
+        expect((await probe(path: path)).bunPath, isNull);
+        final onPath = await fakeOmp('$bin/bun.exe', '0');
+        expect((await probe(path: path)).bunPath, onPath);
+        final beside = await fakeOmp('${temp.path}/Users/me/.bun/bin/bun.exe', '0');
+        expect((await probe(path: path)).bunPath, beside);
       },
     );
 

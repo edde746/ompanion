@@ -38,7 +38,7 @@ void main() {
       ompVersion: probe.ompVersion!,
       bytes: utf8.encode('export default {}\n'),
     );
-    tools = (omp: probe.ompPath!, log: uploaded.log, follow: uploaded.follow);
+    tools = (bun: probe.bunPath!, log: uploaded.log, follow: uploaded.follow);
   });
 
   tearDownAll(() async {

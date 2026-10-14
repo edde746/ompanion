@@ -22,7 +22,7 @@ AttachTools localTools(String dir) {
     ..parent.createSync(recursive: true)
     ..writeAsStringSync(logScript);
   final follow = File('$dir/follow.js')..writeAsStringSync(followScript);
-  return (omp: ompBinary, log: log.path, follow: follow.path);
+  return (bun: ompBinary, log: log.path, follow: follow.path);
 }
 
 /// A temporary machine for tests on this computer: `home/` is an isolated omp home (harness/omp-home.sh,

@@ -26,7 +26,7 @@ void main() {
 
   Future<Process> pump({int rotateAt = 1 << 30, int carry = 1 << 20, int hold = 0, int markEvery = 1 << 29}) =>
       Process.start(
-        tools.omp,
+        tools.bun,
         [tools.log, 'pump', dir.path, '$rotateAt', '$carry', '$hold', '$markEvery'],
         environment: {'BUN_BE_BUN': '1'},
       );

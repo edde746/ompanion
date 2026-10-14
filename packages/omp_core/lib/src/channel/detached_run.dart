@@ -35,7 +35,7 @@ final class RunSpec {
   final String cwd;
 
   /// The scripts on the machine: a detached run's output goes to `out.jsonl` through [logScript]'s pump, run by
-  /// [AttachTools.omp] as Bun.
+  /// [AttachTools.bun].
   final AttachTools tools;
 
   /// `--session`; null starts a new session.
@@ -186,7 +186,7 @@ Future<List<DetachedRun>> listRuns(HostLink link, HostProbe probe) =>
 /// the pump's rotation to the next one when that carried the log from [offset] or before: the channel then starts in
 /// [generation] at [offset], as if it had stayed attached. Otherwise the current generation is read from its start,
 /// or, over [attachWindow] bytes, compacted on the machine by [logScript] and followed from the offset it names. The
-/// log is streamed through [followScript], which sends each image once. [tools] names both scripts and the omp that
+/// log is streamed through [followScript], which sends each image once. [tools] names both scripts and the Bun that
 /// runs them. `in.jsonl` is read from [inboxOffset], or from its current end when null.
 Future<RunChannel> attachRun(
   HostLink link,
@@ -420,7 +420,7 @@ String posixRunScript(
   Duration? idleExit,
 }) {
   final idle = idleExit == null ? '' : 'OMPANION_RUN="\$d" OMPANION_IDLE_EXIT_MS=${idleExit.inMilliseconds} ';
-  final pump = [tools.omp, tools.log, 'pump'].map(shQuote).join(' ');
+  final pump = [tools.bun, tools.log, 'pump'].map(shQuote).join(' ');
   return '''
 d=${shQuote(dir)}
 $_processFunctions

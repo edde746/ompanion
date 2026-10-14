@@ -7,10 +7,10 @@ import '../transport/host_link.dart';
 import 'run_log.dart';
 import 'windows_run.dart';
 
-/// The scripts on the machine, run by the omp binary [omp] as Bun (`BUN_BE_BUN=1`), which every omp release is: [log]
+/// The scripts on the machine and what runs them: [bun] (`HostProbe.bunPath`, with `BUN_BE_BUN=1` set) runs [log]
 /// (`logScript`), the pump a launch puts between omp and `out.jsonl` and the replay of a first attach, and [follow]
 /// ([followScript]), which streams `out.jsonl` to an attach and runs [log]'s replay.
-typedef AttachTools = ({String omp, String log, String follow});
+typedef AttachTools = ({String bun, String log, String follow});
 
 /// How many images an attach stream keeps defined at once ([followScript]'s image window).
 const imageRefWindow = 64;
@@ -414,7 +414,7 @@ final class LogFollower {
 
   /// Starts [followScript] for the run in [dir] (host path) under the machine's [shell]. A POSIX shell runs it through
   /// `sh`. cmd passes a program's standard handles on untouched; Windows PowerShell 5.1 re-encodes a native program's
-  /// output, so under it omp starts through `Process.Start` with the handles inherited and PowerShell never reads them.
+  /// output, so under it Bun starts through `Process.Start` with the handles inherited and PowerShell never reads them.
   /// Bun's transpiler cache is off (`BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`): it would leave the script's compiled form in
   /// the user's cache directory, or in a relative `bun/` when `XDG_CACHE_HOME` is empty. See `attachRun` for
   /// [generation], [offset] and [tools]; [window] is `attachWindow`.
@@ -443,14 +443,14 @@ final class LogFollower {
       CommandShell.posix => startPosixScript(
         link,
         '${source == FollowSource.tail ? posixTailPoll : ''}export BUN_BE_BUN=1 BUN_RUNTIME_TRANSPILER_CACHE_PATH=0\n'
-        'exec ${[tools.omp, ...args].map(shQuote).join(' ')}${source == FollowSource.tail ? r' $tailpoll' : ''}\n',
+        'exec ${[tools.bun, ...args].map(shQuote).join(' ')}${source == FollowSource.tail ? r' $tailpoll' : ''}\n',
       ),
       CommandShell.cmd => link.exec(
         'set BUN_BE_BUN=1&& set BUN_RUNTIME_TRANSPILER_CACHE_PATH=0&& '
-        '${[tools.omp, ...args].map(windowsArg).join(' ')}',
+        '${[tools.bun, ...args].map(windowsArg).join(' ')}',
       ),
       CommandShell.powershell => link.exec(
-        '\$i = [System.Diagnostics.ProcessStartInfo]::new(${psQuote(tools.omp)}, '
+        '\$i = [System.Diagnostics.ProcessStartInfo]::new(${psQuote(tools.bun)}, '
         '${psQuote(args.map(windowsArg).join(' '))}); \$i.UseShellExecute = \$false; '
         "\$i.EnvironmentVariables['BUN_BE_BUN'] = '1'; \$i.EnvironmentVariables['BUN_RUNTIME_TRANSPILER_CACHE_PATH'] = '0'; "
         '\$p = [System.Diagnostics.Process]::Start(\$i); '

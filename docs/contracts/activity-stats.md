@@ -1,6 +1,6 @@
 # activity-stats: the Stats tab's numbers
 
-How the usage pane's Stats tab gets every machine's activity: a script that runs on the machine with omp's own Bun,
+How the usage pane's Stats tab gets every machine's activity: a script that runs on the machine with the probe's Bun,
 reads the omp session files, keeps per-file numbers between calls, and prints one small JSON document of totals.
 Code: `packages/omp_core/lib/src/host/activity_stats.dart` (the script, `readActivityStats`, the typed result),
 `lib/screens/usage/activity_overview.dart` (machines merged, streaks, chart series),
@@ -16,15 +16,14 @@ on the machine page (`lib/screens/config/stats_page.dart`) still shows `omp stat
 
 ## Running
 
-`readActivityStats(link, probe, query)` runs the script with the probed omp binary, which is a Bun executable: with
-`BUN_BE_BUN=1` set it is Bun itself (`omp --version` then prints Bun's version, e.g. `1.4.2`), and `bun run -` reads
-the script from stdin. omp installed as a package (`omp --version` prints `omp/<version>`) is a script run by `bun`;
-the script then runs with the `bun` on `PATH`, and fails with a message when there is none. Both run with
-`BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`: the script's marker changes on every call, so Bun's transpiler cache would
-keep a new 25 KB file per call in the machine's cache directory and never read one back.
+`readActivityStats(link, probe, query)` runs the script with the probe's Bun (`HostProbe.bunPath`, the one that runs
+the pump and the follow script, `docs/PLAN.md` §5): omp's standalone binary, a Bun executable that is Bun itself
+with `BUN_BE_BUN=1` set (`omp --version` then prints Bun's version, e.g. `1.4.2`), or, for omp installed as a package,
+a `bun` the probe found. It fails with a message when the probe found neither. `bun run -` reads the script from stdin.
+Every run sets `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0`: the script's marker changes on every call, so Bun's transpiler
+cache would keep a new 25 KB file per call in the machine's cache directory and never read one back.
 
-- POSIX: one `runPosixScript` with the login shell's `PATH` in front (`HostProbe.loginPathExport`); the script goes
-  in through a quoted heredoc.
+- POSIX: one `runPosixScript`; the script goes in through a quoted heredoc.
 - Windows: one `runPowerShell`; the script is written to `%USERPROFILE%\.ompanion\stats\<marker>.js` (Windows
   PowerShell would pipe it to stdin in the console's code page) and removed after the run.
 

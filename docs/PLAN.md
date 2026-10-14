@@ -176,7 +176,7 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 - Launch (`openRun`, under `~/.ompanion/run/.launch.lock`): a running run whose `meta.json` names the
   session is reused. Otherwise `run.sh` starts in a new session (`setsid`, Perl's on macOS):
   `tail -f in.jsonl | { omp --mode rpc-ui --config overlay.yml --cwd <cwd> -e <companion> [--session <file>]
-  [--model …] [--thinking …] 2>> err.log; echo $? > code; } | BUN_BE_BUN=1 omp log.js pump <run dir> …`, then records
+  [--model …] [--thinking …] 2>> err.log; echo $? > code; } | BUN_BE_BUN=1 <bun> log.js pump <run dir> …`, then records
   omp's exit code. omp runs with the login shell's PATH in front of its own, and the pipeline's `tail`/`ps` keeps
   sshd's (`contracts/host-launch.md`). The pump is the only writer of `out.jsonl` while omp runs (Pump, below). The
   launch replies with the listing of its run, so opening a session reads no other run directory.
@@ -194,7 +194,7 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   instead of continuing on another model; the app then asks which model the conversation continues on (Continue on
   another model) and launches again with that `--model`, or leaves the session closed.
 - Attach: `in.jsonl` through `tail -F` from its saved offset; `out.jsonl` through the follow script (`followScript`,
-  uploaded next to the companion and run by omp as Bun, the same script on Windows hosts), which sends what the log
+  uploaded next to the companion and run by the probe's Bun, the same script on Windows hosts), which sends what the log
   holds with a plain read, then follows it with `tail -F` (BSD `tail -F` copies byte by byte; on macOS it delivers an
   append in 0.6 ms, Bun's `fs.watch` in 18 ms), and sends each image once. The generation is the one the log's first
   line names (`ompanion_rotate`), else 1, read before and after the size and the replay so a rotation in between is
@@ -211,8 +211,13 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   timed dialog whose tool calls all ended is left out. From the last 8 MiB it drops each `message_update`,
   `tool_execution_update` and `subagent_progress` that a later frame of the same message, tool call or subagent
   supersedes. One JavaScript script (`logScript`) replays and pumps on every host: the app uploads it next to the
-  companion as `log.<sha256>.js` and runs it with the probe's omp binary as Bun (`BUN_BE_BUN=1`, 74 ms to start). A
-  live 1.6 GB generation compacted to 58 lines, 647 KB, with the header on the device 0.4–0.7 s after the attach starts
+  companion as `log.<sha256>.js` and runs it with the probe's Bun (`HostProbe.bunPath`, `BUN_BE_BUN=1`, 74 ms to
+  start). That is omp's standalone binary, a Bun executable, when it is one. omp installed as a package
+  (`bun install -g`) is a script on POSIX and bun's `omp.exe` shim on Windows (an `omp.bunx` beside it names the
+  script); both pass every argument to omp's CLI, which rejects the script's (`unknown flag: -1`), so the probe takes a
+  `bun` instead: the one a launch's omp finds on POSIX (the login shell's PATH, then sshd's), the `bun.exe` beside the
+  shim, else the one on PATH, on Windows. A package omp with no `bun` found needs an install (`ompProblem`). A live
+  1.6 GB generation compacted to 58 lines, 647 KB, with the header on the device 0.4–0.7 s after the attach starts
   on macOS; a 1 GB log on a Windows host in 0.9 s, PowerShell included. Replayed whole, the 1.6 GB took 62 s and 3.1 GB
   of app memory. `in.jsonl` is read from 0 (open dialogs and the answers that closed them). The device then seeds the
   view from `get_state`, the session history, `get_available_commands`, `get_subagents` and the companion's `hello`,
@@ -285,7 +290,7 @@ end against Win32-OpenSSH on `windows-latest` (`packages/omp_core/test/windows/`
   outside that job. Command line: `cmd.exe /d /s /c "<run>\run.cmd"`, which runs `powershell -NoProfile -File
   feed.ps1 | omp.cmd | pump.cmd`. `omp.cmd` runs `<omp.exe> --mode rpc-ui --config <run>\overlay.yml -e <companion>
   [--session <path>] 2>> <run>\err.log` and then writes omp's exit code to `<run>\code`, as a pipeline's `ERRORLEVEL`
-  is its last stage's. `pump.cmd` runs the uploaded `log.js` in `pump` mode with omp's binary as Bun, a batch stage
+  is its last stage's. `pump.cmd` runs the uploaded `log.js` in `pump` mode with the probe's Bun, a batch stage
   having an environment of its own, so `BUN_BE_BUN` never reaches omp; the pump opens `out.jsonl` itself and writes and
   rotates it as on POSIX. cmd.exe's `>>`, the form before a pump, refused every other writer and kept its own offset,
   so the log could never be rotated (measured on Windows 11 26200: a truncation fails with a sharing violation; through
@@ -301,8 +306,8 @@ end against Win32-OpenSSH on `windows-latest` (`packages/omp_core/test/windows/`
   sent once. Windows has no `tail`, so the script checks the log's size through its open handle every 50 ms and on
   each `fs.watch` event. A log that shrank, or whose first line names another generation, was rotated by the pump and
   is read again from byte 0. The launch keeps PowerShell away from the bytes: under cmd it is
-  `set BUN_BE_BUN=1&& <omp.exe> <follow.js> …`, which passes omp's standard handles on; under a PowerShell default
-  shell omp starts through `[Diagnostics.Process]::Start` with the handles inherited, since PowerShell 5.1 re-encodes a
+  `set BUN_BE_BUN=1&& <bun> <follow.js> …`, which passes Bun's standard handles on; under a PowerShell default
+  shell Bun starts through `[Diagnostics.Process]::Start` with the handles inherited, since PowerShell 5.1 re-encodes a
   native program's output. The script runs the replay itself. sshd kills the job when the channel closes. `in.jsonl`
   is read over SFTP with stat and offset reads.
 - `meta.json` updates: a PowerShell script under the launch lock, taken over SFTP. A run launched before the pump
@@ -490,7 +495,7 @@ a real tailnet is still open (§12).
 | R13 | FCM lowers high-priority messages for an Android install that receives them and shows nothing. | the machine sends only the kinds the phone asked for; the phone hides only the message for the session on its screen |
 | R14 | Firebase's Android SDK depends on proprietary Play services libraries. | the sole copyright holder ships it (R11); a Firebase-free build (F-Droid) would need a flavor without it |
 | R15 | Nothing pushes when omp crashes, after a run's idle exit, or for a session no ompanion run holds (a TUI session). | accepted: none of them has a companion to send |
-| R16 | Every detached run pipes omp's output through the omp binary run as Bun (`BUN_BE_BUN=1`, the pump), and a first attach to a log over 8 MiB runs it too; an omp release built without that switch would fail every launch. | measured on omp 18.3.1 (macOS, the CI test) and 18.3.2 (Windows); omp dies with the pump (a broken pipe) and the launch reports `err.log` |
+| R16 | Every detached run pipes omp's output through the probe's Bun (the pump), and every attach runs the follow script on it: omp's standalone binary with `BUN_BE_BUN=1`, or the `bun` a package install runs on. An omp release built without that switch would fail every launch. | measured on omp 18.3.1 (macOS, the CI test) and 18.3.2 (Windows); omp dies with the pump (a broken pipe) and the launch reports `err.log` |
 
 ## 12. Open questions
 

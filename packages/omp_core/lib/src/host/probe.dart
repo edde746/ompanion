@@ -21,6 +21,7 @@ final class HostProbe {
     this.profile,
     this.ompPath,
     this.ompVersion,
+    this.bunPath,
     this.loginPath,
     this.loginProblem,
     this.curl = false,
@@ -44,6 +45,7 @@ final class HostProbe {
     profile: json.optString('profile'),
     ompPath: json.optString('ompPath'),
     ompVersion: json.optString('ompVersion'),
+    bunPath: json.optString('bunPath'),
     loginPath: json.optString('loginPath'),
     loginProblem: json.optString('loginProblem'),
     curl: json.optBool('curl') ?? false,
@@ -86,6 +88,12 @@ final class HostProbe {
 
   /// `18.3.1` from `omp --version`.
   final String? ompVersion;
+
+  /// What runs the app's Bun scripts (the pump, the attach follower, the activity stats) with `BUN_BE_BUN=1` set:
+  /// [ompPath] itself when it is omp's standalone binary, which is a Bun executable; for omp installed as a package
+  /// (`bun install -g`: a script on POSIX, a shim `omp.exe` on Windows, both run by `bun`), the `bun` that runs it.
+  /// Null when there is neither.
+  final String? bunPath;
 
   /// The `PATH` the account's login shell gives its own children, read with `$SHELL -l -i -c` (an interactive
   /// login shell, what a terminal runs); null when the probe could not read one ([loginProblem] says which way
@@ -140,6 +148,7 @@ final class HostProbe {
     'profile': profile,
     'ompPath': ompPath,
     'ompVersion': ompVersion,
+    'bunPath': bunPath,
     'loginPath': loginPath,
     'loginProblem': loginProblem,
     'curl': curl,
@@ -193,8 +202,9 @@ CommandShell parseShellProbe(String output) {
 /// POSIX probe, printed as one JSON object between marker lines. `LC_ALL=C` keeps `tr` and `sed` from
 /// rejecting non-UTF-8 bytes in paths. `omps` lists the omp on PATH and the first other one in the install
 /// locations, `~/.local/bin` first (where both installers and `uploadOmp` put it), each with the first
-/// line of its `--version`; [parsePosixProbe] picks one. The probe also asks the login shell for its `PATH`
-/// ([HostProbe.loginPath]) and waits at most `loginWait` tenths of a second for each of its two attempts.
+/// line of its `--version` and its [HostProbe.bunPath]; [parsePosixProbe] picks one. The probe also asks the
+/// login shell for its `PATH` ([HostProbe.loginPath]) and waits at most `loginWait` tenths of a second for each
+/// of its two attempts.
 String posixProbeScript(String marker, {bool searchSystemPaths = true, int loginWait = 50}) =>
     'm=${shQuote(marker)}; sys=${searchSystemPaths ? '1' : ''}; lwait=$loginWait\n$_posixProbeBody';
 
@@ -290,9 +300,21 @@ for x in "$@"; do
   if [ "$x" != "$p" ] && [ -f "$x" ] && [ -x "$x" ]; then c=$x; break; fi
 done
 ver() { "$1" --version </dev/null 2>/dev/null | head -n 1; }
-pv=; if [ -n "$p" ]; then pv=$(ver "$p"); fi
-cv=; if [ -n "$c" ]; then cv=$(ver "$c"); fi
-e() { printf '{"path":'; q "$1"; printf ',"version":'; q "$2"; printf '}'; }
+# The Bun that runs the app's scripts beside omp $1: omp itself when it is omp's standalone binary, a Bun executable
+# that prints Bun's version once BUN_BE_BUN is set; for omp installed as a package (a script run by bun), the bun
+# a launch's omp finds, on the login shell's PATH and then on this one.
+rt() {
+  case $(BUN_BE_BUN=1 "$1" --version </dev/null 2>/dev/null | head -n 1) in
+  [0-9]*) printf '%s' "$1" ;;
+  *)
+    b=$(if [ -n "$llogin" ]; then PATH="$llogin:$PATH"; fi; command -v bun 2>/dev/null)
+    case $b in /*) printf '%s' "$b" ;; esac
+    ;;
+  esac
+}
+pv=; pr=; if [ -n "$p" ]; then pv=$(ver "$p"); pr=$(rt "$p"); fi
+cv=; cr=; if [ -n "$c" ]; then cv=$(ver "$c"); cr=$(rt "$c"); fi
+e() { printf '{"path":'; q "$1"; printf ',"version":'; q "$2"; if [ -n "$3" ]; then printf ',"bun":'; q "$3"; fi; printf '}'; }
 curl=; if has curl; then curl=1; fi
 wget=; if has wget; then wget=1; fi
 printf '\n%s:begin\n{"v":"1"' "$m"
@@ -300,9 +322,9 @@ o kernel "$kernel"; o machine "$machine"; o arm64 "$arm64"; o libc "$libc"; o sh
 o agentDir "$agent"; o tempDir "$tmp"; o profile "$prof"; o curl "$curl"; o wget "$wget"
 o loginPath "$llogin"; o loginProblem "$lwhy"
 printf ',"omps":['
-if [ -n "$p" ]; then e "$p" "$pv"; fi
+if [ -n "$p" ]; then e "$p" "$pv" "$pr"; fi
 if [ -n "$p" ] && [ -n "$c" ]; then printf ','; fi
-if [ -n "$c" ]; then e "$c" "$cv"; fi
+if [ -n "$c" ]; then e "$c" "$cv" "$cr"; fi
 printf ']}\n%s:end\n' "$m"
 ''';
 
@@ -333,6 +355,7 @@ HostProbe parsePosixProbe(String payload) {
     profile: json.optString('profile'),
     ompPath: omp?.path,
     ompVersion: omp?.version,
+    bunPath: omp?.bun,
     loginPath: json.optString('loginPath'),
     loginProblem: json.optString('loginProblem'),
     curl: json.optString('curl') == '1',
@@ -341,7 +364,10 @@ HostProbe parsePosixProbe(String payload) {
 }
 
 /// Windows probe. Architecture follows omp's install.ps1: `PROCESSOR_ARCHITEW6432` wins under WOW64. `omps`
-/// lists omp on PATH and the first other one in the install locations, as [posixProbeScript] does.
+/// lists omp on PATH and the first other one in the install locations, as [posixProbeScript] does, each with its
+/// [HostProbe.bunPath]: omp itself, unless it is bun's shim (an `omp.exe` beside an `omp.bunx`), which starts the
+/// `bun.exe` in its own directory, else the one on PATH. `tempDir` is omp's `os.tmpdir()`, without a trailing `\`
+/// unless it is a drive's root. Comments stay out of the script: it must fit on one cmd.exe line.
 String windowsProbeScript(String marker, {bool searchSystemPaths = true}) =>
     '\$m = ${psQuote(marker)}; \$sys = \$$searchSystemPaths\n$_windowsProbeBody';
 
@@ -359,10 +385,7 @@ if ($prof) { $agent = Join-Path $cfg "profiles\$prof\agent" }
 elseif ($env:PI_CODING_AGENT_DIR) { $agent = $env:PI_CODING_AGENT_DIR }
 else { $agent = Join-Path $cfg 'agent' }
 $omp = $null
-if ($sys) {
-  $found = Get-Command -Name 'omp.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($found) { $omp = $found.Source }
-}
+if ($sys) { $omp = @(Get-Command -Name 'omp.exe' -CommandType Application -ErrorAction Ignore)[0].Source }
 $candidates = @()
 if ($env:PI_INSTALL_DIR) { $candidates += Join-Path $env:PI_INSTALL_DIR 'omp.exe' }
 if ($env:LOCALAPPDATA) { $candidates += Join-Path $env:LOCALAPPDATA 'omp\omp.exe' }
@@ -372,18 +395,16 @@ $other = $null
 foreach ($c in $candidates) { if ($c -ne $omp -and (Test-Path -LiteralPath $c -PathType Leaf)) { $other = $c; break } }
 $omps = @(foreach ($c in @($omp, $other)) {
   if ($c) {
-    $ver = $null
     try { $ver = & $c --version 2>$null | Select-Object -First 1 } catch { $ver = $null }
-    [pscustomobject]@{ path = $c; version = $ver }
+    $bun = if (Test-Path -LiteralPath ($c -replace 'exe$', 'bunx')) { @(Get-Command -Name ($c -replace 'omp\.exe$', 'bun.exe'), 'bun.exe' -CommandType Application -ErrorAction Ignore)[0].Source } else { $c }
+    [pscustomobject]@{ path = $c; version = $ver; bun = $bun }
   }
 })
 $sshd = $null
 foreach ($p in @((Join-Path $env:SystemRoot 'System32\OpenSSH\sshd.exe'), (Join-Path $env:ProgramFiles 'OpenSSH\sshd.exe'))) {
   if (Test-Path -LiteralPath $p -PathType Leaf) { $sshd = (Get-Item -LiteralPath $p).VersionInfo.ProductVersion; break }
 }
-$curl = $null
-if (Get-Command -Name 'curl.exe' -CommandType Application -ErrorAction SilentlyContinue) { $curl = '1' }
-# omp's os.tmpdir(), without a trailing \ unless it is a drive's root
+$curl = if (Get-Command -Name 'curl.exe' -CommandType Application -ErrorAction Ignore) { '1' }
 $t = $env:TEMP; if (!$t) { $t = $env:TMP }; if (!$t) { $t = "$env:SystemRoot\temp" }
 $t = $t -replace '(?<=[^:])\\$'
 $o = [ordered]@{
@@ -411,6 +432,7 @@ HostProbe parseWindowsProbe(String payload, CommandShell commandShell) {
     profile: json.optString('profile'),
     ompPath: omp?.path,
     ompVersion: omp?.version,
+    bunPath: omp?.bun,
     curl: json.optString('curl') == '1',
     powershellVersion: json.optString('powershell'),
     localAppData: json.optString('localAppData'),
@@ -457,9 +479,10 @@ int compareOmpVersions(String a, String b) {
 /// The omp the app drives out of those a probe found, in search order: the first one at least
 /// [minimumOmpVersion], else the first one, whose problem the app then reports. So an older omp on PATH
 /// gives way to the one an install put into the install directory.
-({String path, String? version})? _pickOmp(List<Map<String, Object?>> found) {
+({String path, String? version, String? bun})? _pickOmp(List<Map<String, Object?>> found) {
   final omps = [
-    for (final omp in found) (path: omp.string('path'), version: parseOmpVersion(omp.optString('version'))),
+    for (final omp in found)
+      (path: omp.string('path'), version: parseOmpVersion(omp.optString('version')), bun: omp.optString('bun')),
   ];
   for (final omp in omps) {
     final version = omp.version;

@@ -37,6 +37,7 @@ void main() {
       home: home.path,
       agentDir: '${home.path}/.omp/agent',
       ompPath: ompBinary,
+      bunPath: ompBinary,
     );
     sessions = '${home.path}/.omp/agent/sessions/-work-';
   });

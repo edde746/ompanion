@@ -41,12 +41,12 @@ const windowsOmpCmd =
     '"%OMPANION_OMP%" %OMPANION_ARGS% 2>> "%OMPANION_RUN%\\err.log"\r\n'
     '> "%OMPANION_RUN%\\code" echo %ERRORLEVEL%\r\n';
 
-/// `pump.cmd`: [logScript]'s pump, run by the omp binary as Bun. It opens `out.jsonl` itself: cmd.exe's `>>` refuses
-/// other writers and keeps writing at its own offset (measured on Windows 11 26200).
+/// `pump.cmd`: [logScript]'s pump, run by Bun ([HostProbe.bunPath]). It opens `out.jsonl` itself: cmd.exe's `>>`
+/// refuses other writers and keeps writing at its own offset (measured on Windows 11 26200).
 const windowsPumpCmd =
     '@echo off\r\n'
     'set BUN_BE_BUN=1\r\n'
-    '"%OMPANION_OMP%" "%OMPANION_LOG%" pump "%OMPANION_RUN%" %OMPANION_PUMP%\r\n';
+    '"%OMPANION_BUN%" "%OMPANION_LOG%" pump "%OMPANION_RUN%" %OMPANION_PUMP%\r\n';
 
 /// `feed.ps1`: copies bytes appended to `in.jsonl` to stdout, polling every 50 ms, and exits once
 /// `in.jsonl.stop` exists and everything before it was copied. Its exit closes omp's stdin, omp's only
@@ -94,6 +94,7 @@ String windowsLaunchScript(
   required String cwd,
   required String omp,
   required List<String> args,
+  required String bun,
   required String log,
   required LogLimits limits,
   Duration? idleExit,
@@ -101,7 +102,7 @@ String windowsLaunchScript(
     '''
 \$m = ${psQuote(marker)}; \$run = ${psQuote(dir)}; \$cwd = ${psQuote(cwd)}; \$omp = ${psQuote(omp)}
 \$argline = ${psQuote(args.map(windowsArg).join(' '))}
-\$log = ${psQuote(log)}; \$pump = ${psQuote(pumpArguments(limits))}
+\$bun = ${psQuote(bun)}; \$log = ${psQuote(log)}; \$pump = ${psQuote(pumpArguments(limits))}
 \$idle = ${psQuote(idleExit == null ? '' : '${idleExit.inMilliseconds}')}
 \$flags = [uint32]$_createBreakawayFromJob
 $_windowsLaunchBody''';
@@ -111,6 +112,7 @@ $vars = @(Get-ChildItem Env: | Where-Object { -not $_.Name.StartsWith('OMPANION_
 $vars += 'OMPANION_RUN=' + $run
 $vars += 'OMPANION_OMP=' + $omp
 $vars += 'OMPANION_ARGS=' + $argline
+$vars += 'OMPANION_BUN=' + $bun
 $vars += 'OMPANION_LOG=' + $log
 $vars += 'OMPANION_PUMP=' + $pump
 if ($idle) { $vars += 'OMPANION_IDLE_EXIT_MS=' + $idle }
@@ -258,6 +260,7 @@ Future<({DetachedRun run, bool launched})> openWindowsRun(HostLink link, HostPro
           cwd: spec.cwd,
           omp: spec.omp,
           args: args,
+          bun: spec.tools.bun,
           log: spec.tools.log,
           limits: spec.limits,
           idleExit: spec.idleExit,

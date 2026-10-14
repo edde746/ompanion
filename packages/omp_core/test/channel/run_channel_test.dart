@@ -233,7 +233,7 @@ void main() {
         final channel = await attach();
         final frames = Frames(channel.lines);
         final pump = await Process.start(
-          tools.omp,
+          tools.bun,
           [tools.log, 'pump', dir, '16384', '4096', '0', '1024'],
           environment: {'BUN_BE_BUN': '1'},
         );

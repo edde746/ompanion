@@ -388,7 +388,7 @@ final class MachineRuntime {
       link: connection.link,
       probe: probe,
       companion: uploaded.companion,
-      tools: (omp: probe.ompPath!, log: uploaded.log, follow: uploaded.follow),
+      tools: (bun: probe.bunPath!, log: uploaded.log, follow: uploaded.follow),
     );
   }
 
@@ -557,6 +557,7 @@ String? ompProblem(HostProbe probe) {
   if (path == null) return 'omp is not installed';
   if (version == null) return 'omp at $path did not report its version';
   if (compareOmpVersions(version, minimumOmpVersion) < 0) return 'omp $version is older than $minimumOmpVersion';
+  if (probe.bunPath == null) return 'omp at $path is installed as a package and no bun was found to run it';
   return null;
 }
 
