@@ -1,7 +1,7 @@
-Works with omp 18.6, and installs omp 18.6.3 on a machine that lacks it.
+Works with omp 18.10, and installs omp 18.10.3 on a machine that lacks it.
 
-New: keep a Mac awake while omp works, switched per machine on its page. Update omp on a machine from its page. Start a session without a project folder, or straight from a project row. Mark sessions, folders and machines read from the sidebar. A custom theme with every color pickable. Resize the sidebar and the dock by dragging their edge. Images omp keeps in its blob store show in the chat. Hide emails and organizations on the usage pane, for screenshots.
+New: a Stats tab on the usage pane sums every machine's omp sessions into totals, a contribution grid with streaks, an activity chart, a week-by-hour grid, and model, project, tool, agent and machine lists, plus prompt stats and a word cloud of the words your prompts use most. The agent hub lists active and inactive agents apart, newest first.
 
-Changed: when omp cannot use the model a session ran on, the app asks which model to continue on instead of failing to open the session. Stream rule matches show as a note in the chat instead of a toast. Sessions started from a device get a title, as in omp's terminal. Long runs open faster, and their logs rotate on Windows machines too.
+Changed: chat images load once a scroll settles on them, and thumbnails decode at the size they show. An account's policy line on the usage pane says when its quota is exhausted, as omp 18.10 does.
 
-Fixed: with omp 18.4.9 and later, live updates, goal and loop modes, notifications and idle exit work again. A run that omp moves to a new session file is followed there. The queue and goal mode match omp 18.4. The ask form's "other" answer takes spaces typed on a keyboard.
+Fixed: after switching back to the window, the next key no longer replaces a field's whole text. With omp 18.8.7 and later, sessions started from a device get a title again. A provider you sign in to while a session runs can be used in that session. A folded turn keeps every reply the model finished with.
