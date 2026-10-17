@@ -130,7 +130,13 @@ void main() {
 
   test('the pump rotates out.jsonl while omp answers, and channels follow and resume in each generation', () async {
     // A get_state answer is about 16 KB here: the carry holds two, as the default one holds any frame.
-    const small = (rotateAt: 64 << 10, carry: 32 << 10, hold: Duration(milliseconds: 250), markEvery: 4 << 10);
+    const small = (
+      rotateAt: 64 << 10,
+      carry: 32 << 10,
+      hold: Duration(milliseconds: 250),
+      markEvery: 4 << 10,
+      progressRate: 1 << 20,
+    );
     final run = (await openRun(host.link, probe, spec(limits: small))).run;
     final channel = await attachRun(host.link, probe, run, tools: host.tools);
     final frames = Frames(channel.lines);

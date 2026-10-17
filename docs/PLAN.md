@@ -244,13 +244,18 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
 - Pump (`logScript`'s `pump` mode, `logLimits`): every `message_update` carries the whole message, so one 1.5 KB
   streamed answer wrote 270 KB, and a `task` call's `tool_execution_update` carries every subagent's progress (a live
   run that worked for 14 hours without settling wrote 16 GB, 12.5 GB of it these updates, up to 60 frames and 3.2 MB a
-  second). The pump holds each `tool_execution_update` and `subagent_progress`
-  for 250 ms and writes only the newest per tool call or subagent; any other line writes what is held first, so the log
-  is omp's output minus superseded progress, in order (on that log: 22 % of the bytes at 60 frames a second, 66 % at
-  4). Every MiB it writes a generation mark. Neither a mark nor a rotation lands inside an `rpc_chunk` sequence: both
-  wait for its last chunk, as readers take a sequence only whole and uninterrupted. At 64 MiB it rotates in place at a
-  line boundary while omp's output waits in the pipe: it leaves the log as it is for 250 ms, so followers read it to
-  its end (what omp wrote meanwhile comes out of the pipe at once and can fill the next generation within a
+  second), and an `eval` cell running 40 subagents sent a 13.5 MB `tool_execution_update`, an `rpc_chunk` sequence, for
+  each of their status changes (84 generations in under 6 minutes while omp emptied its output backlog; no device kept
+  up, so every reconnect ended in a gap). The pump takes a whole `rpc_chunk` sequence as one frame. It holds each
+  `tool_execution_update` and `subagent_progress` for 250 ms and writes only the newest per tool call or subagent, and
+  not before the last one written for it would take at 1 MiB/s (`progressRate`): a 13.5 MB frame goes out about every
+  13 s. `subagent_lifecycle`, `subagent_event`, `ompx`, `extension_ui_request` and `response` lines pass held progress
+  whose id they do not hold; any other frame writes what is held first, so the log is omp's output minus superseded
+  progress, in order wherever the order could change a state (on the 16 GB log: 22 % of the bytes at 60 frames a
+  second, 66 % at 4). Every MiB it writes a generation mark. Neither a mark nor a rotation lands inside an `rpc_chunk`
+  sequence: both wait for its last chunk, as readers take a sequence only whole and uninterrupted. At 64 MiB it rotates
+  in place at a line boundary while omp's output waits in the pipe: it leaves the log as it is for 250 ms, so followers
+  read it to its end (what omp wrote meanwhile comes out of the pipe at once and can fill the next generation within a
   millisecond; followers then missed 19 generations in a row), truncates it, leaves it empty for 250 ms (BSD `tail -F`
   moves to the end of a file it finds truncated, measured on macOS to skip the marker otherwise), then writes the
   marker (`generation`, `carryFrom` S, `preamble` P), P bytes of history as of S, and the old log from S, the first

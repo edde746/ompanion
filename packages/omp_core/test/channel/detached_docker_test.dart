@@ -121,7 +121,13 @@ void main() {
   });
 
   test('two connections append concurrently, see each other, and follow the pump\'s rotations (GNU tail)', () async {
-    const small = (rotateAt: 64 << 10, carry: 32 << 10, hold: Duration(milliseconds: 250), markEvery: 4 << 10);
+    const small = (
+      rotateAt: 64 << 10,
+      carry: 32 << 10,
+      hold: Duration(milliseconds: 250),
+      markEvery: 4 << 10,
+      progressRate: 1 << 20,
+    );
     final run = (await openRun(link, probe, spec(limits: small))).run;
     final other = await connect();
     addTearDown(other.close);

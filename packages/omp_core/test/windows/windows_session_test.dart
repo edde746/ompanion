@@ -213,7 +213,13 @@ void main() {
   test(
     'the pump rotates out.jsonl while omp runs, a channel follows each generation, and omp\'s exit code gets past it',
     () async {
-      const small = (rotateAt: 64 << 10, carry: 32 << 10, hold: Duration(milliseconds: 250), markEvery: 4 << 10);
+      const small = (
+        rotateAt: 64 << 10,
+        carry: 32 << 10,
+        hold: Duration(milliseconds: 250),
+        markEvery: 4 << 10,
+        progressRate: 1 << 20,
+      );
       final run = (await openRun(
         link,
         probe,

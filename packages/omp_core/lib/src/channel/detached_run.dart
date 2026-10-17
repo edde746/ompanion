@@ -434,7 +434,7 @@ $_runTail}
 
 /// The pump's arguments after the run directory: [LogLimits] as `log.js pump` takes them.
 String pumpArguments(LogLimits limits) =>
-    '${limits.rotateAt} ${limits.carry} ${limits.hold.inMilliseconds} ${limits.markEvery}';
+    '${limits.rotateAt} ${limits.carry} ${limits.hold.inMilliseconds} ${limits.markEvery} ${limits.progressRate}';
 
 /// The command the pipeline's right side runs omp with, after `$0` (the run directory) and `$1` (the login
 /// shell's PATH, empty when the probe read none): omp's pid goes into `omp.pid` first, so the pid file names

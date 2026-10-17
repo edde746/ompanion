@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:omp_core/channel.dart';
 import 'package:test/test.dart';
@@ -24,12 +25,17 @@ void main() {
 
   tearDown(() => dir.deleteSync(recursive: true));
 
-  Future<Process> pump({int rotateAt = 1 << 30, int carry = 1 << 20, int hold = 0, int markEvery = 1 << 29}) =>
-      Process.start(
-        tools.bun,
-        [tools.log, 'pump', dir.path, '$rotateAt', '$carry', '$hold', '$markEvery'],
-        environment: {'BUN_BE_BUN': '1'},
-      );
+  Future<Process> pump({
+    int rotateAt = 1 << 30,
+    int carry = 1 << 20,
+    int hold = 0,
+    int markEvery = 1 << 29,
+    int progressRate = 1 << 30,
+  }) => Process.start(
+    tools.bun,
+    [tools.log, 'pump', dir.path, '$rotateAt', '$carry', '$hold', '$markEvery', '$progressRate'],
+    environment: {'BUN_BE_BUN': '1'},
+  );
 
   Future<void> finish(Process process) async {
     final errors = process.stderr.transform(utf8.decoder).join();
@@ -41,7 +47,26 @@ void main() {
   String progress(String id, int n) =>
       '{"type":"subagent_progress","payload":{"index":0,"progress":{"index":0,"id":"$id","n":$n}}}';
 
-  test('held progress goes out newest per tool call or subagent, released before any other line', () async {
+  /// [frame] as omp sends one over its line limit: [count] `rpc_chunk` lines, each with the base64 of its slice.
+  List<String> chunks(String frame, String chunkId, int count) {
+    final bytes = utf8.encode(frame);
+    final size = (bytes.length / count).ceil();
+    return [
+      for (var i = 0; i < count; i++)
+        '{"type":"rpc_chunk","chunkId":"$chunkId","index":$i,"count":$count,"byteLength":${bytes.length},'
+            '"data":"${base64.encode(bytes.sublist(i * size, min((i + 1) * size, bytes.length)))}"}',
+    ];
+  }
+
+  Future<void> until(bool Function() done) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (!done()) {
+      if (DateTime.now().isAfter(deadline)) fail('timed out');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+  }
+
+  test('held progress goes out newest per tool call or subagent, released before an end or a message frame', () async {
     final process = await pump(hold: 60000);
     process.stdin.write(
       [
@@ -90,6 +115,65 @@ void main() {
     }
     expect(out.readAsStringSync(), '${update('t', 2)}\n');
     await finish(process);
+  });
+
+  test('progress chunked over rpc_chunk lines is held whole and superseded like a line', () async {
+    final process = await pump(hold: 60000);
+    final first = chunks(update('toolu_1', 1), 'rpc-1', 3);
+    final second = chunks(update('toolu_1', 2), 'rpc-2', 3);
+    final agent = chunks(progress('agent-a', 1), 'rpc-3', 2);
+    final newer = chunks(progress('agent-a', 2), 'rpc-4', 2);
+    const message = '{"type":"message_update","message":{"n":1}}';
+    process.stdin.write([...first, ...agent, ...second, ...newer, message].map((line) => '$line\n').join());
+    await finish(process);
+    expect(const LineSplitter().convert(out.readAsStringSync()), [...second, ...newer, message]);
+  });
+
+  test('lifecycle, companion and response lines pass held progress they do not name', () async {
+    final process = await pump(hold: 60000);
+    const otherDone = '{"type":"subagent_lifecycle","payload":{"id":"agent-b","status":"completed"}}';
+    const done = '{"type":"subagent_lifecycle","payload":{"id":"agent-a","status":"completed"}}';
+    const event = '{"type":"ompx","kind":"event","event":"agents.changed","data":{}}';
+    const response = '{"type":"response","id":"r1","command":"get_state","success":true,"data":{}}';
+    const end = '{"type":"tool_execution_end","toolCallId":"toolu_1"}';
+    process.stdin.write(
+      [
+        update('toolu_1', 1),
+        progress('agent-a', 1),
+        otherDone,
+        done,
+        update('toolu_1', 2),
+        event,
+        response,
+        end,
+      ].map((line) => '$line\n').join(),
+    );
+    await finish(process);
+    expect(const LineSplitter().convert(out.readAsStringSync()), [
+      otherDone,
+      // The progress a passing line names goes out ahead of it.
+      progress('agent-a', 1),
+      done,
+      event,
+      response,
+      update('toolu_1', 2),
+      end,
+    ]);
+  });
+
+  test('the next progress of a tool call waits as long as its last one takes at progressRate', () async {
+    final process = await pump(hold: 50, progressRate: 1000);
+    String big(int n) =>
+        '{"type":"tool_execution_update","toolCallId":"toolu_big","partialResult":{"n":$n,"pad":"${'x' * 1500}"}}';
+    process.stdin.write('${big(1)}\n');
+    await process.stdin.flush();
+    await until(() => out.readAsStringSync().isNotEmpty);
+    // big(1) takes 1.6 s at 1000 bytes a second: big(2) waits for that, another tool call's update only for the hold.
+    process.stdin.write('${big(2)}\n${update('toolu_small', 1)}\n');
+    await process.stdin.flush();
+    await until(() => out.readAsStringSync().contains('toolu_small'));
+    await finish(process);
+    expect(const LineSplitter().convert(out.readAsStringSync()), [big(1), update('toolu_small', 1), big(2)]);
   });
 
   test(
