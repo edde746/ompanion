@@ -1,6 +1,6 @@
 # The ompanion push relay (README.md). Build context: relay/. The service account is mounted at run time
 # (docker-compose.yml); .dockerignore keeps everything but the sources out of the image.
-FROM oven/bun:1.4.0-alpine
+FROM oven/bun:1.4.4-alpine
 
 WORKDIR /app
 COPY package.json bun.lock ./
