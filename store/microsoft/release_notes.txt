@@ -1,7 +1,5 @@
-Works with omp 18.10, and installs omp 18.10.3 on a machine that lacks it.
+Works with omp 18.12, and installs omp 18.12.6 on a machine that lacks it.
 
-New: a Stats tab on the usage pane sums every machine's omp sessions into totals, a contribution grid with streaks, an activity chart, a week-by-hour grid, and model, project, tool, agent and machine lists, plus prompt stats and a word cloud of the words your prompts use most. The agent hub lists active and inactive agents apart, newest first.
+Changed: with omp 18.11.3 and later, a tool approval's notification says "Allow bash?" again, and the "Always approve" choices of omp 18.12.3 look like approvals.
 
-Changed: chat images load once a scroll settles on them, and thumbnails decode at the size they show. An account's policy line on the usage pane says when its quota is exhausted, as omp 18.10 does.
-
-Fixed: after switching back to the window, the next key no longer replaces a field's whole text. With omp 18.8.7 and later, sessions started from a device get a title again. A provider you sign in to while a session runs can be used in that session. A folded turn keeps every reply the model finished with.
+Fixed: omp installed with bun install -g can be attached to; before, opening a session on it failed with "unknown flag: -1". A session whose tools report large progress, such as an eval running many subagents, no longer keeps reconnecting. Linux machines: sending to a session at the same moment as another device no longer fails.

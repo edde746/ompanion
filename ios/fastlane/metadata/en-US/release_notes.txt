@@ -1,17 +1,10 @@
-Works with omp 18.10, and installs omp 18.10.3 on a machine that lacks it.
-
-New
-- A Stats tab on the usage pane: every machine's omp sessions summed into totals, a contribution grid with streaks, an activity chart, a week-by-hour grid, and model, project, tool, agent and machine lists
-- Prompt stats: words, questions, tone, prompt lengths, the longest prompt, prompts by hour, and a word cloud of the words your prompts use most
-- Attach from the photo library: the attach button offers Photo Library and Files
-- Paste an image copied in another app into the composer
-- The agent hub lists active and inactive agents apart, newest first
+Works with omp 18.12, and installs omp 18.12.6 on a machine that lacks it.
 
 Changed
-- Chat images load once a scroll settles on them, and thumbnails decode at the size they show
-- An account's policy line on the usage pane says when its quota is exhausted, as omp 18.10 does
+- iPhone Duo: the app fills both displays. Forms scroll above the keyboard on the outer display, the sidebar and panel backgrounds reach the screen edges, and adding a machine opens full screen when the phone is closed and as a window when it is open
+- With omp 18.11.3 and later, a tool approval's notification says "Allow bash?" again, and the "Always approve" choices of omp 18.12.3 look like approvals
 
 Fixed
-- With omp 18.8.7 and later, sessions started from your iPhone or iPad get a title again
-- A provider you sign in to, or whose key you store, while a session runs can be used in that session
-- A folded turn keeps every reply the model finished with, so an answer stays when a background job's result starts another run
+- omp installed with bun install -g can be attached to; before, opening a session on it failed with "unknown flag: -1"
+- A session whose tools report large progress, such as an eval running many subagents, no longer keeps reconnecting
+- Linux machines: sending to a session at the same moment as another device no longer fails
