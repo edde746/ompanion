@@ -257,114 +257,119 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
       ),
       content: SizedBox(
         width: 520,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: AppSegmented<bool>(
-                value: _noFolder,
-                segments: [(false, t.sessions.folder, Symbols.folder), (true, t.sessions.noFolder, Symbols.folder_off)],
-                onChanged: _setNoFolder,
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_noFolder)
-              Text(
-                t.sessions.noFolderHint,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              )
-            else
-              LabeledField(
-                label: t.sessions.directory,
-                child: TextField(
-                  key: const ValueKey('new-session-cwd'),
-                  controller: _cwd,
-                  focusNode: _cwdFocus,
-                  // Desktop fields select everything when the focus comes back from the directory picker; a typed key
-                  // would then replace the picked path.
-                  selectAllOnFocus: false,
-                  decoration: InputDecoration(
-                    hintText: t.sessions.directoryHint,
-                    suffixIcon: IconButton(
-                      tooltip: t.sessions.browse,
-                      icon: const Icon(Symbols.folder_open),
-                      onPressed: _probe == null ? null : () => unawaited(_browse()),
-                    ),
-                  ),
-                  onSubmitted: ready ? (_) => unawaited(_create()) : null,
-                ),
-              ),
-            if (!_noFolder && recent.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              LabeledField(
-                label: t.sessions.recentDirectories,
-                child: ConstrainedBox(
-                  // Five rows at most; a longer list scrolls, so the dialog keeps one height.
-                  constraints: BoxConstraints(
-                    maxHeight: (sidebarTouch(context) ? AppSizes.rowHeightTouch : AppSizes.rowHeight) * 5,
-                  ),
-                  // Part of the directory field for its tap-outside check: on desktop a click elsewhere takes the
-                  // field's focus, and a picked project is where the user goes on typing or presses Enter.
-                  child: TextFieldTapRegion(
-                    child: ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: _cwd,
-                      builder: (context, value, _) {
-                        final current = _expand(value.text.trim());
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          padding: EdgeInsets.zero,
-                          itemCount: recent.length,
-                          itemBuilder: (context, index) {
-                            final cwd = recent[index];
-                            return _RecentProject(
-                              key: ValueKey('new-session-recent-$cwd'),
-                              path: cwd,
-                              home: _probe?.home,
-                              selected: cwd == current,
-                              onTap: () => _setCwd(cwd),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            LabeledField(
-              label: t.sessions.model,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ModelField(
-                      label: _model?.name ?? t.sessions.modelDefault,
-                      tooltip: _model?.selector,
-                      busy: _loadingModels,
-                      onPressed: ready && !_loadingModels ? () => unawaited(_pickModel()) : null,
-                    ),
-                  ),
-                  if (_model != null) ...[
-                    const SizedBox(width: AppSizes.gap),
-                    // The same clear control the roles page uses to drop an assignment.
-                    IconButton(
-                      key: const ValueKey('new-session-model-default'),
-                      tooltip: t.sessions.modelUseDefault,
-                      color: theme.colorScheme.onSurface,
-                      onPressed: () => setState(() => _model = null),
-                      icon: const Icon(Symbols.close, size: 18),
-                    ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: AppSegmented<bool>(
+                  value: _noFolder,
+                  segments: [
+                    (false, t.sessions.folder, Symbols.folder),
+                    (true, t.sessions.noFolder, Symbols.folder_off),
                   ],
-                ],
+                  onChanged: _setNoFolder,
+                ),
               ),
-            ),
-            if (error != null) ...[
+              const SizedBox(height: 16),
+              if (_noFolder)
+                Text(
+                  t.sessions.noFolderHint,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                )
+              else
+                LabeledField(
+                  label: t.sessions.directory,
+                  child: TextField(
+                    key: const ValueKey('new-session-cwd'),
+                    controller: _cwd,
+                    focusNode: _cwdFocus,
+                    // Desktop fields select everything when the focus comes back from the directory picker; a typed key
+                    // would then replace the picked path.
+                    selectAllOnFocus: false,
+                    decoration: InputDecoration(
+                      hintText: t.sessions.directoryHint,
+                      suffixIcon: IconButton(
+                        tooltip: t.sessions.browse,
+                        icon: const Icon(Symbols.folder_open),
+                        onPressed: _probe == null ? null : () => unawaited(_browse()),
+                      ),
+                    ),
+                    onSubmitted: ready ? (_) => unawaited(_create()) : null,
+                  ),
+                ),
+              if (!_noFolder && recent.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                LabeledField(
+                  label: t.sessions.recentDirectories,
+                  child: ConstrainedBox(
+                    // Five rows at most; a longer list scrolls, so the dialog keeps one height.
+                    constraints: BoxConstraints(
+                      maxHeight: (sidebarTouch(context) ? AppSizes.rowHeightTouch : AppSizes.rowHeight) * 5,
+                    ),
+                    // Part of the directory field for its tap-outside check: on desktop a click elsewhere takes the
+                    // field's focus, and a picked project is where the user goes on typing or presses Enter.
+                    child: TextFieldTapRegion(
+                      child: ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _cwd,
+                        builder: (context, value, _) {
+                          final current = _expand(value.text.trim());
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            itemCount: recent.length,
+                            itemBuilder: (context, index) {
+                              final cwd = recent[index];
+                              return _RecentProject(
+                                key: ValueKey('new-session-recent-$cwd'),
+                                path: cwd,
+                                home: _probe?.home,
+                                selected: cwd == current,
+                                onTap: () => _setCwd(cwd),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
-              Text(error, style: TextStyle(color: AppColors.of(context).error)),
+              LabeledField(
+                label: t.sessions.model,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _ModelField(
+                        label: _model?.name ?? t.sessions.modelDefault,
+                        tooltip: _model?.selector,
+                        busy: _loadingModels,
+                        onPressed: ready && !_loadingModels ? () => unawaited(_pickModel()) : null,
+                      ),
+                    ),
+                    if (_model != null) ...[
+                      const SizedBox(width: AppSizes.gap),
+                      // The same clear control the roles page uses to drop an assignment.
+                      IconButton(
+                        key: const ValueKey('new-session-model-default'),
+                        tooltip: t.sessions.modelUseDefault,
+                        color: theme.colorScheme.onSurface,
+                        onPressed: () => setState(() => _model = null),
+                        icon: const Icon(Symbols.close, size: 18),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Text(error, style: TextStyle(color: AppColors.of(context).error)),
+              ],
             ],
-          ],
+          ),
         ),
       ),
       actions: [

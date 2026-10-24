@@ -28,13 +28,20 @@ Future<void> showMachineEditor(BuildContext context, {Machine? machine}) async {
   if (!context.mounted) return;
   await showDialog<void>(
     context: context,
+    // The full-screen editor's tone runs under the insets and its form stays inside them (docs/design.md, rule
+    // 13); the windowed one stays inside them whole. Decided per build: unfolding iPhone Duo widens the window.
+    useSafeArea: false,
     builder: (context) => isCompact(context)
-        ? Dialog.fullscreen(child: MachineEditor(machine: machine))
-        : Dialog(
-            clipBehavior: Clip.antiAlias,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 640, maxHeight: 800),
-              child: MachineEditor(machine: machine),
+        ? Dialog.fullscreen(
+            child: SafeArea(child: MachineEditor(machine: machine)),
+          )
+        : SafeArea(
+            child: Dialog(
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640, maxHeight: 800),
+                child: MachineEditor(machine: machine),
+              ),
             ),
           ),
   );

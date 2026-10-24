@@ -631,17 +631,19 @@ class _SummaryDialogState extends State<_SummaryDialog> {
       title: Text(t.summaryTitle),
       content: SizedBox(
         width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(t.summaryBody),
-            const SizedBox(height: 12),
-            LabeledField(
-              label: t.summaryInstructions,
-              child: TextField(controller: _instructions, autofocus: true, minLines: 2, maxLines: 6),
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(t.summaryBody),
+              const SizedBox(height: 12),
+              LabeledField(
+                label: t.summaryInstructions,
+                child: TextField(controller: _instructions, autofocus: true, minLines: 2, maxLines: 6),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [

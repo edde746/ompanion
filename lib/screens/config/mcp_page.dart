@@ -386,69 +386,71 @@ class _AddServerDialogState extends State<_AddServerDialog> {
       title: Text(t.config.mcp.addTitle),
       content: SizedBox(
         width: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            LabeledField(
-              label: t.config.mcp.name,
-              child: TextField(
-                key: const ValueKey('mcp-name'),
-                controller: _name,
-                autofocus: true,
-                decoration: InputDecoration(errorText: _nameError),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: AppSizes.gap,
-              runSpacing: AppSizes.gap,
-              children: [
-                AppSegmented<McpScope>(
-                  value: _scope,
-                  segments: [
-                    (McpScope.user, t.config.mcp.userScope, null),
-                    (McpScope.project, t.config.mcp.projectScope, null),
-                  ],
-                  disabled: {if (!widget.projectAvailable) McpScope.project},
-                  onChanged: (scope) => setState(() => _scope = scope),
-                ),
-                AppSegmented<String>(
-                  value: _transport,
-                  segments: const [('stdio', 'stdio', null), ('http', 'http', null), ('sse', 'sse', null)],
-                  onChanged: (transport) => setState(() => _transport = transport),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            LabeledField(
-              label: _transport == 'stdio' ? t.config.mcp.command : t.config.mcp.url,
-              child: TextField(
-                key: const ValueKey('mcp-target'),
-                controller: _target,
-                decoration: InputDecoration(
-                  hintText: _transport == 'stdio'
-                      ? 'npx -y @modelcontextprotocol/server-everything'
-                      : 'https://example.com/mcp',
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LabeledField(
+                label: t.config.mcp.name,
+                child: TextField(
+                  key: const ValueKey('mcp-name'),
+                  controller: _name,
+                  autofocus: true,
+                  decoration: InputDecoration(errorText: _nameError),
                 ),
               ),
-            ),
-            if (_transport != 'stdio') ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: AppSizes.gap,
+                runSpacing: AppSizes.gap,
+                children: [
+                  AppSegmented<McpScope>(
+                    value: _scope,
+                    segments: [
+                      (McpScope.user, t.config.mcp.userScope, null),
+                      (McpScope.project, t.config.mcp.projectScope, null),
+                    ],
+                    disabled: {if (!widget.projectAvailable) McpScope.project},
+                    onChanged: (scope) => setState(() => _scope = scope),
+                  ),
+                  AppSegmented<String>(
+                    value: _transport,
+                    segments: const [('stdio', 'stdio', null), ('http', 'http', null), ('sse', 'sse', null)],
+                    onChanged: (transport) => setState(() => _transport = transport),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               LabeledField(
-                label: t.config.mcp.token,
+                label: _transport == 'stdio' ? t.config.mcp.command : t.config.mcp.url,
                 child: TextField(
-                  controller: _token,
-                  enabled: _scope == McpScope.user,
-                  obscureText: true,
+                  key: const ValueKey('mcp-target'),
+                  controller: _target,
                   decoration: InputDecoration(
-                    helperText: _scope == McpScope.user ? t.config.mcp.tokenHint : t.config.mcp.tokenUserOnly,
-                    helperMaxLines: 2,
+                    hintText: _transport == 'stdio'
+                        ? 'npx -y @modelcontextprotocol/server-everything'
+                        : 'https://example.com/mcp',
                   ),
                 ),
               ),
+              if (_transport != 'stdio') ...[
+                const SizedBox(height: 12),
+                LabeledField(
+                  label: t.config.mcp.token,
+                  child: TextField(
+                    controller: _token,
+                    enabled: _scope == McpScope.user,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      helperText: _scope == McpScope.user ? t.config.mcp.tokenHint : t.config.mcp.tokenUserOnly,
+                      helperMaxLines: 2,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
       actions: [

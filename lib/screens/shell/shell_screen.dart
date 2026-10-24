@@ -290,28 +290,39 @@ class _WideShellState extends State<_WideShell> {
       child: Scaffold(
         key: _scaffoldKey,
         endDrawer: widget.inlineDock ? null : const Drawer(width: 360, child: SafeArea(child: DockPanel())),
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              _window = constraints.maxWidth;
-              final widths = paneWidths(
-                _window,
-                sidebar: sidebarOpen ? _asked(_Pane.sidebar) ?? sidebarWidth : null,
-                dock: dockOpen ? _asked(_Pane.dock) ?? dockWidth : null,
-                dockGivesWay: _dragging == _Pane.dock,
-              );
-              return Stack(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Panes are told apart by surface tone: sidebar and dock sit on surfaceContainerLow.
-                      if (sidebarOpen)
-                        SizedBox(
-                          width: widths.sidebar,
-                          child: Sidebar(key: _sidebarKey),
+        // Each pane keeps its content inside the window's insets itself, so the sidebar's and the dock's tones run
+        // under them to the window's edges (docs/design.md, rule 10): under iPad's status bar, a home indicator,
+        // iPhone Duo's status bar column.
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final insets = MediaQuery.paddingOf(context);
+            final paneTone = Theme.of(context).colorScheme.surfaceContainerLow;
+            _window = constraints.maxWidth - insets.horizontal;
+            final widths = paneWidths(
+              _window,
+              sidebar: sidebarOpen ? _asked(_Pane.sidebar) ?? sidebarWidth : null,
+              dock: dockOpen ? _asked(_Pane.dock) ?? dockWidth : null,
+              dockGivesWay: _dragging == _Pane.dock,
+            );
+            return Stack(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Panes are told apart by surface tone: sidebar and dock sit on surfaceContainerLow.
+                    if (sidebarOpen)
+                      SizedBox(
+                        width: insets.left + widths.sidebar,
+                        child: ColoredBox(
+                          color: paneTone,
+                          child: _insideInsets(context, right: false, child: Sidebar(key: _sidebarKey)),
                         ),
-                      Expanded(
+                      ),
+                    Expanded(
+                      child: _insideInsets(
+                        context,
+                        left: !sidebarOpen,
+                        right: !dockOpen,
                         child: _CenterPane(
                           sidebarOpen: sidebarOpen,
                           panelsOpen: dockOpen,
@@ -319,46 +330,62 @@ class _WideShellState extends State<_WideShell> {
                           onTogglePanels: _togglePanels,
                         ),
                       ),
-                      if (dockOpen) SizedBox(width: widths.dock, child: const DockPanel()),
-                    ],
+                    ),
+                    if (dockOpen)
+                      SizedBox(
+                        width: widths.dock + insets.right,
+                        child: ColoredBox(
+                          color: paneTone,
+                          child: _insideInsets(context, left: false, child: const DockPanel()),
+                        ),
+                      ),
+                  ],
+                ),
+                // Each edge lies on the side of its boundary without a scrollbar: the sidebar's list and the chat
+                // scroll along their right edges.
+                if (sidebarOpen)
+                  Positioned(
+                    left: insets.left + widths.sidebar,
+                    top: 0,
+                    bottom: 0,
+                    width: _PaneEdge.width,
+                    child: _PaneEdge(
+                      key: const ValueKey('sidebar-edge'),
+                      onStart: () => _startDrag(_Pane.sidebar, widths.sidebar),
+                      onDrag: (dx) => setState(() => _dragMoved += dx),
+                      onEnd: _endDrag,
+                    ),
                   ),
-                  // Each edge lies on the side of its boundary without a scrollbar: the sidebar's list and the chat
-                  // scroll along their right edges.
-                  if (sidebarOpen)
-                    Positioned(
-                      left: widths.sidebar,
-                      top: 0,
-                      bottom: 0,
-                      width: _PaneEdge.width,
-                      child: _PaneEdge(
-                        key: const ValueKey('sidebar-edge'),
-                        onStart: () => _startDrag(_Pane.sidebar, widths.sidebar),
-                        onDrag: (dx) => setState(() => _dragMoved += dx),
-                        onEnd: _endDrag,
-                      ),
+                if (dockOpen)
+                  Positioned(
+                    right: widths.dock + insets.right - _PaneEdge.width,
+                    top: 0,
+                    bottom: 0,
+                    width: _PaneEdge.width,
+                    child: _PaneEdge(
+                      key: const ValueKey('dock-edge'),
+                      onStart: () => _startDrag(_Pane.dock, widths.dock),
+                      onDrag: (dx) => setState(() => _dragMoved += dx),
+                      onEnd: _endDrag,
                     ),
-                  if (dockOpen)
-                    Positioned(
-                      right: widths.dock - _PaneEdge.width,
-                      top: 0,
-                      bottom: 0,
-                      width: _PaneEdge.width,
-                      child: _PaneEdge(
-                        key: const ValueKey('dock-edge'),
-                        onStart: () => _startDrag(_Pane.dock, widths.dock),
-                        onDrag: (dx) => setState(() => _dragMoved += dx),
-                        onEnd: _endDrag,
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
+
+/// [child] inside the window's insets; [left] or [right] false leaves that side's inset to the pane beside it.
+Widget _insideInsets(BuildContext context, {bool left = true, bool right = true, required Widget child}) =>
+    MediaQuery.removePadding(
+      context: context,
+      removeLeft: !left,
+      removeRight: !right,
+      child: SafeArea(child: child),
+    );
 
 /// The strip along a pane's inner edge that resizes the pane when dragged.
 class _PaneEdge extends StatelessWidget {
@@ -567,7 +594,10 @@ class _NarrowHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The pane's tone runs under the insets (the status bar, the home indicator, iPhone Duo's status bar column),
+    // so the pane is one surface from the window's edges (docs/design.md, rule 10); its content stays inside them.
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
       body: SafeArea(
         child: Sidebar(
           key: sidebarKey,
@@ -636,6 +666,8 @@ class _NarrowPanelsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // As the home page: the dock's tone runs under the insets beside and below it.
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
       appBar: windowAppBar(context, title: Text(context.t.shell.panels)),
       body: const SafeArea(child: DockPanel()),
     );

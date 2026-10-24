@@ -44,6 +44,11 @@ something the rules do not cover extends this document first.
     hover; the menu bar's title bar strip still covers them while it is shown). The empty parts of every top
     header row move the window, except in full screen, and a double click does what System Settings says for
     title bars. Windows and Linux keep their native frames.
+13. Screen insets belong to the panes. The status bar, the home indicator, a landscape notch and iPhone Duo's status
+    bar column (at the right of each display) are insets: a pane's tone runs under them to the screen's edges and its
+    content stays inside them; a page beside a pane leaves the inset on the pane's side to the pane. Dialog content
+    scrolls, so a form still fits above the keyboard on a short display (iPhone Duo's outer display, a phone in
+    landscape).
 
 ## Tokens
 

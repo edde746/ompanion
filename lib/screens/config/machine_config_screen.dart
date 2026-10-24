@@ -194,9 +194,15 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
                           child: SizedBox(width: double.infinity, height: kToolbarHeight),
                         ),
                       ),
-                      // The title bar took the top inset; without this, list pages would pad by it again.
+                      // The title bar took the top inset; without this, list pages would pad by it again. Lists pad
+                      // only along their scroll axis, so the page keeps clear of a right inset (iPhone Duo's status
+                      // bar column) itself.
                       Expanded(
-                        child: MediaQuery.removePadding(context: context, removeTop: true, child: page),
+                        child: MediaQuery.removePadding(
+                          context: context,
+                          removeTop: true,
+                          child: SafeArea(left: false, top: false, bottom: false, child: page),
+                        ),
                       ),
                     ],
                   ),
@@ -211,19 +217,25 @@ class _MachineConfigScreenState extends State<MachineConfigScreen> {
             children: [
               ColoredBox(
                 color: Theme.of(context).colorScheme.surfaceContainerLow,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: ConfigPills<ConfigSection>(
-                    value: _section,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    items: [
-                      for (final section in ConfigSection.values) (section, labels[section]!.$1, labels[section]!.$2),
-                    ],
-                    onChanged: (section) => setState(() => _section = section),
+                child: SafeArea(
+                  top: false,
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: ConfigPills<ConfigSection>(
+                      value: _section,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      items: [
+                        for (final section in ConfigSection.values) (section, labels[section]!.$1, labels[section]!.$2),
+                      ],
+                      onChanged: (section) => setState(() => _section = section),
+                    ),
                   ),
                 ),
               ),
-              Expanded(child: page),
+              // Lists pad only along their scroll axis: the side insets (a phone in landscape, iPhone Duo's status
+              // bar column) are the page's to keep clear of.
+              Expanded(child: SafeArea(top: false, bottom: false, child: page)),
             ],
           ),
         );

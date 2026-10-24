@@ -207,13 +207,15 @@ class _PasswordDialogState extends State<PasswordDialog> {
     final t = context.t;
     return AlertDialog(
       title: Text(t.prompt.passwordTitle(hop: widget.hop)),
-      content: LabeledField(
-        label: t.editor.password,
-        child: TextField(
-          controller: _password,
-          autofocus: true,
-          obscureText: true,
-          onSubmitted: (value) => Navigator.pop(context, value),
+      content: SingleChildScrollView(
+        child: LabeledField(
+          label: t.editor.password,
+          child: TextField(
+            controller: _password,
+            autofocus: true,
+            obscureText: true,
+            onSubmitted: (value) => Navigator.pop(context, value),
+          ),
         ),
       ),
       actions: [
@@ -260,32 +262,34 @@ class _KeyboardInteractiveDialogState extends State<KeyboardInteractiveDialog> {
         KeyboardInteractiveRequest(password: true) => t.prompt.passwordTitle(hop: request.hop),
         _ => t.prompt.signInTitle(hop: request.hop),
       }),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (refused != null)
-            Text(
-              refused.keys.isEmpty
-                  ? t.connectError.noKeys(host: request.hop)
-                  : describeRefusal(t, request.hop, refused),
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          if (request.instruction.isNotEmpty) Text(request.instruction),
-          for (final (index, prompt) in request.prompts.indexed)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: LabeledField(
-                label: prompt.text.trim(),
-                child: TextField(
-                  controller: _answers[index],
-                  autofocus: index == 0,
-                  obscureText: !prompt.echo,
-                  onSubmitted: index == request.prompts.length - 1 ? (_) => _submit() : null,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (refused != null)
+              Text(
+                refused.keys.isEmpty
+                    ? t.connectError.noKeys(host: request.hop)
+                    : describeRefusal(t, request.hop, refused),
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            if (request.instruction.isNotEmpty) Text(request.instruction),
+            for (final (index, prompt) in request.prompts.indexed)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: LabeledField(
+                  label: prompt.text.trim(),
+                  child: TextField(
+                    controller: _answers[index],
+                    autofocus: index == 0,
+                    obscureText: !prompt.echo,
+                    onSubmitted: index == request.prompts.length - 1 ? (_) => _submit() : null,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(t.common.cancel)),
@@ -326,44 +330,46 @@ class _PassphraseDialogState extends State<PassphraseDialog> {
     final key = request.publicKey;
     return AlertDialog(
       title: Text(t.prompt.passphraseTitle(path: request.path)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            key == null
-                ? t.prompt.passphraseUnknownKey(hop: request.hop)
-                : t.prompt.passphraseAccepted(hop: request.hop),
-          ),
-          if (key != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: SelectableText(
-                '${keyTypeLabel(key.type)} ${key.fingerprint}',
-                style: codeTextStyle(theme).copyWith(color: theme.colorScheme.onSurfaceVariant),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              key == null
+                  ? t.prompt.passphraseUnknownKey(hop: request.hop)
+                  : t.prompt.passphraseAccepted(hop: request.hop),
+            ),
+            if (key != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: SelectableText(
+                  '${keyTypeLabel(key.type)} ${key.fingerprint}',
+                  style: codeTextStyle(theme).copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ),
+            const SizedBox(height: 12),
+            LabeledField(
+              label: t.prompt.passphrase,
+              error: request.wrong ? t.prompt.passphraseWrong : null,
+              child: TextField(
+                controller: _passphrase,
+                autofocus: true,
+                obscureText: true,
+                onSubmitted: (_) => _submit(),
               ),
             ),
-          const SizedBox(height: 12),
-          LabeledField(
-            label: t.prompt.passphrase,
-            error: request.wrong ? t.prompt.passphraseWrong : null,
-            child: TextField(
-              controller: _passphrase,
-              autofocus: true,
-              obscureText: true,
-              onSubmitted: (_) => _submit(),
-            ),
-          ),
-          // Without a public key there is no fingerprint to keep the passphrase under.
-          if (key != null)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(t.prompt.rememberPassphrase),
-              value: _remember,
-              onChanged: (value) => setState(() => _remember = value ?? false),
-            ),
-        ],
+            // Without a public key there is no fingerprint to keep the passphrase under.
+            if (key != null)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(t.prompt.rememberPassphrase),
+                value: _remember,
+                onChanged: (value) => setState(() => _remember = value ?? false),
+              ),
+          ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(t.common.cancel)),
