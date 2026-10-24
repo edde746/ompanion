@@ -211,6 +211,11 @@ The client replies with one of:
 - `{"type":"extension_ui_response","id":"<same>","value":"Approve"}`
 - `"value":"Deny"` or `"cancelled":true` → the tool fails with "Tool call denied by user: <name>"
 
+Later omps keep the title and `"Deny"` last but add choices (`approvalChoiceLabels`, tools/approval.ts): 18.11.3 puts
+`"Approve <subject> for this session"` before `"Deny"`; 18.12.3 puts the `always-ask-cached` grants first
+(`"Approve Directory: <dir>"`, `"Approve File"`, then their `"Always …"` forms) and says `"Approve Once"` for
+`"Approve"` beside them. Each of those labels but `"Deny"` approves; a label omp did not offer denies.
+
 If the call is aborted, the server sends `{"type":"extension_ui_request","id":"…","method":"cancel","targetId":"<id>"}`.
 
 There is no timeout. `tool_execution_start` precedes the prompt. The `tool_approval_requested` / `tool_approval_resolved` events go to extensions only, not to the RPC stream.

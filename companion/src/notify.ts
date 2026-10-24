@@ -394,10 +394,15 @@ export function notifyDone(body: string): void {
 	else send("done", body);
 }
 
-/** omp's tool approval (extensions/wrapper.ts): `select("Allow tool: <name>\n…", ["Approve", "Deny"])`. */
+/**
+ * omp's tool approval over RPC: `select("Allow tool: <name>\n…", choices)`. The choices are `["Approve", "Deny"]` up
+ * to 18.11.2; 18.11.3 puts the session choice before "Deny", and 18.12.3 (`approvalChoiceLabels`, tools/approval.ts)
+ * puts grants first, with "Approve Once" for "Approve" beside them.
+ */
 function selectBody(title: string, options: readonly ExtensionUISelectItem[]): string {
 	const first = title.split("\n", 1)[0] ?? "";
-	const approval = options.length === 2 && options[0] === "Approve" && options[1] === "Deny";
+	const approval =
+		options.at(-1) === "Deny" && options.some(option => option === "Approve" || option === "Approve Once");
 	return approval && first.startsWith("Allow tool: ") ? `Allow ${first.slice("Allow tool: ".length)}?` : title;
 }
 

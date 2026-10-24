@@ -274,7 +274,7 @@
       "kill": "Kill",
       "killed": "Agent killed.",
       "killTitle": "Kill $name?",
-      "killBody": "Its running turn is aborted and the agent is released for good. It cannot be revived.",
+      "killBody": "Its running turn is aborted and the agent is released.",
       "copyId": "Copy agent id",
       "steer": "Send",
       "steered": "Sent to the agent.",

@@ -539,7 +539,7 @@ final class SelectRequest extends UiRequest {
 }
 
 /// A tool approval: omp's `select` titled `Allow tool: <name>` (`formatApprovalPrompt`, `tools/approval.ts`). Answer
-/// with one of [options] (`Approve`, `Deny`) or cancel.
+/// with one of [options] (`Approve` and `Deny`; from omp 18.11.3 also a session choice, from 18.12.3 grants) or cancel.
 final class ApprovalRequest extends UiRequest {
   const ApprovalRequest(
     super.id, {

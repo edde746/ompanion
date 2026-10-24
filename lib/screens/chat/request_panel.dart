@@ -420,8 +420,12 @@ class _RequestContentState extends State<RequestContent> {
     );
   }
 
-  static bool _isApprove(String option) =>
-      option.toLowerCase().startsWith('approve') || option.toLowerCase() == 'allow';
+  /// Every label omp offers but `Deny` approves: `Approve`, `Approve Once`, `Approve <tool> for this session`, and
+  /// since 18.12.3 the grants (`Approve File`, `Always Approve Directory: <dir>`, …).
+  static bool _isApprove(String option) {
+    final label = option.toLowerCase();
+    return label.startsWith('approve') || label.startsWith('always approve') || label == 'allow';
+  }
 }
 
 class _ApprovalBody extends StatelessWidget {

@@ -2909,8 +2909,8 @@ class Translations$dock$hub$en {
 	/// en: 'Kill $name?'
 	String killTitle({required Object name}) => 'Kill ${name}?';
 
-	/// en: 'Its running turn is aborted and the agent is released for good. It cannot be revived.'
-	String get killBody => 'Its running turn is aborted and the agent is released for good. It cannot be revived.';
+	/// en: 'Its running turn is aborted and the agent is released.'
+	String get killBody => 'Its running turn is aborted and the agent is released.';
 
 	/// en: 'Copy agent id'
 	String get copyId => 'Copy agent id';
@@ -4632,7 +4632,7 @@ extension on Translations {
 			'dock.hub.kill' => 'Kill',
 			'dock.hub.killed' => 'Agent killed.',
 			'dock.hub.killTitle' => ({required Object name}) => 'Kill ${name}?',
-			'dock.hub.killBody' => 'Its running turn is aborted and the agent is released for good. It cannot be revived.',
+			'dock.hub.killBody' => 'Its running turn is aborted and the agent is released.',
 			'dock.hub.copyId' => 'Copy agent id',
 			'dock.hub.steer' => 'Send',
 			'dock.hub.steered' => 'Sent to the agent.',

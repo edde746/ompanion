@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "
 import { lstat, mkdir, readdir, readFile, symlink, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth/sqlite-credential-store";
-import { type Frame, OmpDriver } from "./driver.ts";
+import { type Frame, OMP_VERSION, OmpDriver } from "./driver.ts";
 
 setDefaultTimeout(60_000);
 
@@ -116,10 +116,15 @@ describe("subagents", () => {
 		expect(JSON.stringify((await omp.fake.requests())[count + 1]?.body)).toContain("and thanks");
 	});
 
-	test("kill tombstones the agent so it can never be revived", async () => {
+	test("kill tombstones the agent; omp revives it again only from 18.12.3", async () => {
 		expect(await omp.call("subagent.kill", { id: "Helper" })).toEqual({ id: "Helper", released: true, status: "aborted" });
 		expect(agent(await omp.call("agents.list"), "Helper")?.status).toBe("aborted");
-		expect((await omp.callError("subagent.revive", { id: "Helper" })).code).toBe("failed");
+		if (Bun.semver.order(OMP_VERSION, "18.12.3") >= 0) {
+			// AgentLifecycleManager.ensureLive reopens the killed transcript as a fresh parked generation.
+			expect(await omp.call("subagent.revive", { id: "Helper" })).toEqual({ id: "Helper", status: "idle" });
+		} else {
+			expect((await omp.callError("subagent.revive", { id: "Helper" })).code).toBe("failed");
+		}
 		expect((await omp.callError("subagent.kill", { id: "Nobody" })).code).toBe("not_found");
 		expect((await omp.callError("subagent.steer", { id: "Main", text: "hi" })).code).toBe("bad_request");
 		expect((await omp.callError("subagent.steer", { id: "Helper", text: " " })).code).toBe("bad_request");

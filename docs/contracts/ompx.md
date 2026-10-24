@@ -392,21 +392,24 @@ registry changes. Advisors are listed read-only, as in the TUI agent hub.
 
 ### subagent.steer
 
-`args: {id: string, text: string}` → `result: {id, delivery: "steer" | "prompt"}`. Revives a parked agent,
-then sends `text` with `streamingBehavior: "steer"`: `steer` when it joined a running turn, `prompt` when it
-started a turn on an idle agent (the reply comes once that turn started). `not_found` for an unknown id,
-`bad_request` for the main agent (use RPC `steer`) or an advisor, `failed` when the agent cannot be revived.
+`args: {id: string, text: string}` → `result: {id, delivery: "steer" | "prompt"}`. Revives a parked agent (and,
+from omp 18.12.3, an `aborted` one, as `subagent.revive`), then sends `text` with `streamingBehavior: "steer"`:
+`steer` when it joined a running turn, `prompt` when it started a turn on an idle agent (the reply comes once that
+turn started). `not_found` for an unknown id, `bad_request` for the main agent (use RPC `steer`) or an advisor,
+`failed` when the agent cannot be revived.
 
 ### subagent.kill
 
 `args: {id: string}` → `result: {id, released: boolean, status: string | null}`. Aborts a running turn and
-releases the agent with a tombstone, so it stays `aborted` and is never revived. Same id rules as
-`subagent.steer`.
+releases the agent with a tombstone, so it stays `aborted`: a persisted-agent scan lists it as killed, not parked.
+Before omp 18.12.3 nothing revives it; from 18.12.3 a revive, a steer or a message from another agent reopens its
+transcript (`AgentLifecycleManager.ensureLive`). Same id rules as `subagent.steer`.
 
 ### subagent.revive
 
-`args: {id: string}` → `result: {id, status: string | null}`. Brings a parked agent back to `idle`. `failed`
-for an `aborted` agent. Same id rules as `subagent.steer`.
+`args: {id: string}` → `result: {id, status: string | null}`. Brings a parked agent back to `idle`, and from omp
+18.12.3 an `aborted` one whose transcript omp can resume. `failed` for an agent omp cannot revive (an `aborted` one
+before 18.12.3). Same id rules as `subagent.steer`.
 
 ### exec.bash
 
