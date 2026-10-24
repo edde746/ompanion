@@ -258,7 +258,8 @@ void main() {
     final home = Directory.systemTemp.createTempSync('ompanion-picker-');
     addTearDown(() => home.deleteSync(recursive: true));
     final omp = File('${home.path}/.local/bin/omp')..createSync(recursive: true);
-    omp.writeAsStringSync('#!/bin/sh\necho omp/18.3.1\n');
+    // omp's standalone binary: Bun itself once BUN_BE_BUN is set.
+    omp.writeAsStringSync('#!/bin/sh\nif [ -n "\$BUN_BE_BUN" ]; then echo 1.4.3; else echo omp/18.3.1; fi\n');
     Process.runSync('chmod', ['+x', omp.path]);
     FlutterSecureStorage.setMockInitialValues({});
     final db = AppDatabase(NativeDatabase.memory());

@@ -132,9 +132,15 @@ Future<HostProcess> startPosixScript(HostLink link, String script) async {
 /// break. Its variables are prefixed, since shell functions share the script's. It reads the clock every tenth try:
 /// a Mac that coalesces timers sleeps about 0.11 s for `sleep 0.01` (measured 2026-10-07), so with every hundredth
 /// try a lock was broken or given up on 11 s late. `date +%s` counts whole seconds, so both waits compare with `-gt`:
-/// a difference of more than N whole seconds is at least N real ones.
+/// a difference of more than N whole seconds is at least N real ones. `mtime` picks GNU or BSD `stat` once, since
+/// GNU's `stat -f` reports the file system: run after a GNU `stat` that failed on a lock released meanwhile, it prints
+/// that report once the lock is taken again, and `$((…))` ends the script on it.
 const posixLockFunctions = r'''
-mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
+if stat -c %s / >/dev/null 2>&1; then
+  mtime() { stat -c %Y "$1" 2>/dev/null; }
+else
+  mtime() { stat -f %m "$1" 2>/dev/null; }
+fi
 lock() {
   lock_n=0; lock_e=0; lock_s=
   until mkdir "$1" 2>/dev/null; do

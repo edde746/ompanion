@@ -120,7 +120,8 @@ void main() {
 
   void installOmp(String version) {
     final omp = File('${home.path}/.local/bin/omp')..createSync(recursive: true);
-    omp.writeAsStringSync('#!/bin/sh\necho omp/$version\n');
+    // omp's standalone binary: Bun itself once BUN_BE_BUN is set.
+    omp.writeAsStringSync('#!/bin/sh\nif [ -n "\$BUN_BE_BUN" ]; then echo 1.4.3; else echo omp/$version; fi\n');
     Process.runSync('chmod', ['+x', omp.path]);
   }
 

@@ -7,6 +7,7 @@ import 'package:omp_core/channel.dart';
 import 'package:omp_core/host.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/src/channel/detached_channel.dart' show inlineAppendLimit;
+import 'package:omp_core/src/channel/detached_run.dart' show pumpArguments;
 import 'package:omp_core/src/channel/follow.dart' show imageRefWindow;
 import 'package:omp_core/src/channel/log_script.dart' show attachWindow;
 import 'package:omp_core/transport.dart';
@@ -234,7 +235,18 @@ void main() {
         final frames = Frames(channel.lines);
         final pump = await Process.start(
           tools.bun,
-          [tools.log, 'pump', dir, '16384', '4096', '0', '1024'],
+          [
+            tools.log,
+            'pump',
+            dir,
+            ...pumpArguments((
+              rotateAt: 16384,
+              carry: 4096,
+              hold: Duration.zero,
+              markEvery: 1024,
+              progressRate: logLimits.progressRate,
+            )).split(' '),
+          ],
           environment: {'BUN_BE_BUN': '1'},
         );
         final pumpErrors = pump.stderr.transform(utf8.decoder).join();

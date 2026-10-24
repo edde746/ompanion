@@ -113,7 +113,7 @@ final class _Process extends Fake implements HostProcess {
       'home': '/home/u',
       'agentDir': '/home/u/.omp/agent',
       'omps': [
-        {'path': '/home/u/.local/bin/omp', 'version': '18.3.1'},
+        {'path': '/home/u/.local/bin/omp', 'version': '18.3.1', 'bun': '/home/u/.local/bin/omp'},
       ],
     });
     final answer = switch (script) {

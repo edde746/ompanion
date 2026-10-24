@@ -316,7 +316,8 @@ void main() {
   test('after omp was updated, the next control call ends the old control and starts one on the new omp', () async {
     final machineRuntime = runtime('device-a');
     final old = await machineRuntime.control();
-    // An update replaces the binary at the same path; a wrapper that reports another version stands in for it.
+    // An update replaces the binary at the same path; a wrapper that reports another version stands in for it, and
+    // stays the standalone binary's Bun once BUN_BE_BUN is set.
     final omp = '${machine.home}/.local/bin/omp';
     final pinned = await Link(omp).target();
     await Link(omp).delete();
@@ -325,7 +326,8 @@ void main() {
       await Link(omp).create(pinned);
     });
     await File(omp).writeAsString(
-      '#!/bin/sh\n[ "\$1" = --version ] && { echo omp/99.0.0; exit 0; }\nexec ${shQuote(pinned)} "\$@"\n',
+      '#!/bin/sh\n[ "\$1" = --version ] && [ -z "\$BUN_BE_BUN" ] && { echo omp/99.0.0; exit 0; }\n'
+      'exec ${shQuote(pinned)} "\$@"\n',
     );
     await Process.run('chmod', ['+x', omp]);
     expect(await machineRuntime.control(), same(old), reason: 'no probe has seen the new omp yet');
