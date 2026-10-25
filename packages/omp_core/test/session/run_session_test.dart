@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:omp_core/session.dart';
 import 'package:omp_core/src/session/run_session.dart';
@@ -522,6 +523,55 @@ void main() {
     expect(access.attaches.last.generation, 1);
     expect(seeds(), seeded, reason: 'the view went on as it was');
     expect(texts(live.view), ['user: one', 'assistant: two']);
+    await live.detach();
+  });
+
+  test('a rebuild after a session switch or a rotation gap reads the history from the file get_state names', () async {
+    // omp refuses to send a long history whole (here: over one question), so every rebuild takes it from the file.
+    run.responseLimit = 2500;
+    Map<String, Object?> long(String id, String? parent, int n) =>
+        entry(id, parent, n.isOdd ? user('question $n ${'x' * 1500}', n) : assistant(n, [text('answer $n')]));
+    Uint8List file(List<Map<String, Object?>> entries) => utf8.encode('${entries.map(jsonEncode).join('\n')}\n');
+    final old = [long('e1', null, 1), long('e2', 'e1', 2), long('e3', 'e2', 3)];
+    run.entries.addAll(old);
+    access.files[run.sessionFile!] = file(old);
+    final live = session(
+      recordedPath: run.sessionFile,
+      backoff: (attempt) => attempt == 1 ? Duration.zero : const Duration(hours: 1),
+    );
+    await live.start();
+    expect(texts(live.view), hasLength(3));
+
+    final s2 = '/home/me/.omp/agent/sessions/-work/s2.jsonl';
+    final switched = [long('n1', null, 1), long('n2', 'n1', 2), long('n3', 'n2', 3), long('n4', 'n3', 4)];
+    run
+      ..sessionFile = s2
+      ..sessionId = 's2'
+      ..entries.clear()
+      ..entries.addAll(switched);
+    access.files[s2] = file(switched.take(3).toList());
+    run.emit({
+      'id': 'dev-b:1',
+      'type': 'response',
+      'command': 'new_session',
+      'success': true,
+      'data': {'cancelled': false},
+    });
+    await until(() => live.view.config.sessionId == 's2' && live.view.resyncReason == null);
+    expect([for (final item in live.view.transcript) item.entryId], ['n1', 'n2', 'n3', 'n4']);
+    expect(live.view.notices, isEmpty);
+
+    access.attachError = StateError('still down');
+    run.dropChannels();
+    await until(() => states.whereType<LinkReconnecting>().length == 2);
+    final missed = long('n5', 'n4', 5);
+    run.emit(messageEnd(missed['message']! as Map<String, Object?>, 'm5'));
+    run.entries.add(missed);
+    run.rotate();
+    access.attachError = null;
+    live.reconnectNow();
+    await until(() => live.linkState is LinkLive && live.view.transcript.length == 5);
+    expect([for (final item in live.view.transcript) item.entryId], ['n1', 'n2', 'n3', 'n4', 'n5']);
     await live.detach();
   });
 

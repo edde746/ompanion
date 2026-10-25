@@ -222,10 +222,11 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   of app memory. `in.jsonl` is read from 0 (open dialogs and the answers that closed them). The device then seeds the
   view from `get_state`, the session history, `get_available_commands`, `get_subagents` and the companion's `hello`,
   `state.snapshot` and `agents.list`. The history is the session file `meta.json` names, read while omp
-  starts, plus `get_entries(since)` its last entry (a file over 16 MB: its last 2 MB, earlier 2 MB pages as the reader
-  scrolls up); plain `get_entries` when there is no file or omp does not
-  know that entry. Every frame, and every `extension_ui_response` any device appends, goes through the
-  reducer.
+  starts (a rebuild after a session change or a rotation gap: the file `get_state` names), plus `get_entries(since)`
+  its last entry (a file over 16 MB: its last 2 MB, earlier 2 MB pages as the reader scrolls up); plain `get_entries`
+  only when there is no file or omp does not know that entry, because omp refuses a response over 64 MiB and a 260 MB
+  session file's history exceeds it. Every frame, and every `extension_ui_response` any device appends, goes through
+  the reducer.
 - Send: one long-running appender per channel, started with the attach, takes `in.lock` per line; lines over 64 KiB
   are uploaded first.
 - Link loss: a session reconnects with jittered backoff (1 s doubling to 30 s) and continues from the last

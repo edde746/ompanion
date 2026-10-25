@@ -363,8 +363,9 @@ final class RunSession implements LiveSession {
   /// log, after the dialogs, statuses, widgets and tool lifecycle from before it (`attachRun`). It also reads the
   /// commands, subscribes to subagent progress and looks for the companion. Any other seed (a resync, a rotation gap)
   /// keeps what RPC cannot list again: open dialogs, statuses, widgets, toasts, the goal, the loop and the commands;
-  /// the companion's snapshot then replaces the goal and the loop. Frames after the response apply on top. With
-  /// [fileEntries], the history starts from the session file ([_entriesAfter]).
+  /// the companion's snapshot then replaces the goal and the loop. Frames after the response apply on top. The history
+  /// starts from the session file ([_entriesAfter]): [fileEntries] when the attach read it while omp started, else the
+  /// file `get_state` names ([_stateFileEntries]).
   Future<void> _seed(_Attachment attachment, {required bool fresh, Future<_FilePage?>? fileEntries}) async {
     _seeding = true;
     final rpc = attachment.rpc;
@@ -375,9 +376,10 @@ final class RunSession implements LiveSession {
     final stateId = rpc.nextId();
     final state = rpc.request('get_state', const {}, stateId)..ignore();
     final path = _sessionPath;
-    if (fileEntries == null || path == null) _historyFrom = 0;
     final entries =
-        (fileEntries == null || path == null ? rpc.getEntries() : _entriesAfter(rpc, path, fileEntries, state))
+        (fileEntries == null || path == null
+              ? _stateFileEntries(rpc, state)
+              : _entriesAfter(rpc, path, fileEntries, state))
           ..ignore();
     final subagents = rpc.getSubagents()..ignore();
     final subscribed = fresh ? (rpc.setSubagentSubscription(SubagentSubscription.progress)..ignore()) : null;
@@ -498,6 +500,19 @@ final class RunSession implements LiveSession {
       final entries = await Isolate.run(() => sessionFileEntries(Uint8List.sublistView(bytes, skip)));
       return entries == null ? null : (entries: entries, from: start + skip);
     }
+  }
+
+  /// [_entriesAfter] for the session file [state] names: a first attach that knew no file, or a rebuild after a session
+  /// change or a rotation gap, where omp may hold another file than [_sessionPath]. Never a plain `get_entries` while
+  /// there is a file: omp refuses a response over 64 MiB ("RPC response exceeded the transport limit"), and a 260 MB
+  /// session file's history is one.
+  Future<RpcEntries> _stateFileEntries(RpcClient rpc, Future<Object?> state) async {
+    final path = asJsonObject(await state, 'get_state result').optString('sessionFile');
+    if (path == null) {
+      _historyFrom = 0;
+      return rpc.getEntries();
+    }
+    return _entriesAfter(rpc, path, _readEntries(path), state);
   }
 
   /// [file]'s entries plus what omp appended after the last of them (`get_entries` since it), read back far enough to

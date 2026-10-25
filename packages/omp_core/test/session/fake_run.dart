@@ -41,6 +41,9 @@ final class FakeRun {
   /// Commands the fake does not answer itself; the test answers them with [respond] and [emit].
   void Function(Map<String, Object?> command)? onCommand;
 
+  /// omp's transport limit (64 MiB on protocol v2) in bytes when set: [respond] refuses a larger response as omp does.
+  int? responseLimit;
+
   /// Every line any channel appended to `in.jsonl`, decoded.
   final received = <Map<String, Object?>>[];
 
@@ -62,7 +65,13 @@ final class FakeRun {
   /// Appends one frame to `out.jsonl`; every attached channel reads it.
   void emit(Map<String, Object?> frame) => _write(utf8.encode('${jsonEncode(frame)}\n'));
 
-  void respond(Map<String, Object?> command, [Object? data]) => emit(response(command, data));
+  void respond(Map<String, Object?> command, [Object? data]) {
+    final frame = response(command, data);
+    if (responseLimit case final limit? when utf8.encode(jsonEncode(frame)).length > limit) {
+      return reject(command, 'RPC response exceeded the transport limit');
+    }
+    emit(frame);
+  }
 
   void reject(Map<String, Object?> command, String error, {String? code}) => emit({
     'id': command['id'],
