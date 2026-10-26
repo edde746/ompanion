@@ -37,8 +37,13 @@ import 'queue_list.dart';
 import 'slash_palette.dart';
 import 'transcript/markdown.dart' show markdownLineHeight;
 
-/// The toolbar's icon buttons: one control tall, as its pickers and text buttons are (docs/design.md rule 4).
-const _toolbarIcon = BoxConstraints.tightFor(width: AppSizes.control, height: AppSizes.control);
+/// The toolbar's icon buttons: one control tall, as its pickers and text buttons are (docs/design.md rule 4). Touch
+/// platforms would pad each to a 48 px tap target, and the row with it, 6 px past the toolbar's 8 px insets.
+const _toolbarIcon = ButtonStyle(
+  minimumSize: WidgetStatePropertyAll(Size.square(AppSizes.control)),
+  maximumSize: WidgetStatePropertyAll(Size.square(AppSizes.control)),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+);
 
 /// Image types an Android keyboard may insert (a GIF, a sticker, a copied image in its clipboard).
 const _keyboardImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -641,8 +646,9 @@ class _ComposerState extends State<Composer> {
           final mention = palette.isEmpty ? _mention() : null;
           final attachments = _draft.attachments;
           final canSend = !_sending && (!closed || reopens);
+          // The chat keeps the room under the block: 8 px, or the home indicator's inset.
           return Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -809,7 +815,7 @@ class _ComposerState extends State<Composer> {
                                     key: const ValueKey('follow-up'),
                                     tooltip: t.composer.followUp,
                                     icon: const Icon(Symbols.schedule, size: 20),
-                                    constraints: _toolbarIcon,
+                                    style: _toolbarIcon,
                                     onPressed: canSend ? followUp : null,
                                   ),
                                   const SizedBox(width: 4),
@@ -817,7 +823,7 @@ class _ComposerState extends State<Composer> {
                                     key: const ValueKey('steer'),
                                     tooltip: t.composer.steer,
                                     icon: const Icon(Symbols.subdirectory_arrow_right, size: 20),
-                                    constraints: _toolbarIcon,
+                                    style: _toolbarIcon,
                                     onPressed: canSend ? steer : null,
                                   ),
                                 ] else if (data.running && !closed) ...[
@@ -837,7 +843,7 @@ class _ComposerState extends State<Composer> {
                                     key: const ValueKey('send'),
                                     tooltip: t.composer.send,
                                     icon: const Icon(Symbols.arrow_upward, size: 20),
-                                    constraints: _toolbarIcon,
+                                    style: _toolbarIcon,
                                     onPressed: canSend ? steer : null,
                                   ),
                               ],
@@ -913,7 +919,7 @@ class _AttachButtonState extends State<_AttachButton> {
       key: const ValueKey('attach'),
       tooltip: t.composer.attach,
       icon: const Icon(Symbols.attach_file, size: 20),
-      constraints: _toolbarIcon,
+      style: _toolbarIcon,
       color: Theme.of(context).colorScheme.onSurfaceVariant,
       onPressed: onPressed,
     );
@@ -1120,7 +1126,7 @@ class _ExternalComposer extends StatelessWidget {
       (false, false) => name == null ? t.composer.externalIdleNoMachine : t.composer.externalIdle(machine: name),
     };
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       child: Material(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: const BorderRadius.all(Radius.circular(AppSizes.cardRadius)),

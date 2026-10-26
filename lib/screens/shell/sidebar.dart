@@ -274,61 +274,65 @@ class SidebarState extends State<Sidebar> {
     final muted = theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     return Material(
       color: theme.colorScheme.surfaceContainerLow,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _header(context),
-          Expanded(
-            child: machines.loaded && machines.machines.isEmpty
-                ? Center(child: Text(t.sidebar.noMachines, style: muted))
-                : searching && rows.isEmpty
-                ? Center(child: Text(t.sidebar.noMatches, style: muted))
-                : ListView.custom(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    // Every row's height is known, so the scroll extent is exact and stays put while scrolling.
-                    itemExtentBuilder: (index, _) => index < rows.length ? extents[index] : null,
-                    childrenDelegate: _RowsDelegate(
-                      (context, index) {
-                        final row = rows[index];
-                        return KeyedSubtree(
-                          key: ValueKey(row.key),
-                          child: _row(
-                            context,
-                            row,
-                            settings: settings,
-                            selection: selection,
-                            reads: reads,
-                            searching: searching,
-                          ),
-                        );
-                      },
-                      childCount: rows.length,
-                      extent: extents.fold(0.0, (sum, extent) => sum + extent),
-                      findChildIndexCallback: (key) => indexOf[(key as ValueKey<String>).value],
+      // The home indicator's inset is the room under the last row; without one, 8 px.
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _header(context),
+            Expanded(
+              child: machines.loaded && machines.machines.isEmpty
+                  ? Center(child: Text(t.sidebar.noMachines, style: muted))
+                  : searching && rows.isEmpty
+                  ? Center(child: Text(t.sidebar.noMatches, style: muted))
+                  : ListView.custom(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      // Every row's height is known, so the scroll extent is exact and stays put while scrolling.
+                      itemExtentBuilder: (index, _) => index < rows.length ? extents[index] : null,
+                      childrenDelegate: _RowsDelegate(
+                        (context, index) {
+                          final row = rows[index];
+                          return KeyedSubtree(
+                            key: ValueKey(row.key),
+                            child: _row(
+                              context,
+                              row,
+                              settings: settings,
+                              selection: selection,
+                              reads: reads,
+                              searching: searching,
+                            ),
+                          );
+                        },
+                        childCount: rows.length,
+                        extent: extents.fold(0.0, (sum, extent) => sum + extent),
+                        findChildIndexCallback: (key) => indexOf[(key as ValueKey<String>).value],
+                      ),
                     ),
-                  ),
-          ),
-          const SizedBox(height: 4),
-          _NavTile(
-            icon: Symbols.key,
-            label: t.sidebar.keys,
-            selected: selection is KeysSelection,
-            onTap: () => context.read<ShellProvider>().select(const KeysSelection()),
-          ),
-          _NavTile(
-            icon: Symbols.speed,
-            label: t.sidebar.usage,
-            selected: selection is UsageSelection,
-            onTap: () => context.read<ShellProvider>().select(const UsageSelection()),
-          ),
-          _NavTile(
-            icon: Symbols.settings,
-            label: t.sidebar.settings,
-            selected: selection is SettingsSelection,
-            onTap: () => context.read<ShellProvider>().select(const SettingsSelection()),
-          ),
-          const SizedBox(height: 8),
-        ],
+            ),
+            const SizedBox(height: 4),
+            _NavTile(
+              icon: Symbols.key,
+              label: t.sidebar.keys,
+              selected: selection is KeysSelection,
+              onTap: () => context.read<ShellProvider>().select(const KeysSelection()),
+            ),
+            _NavTile(
+              icon: Symbols.speed,
+              label: t.sidebar.usage,
+              selected: selection is UsageSelection,
+              onTap: () => context.read<ShellProvider>().select(const UsageSelection()),
+            ),
+            _NavTile(
+              icon: Symbols.settings,
+              label: t.sidebar.settings,
+              selected: selection is SettingsSelection,
+              onTap: () => context.read<ShellProvider>().select(const SettingsSelection()),
+            ),
+          ],
+        ),
       ),
     );
   }

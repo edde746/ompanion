@@ -174,11 +174,15 @@ class ExtensionWidgets extends StatelessWidget {
             if ((value.placement ?? WidgetPlacement.aboveEditor) == placement && value.lines.isNotEmpty) (key, value),
         ];
         if (shown.isEmpty) return const SizedBox.shrink();
-        return Column(
+        final panels = Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [for (final (key, widget) in shown) _WidgetPanel(key: ValueKey(key), name: key, widget: widget)],
         );
+        // The composer above keeps no margin under its block.
+        return placement == WidgetPlacement.belowEditor
+            ? Padding(padding: const EdgeInsets.only(top: 8), child: panels)
+            : panels;
       },
     );
   }

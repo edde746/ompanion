@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ompanion/app/palette.dart';
 import 'package:ompanion/app/theme.dart';
 import 'package:ompanion/database/app_database.dart';
 import 'package:ompanion/i18n/strings.g.dart';
@@ -292,7 +293,7 @@ void main() {
     return session;
   }
 
-  Future<_Session> pumpComposer(WidgetTester tester, [_Session? shown]) async {
+  Future<_Session> pumpComposer(WidgetTester tester, [_Session? shown, ThemeData? theme]) async {
     final session = shown ?? await attachedSession(tester);
     await tester.pumpWidget(
       Provider<AttachmentSource>.value(
@@ -301,6 +302,7 @@ void main() {
           value: sessions,
           child: TranslationProvider(
             child: MaterialApp(
+              theme: theme,
               home: Scaffold(
                 body: AttachmentDropTarget(
                   session: session,
@@ -389,6 +391,26 @@ void main() {
 
     await tearDownProviders(tester);
   });
+
+  testWidgets(
+    "on a touch screen the toolbar's send and steer buttons sit 8 px inside the block's bottom and right edges",
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    (tester) async {
+      // Built for iOS, where buttons pad themselves to a 48 px tap target unless their style shrink-wraps them.
+      final session = await pumpComposer(tester, null, appTheme(AppPalette.dark));
+      final block = find.ancestor(of: composer, matching: find.byType(Material)).first;
+      for (final (running, key) in [(false, 'send'), (true, 'steer')]) {
+        session.emit(session.view.copyWith(run: RunState(running: running)));
+        // The view stream delivers after the first frame; the second one shows the run's buttons.
+        await tester.pump();
+        await tester.pump();
+        final ink = find.descendant(of: find.byKey(ValueKey(key)), matching: find.byType(Material)).first;
+        expect(tester.getRect(block).bottomRight - tester.getRect(ink).bottomRight, const Offset(8, 8), reason: key);
+      }
+
+      await tearDownProviders(tester);
+    },
+  );
 
   testWidgets('a slash command after a prompt opens the palette; ! after it starts an exec run', (tester) async {
     final session = await pumpComposer(tester);

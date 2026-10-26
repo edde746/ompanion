@@ -93,14 +93,19 @@ class ChatScreen extends StatelessWidget {
                 ),
               ),
             ),
-            column([
-              CommandOutputs(key: ObjectKey(session), session: session),
-              ExecPanel(session: session),
-              ExtensionWidgets(session: session, placement: WidgetPlacement.aboveEditor),
-              RequestPanel(session: session),
-              SafeArea(top: false, child: Composer(session: session)),
-              ExtensionWidgets(session: session, placement: WidgetPlacement.belowEditor),
-            ]),
+            // The home indicator's inset is the room under the composer; without one, 8 px.
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.only(bottom: 8),
+              child: column([
+                CommandOutputs(key: ObjectKey(session), session: session),
+                ExecPanel(session: session),
+                ExtensionWidgets(session: session, placement: WidgetPlacement.aboveEditor),
+                RequestPanel(session: session),
+                Composer(session: session),
+                ExtensionWidgets(session: session, placement: WidgetPlacement.belowEditor),
+              ]),
+            ),
           ],
         ),
       ),

@@ -315,7 +315,7 @@ class _WideShellState extends State<_WideShell> {
                         width: insets.left + widths.sidebar,
                         child: ColoredBox(
                           color: paneTone,
-                          child: _insideInsets(context, right: false, child: Sidebar(key: _sidebarKey)),
+                          child: _insideInsets(context, right: false, bottom: false, child: Sidebar(key: _sidebarKey)),
                         ),
                       ),
                     Expanded(
@@ -323,6 +323,7 @@ class _WideShellState extends State<_WideShell> {
                         context,
                         left: !sidebarOpen,
                         right: !dockOpen,
+                        bottom: false,
                         child: _CenterPane(
                           sidebarOpen: sidebarOpen,
                           panelsOpen: dockOpen,
@@ -378,14 +379,20 @@ class _WideShellState extends State<_WideShell> {
   }
 }
 
-/// [child] inside the window's insets; [left] or [right] false leaves that side's inset to the pane beside it.
-Widget _insideInsets(BuildContext context, {bool left = true, bool right = true, required Widget child}) =>
-    MediaQuery.removePadding(
-      context: context,
-      removeLeft: !left,
-      removeRight: !right,
-      child: SafeArea(child: child),
-    );
+/// [child] inside the window's insets; [left] or [right] false leaves that side's inset to the pane beside it, [bottom]
+/// false leaves the bottom inset to [child]: the sidebar and the chat set their last row on it instead of 8 px above it.
+Widget _insideInsets(
+  BuildContext context, {
+  bool left = true,
+  bool right = true,
+  bool bottom = true,
+  required Widget child,
+}) => MediaQuery.removePadding(
+  context: context,
+  removeLeft: !left,
+  removeRight: !right,
+  child: SafeArea(bottom: bottom, child: child),
+);
 
 /// The strip along a pane's inner edge that resizes the pane when dragged.
 class _PaneEdge extends StatelessWidget {
@@ -505,7 +512,7 @@ class _CenterPane extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Expanded(child: selectionBody(selection, machine)),
+        Expanded(child: SafeArea(top: false, child: selectionBody(selection, machine))),
       ],
     );
   }
@@ -599,6 +606,7 @@ class _NarrowHomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
       body: SafeArea(
+        bottom: false,
         child: Sidebar(
           key: sidebarKey,
           trailing: IconButton(
@@ -623,6 +631,7 @@ class _NarrowChatPage extends StatelessWidget {
     final lights = WindowChrome.trafficLightsInset(context);
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: ChatScreen(
           session: session,
           compact: true,
