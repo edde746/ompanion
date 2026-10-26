@@ -1062,6 +1062,18 @@ class Translations$settings$en {
 	/// en: 'Edit colors'
 	String get editColors => 'Edit colors';
 
+	/// en: 'Language'
+	String get language => 'Language';
+
+	/// en: 'System'
+	String get languageSystem => 'System';
+
+	/// en: 'English'
+	String get languageEnglish => 'English';
+
+	/// en: 'Deutsch'
+	String get languageGerman => 'Deutsch';
+
 	/// en: '$base base'
 	String customBase({required Object base}) => '${base} base';
 
@@ -4947,6 +4959,10 @@ extension on Translations {
 			'settings.themeDark' => 'Dark',
 			'settings.themeCustom' => 'Custom',
 			'settings.editColors' => 'Edit colors',
+			'settings.language' => 'Language',
+			'settings.languageSystem' => 'System',
+			'settings.languageEnglish' => 'English',
+			'settings.languageGerman' => 'Deutsch',
 			'settings.customBase' => ({required Object base}) => '${base} base',
 			'settings.customPicked' => ({required Object base, required Object count}) => '${base} base · ${count} changed',
 			'settings.buildChannel' => 'Build channel',
@@ -5422,12 +5438,12 @@ extension on Translations {
 			'transcript.tool.agentRunning' => 'Running',
 			'transcript.tool.agentCompleted' => 'Done',
 			'transcript.tool.agentFailed' => 'Failed',
+			_ => null,
+		} ?? switch (path) {
 			'transcript.tool.agentAborted' => 'Aborted',
 			'transcript.tool.askWaiting' => 'Waiting for your answer below',
 			'transcript.tool.recommended' => 'Recommended',
 			'transcript.tool.cancelled' => 'Cancelled',
-			_ => null,
-		} ?? switch (path) {
 			'transcript.tool.note' => ({required Object note}) => 'Note: ${note}',
 			'transcript.tool.autoSelected' => 'Chosen automatically after the timeout',
 			'transcript.tool.sources' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} source', other: '${n} sources', ), 

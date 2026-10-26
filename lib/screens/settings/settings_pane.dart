@@ -4,6 +4,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/build_channel.dart';
+import '../../app/language.dart';
 import '../../app/palette.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
@@ -65,6 +66,25 @@ class SettingsPane extends StatelessWidget {
             ],
           ),
         ],
+        const SizedBox(height: 24),
+        Text(t.settings.language, style: theme.textTheme.titleMedium),
+        const SizedBox(height: AppSizes.gap),
+        // Each language names itself, so the choice reads the same whatever the app currently shows.
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: AppSegmented<AppLanguage>(
+            value: settings.get(Prefs.language),
+            segments: [
+              (AppLanguage.system, t.settings.languageSystem, null),
+              (AppLanguage.en, t.settings.languageEnglish, null),
+              (AppLanguage.de, t.settings.languageGerman, null),
+            ],
+            onChanged: (language) async {
+              await settings.set(Prefs.language, language);
+              await applyLanguage(language);
+            },
+          ),
+        ),
         const SizedBox(height: 24),
         const NotificationsSection(),
         const SizedBox(height: 24),

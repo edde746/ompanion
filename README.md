@@ -201,6 +201,9 @@ After editing translations in `lib/i18n/en.i18n.json`:
 dart run slang
 ```
 
+A new language is `lib/i18n/<code>.i18n.json` next to it with the same keys, its code in `AppLanguage`
+(`lib/app/language.dart`), then the same command; the settings offer it.
+
 After changing the drift tables in `lib/database/`:
 
 ```bash
