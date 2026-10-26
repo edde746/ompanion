@@ -18,7 +18,9 @@ import 'utils/ids.dart';
 
 Future<void> main() async {
   AppBinding();
-  await LocaleSettings.useDeviceLocale();
+  final db = AppDatabase.open();
+  final settings = await SettingsProvider.load(db);
+  await applyLanguage(settings.get(Prefs.language));
   if (isDesktop) {
     await windowManager.ensureInitialized();
     await windowManager.waitUntilReadyToShow(
@@ -29,10 +31,6 @@ Future<void> main() async {
       },
     );
   }
-  final db = AppDatabase.open();
-  final settings = await SettingsProvider.load(db);
-  // The window title above is the device's language; the stored one applies before the tree builds.
-  await applyLanguage(settings.get(Prefs.language));
   final secrets = SecretStore();
   final images = MachineImages(cacheDir: machineImageCacheDir);
   final machines = MachinesProvider(db, secrets, images: images);

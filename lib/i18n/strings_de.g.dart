@@ -60,6 +60,7 @@ class TranslationsDe extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$themeEditor$de themeEditor = _Translations$themeEditor$de._(_root);
 	@override late final _Translations$notifications$de notifications = _Translations$notifications$de._(_root);
 	@override late final _Translations$time$de time = _Translations$time$de._(_root);
+	@override late final _Translations$units$de units = _Translations$units$de._(_root);
 	@override late final _Translations$sessions$de sessions = _Translations$sessions$de._(_root);
 	@override late final _Translations$install$de install = _Translations$install$de._(_root);
 	@override late final _Translations$chat$de chat = _Translations$chat$de._(_root);
@@ -153,7 +154,7 @@ class _Translations$usage$de extends Translations$usage$en {
 	@override String get apiKey => 'API-Schlüssel';
 	@override String get oauthAccount => 'OAuth-Konto';
 	@override String plan({required Object plan}) => 'Tarif: ${plan}';
-	@override String get daybreak => 'Tageswechsel';
+	@override String get daybreak => 'Daybreak';
 	@override String savedResets({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n,
 		one: '${n} gespeicherter Reset',
 		other: '${n} gespeicherte Resets',
@@ -168,8 +169,8 @@ class _Translations$usage$de extends Translations$usage$en {
 	@override String get resetNotUsable => 'derzeit nicht nutzbar';
 	@override String fetchedAgo({required Object ago}) => 'vor ${ago} abgerufen';
 	@override String policy({required Object priority, required Object reserve}) => 'Richtlinie: Priorität ${priority} · Reserve ${reserve}';
-	@override String reserveGlobal({required Object percent}) => '${percent}% (global)';
-	@override String reserveOverride({required Object percent}) => '${percent}% (Überschreibung)';
+	@override String reserveGlobal({required Object percent}) => '${percent} % (global)';
+	@override String reserveOverride({required Object percent}) => '${percent} % (Override)';
 	@override String get reserveUnknown => 'Reserve unbekannt';
 	@override String get eligible => 'berechtigt';
 	@override String get insideReserve => 'innerhalb der Reserve';
@@ -181,9 +182,9 @@ class _Translations$usage$de extends Translations$usage$en {
 	@override String amountOf({required Object used, required Object limit}) => '${used} / ${limit}';
 	@override String amountLeft({required Object amount}) => '${amount} übrig';
 	@override String amountUsed({required Object amount}) => '${amount} verbraucht';
-	@override String percentUsed({required Object percent}) => '${percent}% verbraucht';
-	@override String percentLeft({required Object percent}) => '${percent}% übrig';
-	@override String get resets => 'Resets';
+	@override String percentUsed({required Object percent}) => '${percent} % verbraucht';
+	@override String percentLeft({required Object percent}) => '${percent} % übrig';
+	@override String get resets => 'Reset';
 	@override String resetsIn({required Object verb, required Object duration}) => '${verb} in ${duration}';
 	@override late final _Translations$usage$units$de units = _Translations$usage$units$de._(_root);
 	@override String get withoutUsage => 'keine Nutzungsdaten';
@@ -330,7 +331,7 @@ class _Translations$editor$de extends Translations$editor$en {
 	@override String get savePassword => 'Passwort auf diesem Gerät speichern';
 	@override String get tailscale => 'Über Tailscale erreichbar';
 	@override String get jumpHosts => 'Jump-Hosts';
-	@override String get jumpHostsHelp => 'Werden vor dem Rechner der Reihe nach gewählt. Für einen Host hinter NAT mit Reverse-Tunnel den Relay-Host hier eintragen und beim Rechner Host auf localhost und den Tunnel-Port setzen.';
+	@override String get jumpHostsHelp => 'Die Verbindung zum Rechner läuft der Reihe nach über diese Hosts. Für einen Host hinter NAT mit Reverse-Tunnel den Relay-Host hier eintragen und beim Rechner localhost als Host sowie den Tunnel-Port angeben.';
 	@override String jumpHostN({required Object n}) => 'Jump-Host ${n}';
 	@override String get addJumpHost => 'Jump-Host hinzufügen';
 	@override String get moveUp => 'Nach oben';
@@ -447,7 +448,7 @@ class _Translations$connectError$de extends Translations$connectError$en {
 	@override String protocol({required Object hop}) => 'SSH-Handshake mit ${hop} fehlgeschlagen.';
 	@override String keyRefused({required Object host, required Object key}) => '${host} hat den Schlüssel ${key} nicht akzeptiert.';
 	@override String agentKeysRefused({required num n, required Object host}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n,
-		one: '${host} hat den ${n} Schlüssel im ssh-agent nicht akzeptiert.',
+		one: '${host} hat den einzigen Schlüssel im ssh-agent nicht akzeptiert.',
 		other: '${host} hat keinen der ${n} Schlüssel im ssh-agent akzeptiert.',
 	);
 	@override String keysRefused({required Object host}) => '${host} hat keinen dieser Schlüssel akzeptiert:';
@@ -493,18 +494,18 @@ class _Translations$transfer$de extends Translations$transfer$en {
 
 	// Translations
 	@override String get exportTitle => 'Rechner exportieren';
-	@override String exportBody({required Object count}) => '${count} SSH-Rechner mit ihren Jump-Hosts und vertrauten Hostschlüsseln. Private Schlüssel, Passphrasen und Passwörter werden nie exportiert.';
+	@override String exportBody({required Object count}) => '${count} SSH-Rechner mit ihren Jump-Hosts und vertrauenswürdigen Hostschlüsseln. Private Schlüssel, Passphrasen und Passwörter werden nie exportiert.';
 	@override String get exportNone => 'Es gibt keine SSH-Rechner zum Exportieren.';
 	@override String get saveFile => 'In Datei speichern…';
 	@override String get saved => 'Gespeichert.';
 	@override String get importTitle => 'Rechner importieren';
 	@override String get importHint => 'Füge einen Export von einem anderen Gerät ein oder wähle seine Datei.';
 	@override String get importAction => 'Importieren';
-	@override String imported({required Object added, required Object skipped}) => '${added} importiert, ${skipped} bereits vorhandene übersprungen.';
+	@override String imported({required Object added, required Object skipped}) => '${added} importiert, ${skipped} übersprungen (bereits vorhanden).';
 	@override String invalid({required Object error}) => 'Kein Rechner-Export: ${error}';
 	@override String get hostKeysTitle => 'Zu bestätigende Hostschlüssel';
 	@override String get hostKeysBody => 'Der Import enthält Hostschlüssel, die ändern würden, welchen Servern dieses Gerät vertraut. Vertraue den Schlüsseln eines Hosts nur, wenn du weißt, dass sie stimmen; die anderen werden nicht importiert.';
-	@override String get trustedHere => 'Auf diesem Gerät vertraut';
+	@override String get trustedHere => 'Auf diesem Gerät vertrauenswürdig';
 	@override String get nothingTrusted => 'Noch nichts';
 	@override String get inImport => 'Im Import';
 	@override String get trustKeys => 'Diesen Schlüsseln vertrauen';
@@ -522,12 +523,10 @@ class _Translations$settings$de extends Translations$settings$en {
 	@override String get themeSystem => 'System';
 	@override String get themeLight => 'Hell';
 	@override String get themeDark => 'Dunkel';
-	@override String get themeCustom => 'Benutzerdefiniert';
+	@override String get themeCustom => 'Eigenes';
 	@override String get editColors => 'Farben bearbeiten';
 	@override String get language => 'Sprache';
 	@override String get languageSystem => 'System';
-	@override String get languageEnglish => 'English';
-	@override String get languageGerman => 'Deutsch';
 	@override String customBase({required Object base}) => '${base} (Basis)';
 	@override String customPicked({required Object base, required Object count}) => '${base} (Basis) · ${count} geändert';
 	@override String get buildChannel => 'Build-Kanal';
@@ -592,9 +591,9 @@ class _Translations$themeEditor$de extends Translations$themeEditor$en {
 		'success': 'Erfolg',
 		'running': 'Läuft',
 		'diffAdd': 'Hinzugefügt',
-		'diffAddSurface': 'Hintergrund hinzugefügt',
+		'diffAddSurface': 'Hintergrund für Hinzugefügtes',
 		'diffRemove': 'Entfernt',
-		'diffRemoveSurface': 'Hintergrund entfernt',
+		'diffRemoveSurface': 'Hintergrund für Entferntes',
 		'comment': 'Kommentare',
 		'keyword': 'Schlüsselwörter',
 		'tag': 'Tags',
@@ -713,9 +712,26 @@ class _Translations$time$de extends Translations$time$en {
 
 	// Translations
 	@override String get now => 'jetzt';
-	@override String minutes({required Object n}) => '${n}m';
-	@override String hours({required Object n}) => '${n}h';
-	@override String days({required Object n}) => '${n}d';
+	@override String minutes({required Object n}) => '${n} min';
+	@override String hours({required Object n}) => '${n} h';
+	@override String days({required Object n}) => '${n} d';
+}
+
+// Path: units
+class _Translations$units$de extends Translations$units$en {
+	_Translations$units$de._(TranslationsDe root) : this._root = root, super.internal(root);
+
+	final TranslationsDe _root; // ignore: unused_field
+
+	// Translations
+	@override String milliseconds({required Object value}) => '${value} ms';
+	@override String seconds({required Object value}) => '${value} s';
+	@override String minutes({required Object value}) => '${value} min';
+	@override String hours({required Object value}) => '${value} h';
+	@override String days({required Object value}) => '${value} d';
+	@override String pair({required Object big, required Object small}) => '${big} ${small}';
+	@override String percent({required Object value}) => '${value} %';
+	@override String usd({required Object value}) => '${value} \$';
 }
 
 // Path: sessions
@@ -750,7 +766,7 @@ class _Translations$sessions$de extends Translations$sessions$en {
 	@override String get needsInput => 'Braucht deine Eingabe';
 	@override String get failed => 'Der letzte Lauf ist fehlgeschlagen';
 	@override String get disconnected => 'Getrennt';
-	@override String get runningOnMachine => 'In omp auf dem Rechner öffnen';
+	@override String get runningOnMachine => 'In omp auf dem Rechner geöffnet';
 	@override String get opening => 'Wird geöffnet…';
 	@override String get unread => 'Ungelesen';
 	@override String openFailed({required Object error}) => 'Sitzung konnte nicht geöffnet werden: ${error}';
@@ -789,7 +805,7 @@ class _Translations$install$de extends Translations$install$en {
 	// Translations
 	@override String title({required Object machine}) => 'omp auf ${machine} installieren';
 	@override String get notConnected => 'Verbinde dich zuerst mit dem Rechner.';
-	@override String get viaDownload => 'Der Rechner lädt dieses Release von GitHub und prüft dessen SHA-256, bevor er es installiert.';
+	@override String get viaDownload => 'Der Rechner lädt dieses Release von GitHub herunter und prüft dessen SHA-256, bevor er es installiert.';
 	@override String get viaUpload => 'Der Rechner hat weder curl noch wget: die App lädt das Release hier herunter und lädt es hoch, wobei die SHA-256 auf dem Rechner geprüft wird.';
 	@override String get manual => 'Skript selbst ausführen';
 	@override String get install => 'Installieren';
@@ -805,7 +821,7 @@ class _Translations$install$de extends Translations$install$en {
 	@override String get os => 'OS';
 	@override String get arch => 'Architektur';
 	@override String get release => 'Release';
-	@override String get directory => 'Installiert nach';
+	@override String get directory => 'Installationsverzeichnis';
 }
 
 // Path: chat
@@ -827,14 +843,14 @@ class _Translations$chat$de extends Translations$chat$en {
 	@override String thinking({required Object level}) => 'Denken: ${level}';
 	@override String get noThinking => 'Dieses Modell hat keine Denkstufen.';
 	@override String thinkingFailed({required Object error}) => 'Denkstufe konnte nicht geändert werden: ${error}';
-	@override String contextTooltip({required Object tokens, required Object window, required Object percent, required Object cost}) => 'Kontext: ${tokens} von ${window} Tokens (${percent}%) · Kosten ${cost}';
+	@override String contextTooltip({required Object tokens, required Object window, required Object percent, required Object cost}) => 'Kontext: ${tokens} von ${window} Tokens (${percent} %) · Kosten ${cost}';
 	@override String contextUnknown({required Object cost}) => 'Kontextnutzung noch unbekannt · Kosten ${cost}';
 	@override String get pause => 'Pausieren';
 	@override String get resume => 'Fortsetzen';
 	@override String pauseFailed({required Object error}) => 'Pausieren oder Fortsetzen fehlgeschlagen: ${error}';
 	@override String get stop => 'Stoppen';
 	@override String abortFailed({required Object error}) => 'Lauf konnte nicht gestoppt werden: ${error}';
-	@override String get noCompanion => 'Die Companion-Erweiterung ist in dieser Sitzung nicht geladen, deshalb sind Pausieren, Bearbeiten der Warteschlange, Shell- oder Python-Läufe, Ziele und Schleifen nicht verfügbar.';
+	@override String get noCompanion => 'Der Companion ist in dieser Sitzung nicht geladen, daher sind Pausieren, Bearbeiten der Warteschlange, Shell- oder Python-Läufe, Ziele und Schleifen nicht verfügbar.';
 	@override String get more => 'Mehr';
 	@override String get copyPath => 'Pfad der Sitzungsdatei kopieren';
 	@override String get detach => 'Auf diesem Gerät schließen';
@@ -923,13 +939,13 @@ class _Translations$composer$de extends Translations$composer$en {
 	@override String unknownCommand({required Object name}) => '/${name} ist kein Befehl dieser Sitzung. Es wurde nichts gesendet.';
 	@override String sendFailed({required Object error}) => 'Nicht gesendet: ${error}';
 	@override String externalRunning({required Object machine}) => 'Läuft in omp auf ${machine}';
-	@override String externalIdle({required Object machine}) => 'In omp öffnen auf ${machine}';
+	@override String externalIdle({required Object machine}) => 'In omp auf ${machine} geöffnet';
 	@override String externalTerminal({required Object terminal}) => 'Terminal ${terminal}';
 	@override String get externalBody => 'Ein anderer omp-Prozess schreibt in diese Sitzungsdatei. ompanion liest den Verlauf live mit, aber Senden ist aus: zwei Schreiber würden sich gegenseitig überschreiben. In jenem Prozess eingereihte Nachrichten sind hier nicht sichtbar.';
 	@override String get externalWait => 'Der andere omp-Prozess besitzt diese Sitzung noch. Übernimm sie, sobald er beendet ist.';
 	@override String get takeOver => 'Übernehmen';
 	@override String get externalRunningNoMachine => 'Läuft in omp';
-	@override String get externalIdleNoMachine => 'In omp öffnen';
+	@override String get externalIdleNoMachine => 'In omp geöffnet';
 	@override String get externalGone => 'Der andere omp-Prozess wurde beendet';
 	@override String get externalBodyGone => 'Der andere omp-Prozess ist weg. Übernimm die Sitzung, um von hier Nachrichten zu senden.';
 }
@@ -997,7 +1013,7 @@ class _Translations$loop$de extends Translations$loop$en {
 		one: 'bisher ${n} Iteration',
 		other: 'bisher ${n} Iterationen',
 	);
-	@override String get waitingPrompt => 'Wartet auf deinen nächsten Prompt, den er nach jedem Durchlauf wiederholt.';
+	@override String get waitingPrompt => 'Wartet auf deinen nächsten Prompt, den sie nach jedem Durchlauf wiederholt.';
 	@override String get pausedPrompt => 'Ausgesetzt. Der nächste Prompt, den du sendest, setzt sie fort.';
 	@override String get suspend => 'Aussetzen';
 	@override String get disable => 'Ausschalten';
@@ -1036,7 +1052,7 @@ class _Translations$requests$de extends Translations$requests$en {
 	@override String get editorText => 'Text im Eingabefeld';
 	@override String get openUrlTitle => 'In deinem Browser öffnen';
 	@override String get openInBrowser => 'Öffnen';
-	@override String forwarding({required Object port}) => 'localhost:${port} auf diesem Gerät für den Login-Callback zum Rechner weiterleiten.';
+	@override String forwarding({required Object port}) => 'localhost:${port} auf diesem Gerät wird für den Login-Callback an den Rechner weitergeleitet.';
 	@override String forwardFailed({required Object error}) => 'Der Login-Callback-Port konnte nicht weitergeleitet werden: ${error}';
 	@override String answerFailed({required Object error}) => 'Die Antwort konnte nicht gesendet werden: ${error}';
 	@override String get unsupportedTitle => 'Nicht unterstützte Anfrage';
@@ -1080,7 +1096,7 @@ class _Translations$transcript$de extends Translations$transcript$en {
 	@override String get fromAgent => 'Vom Agenten gesendet';
 	@override String get automatic => 'Automatische Nachricht';
 	@override String get waiting => 'Wartet auf Antwort';
-	@override String waitingElapsed({required Object seconds}) => 'Wartet auf Antwort · ${seconds}s';
+	@override String waitingElapsed({required Object seconds}) => 'Wartet auf Antwort · ${seconds} s';
 	@override String get thinking => 'Denkt nach…';
 	@override String get thought => 'Gedanke';
 	@override String thoughtFor({required Object duration}) => 'Nachgedacht: ${duration}';
@@ -1112,7 +1128,7 @@ class _Translations$transcript$de extends Translations$transcript$en {
 	@override String loadOriginal({required Object size}) => 'Original laden (${size})';
 	@override String get retryImage => 'Wiederholen';
 	@override String imagePreview({required Object sent, required Object size}) => 'Vorschau, ${sent} von ${size}';
-	@override String get openInFiles => 'Im Dateimanager öffnen';
+	@override String get openInFiles => 'In Dateien öffnen';
 	@override String showMoreLines({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n,
 		one: 'Noch ${n} Zeile anzeigen',
 		other: 'Noch ${n} Zeilen anzeigen',
@@ -1192,7 +1208,7 @@ class _Translations$usage$units$de extends Translations$usage$units$en {
 	@override String tokens({required Object value}) => '${value} Tokens';
 	@override String requests({required Object value}) => '${value} Anfragen';
 	@override String credits({required Object value}) => '${value} Credits';
-	@override String minutes({required Object value}) => '${value} Min.';
+	@override String minutes({required Object value}) => '${value} min';
 	@override String bytes({required Object value}) => '${value} Bytes';
 }
 
@@ -1249,9 +1265,9 @@ class _Translations$usage$stats$de extends Translations$usage$stats$en {
 	@override String get noStreak => 'noch keine';
 	@override String ttft({required Object ms}) => '${ms} ms bis zum ersten Token';
 	@override String tokensPerSecond({required Object n}) => '${n} Tok./s';
-	@override String heatmap({required Object tokens, required Object period}) => '${tokens} Tokens in ${period}';
-	@override String get lastYear => 'das letzte Jahr';
-	@override String get lastYearOption => 'Letztes Jahr';
+	@override String heatmap({required Object tokens, required Object period}) => '${tokens} Tokens · ${period}';
+	@override String get lastYear => 'letzte 12 Monate';
+	@override String get lastYearOption => 'Letzte 12 Monate';
 	@override String get less => 'Weniger';
 	@override String get more => 'Mehr';
 	@override String requestCount({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n,
@@ -1271,8 +1287,8 @@ class _Translations$usage$stats$de extends Translations$usage$stats$en {
 	@override String get tokenKinds => 'Tokens nach Art';
 	@override String get input => 'Eingabe';
 	@override String get output => 'Ausgabe';
-	@override String get cacheRead => 'Cache-Lesevorgänge';
-	@override String get cacheWrite => 'Cache-Schreibvorgänge';
+	@override String get cacheRead => 'Cache gelesen';
+	@override String get cacheWrite => 'Cache geschrieben';
 	@override String get agents => 'Agenten';
 	@override String get mainSessions => 'Hauptsitzungen';
 	@override String get subagents => 'Subagenten';
@@ -1319,7 +1335,7 @@ class _Translations$usage$stats$de extends Translations$usage$stats$en {
 	@override String get anguish => 'Verzweiflung';
 	@override String get negation => 'Korrigieren';
 	@override String get repetition => 'Wiederholen';
-	@override String get blame => 'Agent beschuldigen';
+	@override String get blame => 'Agenten beschuldigen';
 	@override List<String> get weekdays => [
 		'Mo',
 		'Di',
@@ -1343,8 +1359,8 @@ class _Translations$usage$stats$de extends Translations$usage$stats$en {
 		'Nov',
 		'Dez',
 	];
-	@override String date({required Object weekday, required Object month, required Object day, required Object year}) => '${weekday}, ${month} ${day}, ${year}';
-	@override String shortDate({required Object month, required Object day}) => '${month} ${day}';
+	@override String date({required Object weekday, required Object day, required Object month, required Object year}) => '${weekday}, ${day}. ${month} ${year}';
+	@override String shortDate({required Object day, required Object month}) => '${day}. ${month}';
 }
 
 // Path: dock.todo
@@ -1383,7 +1399,7 @@ class _Translations$dock$hub$de extends Translations$dock$hub$en {
 		one: '${n} Tool',
 		other: '${n} Tools',
 	);
-	@override String context({required Object percent}) => 'Kontext ${percent}%';
+	@override String context({required Object percent}) => 'Kontext ${percent} %';
 	@override late final _Translations$dock$hub$status$de status = _Translations$dock$hub$status$de._(_root);
 	@override String get back => 'Zurück zu den Agenten';
 	@override String get actions => 'Agent-Aktionen';
@@ -1403,9 +1419,9 @@ class _Translations$dock$hub$de extends Translations$dock$hub$en {
 	@override String transcriptFailed({required Object error}) => 'Verlauf nicht verfügbar: ${error}';
 	@override String failed({required Object error}) => 'Fehlgeschlagen: ${error}';
 	@override String get noCompanion => 'Der Companion ist in dieser Sitzung nicht geladen, daher sind Nachrichten, Beenden und Wiederbeleben von Agenten nicht verfügbar.';
-	@override String durationHours({required Object hours, required Object minutes}) => '${hours}h ${minutes}m';
-	@override String durationMinutes({required Object minutes, required Object seconds}) => '${minutes}m ${seconds}s';
-	@override String durationSeconds({required Object seconds}) => '${seconds}s';
+	@override String durationHours({required Object hours, required Object minutes}) => '${hours} h ${minutes} min';
+	@override String durationMinutes({required Object minutes, required Object seconds}) => '${minutes} min ${seconds} s';
+	@override String durationSeconds({required Object seconds}) => '${seconds} s';
 }
 
 // Path: dock.sessionTree
@@ -1631,9 +1647,9 @@ class _Translations$transcript$tool$de extends Translations$transcript$tool$en {
 	@override String get diagnostics => 'Diagnose';
 	@override String redirectedTo({required Object url}) => 'Weitergeleitet zu ${url}';
 	@override String tokens({required Object count}) => '${count} Tokens';
-	@override String get goalSet => 'gesetzt';
+	@override String get goalSet => 'setzen';
 	@override String get goalCheck => 'prüfen';
-	@override String get goalComplete => 'abgeschlossen';
+	@override String get goalComplete => 'abschließen';
 	@override String get goalResume => 'fortsetzen';
 	@override String get goalDrop => 'verwerfen';
 	@override String get goalNone => 'kein aktives Ziel';
@@ -1670,9 +1686,9 @@ class _Translations$transcript$turn$de extends Translations$transcript$turn$en {
 		one: '${n} Datei bearbeitet',
 		other: '${n} Dateien bearbeitet',
 	);
-	@override String durationHours({required Object hours, required Object minutes}) => '${hours}h ${minutes}m';
-	@override String durationMinutes({required Object minutes, required Object seconds}) => '${minutes}m ${seconds}s';
-	@override String durationSeconds({required Object seconds}) => '${seconds}s';
+	@override String durationHours({required Object hours, required Object minutes}) => '${hours} h ${minutes} min';
+	@override String durationMinutes({required Object minutes, required Object seconds}) => '${minutes} min ${seconds} s';
+	@override String durationSeconds({required Object seconds}) => '${seconds} s';
 }
 
 // Path: config.sections
@@ -1792,7 +1808,7 @@ class _Translations$config$accounts$de extends Translations$config$accounts$en {
 
 	// Translations
 	@override String get machineWide => 'Zugangsdaten werden pro Rechner gespeichert.';
-	@override String sessionView({required Object path}) => 'Die Markierungen „in Nutzung“ und „angeheftet“ beziehen sich auf die Sitzung in ${path}.';
+	@override String sessionView({required Object path}) => 'Die Markierungen "in Nutzung" und "angeheftet" beziehen sich auf die Sitzung in ${path}.';
 	@override String get active => 'in Nutzung';
 	@override String get sticky => 'angeheftet';
 	@override String expires({required Object date}) => 'läuft ab am ${date}';
@@ -1939,10 +1955,11 @@ class _Translations$config$stats$de extends Translations$config$stats$en {
 	@override String get errors => 'Fehler';
 	@override String get inputTokens => 'Eingabe-Tokens';
 	@override String get outputTokens => 'Ausgabe-Tokens';
-	@override String get cacheRead => 'Cache-Lesevorgänge';
+	@override String get cacheRead => 'Cache gelesen';
 	@override String get cost => 'Kosten';
 	@override String get ttft => 'Ø erstes Token';
 	@override String get speed => 'Ø Geschwindigkeit';
+	@override String tokensPerSecond({required Object n}) => '${n} Tok./s';
 	@override String get perHour => 'Anfragen pro Stunde';
 	@override String get byModel => 'Nach Modell';
 	@override String get byFolder => 'Nach Projekt';
@@ -2098,7 +2115,7 @@ extension on TranslationsDe {
 			'usage.apiKey' => 'API-Schlüssel',
 			'usage.oauthAccount' => 'OAuth-Konto',
 			'usage.plan' => ({required Object plan}) => 'Tarif: ${plan}',
-			'usage.daybreak' => 'Tageswechsel',
+			'usage.daybreak' => 'Daybreak',
 			'usage.savedResets' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: '${n} gespeicherter Reset', other: '${n} gespeicherte Resets', ), 
 			'usage.usableNow' => ({required Object n}) => '${n} jetzt nutzbar',
 			'usage.resetExpiresIn' => ({required Object duration, required Object date}) => 'nächster Ablauf in ${duration} (${date})',
@@ -2110,8 +2127,8 @@ extension on TranslationsDe {
 			'usage.resetNotUsable' => 'derzeit nicht nutzbar',
 			'usage.fetchedAgo' => ({required Object ago}) => 'vor ${ago} abgerufen',
 			'usage.policy' => ({required Object priority, required Object reserve}) => 'Richtlinie: Priorität ${priority} · Reserve ${reserve}',
-			'usage.reserveGlobal' => ({required Object percent}) => '${percent}% (global)',
-			'usage.reserveOverride' => ({required Object percent}) => '${percent}% (Überschreibung)',
+			'usage.reserveGlobal' => ({required Object percent}) => '${percent} % (global)',
+			'usage.reserveOverride' => ({required Object percent}) => '${percent} % (Override)',
 			'usage.reserveUnknown' => 'Reserve unbekannt',
 			'usage.eligible' => 'berechtigt',
 			'usage.insideReserve' => 'innerhalb der Reserve',
@@ -2123,14 +2140,14 @@ extension on TranslationsDe {
 			'usage.amountOf' => ({required Object used, required Object limit}) => '${used} / ${limit}',
 			'usage.amountLeft' => ({required Object amount}) => '${amount} übrig',
 			'usage.amountUsed' => ({required Object amount}) => '${amount} verbraucht',
-			'usage.percentUsed' => ({required Object percent}) => '${percent}% verbraucht',
-			'usage.percentLeft' => ({required Object percent}) => '${percent}% übrig',
-			'usage.resets' => 'Resets',
+			'usage.percentUsed' => ({required Object percent}) => '${percent} % verbraucht',
+			'usage.percentLeft' => ({required Object percent}) => '${percent} % übrig',
+			'usage.resets' => 'Reset',
 			'usage.resetsIn' => ({required Object verb, required Object duration}) => '${verb} in ${duration}',
 			'usage.units.tokens' => ({required Object value}) => '${value} Tokens',
 			'usage.units.requests' => ({required Object value}) => '${value} Anfragen',
 			'usage.units.credits' => ({required Object value}) => '${value} Credits',
-			'usage.units.minutes' => ({required Object value}) => '${value} Min.',
+			'usage.units.minutes' => ({required Object value}) => '${value} min',
 			'usage.units.bytes' => ({required Object value}) => '${value} Bytes',
 			'usage.withoutUsage' => 'keine Nutzungsdaten',
 			'usage.disabledAgo' => ({required Object ago, required Object cause}) => 'vor ${ago} deaktiviert: ${cause}',
@@ -2171,9 +2188,9 @@ extension on TranslationsDe {
 			'usage.stats.noStreak' => 'noch keine',
 			'usage.stats.ttft' => ({required Object ms}) => '${ms} ms bis zum ersten Token',
 			'usage.stats.tokensPerSecond' => ({required Object n}) => '${n} Tok./s',
-			'usage.stats.heatmap' => ({required Object tokens, required Object period}) => '${tokens} Tokens in ${period}',
-			'usage.stats.lastYear' => 'das letzte Jahr',
-			'usage.stats.lastYearOption' => 'Letztes Jahr',
+			'usage.stats.heatmap' => ({required Object tokens, required Object period}) => '${tokens} Tokens · ${period}',
+			'usage.stats.lastYear' => 'letzte 12 Monate',
+			'usage.stats.lastYearOption' => 'Letzte 12 Monate',
 			'usage.stats.less' => 'Weniger',
 			'usage.stats.more' => 'Mehr',
 			'usage.stats.requestCount' => ({required num n, required Object count}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: '${count} Anfrage', other: '${count} Anfragen', ), 
@@ -2192,8 +2209,8 @@ extension on TranslationsDe {
 			'usage.stats.tokenKinds' => 'Tokens nach Art',
 			'usage.stats.input' => 'Eingabe',
 			'usage.stats.output' => 'Ausgabe',
-			'usage.stats.cacheRead' => 'Cache-Lesevorgänge',
-			'usage.stats.cacheWrite' => 'Cache-Schreibvorgänge',
+			'usage.stats.cacheRead' => 'Cache gelesen',
+			'usage.stats.cacheWrite' => 'Cache geschrieben',
 			'usage.stats.agents' => 'Agenten',
 			'usage.stats.mainSessions' => 'Hauptsitzungen',
 			'usage.stats.subagents' => 'Subagenten',
@@ -2231,7 +2248,7 @@ extension on TranslationsDe {
 			'usage.stats.anguish' => 'Verzweiflung',
 			'usage.stats.negation' => 'Korrigieren',
 			'usage.stats.repetition' => 'Wiederholen',
-			'usage.stats.blame' => 'Agent beschuldigen',
+			'usage.stats.blame' => 'Agenten beschuldigen',
 			'usage.stats.weekdays.0' => 'Mo',
 			'usage.stats.weekdays.1' => 'Di',
 			'usage.stats.weekdays.2' => 'Mi',
@@ -2251,8 +2268,8 @@ extension on TranslationsDe {
 			'usage.stats.months.9' => 'Okt',
 			'usage.stats.months.10' => 'Nov',
 			'usage.stats.months.11' => 'Dez',
-			'usage.stats.date' => ({required Object weekday, required Object month, required Object day, required Object year}) => '${weekday}, ${month} ${day}, ${year}',
-			'usage.stats.shortDate' => ({required Object month, required Object day}) => '${month} ${day}',
+			'usage.stats.date' => ({required Object weekday, required Object day, required Object month, required Object year}) => '${weekday}, ${day}. ${month} ${year}',
+			'usage.stats.shortDate' => ({required Object day, required Object month}) => '${day}. ${month}',
 			'dock.agents' => 'Agenten',
 			'dock.todos' => 'Aufgaben',
 			'dock.tree' => 'Baum',
@@ -2277,7 +2294,7 @@ extension on TranslationsDe {
 			'dock.hub.advisor' => 'Berater',
 			'dock.hub.tokens' => ({required Object count}) => '${count} Tok',
 			'dock.hub.tools' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: '${n} Tool', other: '${n} Tools', ), 
-			'dock.hub.context' => ({required Object percent}) => 'Kontext ${percent}%',
+			'dock.hub.context' => ({required Object percent}) => 'Kontext ${percent} %',
 			'dock.hub.status.running' => 'Läuft',
 			'dock.hub.status.pending' => 'Ausstehend',
 			'dock.hub.status.idle' => 'Leerlauf',
@@ -2303,9 +2320,9 @@ extension on TranslationsDe {
 			'dock.hub.transcriptFailed' => ({required Object error}) => 'Verlauf nicht verfügbar: ${error}',
 			'dock.hub.failed' => ({required Object error}) => 'Fehlgeschlagen: ${error}',
 			'dock.hub.noCompanion' => 'Der Companion ist in dieser Sitzung nicht geladen, daher sind Nachrichten, Beenden und Wiederbeleben von Agenten nicht verfügbar.',
-			'dock.hub.durationHours' => ({required Object hours, required Object minutes}) => '${hours}h ${minutes}m',
-			'dock.hub.durationMinutes' => ({required Object minutes, required Object seconds}) => '${minutes}m ${seconds}s',
-			'dock.hub.durationSeconds' => ({required Object seconds}) => '${seconds}s',
+			'dock.hub.durationHours' => ({required Object hours, required Object minutes}) => '${hours} h ${minutes} min',
+			'dock.hub.durationMinutes' => ({required Object minutes, required Object seconds}) => '${minutes} min ${seconds} s',
+			'dock.hub.durationSeconds' => ({required Object seconds}) => '${seconds} s',
 			'dock.sessionTree.search' => 'Einträge durchsuchen',
 			'dock.sessionTree.filter' => 'Filter',
 			'dock.sessionTree.filterStandard' => 'Unterhaltung',
@@ -2495,7 +2512,7 @@ extension on TranslationsDe {
 			'editor.savePassword' => 'Passwort auf diesem Gerät speichern',
 			'editor.tailscale' => 'Über Tailscale erreichbar',
 			'editor.jumpHosts' => 'Jump-Hosts',
-			'editor.jumpHostsHelp' => 'Werden vor dem Rechner der Reihe nach gewählt. Für einen Host hinter NAT mit Reverse-Tunnel den Relay-Host hier eintragen und beim Rechner Host auf localhost und den Tunnel-Port setzen.',
+			'editor.jumpHostsHelp' => 'Die Verbindung zum Rechner läuft der Reihe nach über diese Hosts. Für einen Host hinter NAT mit Reverse-Tunnel den Relay-Host hier eintragen und beim Rechner localhost als Host sowie den Tunnel-Port angeben.',
 			'editor.jumpHostN' => ({required Object n}) => 'Jump-Host ${n}',
 			'editor.addJumpHost' => 'Jump-Host hinzufügen',
 			'editor.moveUp' => 'Nach oben',
@@ -2566,7 +2583,7 @@ extension on TranslationsDe {
 			'connectError.keyUnavailable' => ({required Object hop}) => 'Der Schlüssel für ${hop} kann auf diesem Gerät nicht verwendet werden.',
 			'connectError.protocol' => ({required Object hop}) => 'SSH-Handshake mit ${hop} fehlgeschlagen.',
 			'connectError.keyRefused' => ({required Object host, required Object key}) => '${host} hat den Schlüssel ${key} nicht akzeptiert.',
-			'connectError.agentKeysRefused' => ({required num n, required Object host}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: '${host} hat den ${n} Schlüssel im ssh-agent nicht akzeptiert.', other: '${host} hat keinen der ${n} Schlüssel im ssh-agent akzeptiert.', ), 
+			'connectError.agentKeysRefused' => ({required num n, required Object host}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: '${host} hat den einzigen Schlüssel im ssh-agent nicht akzeptiert.', other: '${host} hat keinen der ${n} Schlüssel im ssh-agent akzeptiert.', ), 
 			'connectError.keysRefused' => ({required Object host}) => '${host} hat keinen dieser Schlüssel akzeptiert:',
 			'connectError.agentKey' => ({required Object comment}) => '${comment} aus dem ssh-agent',
 			'connectError.agentKeyUnnamed' => 'ein Schlüssel aus dem ssh-agent',
@@ -2585,18 +2602,18 @@ extension on TranslationsDe {
 			'sshConfig.empty' => 'Keine Hosts in ~/.ssh/config.',
 			'sshConfig.failed' => ({required Object error}) => '~/.ssh/config konnte nicht gelesen werden: ${error}',
 			'transfer.exportTitle' => 'Rechner exportieren',
-			'transfer.exportBody' => ({required Object count}) => '${count} SSH-Rechner mit ihren Jump-Hosts und vertrauten Hostschlüsseln. Private Schlüssel, Passphrasen und Passwörter werden nie exportiert.',
+			'transfer.exportBody' => ({required Object count}) => '${count} SSH-Rechner mit ihren Jump-Hosts und vertrauenswürdigen Hostschlüsseln. Private Schlüssel, Passphrasen und Passwörter werden nie exportiert.',
 			'transfer.exportNone' => 'Es gibt keine SSH-Rechner zum Exportieren.',
 			'transfer.saveFile' => 'In Datei speichern…',
 			'transfer.saved' => 'Gespeichert.',
 			'transfer.importTitle' => 'Rechner importieren',
 			'transfer.importHint' => 'Füge einen Export von einem anderen Gerät ein oder wähle seine Datei.',
 			'transfer.importAction' => 'Importieren',
-			'transfer.imported' => ({required Object added, required Object skipped}) => '${added} importiert, ${skipped} bereits vorhandene übersprungen.',
+			'transfer.imported' => ({required Object added, required Object skipped}) => '${added} importiert, ${skipped} übersprungen (bereits vorhanden).',
 			'transfer.invalid' => ({required Object error}) => 'Kein Rechner-Export: ${error}',
 			'transfer.hostKeysTitle' => 'Zu bestätigende Hostschlüssel',
 			'transfer.hostKeysBody' => 'Der Import enthält Hostschlüssel, die ändern würden, welchen Servern dieses Gerät vertraut. Vertraue den Schlüsseln eines Hosts nur, wenn du weißt, dass sie stimmen; die anderen werden nicht importiert.',
-			'transfer.trustedHere' => 'Auf diesem Gerät vertraut',
+			'transfer.trustedHere' => 'Auf diesem Gerät vertrauenswürdig',
 			'transfer.nothingTrusted' => 'Noch nichts',
 			'transfer.inImport' => 'Im Import',
 			'transfer.trustKeys' => 'Diesen Schlüsseln vertrauen',
@@ -2605,12 +2622,10 @@ extension on TranslationsDe {
 			'settings.themeSystem' => 'System',
 			'settings.themeLight' => 'Hell',
 			'settings.themeDark' => 'Dunkel',
-			'settings.themeCustom' => 'Benutzerdefiniert',
+			'settings.themeCustom' => 'Eigenes',
 			'settings.editColors' => 'Farben bearbeiten',
 			'settings.language' => 'Sprache',
 			'settings.languageSystem' => 'System',
-			'settings.languageEnglish' => 'English',
-			'settings.languageGerman' => 'Deutsch',
 			'settings.customBase' => ({required Object base}) => '${base} (Basis)',
 			'settings.customPicked' => ({required Object base, required Object count}) => '${base} (Basis) · ${count} geändert',
 			'settings.buildChannel' => 'Build-Kanal',
@@ -2663,9 +2678,9 @@ extension on TranslationsDe {
 			'themeEditor.names.success' => 'Erfolg',
 			'themeEditor.names.running' => 'Läuft',
 			'themeEditor.names.diffAdd' => 'Hinzugefügt',
-			'themeEditor.names.diffAddSurface' => 'Hintergrund hinzugefügt',
+			'themeEditor.names.diffAddSurface' => 'Hintergrund für Hinzugefügtes',
 			'themeEditor.names.diffRemove' => 'Entfernt',
-			'themeEditor.names.diffRemoveSurface' => 'Hintergrund entfernt',
+			'themeEditor.names.diffRemoveSurface' => 'Hintergrund für Entferntes',
 			'themeEditor.names.comment' => 'Kommentare',
 			'themeEditor.names.keyword' => 'Schlüsselwörter',
 			'themeEditor.names.tag' => 'Tags',
@@ -2775,9 +2790,17 @@ extension on TranslationsDe {
 			'notifications.runFailed' => 'Der Lauf ist fehlgeschlagen',
 			'notifications.open' => 'Öffnen',
 			'time.now' => 'jetzt',
-			'time.minutes' => ({required Object n}) => '${n}m',
-			'time.hours' => ({required Object n}) => '${n}h',
-			'time.days' => ({required Object n}) => '${n}d',
+			'time.minutes' => ({required Object n}) => '${n} min',
+			'time.hours' => ({required Object n}) => '${n} h',
+			'time.days' => ({required Object n}) => '${n} d',
+			'units.milliseconds' => ({required Object value}) => '${value} ms',
+			'units.seconds' => ({required Object value}) => '${value} s',
+			'units.minutes' => ({required Object value}) => '${value} min',
+			'units.hours' => ({required Object value}) => '${value} h',
+			'units.days' => ({required Object value}) => '${value} d',
+			'units.pair' => ({required Object big, required Object small}) => '${big} ${small}',
+			'units.percent' => ({required Object value}) => '${value} %',
+			'units.usd' => ({required Object value}) => '${value} \$',
 			'sessions.offline' => 'Offline',
 			'sessions.connecting' => 'Verbindung wird hergestellt…',
 			'sessions.online' => ({required Object version}) => 'omp ${version}',
@@ -2803,7 +2826,7 @@ extension on TranslationsDe {
 			'sessions.needsInput' => 'Braucht deine Eingabe',
 			'sessions.failed' => 'Der letzte Lauf ist fehlgeschlagen',
 			'sessions.disconnected' => 'Getrennt',
-			'sessions.runningOnMachine' => 'In omp auf dem Rechner öffnen',
+			'sessions.runningOnMachine' => 'In omp auf dem Rechner geöffnet',
 			'sessions.opening' => 'Wird geöffnet…',
 			'sessions.unread' => 'Ungelesen',
 			'sessions.openFailed' => ({required Object error}) => 'Sitzung konnte nicht geöffnet werden: ${error}',
@@ -2833,7 +2856,7 @@ extension on TranslationsDe {
 			'sessions.external' => 'In omp auf dem Rechner',
 			'install.title' => ({required Object machine}) => 'omp auf ${machine} installieren',
 			'install.notConnected' => 'Verbinde dich zuerst mit dem Rechner.',
-			'install.viaDownload' => 'Der Rechner lädt dieses Release von GitHub und prüft dessen SHA-256, bevor er es installiert.',
+			'install.viaDownload' => 'Der Rechner lädt dieses Release von GitHub herunter und prüft dessen SHA-256, bevor er es installiert.',
 			'install.viaUpload' => 'Der Rechner hat weder curl noch wget: die App lädt das Release hier herunter und lädt es hoch, wobei die SHA-256 auf dem Rechner geprüft wird.',
 			'install.manual' => 'Skript selbst ausführen',
 			'install.install' => 'Installieren',
@@ -2849,7 +2872,7 @@ extension on TranslationsDe {
 			'install.os' => 'OS',
 			'install.arch' => 'Architektur',
 			'install.release' => 'Release',
-			'install.directory' => 'Installiert nach',
+			'install.directory' => 'Installationsverzeichnis',
 			'chat.noModel' => 'Kein Modell',
 			'chat.searchModels' => 'Modelle suchen',
 			'chat.refreshModels' => 'Modellliste neu laden',
@@ -2862,14 +2885,14 @@ extension on TranslationsDe {
 			'chat.thinking' => ({required Object level}) => 'Denken: ${level}',
 			'chat.noThinking' => 'Dieses Modell hat keine Denkstufen.',
 			'chat.thinkingFailed' => ({required Object error}) => 'Denkstufe konnte nicht geändert werden: ${error}',
-			'chat.contextTooltip' => ({required Object tokens, required Object window, required Object percent, required Object cost}) => 'Kontext: ${tokens} von ${window} Tokens (${percent}%) · Kosten ${cost}',
+			'chat.contextTooltip' => ({required Object tokens, required Object window, required Object percent, required Object cost}) => 'Kontext: ${tokens} von ${window} Tokens (${percent} %) · Kosten ${cost}',
 			'chat.contextUnknown' => ({required Object cost}) => 'Kontextnutzung noch unbekannt · Kosten ${cost}',
 			'chat.pause' => 'Pausieren',
 			'chat.resume' => 'Fortsetzen',
 			'chat.pauseFailed' => ({required Object error}) => 'Pausieren oder Fortsetzen fehlgeschlagen: ${error}',
 			'chat.stop' => 'Stoppen',
 			'chat.abortFailed' => ({required Object error}) => 'Lauf konnte nicht gestoppt werden: ${error}',
-			'chat.noCompanion' => 'Die Companion-Erweiterung ist in dieser Sitzung nicht geladen, deshalb sind Pausieren, Bearbeiten der Warteschlange, Shell- oder Python-Läufe, Ziele und Schleifen nicht verfügbar.',
+			'chat.noCompanion' => 'Der Companion ist in dieser Sitzung nicht geladen, daher sind Pausieren, Bearbeiten der Warteschlange, Shell- oder Python-Läufe, Ziele und Schleifen nicht verfügbar.',
 			'chat.more' => 'Mehr',
 			'chat.copyPath' => 'Pfad der Sitzungsdatei kopieren',
 			'chat.detach' => 'Auf diesem Gerät schließen',
@@ -2937,13 +2960,13 @@ extension on TranslationsDe {
 			'composer.unknownCommand' => ({required Object name}) => '/${name} ist kein Befehl dieser Sitzung. Es wurde nichts gesendet.',
 			'composer.sendFailed' => ({required Object error}) => 'Nicht gesendet: ${error}',
 			'composer.externalRunning' => ({required Object machine}) => 'Läuft in omp auf ${machine}',
-			'composer.externalIdle' => ({required Object machine}) => 'In omp öffnen auf ${machine}',
+			'composer.externalIdle' => ({required Object machine}) => 'In omp auf ${machine} geöffnet',
 			'composer.externalTerminal' => ({required Object terminal}) => 'Terminal ${terminal}',
 			'composer.externalBody' => 'Ein anderer omp-Prozess schreibt in diese Sitzungsdatei. ompanion liest den Verlauf live mit, aber Senden ist aus: zwei Schreiber würden sich gegenseitig überschreiben. In jenem Prozess eingereihte Nachrichten sind hier nicht sichtbar.',
 			'composer.externalWait' => 'Der andere omp-Prozess besitzt diese Sitzung noch. Übernimm sie, sobald er beendet ist.',
 			'composer.takeOver' => 'Übernehmen',
 			'composer.externalRunningNoMachine' => 'Läuft in omp',
-			'composer.externalIdleNoMachine' => 'In omp öffnen',
+			'composer.externalIdleNoMachine' => 'In omp geöffnet',
 			'composer.externalGone' => 'Der andere omp-Prozess wurde beendet',
 			'composer.externalBodyGone' => 'Der andere omp-Prozess ist weg. Übernimm die Sitzung, um von hier Nachrichten zu senden.',
 			'queue.steer' => 'Lenken',
@@ -2985,7 +3008,7 @@ extension on TranslationsDe {
 			'loop.whileLabel' => 'Läuft weiter, solange dieser Befehl erfolgreich ist:',
 			'loop.untilLabel' => 'Läuft weiter, bis dieser Befehl erfolgreich ist:',
 			'loop.done' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: 'bisher ${n} Iteration', other: 'bisher ${n} Iterationen', ), 
-			'loop.waitingPrompt' => 'Wartet auf deinen nächsten Prompt, den er nach jedem Durchlauf wiederholt.',
+			'loop.waitingPrompt' => 'Wartet auf deinen nächsten Prompt, den sie nach jedem Durchlauf wiederholt.',
 			'loop.pausedPrompt' => 'Ausgesetzt. Der nächste Prompt, den du sendest, setzt sie fort.',
 			'loop.suspend' => 'Aussetzen',
 			'loop.disable' => 'Ausschalten',
@@ -3006,7 +3029,7 @@ extension on TranslationsDe {
 			'requests.editorText' => 'Text im Eingabefeld',
 			'requests.openUrlTitle' => 'In deinem Browser öffnen',
 			'requests.openInBrowser' => 'Öffnen',
-			'requests.forwarding' => ({required Object port}) => 'localhost:${port} auf diesem Gerät für den Login-Callback zum Rechner weiterleiten.',
+			'requests.forwarding' => ({required Object port}) => 'localhost:${port} auf diesem Gerät wird für den Login-Callback an den Rechner weitergeleitet.',
 			'requests.forwardFailed' => ({required Object error}) => 'Der Login-Callback-Port konnte nicht weitergeleitet werden: ${error}',
 			'requests.answerFailed' => ({required Object error}) => 'Die Antwort konnte nicht gesendet werden: ${error}',
 			'requests.unsupportedTitle' => 'Nicht unterstützte Anfrage',
@@ -3032,7 +3055,7 @@ extension on TranslationsDe {
 			'transcript.fromAgent' => 'Vom Agenten gesendet',
 			'transcript.automatic' => 'Automatische Nachricht',
 			'transcript.waiting' => 'Wartet auf Antwort',
-			'transcript.waitingElapsed' => ({required Object seconds}) => 'Wartet auf Antwort · ${seconds}s',
+			'transcript.waitingElapsed' => ({required Object seconds}) => 'Wartet auf Antwort · ${seconds} s',
 			'transcript.thinking' => 'Denkt nach…',
 			'transcript.thought' => 'Gedanke',
 			'transcript.thoughtFor' => ({required Object duration}) => 'Nachgedacht: ${duration}',
@@ -3061,7 +3084,7 @@ extension on TranslationsDe {
 			'transcript.loadOriginal' => ({required Object size}) => 'Original laden (${size})',
 			'transcript.retryImage' => 'Wiederholen',
 			'transcript.imagePreview' => ({required Object sent, required Object size}) => 'Vorschau, ${sent} von ${size}',
-			'transcript.openInFiles' => 'Im Dateimanager öffnen',
+			'transcript.openInFiles' => 'In Dateien öffnen',
 			'transcript.showMoreLines' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: 'Noch ${n} Zeile anzeigen', other: 'Noch ${n} Zeilen anzeigen', ), 
 			'transcript.showLess' => 'Weniger anzeigen',
 			'transcript.tool.running' => 'Läuft…',
@@ -3080,14 +3103,14 @@ extension on TranslationsDe {
 			'transcript.tool.movedTo' => ({required Object path}) => 'Verschoben nach ${path}',
 			'transcript.tool.noChanges' => 'Keine Änderungen',
 			'transcript.tool.todoProgress' => ({required Object done, required Object total}) => '${done} von ${total} erledigt',
+			_ => null,
+		} ?? switch (path) {
 			'transcript.tool.agents' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: '${n} Agent', other: '${n} Agenten', ), 
 			'transcript.tool.openAgent' => 'Agenten öffnen',
 			'transcript.tool.agentPending' => 'Ausstehend',
 			'transcript.tool.agentRunning' => 'Läuft',
 			'transcript.tool.agentCompleted' => 'Fertig',
 			'transcript.tool.agentFailed' => 'Fehlgeschlagen',
-			_ => null,
-		} ?? switch (path) {
 			'transcript.tool.agentAborted' => 'Abgebrochen',
 			'transcript.tool.askWaiting' => 'Wartet unten auf deine Antwort',
 			'transcript.tool.recommended' => 'Empfohlen',
@@ -3100,9 +3123,9 @@ extension on TranslationsDe {
 			'transcript.tool.diagnostics' => 'Diagnose',
 			'transcript.tool.redirectedTo' => ({required Object url}) => 'Weitergeleitet zu ${url}',
 			'transcript.tool.tokens' => ({required Object count}) => '${count} Tokens',
-			'transcript.tool.goalSet' => 'gesetzt',
+			'transcript.tool.goalSet' => 'setzen',
 			'transcript.tool.goalCheck' => 'prüfen',
-			'transcript.tool.goalComplete' => 'abgeschlossen',
+			'transcript.tool.goalComplete' => 'abschließen',
 			'transcript.tool.goalResume' => 'fortsetzen',
 			'transcript.tool.goalDrop' => 'verwerfen',
 			'transcript.tool.goalNone' => 'kein aktives Ziel',
@@ -3137,9 +3160,9 @@ extension on TranslationsDe {
 			'transcript.turn.worked' => 'Gearbeitet',
 			'transcript.turn.toolCalls' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: '${n} Tool-Aufruf', other: '${n} Tool-Aufrufe', ), 
 			'transcript.turn.filesEdited' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: '${n} Datei bearbeitet', other: '${n} Dateien bearbeitet', ), 
-			'transcript.turn.durationHours' => ({required Object hours, required Object minutes}) => '${hours}h ${minutes}m',
-			'transcript.turn.durationMinutes' => ({required Object minutes, required Object seconds}) => '${minutes}m ${seconds}s',
-			'transcript.turn.durationSeconds' => ({required Object seconds}) => '${seconds}s',
+			'transcript.turn.durationHours' => ({required Object hours, required Object minutes}) => '${hours} h ${minutes} min',
+			'transcript.turn.durationMinutes' => ({required Object minutes, required Object seconds}) => '${minutes} min ${seconds} s',
+			'transcript.turn.durationSeconds' => ({required Object seconds}) => '${seconds} s',
 			'config.title' => ({required Object machine}) => '${machine} konfigurieren',
 			'config.connect' => 'Verbinden',
 			'config.connecting' => 'Verbinde…',
@@ -3211,7 +3234,7 @@ extension on TranslationsDe {
 			'config.roles.vision' => 'Bilder',
 			'config.roles.noModels' => 'Kein Modell passt.',
 			'config.accounts.machineWide' => 'Zugangsdaten werden pro Rechner gespeichert.',
-			'config.accounts.sessionView' => ({required Object path}) => 'Die Markierungen „in Nutzung“ und „angeheftet“ beziehen sich auf die Sitzung in ${path}.',
+			'config.accounts.sessionView' => ({required Object path}) => 'Die Markierungen "in Nutzung" und "angeheftet" beziehen sich auf die Sitzung in ${path}.',
 			'config.accounts.active' => 'in Nutzung',
 			'config.accounts.sticky' => 'angeheftet',
 			'config.accounts.expires' => ({required Object date}) => 'läuft ab am ${date}',
@@ -3333,10 +3356,11 @@ extension on TranslationsDe {
 			'config.stats.errors' => 'Fehler',
 			'config.stats.inputTokens' => 'Eingabe-Tokens',
 			'config.stats.outputTokens' => 'Ausgabe-Tokens',
-			'config.stats.cacheRead' => 'Cache-Lesevorgänge',
+			'config.stats.cacheRead' => 'Cache gelesen',
 			'config.stats.cost' => 'Kosten',
 			'config.stats.ttft' => 'Ø erstes Token',
 			'config.stats.speed' => 'Ø Geschwindigkeit',
+			'config.stats.tokensPerSecond' => ({required Object n}) => '${n} Tok./s',
 			'config.stats.perHour' => 'Anfragen pro Stunde',
 			'config.stats.byModel' => 'Nach Modell',
 			'config.stats.byFolder' => 'Nach Projekt',

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ompanion/config/cli_results.dart';
+import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/screens/usage/usage_overview.dart';
 
 // The fixtures are omp 18.3.1's own output; see cli_results_test.dart. omp's text output for the same homes is quoted
@@ -299,5 +300,27 @@ void main() {
     );
     expect(formatProviderName('openai-codex'), 'Openai Codex');
     expect(limitTitle(_target.reports.first.limits.first), 'Claude 5 Hour');
+  });
+
+  group('in German', () {
+    setUp(() => LocaleSettings.setLocaleSync(AppLocale.de));
+    tearDown(() => LocaleSettings.setLocaleSync(AppLocale.en));
+
+    test('durations space their units and numbers take a decimal comma', () {
+      expect(
+        [
+          for (final ms in [850, 1500, 35500, 1815000, 8040000, 190800000, 86400000])
+            formatUsageDuration(Duration(milliseconds: ms)),
+        ],
+        ['850 ms', '1,5 s', '35,5 s', '30 min 15 s', '2 h 14 min', '2 d 5 h', '1 d'],
+      );
+      expect(
+        [
+          for (final n in [999, 18.4, 1500, 25000, 1500000]) formatUsageNumber(n),
+        ],
+        ['999', '18,4', '1,5K', '25K', '1,5M'],
+      );
+      expect(formatUnitValue(12.5, 'usd'), '12,50 \$');
+    });
   });
 }

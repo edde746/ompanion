@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   omp_core:
     path: packages/omp_core
   drift: ^2.35.0
@@ -19,6 +21,7 @@ dependencies:
   flutter_local_notifications: ^22.3.1
   flutter_secure_storage: ^11.2.0
   logger: ^2.8.0
+  intl: ^0.20.3
   package_info_plus: ^10.2.1
   pasteboard: ^0.5.0
   path: ^1.9.1

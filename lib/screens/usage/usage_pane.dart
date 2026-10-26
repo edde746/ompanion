@@ -17,6 +17,7 @@ import '../../providers/machines_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../sessions/sessions_provider.dart';
 import '../../utils/byte_size.dart';
+import '../../utils/number_format.dart';
 import '../../widgets/activity_mark.dart';
 import '../../widgets/app_segmented.dart';
 import '../../widgets/app_select.dart';
@@ -652,8 +653,8 @@ class _ProviderSection extends StatelessWidget {
                           child: Text(
                             t.usage.capacityWindow(
                               n: stat.accounts,
-                              used: stat.usedAccounts.toStringAsFixed(2),
-                              left: stat.remainingAccounts.toStringAsFixed(2),
+                              used: formatFixed(stat.usedAccounts, 2),
+                              left: formatFixed(stat.remainingAccounts, 2),
                             ),
                             style: secondary?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
                           ),
@@ -817,11 +818,12 @@ String _policyLine(Translations t, PolicyState policy) {
     PolicyStanding.unknown => t.usage.reserveUnknown,
   };
   final remaining = policy.remainingPercent;
-  return [head, state, if (remaining != null) t.usage.percentLeft(percent: remaining.toStringAsFixed(1))].join(' · ');
+  return [head, state, if (remaining != null) t.usage.percentLeft(percent: formatFixed(remaining, 1))].join(' · ');
 }
 
-/// A number as JavaScript prints it: `5`, not `5.0`.
-String _plain(num value) => value == value.truncate() ? '${value.truncate()}' : '$value';
+/// A number as JavaScript prints it, with the app language's decimal separator: `5`, not `5.0`; `2.5`, German `2,5`.
+String _plain(num value) =>
+    value == value.truncate() ? '${value.truncate()}' : '$value'.replaceFirst('.', decimalSeparator);
 
 typedef _LimitRow = ({LimitTemplate template, UsageLimit? limit});
 
@@ -1003,9 +1005,9 @@ String _amount(Translations t, UsageLimit limit) {
       _ => null,
     },
     if (fraction != null)
-      t.usage.percentUsed(percent: (fraction * 100).toStringAsFixed(1))
+      t.usage.percentUsed(percent: formatFixed(fraction * 100, 1))
     else if (limit.remainingFraction case final left?)
-      t.usage.percentLeft(percent: (left * 100).toStringAsFixed(1)),
+      t.usage.percentLeft(percent: formatFixed(left * 100, 1)),
   ].nonNulls;
   return parts.isEmpty ? t.usage.noData : parts.join(' · ');
 }

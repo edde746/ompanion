@@ -8,6 +8,7 @@ import 'package:omp_core/store.dart';
 import '../../../app/theme.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../sessions/message_mentions.dart';
+import '../../../utils/number_format.dart';
 import '../../../utils/token_count.dart';
 import '../../../widgets/activity_mark.dart';
 import '../../dock/tree/session_tree.dart';
@@ -124,7 +125,7 @@ class TranscriptRowView extends StatelessWidget {
 
 String _seconds(Duration duration) {
   final seconds = duration.inMilliseconds / 1000;
-  return seconds < 10 ? seconds.toStringAsFixed(1) : seconds.round().toString();
+  return seconds < 10 ? formatFixed(seconds, 1) : seconds.round().toString();
 }
 
 bool get _touchFirst => switch (defaultTargetPlatform) {
@@ -558,7 +559,7 @@ class _AssistantFooter extends StatelessWidget {
       if (usage != null && usage.input > 0) t.tokensIn(count: formatTokens(usage.input)),
       if (usage != null && usage.output > 0) t.tokensOut(count: formatTokens(usage.output)),
       if (usage != null && usage.cacheRead > 0) t.tokensCached(count: formatTokens(usage.cacheRead)),
-      if (usage != null && usage.cost > 0) '\$${usage.cost.toStringAsFixed(usage.cost < 0.01 ? 4 : 3)}',
+      if (usage != null && usage.cost > 0) formatUsd(usage.cost, usage.cost < 0.01 ? 4 : 3),
       if (item.duration != null) t.seconds(value: _seconds(item.duration!)),
     ];
     final recovery = item.retryRecovery;

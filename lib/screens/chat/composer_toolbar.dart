@@ -7,6 +7,7 @@ import 'package:omp_core/store.dart';
 
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../utils/number_format.dart';
 import '../../utils/token_count.dart';
 import 'model_picker.dart';
 
@@ -121,14 +122,14 @@ class ContextMeter extends StatelessWidget {
         : fraction >= 0.7
         ? colors.warning
         : theme.colorScheme.onSurfaceVariant;
-    final costText = '\$${cost.toStringAsFixed(cost < 1 ? 4 : 2)}';
+    final costText = formatUsd(cost, cost < 1 ? 4 : 2);
     return Tooltip(
       message: usage == null
           ? t.chat.contextUnknown(cost: costText)
           : t.chat.contextTooltip(
               tokens: formatTokens(usage.tokens),
               window: formatTokens(usage.contextWindow),
-              percent: usage.percent.toStringAsFixed(1),
+              percent: formatFixed(usage.percent, 1),
               cost: costText,
             ),
       child: SizedBox(
@@ -149,7 +150,7 @@ class ContextMeter extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                usage == null ? '–' : '${usage.percent.round()}%',
+                usage == null ? '–' : t.units.percent(value: usage.percent.round()),
                 style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
             ],

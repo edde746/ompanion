@@ -630,8 +630,6 @@
     "editColors": "Edit colors",
     "language": "Language",
     "languageSystem": "System",
-    "languageEnglish": "English",
-    "languageGerman": "Deutsch",
     "customBase": "$base base",
     "customPicked": "$base base · $count changed",
     "buildChannel": "Build channel",
@@ -813,6 +811,16 @@
     "minutes": "${n}m",
     "hours": "${n}h",
     "days": "${n}d"
+  },
+  "units": {
+    "milliseconds": "${value}ms",
+    "seconds": "${value}s",
+    "minutes": "${value}m",
+    "hours": "${value}h",
+    "days": "${value}d",
+    "pair": "$big$small",
+    "percent": "$value%",
+    "usd": "\\$$value"
   },
   "sessions": {
     "offline": "Offline",
@@ -1468,6 +1476,7 @@
       "cost": "Cost",
       "ttft": "Avg. first token",
       "speed": "Avg. speed",
+      "tokensPerSecond": "$n tok/s",
       "perHour": "Requests per hour",
       "byModel": "By model",
       "byFolder": "By project",
