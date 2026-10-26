@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:omp_core/host.dart' show NotificationKind;
 
+import '../app/language.dart';
 import '../app/palette.dart';
 import '../database/app_database.dart';
 import '../models/dock_tab.dart';
@@ -99,6 +100,9 @@ final class PalettePref extends Pref<AppPalette> {
 
 abstract final class Prefs {
   static const themeMode = EnumPref<AppThemeMode>('theme_mode', AppThemeMode.system, AppThemeMode.values);
+
+  /// The app's language; `system` follows the device.
+  static const language = EnumPref<AppLanguage>('language', AppLanguage.system, AppLanguage.values);
 
   /// The Custom theme's colours. Unset until the first switch to Custom, which starts it from the theme on screen.
   static const customTheme = PalettePref('custom_theme', AppPalette.dark);

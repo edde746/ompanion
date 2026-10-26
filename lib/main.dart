@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app/app.dart';
 import 'app/app_binding.dart';
 import 'app/build_channel.dart';
+import 'app/language.dart';
 import 'database/app_database.dart';
 import 'i18n/strings.g.dart';
 import 'models/machine.dart';
@@ -30,6 +31,8 @@ Future<void> main() async {
   }
   final db = AppDatabase.open();
   final settings = await SettingsProvider.load(db);
+  // The window title above is the device's language; the stored one applies before the tree builds.
+  await applyLanguage(settings.get(Prefs.language));
   final secrets = SecretStore();
   final images = MachineImages(cacheDir: machineImageCacheDir);
   final machines = MachinesProvider(db, secrets, images: images);
