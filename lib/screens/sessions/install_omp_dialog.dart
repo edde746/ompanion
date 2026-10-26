@@ -13,6 +13,7 @@ import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../sessions/sessions_provider.dart';
+import '../../utils/number_format.dart';
 import '../../widgets/activity_mark.dart';
 import '../chat/transcript/code_style.dart';
 import '../machines/connect_dialogs.dart';
@@ -145,7 +146,7 @@ class _InstallOmpDialogState extends State<_InstallOmpDialog> {
     }
   }
 
-  static String _mb(int bytes) => (bytes / (1 << 20)).toStringAsFixed(1);
+  static String _mb(int bytes) => formatFixed(bytes / (1 << 20), 1);
 
   @override
   Widget build(BuildContext context) {

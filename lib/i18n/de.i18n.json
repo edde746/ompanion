@@ -50,7 +50,7 @@
     "apiKey": "API-Schlüssel",
     "oauthAccount": "OAuth-Konto",
     "plan": "Tarif: $plan",
-    "daybreak": "Tageswechsel",
+    "daybreak": "Daybreak",
     "savedResets": {
       "one": "$n gespeicherter Reset",
       "other": "$n gespeicherte Resets"
@@ -65,8 +65,8 @@
     "resetNotUsable": "derzeit nicht nutzbar",
     "fetchedAgo": "vor $ago abgerufen",
     "policy": "Richtlinie: Priorität $priority · Reserve $reserve",
-    "reserveGlobal": "$percent% (global)",
-    "reserveOverride": "$percent% (Überschreibung)",
+    "reserveGlobal": "$percent % (global)",
+    "reserveOverride": "$percent % (Override)",
     "reserveUnknown": "Reserve unbekannt",
     "eligible": "berechtigt",
     "insideReserve": "innerhalb der Reserve",
@@ -78,15 +78,15 @@
     "amountOf": "$used / $limit",
     "amountLeft": "$amount übrig",
     "amountUsed": "$amount verbraucht",
-    "percentUsed": "$percent% verbraucht",
-    "percentLeft": "$percent% übrig",
-    "resets": "Resets",
+    "percentUsed": "$percent % verbraucht",
+    "percentLeft": "$percent % übrig",
+    "resets": "Reset",
     "resetsIn": "$verb in $duration",
     "units": {
       "tokens": "$value Tokens",
       "requests": "$value Anfragen",
       "credits": "$value Credits",
-      "minutes": "$value Min.",
+      "minutes": "$value min",
       "bytes": "$value Bytes"
     },
     "withoutUsage": "keine Nutzungsdaten",
@@ -145,9 +145,9 @@
       "noStreak": "noch keine",
       "ttft": "$ms ms bis zum ersten Token",
       "tokensPerSecond": "$n Tok./s",
-      "heatmap": "$tokens Tokens in $period",
-      "lastYear": "das letzte Jahr",
-      "lastYearOption": "Letztes Jahr",
+      "heatmap": "$tokens Tokens · $period",
+      "lastYear": "letzte 12 Monate",
+      "lastYearOption": "Letzte 12 Monate",
       "less": "Weniger",
       "more": "Mehr",
       "requestCount": {
@@ -171,8 +171,8 @@
       "tokenKinds": "Tokens nach Art",
       "input": "Eingabe",
       "output": "Ausgabe",
-      "cacheRead": "Cache-Lesevorgänge",
-      "cacheWrite": "Cache-Schreibvorgänge",
+      "cacheRead": "Cache gelesen",
+      "cacheWrite": "Cache geschrieben",
       "agents": "Agenten",
       "mainSessions": "Hauptsitzungen",
       "subagents": "Subagenten",
@@ -219,7 +219,7 @@
       "anguish": "Verzweiflung",
       "negation": "Korrigieren",
       "repetition": "Wiederholen",
-      "blame": "Agent beschuldigen",
+      "blame": "Agenten beschuldigen",
       "weekdays": [
         "Mo",
         "Di",
@@ -243,8 +243,8 @@
         "Nov",
         "Dez"
       ],
-      "date": "$weekday, $month $day, $year",
-      "shortDate": "$month $day"
+      "date": "$weekday, $day. $month $year",
+      "shortDate": "$day. $month"
     }
   },
   "dock": {
@@ -278,7 +278,7 @@
         "one": "$n Tool",
         "other": "$n Tools"
       },
-      "context": "Kontext $percent%",
+      "context": "Kontext $percent %",
       "status": {
         "running": "Läuft",
         "pending": "Ausstehend",
@@ -306,9 +306,9 @@
       "transcriptFailed": "Verlauf nicht verfügbar: $error",
       "failed": "Fehlgeschlagen: $error",
       "noCompanion": "Der Companion ist in dieser Sitzung nicht geladen, daher sind Nachrichten, Beenden und Wiederbeleben von Agenten nicht verfügbar.",
-      "durationHours": "${hours}h ${minutes}m",
-      "durationMinutes": "${minutes}m ${seconds}s",
-      "durationSeconds": "${seconds}s"
+      "durationHours": "${hours} h ${minutes} min",
+      "durationMinutes": "${minutes} min ${seconds} s",
+      "durationSeconds": "${seconds} s"
     },
     "sessionTree": {
       "search": "Einträge durchsuchen",
@@ -518,7 +518,7 @@
     "savePassword": "Passwort auf diesem Gerät speichern",
     "tailscale": "Über Tailscale erreichbar",
     "jumpHosts": "Jump-Hosts",
-    "jumpHostsHelp": "Werden vor dem Rechner der Reihe nach gewählt. Für einen Host hinter NAT mit Reverse-Tunnel den Relay-Host hier eintragen und beim Rechner Host auf localhost und den Tunnel-Port setzen.",
+    "jumpHostsHelp": "Die Verbindung zum Rechner läuft der Reihe nach über diese Hosts. Für einen Host hinter NAT mit Reverse-Tunnel den Relay-Host hier eintragen und beim Rechner localhost als Host sowie den Tunnel-Port angeben.",
     "jumpHostN": "Jump-Host $n",
     "addJumpHost": "Jump-Host hinzufügen",
     "moveUp": "Nach oben",
@@ -600,7 +600,7 @@
     "protocol": "SSH-Handshake mit $hop fehlgeschlagen.",
     "keyRefused": "$host hat den Schlüssel $key nicht akzeptiert.",
     "agentKeysRefused": {
-      "one": "$host hat den $n Schlüssel im ssh-agent nicht akzeptiert.",
+      "one": "$host hat den einzigen Schlüssel im ssh-agent nicht akzeptiert.",
       "other": "$host hat keinen der $n Schlüssel im ssh-agent akzeptiert."
     },
     "keysRefused": "$host hat keinen dieser Schlüssel akzeptiert:",
@@ -625,18 +625,18 @@
   },
   "transfer": {
     "exportTitle": "Rechner exportieren",
-    "exportBody": "$count SSH-Rechner mit ihren Jump-Hosts und vertrauten Hostschlüsseln. Private Schlüssel, Passphrasen und Passwörter werden nie exportiert.",
+    "exportBody": "$count SSH-Rechner mit ihren Jump-Hosts und vertrauenswürdigen Hostschlüsseln. Private Schlüssel, Passphrasen und Passwörter werden nie exportiert.",
     "exportNone": "Es gibt keine SSH-Rechner zum Exportieren.",
     "saveFile": "In Datei speichern…",
     "saved": "Gespeichert.",
     "importTitle": "Rechner importieren",
     "importHint": "Füge einen Export von einem anderen Gerät ein oder wähle seine Datei.",
     "importAction": "Importieren",
-    "imported": "$added importiert, $skipped bereits vorhandene übersprungen.",
+    "imported": "$added importiert, $skipped übersprungen (bereits vorhanden).",
     "invalid": "Kein Rechner-Export: $error",
     "hostKeysTitle": "Zu bestätigende Hostschlüssel",
     "hostKeysBody": "Der Import enthält Hostschlüssel, die ändern würden, welchen Servern dieses Gerät vertraut. Vertraue den Schlüsseln eines Hosts nur, wenn du weißt, dass sie stimmen; die anderen werden nicht importiert.",
-    "trustedHere": "Auf diesem Gerät vertraut",
+    "trustedHere": "Auf diesem Gerät vertrauenswürdig",
     "nothingTrusted": "Noch nichts",
     "inImport": "Im Import",
     "trustKeys": "Diesen Schlüsseln vertrauen",
@@ -647,12 +647,10 @@
     "themeSystem": "System",
     "themeLight": "Hell",
     "themeDark": "Dunkel",
-    "themeCustom": "Benutzerdefiniert",
+    "themeCustom": "Eigenes",
     "editColors": "Farben bearbeiten",
     "language": "Sprache",
     "languageSystem": "System",
-    "languageEnglish": "English",
-    "languageGerman": "Deutsch",
     "customBase": "$base (Basis)",
     "customPicked": "$base (Basis) · $count geändert",
     "buildChannel": "Build-Kanal",
@@ -710,9 +708,9 @@
       "success": "Erfolg",
       "running": "Läuft",
       "diffAdd": "Hinzugefügt",
-      "diffAddSurface": "Hintergrund hinzugefügt",
+      "diffAddSurface": "Hintergrund für Hinzugefügtes",
       "diffRemove": "Entfernt",
-      "diffRemoveSurface": "Hintergrund entfernt",
+      "diffRemoveSurface": "Hintergrund für Entferntes",
       "comment": "Kommentare",
       "keyword": "Schlüsselwörter",
       "tag": "Tags",
@@ -831,9 +829,19 @@
   },
   "time": {
     "now": "jetzt",
-    "minutes": "${n}m",
-    "hours": "${n}h",
-    "days": "${n}d"
+    "minutes": "${n} min",
+    "hours": "${n} h",
+    "days": "${n} d"
+  },
+  "units": {
+    "milliseconds": "$value ms",
+    "seconds": "$value s",
+    "minutes": "$value min",
+    "hours": "$value h",
+    "days": "$value d",
+    "pair": "$big $small",
+    "percent": "$value %",
+    "usd": "$value \\$"
   },
   "sessions": {
     "offline": "Offline",
@@ -861,7 +869,7 @@
     "needsInput": "Braucht deine Eingabe",
     "failed": "Der letzte Lauf ist fehlgeschlagen",
     "disconnected": "Getrennt",
-    "runningOnMachine": "In omp auf dem Rechner öffnen",
+    "runningOnMachine": "In omp auf dem Rechner geöffnet",
     "opening": "Wird geöffnet…",
     "unread": "Ungelesen",
     "openFailed": "Sitzung konnte nicht geöffnet werden: $error",
@@ -893,7 +901,7 @@
   "install": {
     "title": "omp auf $machine installieren",
     "notConnected": "Verbinde dich zuerst mit dem Rechner.",
-    "viaDownload": "Der Rechner lädt dieses Release von GitHub und prüft dessen SHA-256, bevor er es installiert.",
+    "viaDownload": "Der Rechner lädt dieses Release von GitHub herunter und prüft dessen SHA-256, bevor er es installiert.",
     "viaUpload": "Der Rechner hat weder curl noch wget: die App lädt das Release hier herunter und lädt es hoch, wobei die SHA-256 auf dem Rechner geprüft wird.",
     "manual": "Skript selbst ausführen",
     "install": "Installieren",
@@ -909,7 +917,7 @@
     "os": "OS",
     "arch": "Architektur",
     "release": "Release",
-    "directory": "Installiert nach"
+    "directory": "Installationsverzeichnis"
   },
   "chat": {
     "noModel": "Kein Modell",
@@ -924,14 +932,14 @@
     "thinking": "Denken: $level",
     "noThinking": "Dieses Modell hat keine Denkstufen.",
     "thinkingFailed": "Denkstufe konnte nicht geändert werden: $error",
-    "contextTooltip": "Kontext: $tokens von $window Tokens ($percent%) · Kosten $cost",
+    "contextTooltip": "Kontext: $tokens von $window Tokens ($percent %) · Kosten $cost",
     "contextUnknown": "Kontextnutzung noch unbekannt · Kosten $cost",
     "pause": "Pausieren",
     "resume": "Fortsetzen",
     "pauseFailed": "Pausieren oder Fortsetzen fehlgeschlagen: $error",
     "stop": "Stoppen",
     "abortFailed": "Lauf konnte nicht gestoppt werden: $error",
-    "noCompanion": "Die Companion-Erweiterung ist in dieser Sitzung nicht geladen, deshalb sind Pausieren, Bearbeiten der Warteschlange, Shell- oder Python-Läufe, Ziele und Schleifen nicht verfügbar.",
+    "noCompanion": "Der Companion ist in dieser Sitzung nicht geladen, daher sind Pausieren, Bearbeiten der Warteschlange, Shell- oder Python-Läufe, Ziele und Schleifen nicht verfügbar.",
     "more": "Mehr",
     "copyPath": "Pfad der Sitzungsdatei kopieren",
     "detach": "Auf diesem Gerät schließen",
@@ -1006,13 +1014,13 @@
     "unknownCommand": "/$name ist kein Befehl dieser Sitzung. Es wurde nichts gesendet.",
     "sendFailed": "Nicht gesendet: $error",
     "externalRunning": "Läuft in omp auf $machine",
-    "externalIdle": "In omp öffnen auf $machine",
+    "externalIdle": "In omp auf $machine geöffnet",
     "externalTerminal": "Terminal $terminal",
     "externalBody": "Ein anderer omp-Prozess schreibt in diese Sitzungsdatei. ompanion liest den Verlauf live mit, aber Senden ist aus: zwei Schreiber würden sich gegenseitig überschreiben. In jenem Prozess eingereihte Nachrichten sind hier nicht sichtbar.",
     "externalWait": "Der andere omp-Prozess besitzt diese Sitzung noch. Übernimm sie, sobald er beendet ist.",
     "takeOver": "Übernehmen",
     "externalRunningNoMachine": "Läuft in omp",
-    "externalIdleNoMachine": "In omp öffnen",
+    "externalIdleNoMachine": "In omp geöffnet",
     "externalGone": "Der andere omp-Prozess wurde beendet",
     "externalBodyGone": "Der andere omp-Prozess ist weg. Übernimm die Sitzung, um von hier Nachrichten zu senden."
   },
@@ -1065,7 +1073,7 @@
       "one": "bisher $n Iteration",
       "other": "bisher $n Iterationen"
     },
-    "waitingPrompt": "Wartet auf deinen nächsten Prompt, den er nach jedem Durchlauf wiederholt.",
+    "waitingPrompt": "Wartet auf deinen nächsten Prompt, den sie nach jedem Durchlauf wiederholt.",
     "pausedPrompt": "Ausgesetzt. Der nächste Prompt, den du sendest, setzt sie fort.",
     "suspend": "Aussetzen",
     "disable": "Ausschalten",
@@ -1090,7 +1098,7 @@
     "editorText": "Text im Eingabefeld",
     "openUrlTitle": "In deinem Browser öffnen",
     "openInBrowser": "Öffnen",
-    "forwarding": "localhost:$port auf diesem Gerät für den Login-Callback zum Rechner weiterleiten.",
+    "forwarding": "localhost:$port auf diesem Gerät wird für den Login-Callback an den Rechner weitergeleitet.",
     "forwardFailed": "Der Login-Callback-Port konnte nicht weitergeleitet werden: $error",
     "answerFailed": "Die Antwort konnte nicht gesendet werden: $error",
     "unsupportedTitle": "Nicht unterstützte Anfrage",
@@ -1120,7 +1128,7 @@
     "fromAgent": "Vom Agenten gesendet",
     "automatic": "Automatische Nachricht",
     "waiting": "Wartet auf Antwort",
-    "waitingElapsed": "Wartet auf Antwort · ${seconds}s",
+    "waitingElapsed": "Wartet auf Antwort · ${seconds} s",
     "thinking": "Denkt nach…",
     "thought": "Gedanke",
     "thoughtFor": "Nachgedacht: $duration",
@@ -1152,7 +1160,7 @@
     "loadOriginal": "Original laden ($size)",
     "retryImage": "Wiederholen",
     "imagePreview": "Vorschau, $sent von $size",
-    "openInFiles": "Im Dateimanager öffnen",
+    "openInFiles": "In Dateien öffnen",
     "showMoreLines": {
       "one": "Noch $n Zeile anzeigen",
       "other": "Noch $n Zeilen anzeigen"
@@ -1202,9 +1210,9 @@
       "diagnostics": "Diagnose",
       "redirectedTo": "Weitergeleitet zu $url",
       "tokens": "$count Tokens",
-      "goalSet": "gesetzt",
+      "goalSet": "setzen",
       "goalCheck": "prüfen",
-      "goalComplete": "abgeschlossen",
+      "goalComplete": "abschließen",
       "goalResume": "fortsetzen",
       "goalDrop": "verwerfen",
       "goalNone": "kein aktives Ziel",
@@ -1261,9 +1269,9 @@
         "one": "$n Datei bearbeitet",
         "other": "$n Dateien bearbeitet"
       },
-      "durationHours": "${hours}h ${minutes}m",
-      "durationMinutes": "${minutes}m ${seconds}s",
-      "durationSeconds": "${seconds}s"
+      "durationHours": "${hours} h ${minutes} min",
+      "durationMinutes": "${minutes} min ${seconds} s",
+      "durationSeconds": "${seconds} s"
     }
   },
   "config": {
@@ -1349,7 +1357,7 @@
     },
     "accounts": {
       "machineWide": "Zugangsdaten werden pro Rechner gespeichert.",
-      "sessionView": "Die Markierungen „in Nutzung“ und „angeheftet“ beziehen sich auf die Sitzung in $path.",
+      "sessionView": "Die Markierungen \"in Nutzung\" und \"angeheftet\" beziehen sich auf die Sitzung in $path.",
       "active": "in Nutzung",
       "sticky": "angeheftet",
       "expires": "läuft ab am $date",
@@ -1485,10 +1493,11 @@
       "errors": "Fehler",
       "inputTokens": "Eingabe-Tokens",
       "outputTokens": "Ausgabe-Tokens",
-      "cacheRead": "Cache-Lesevorgänge",
+      "cacheRead": "Cache gelesen",
       "cost": "Kosten",
       "ttft": "Ø erstes Token",
       "speed": "Ø Geschwindigkeit",
+      "tokensPerSecond": "$n Tok./s",
       "perHour": "Anfragen pro Stunde",
       "byModel": "Nach Modell",
       "byFolder": "Nach Projekt",

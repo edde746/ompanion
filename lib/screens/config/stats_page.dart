@@ -9,6 +9,7 @@ import '../../config/config_target.dart';
 import '../../config/omp_cli.dart';
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../utils/number_format.dart';
 import '../../utils/token_count.dart';
 import 'config_widgets.dart';
 
@@ -86,19 +87,23 @@ class _StatsPageState extends State<StatsPage> {
                     _Metric(label: t.config.stats.requests, value: '${stats.overall.requests}'),
                     _Metric(
                       label: t.config.stats.errors,
-                      value: '${stats.overall.failed} (${_percent(stats.overall.errorRate)})',
+                      value: '${stats.overall.failed} (${formatPercent(stats.overall.errorRate)})',
                     ),
                     _Metric(label: t.config.stats.inputTokens, value: formatTokens(stats.overall.inputTokens)),
                     _Metric(label: t.config.stats.outputTokens, value: formatTokens(stats.overall.outputTokens)),
                     _Metric(
                       label: t.config.stats.cacheRead,
-                      value: '${formatTokens(stats.overall.cacheReadTokens)} (${_percent(stats.overall.cacheRate)})',
+                      value:
+                          '${formatTokens(stats.overall.cacheReadTokens)} (${formatPercent(stats.overall.cacheRate)})',
                     ),
                     _Metric(label: t.config.stats.cost, value: _cost(stats.overall.cost)),
                     if (stats.overall.avgTtftMs case final ttft?)
                       _Metric(label: t.config.stats.ttft, value: '${ttft.round()} ms'),
                     if (stats.overall.avgTokensPerSecond case final rate?)
-                      _Metric(label: t.config.stats.speed, value: '${rate.toStringAsFixed(1)} tok/s'),
+                      _Metric(
+                        label: t.config.stats.speed,
+                        value: t.config.stats.tokensPerSecond(n: formatFixed(rate, 1)),
+                      ),
                   ],
                 ),
                 ConfigSectionTitle(t.config.stats.perHour),
@@ -312,9 +317,7 @@ class _Bars extends StatelessWidget {
   }
 }
 
-String _percent(double fraction) => '${(fraction * 100).toStringAsFixed(1)}%';
-
-String _cost(double usd) => '\$${usd.toStringAsFixed(usd < 1 ? 4 : 2)}';
+String _cost(double usd) => formatUsd(usd, usd < 1 ? 4 : 2);
 
 String _date(DateTime time) =>
     '${time.year}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')} '

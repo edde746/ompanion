@@ -201,8 +201,9 @@ After editing translations in `lib/i18n/en.i18n.json`:
 dart run slang
 ```
 
-A new language is `lib/i18n/<code>.i18n.json` next to it with the same keys, its code in `AppLanguage`
-(`lib/app/language.dart`), then the same command; the settings offer it.
+A new language is `lib/i18n/<code>.i18n.json` next to it with the same keys, the same command, then a member in
+`AppLanguage` (`lib/app/language.dart`) with the generated `AppLocale` and the language's name for itself; the settings
+offer it. Material's own strings and number formatting follow the locale through `flutter_localizations` and `intl`.
 
 After changing the drift tables in `lib/database/`:
 

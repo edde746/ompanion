@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import '../../config/cli_results.dart';
+import '../../i18n/strings.g.dart';
+import '../../utils/number_format.dart';
 
 /// omp's global usage reserve when `retry.usageReservePct` is not set (`DEFAULT_USAGE_RESERVE_PCT`).
 const defaultReservePct = 10;
@@ -534,27 +536,32 @@ String formatProviderName(String provider) => provider
     .map((part) => part.isEmpty ? '' : '${part[0].toUpperCase()}${part.substring(1)}')
     .join(' ');
 
-/// omp's `formatDuration`: `850ms`, `1.5s`, `30m15s`, `2h30m`, `3d2h`.
+/// omp's `formatDuration`: `850ms`, `1.5s`, `30m15s`, `2h30m`, `3d2h`; German `30 min 15 s`.
 String formatUsageDuration(Duration duration) {
+  final units = t.units;
   final ms = duration.inMicroseconds / 1000;
-  if (ms <= 0) return '0ms';
-  if (ms < 1000) return '${ms.floor()}ms';
-  if (ms < 60000) return '${(ms / 1000).toStringAsFixed(1)}s';
-  String pair(int big, String bigUnit, int small, String smallUnit) =>
-      small > 0 ? '$big$bigUnit$small$smallUnit' : '$big$bigUnit';
-  if (ms < 3600000) return pair(ms ~/ 60000, 'm', (ms % 60000) ~/ 1000, 's');
-  if (ms < 86400000) return pair(ms ~/ 3600000, 'h', (ms % 3600000) ~/ 60000, 'm');
-  return pair(ms ~/ 86400000, 'd', (ms % 86400000) ~/ 3600000, 'h');
+  if (ms <= 0) return units.milliseconds(value: 0);
+  if (ms < 1000) return units.milliseconds(value: ms.floor());
+  if (ms < 60000) return units.seconds(value: formatFixed(ms / 1000, 1));
+  String pair(String big, int small, String Function({required Object value}) smallUnit) => small > 0
+      ? units.pair(
+          big: big,
+          small: smallUnit(value: small),
+        )
+      : big;
+  if (ms < 3600000) return pair(units.minutes(value: ms ~/ 60000), (ms % 60000) ~/ 1000, units.seconds);
+  if (ms < 86400000) return pair(units.hours(value: ms ~/ 3600000), (ms % 3600000) ~/ 60000, units.minutes);
+  return pair(units.days(value: ms ~/ 86400000), (ms % 86400000) ~/ 3600000, units.hours);
 }
 
-/// omp's `formatNumber`: `999`, `1.5K`, `25K`, `1.5M`, `1.5B`.
+/// omp's `formatNumber`: `999`, `1.5K`, `25K`, `1.5M`, `1.5B`; German `1,5K`.
 String formatUsageNumber(num n) {
   String trim1(num value) {
-    final text = value.toStringAsFixed(1);
-    return text.endsWith('.0') ? text.substring(0, text.length - 2) : text;
+    final text = formatFixed(value, 1);
+    return text.endsWith('${decimalSeparator}0') ? text.substring(0, text.length - 2) : text;
   }
 
-  if (n < 1000) return n == n.truncate() ? '${n.truncate()}' : '$n';
+  if (n < 1000) return n == n.truncate() ? '${n.truncate()}' : '$n'.replaceFirst('.', decimalSeparator);
   if (n < 10000) return '${trim1(n / 1000)}K';
   if (n < 1000000) return '${(n / 1000).round()}K';
   if (n < 10000000) return '${trim1(n / 1000000)}M';
@@ -564,5 +571,4 @@ String formatUsageNumber(num n) {
 }
 
 /// `formatUnitValue`: dollars with cents, anything else compact.
-String formatUnitValue(num value, String unit) =>
-    unit == 'usd' ? '\$${value.toStringAsFixed(2)}' : formatUsageNumber(value);
+String formatUnitValue(num value, String unit) => unit == 'usd' ? formatUsd(value, 2) : formatUsageNumber(value);

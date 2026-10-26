@@ -15,6 +15,7 @@ import '../../../models/machine.dart';
 import '../../../sessions/machine_images.dart';
 import '../../../sessions/session_view_builder.dart';
 import '../../../sessions/sessions_provider.dart';
+import '../../../utils/number_format.dart';
 import '../../../utils/token_count.dart';
 import '../../../widgets/activity_mark.dart';
 import '../../chat/transcript/transcript_view.dart';
@@ -277,7 +278,7 @@ String _usageLine(BuildContext context, RosterAgent agent) {
   return [
     if (agent.tokens case final tokens? when tokens > 0) t.tokens(count: formatTokens(tokens)),
     if (agent.tools case final tools? when tools > 0) t.tools(n: tools),
-    if (agent.cost case final cost? when cost > 0) '\$${cost.toStringAsFixed(cost < 0.01 ? 4 : 2)}',
+    if (agent.cost case final cost? when cost > 0) formatUsd(cost, cost < 0.01 ? 4 : 2),
     if (agent.duration case final duration? when duration > Duration.zero) _duration(context, duration),
   ].join(' · ');
 }

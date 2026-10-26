@@ -5,6 +5,7 @@ import 'package:omp_core/host.dart';
 
 import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
+import '../../utils/number_format.dart';
 import '../../utils/token_count.dart';
 import '../../widgets/app_segmented.dart';
 import '../../widgets/app_select.dart';
@@ -71,9 +72,9 @@ class _ActivityViewState extends State<ActivityView> {
           (
             s.requests,
             formatCount(requests.requests),
-            s.failed(n: formatCount(requests.errors), percent: _percent(requests.errorRate)),
+            s.failed(n: formatCount(requests.errors), percent: formatPercent(requests.errorRate)),
           ),
-          (s.tokens, formatTokens(requests.tokens), s.fromCache(percent: _percent(requests.cacheRate))),
+          (s.tokens, formatTokens(requests.tokens), s.fromCache(percent: formatPercent(requests.cacheRate))),
           (
             s.cost,
             _money(requests.cost),
@@ -97,7 +98,7 @@ class _ActivityViewState extends State<ActivityView> {
           (
             s.speed,
             switch (requests.averageTokensPerSecond) {
-              final rate? => s.tokensPerSecond(n: rate.toStringAsFixed(rate < 10 ? 1 : 0)),
+              final rate? => s.tokensPerSecond(n: formatFixed(rate, rate < 10 ? 1 : 0)),
               null => '–',
             },
             switch (requests.averageTtftMs) {
@@ -272,10 +273,14 @@ class _ActivityViewState extends State<ActivityView> {
             (
               s.promptsTitle,
               formatCount(prompts),
-              activeDays == 0 ? '' : s.promptsPerDay(n: (prompts / activeDays).toStringAsFixed(1)),
+              activeDays == 0 ? '' : s.promptsPerDay(n: formatFixed(prompts / activeDays, 1)),
             ),
             (s.words, formatCount(typed.words), s.perPrompt(n: formatCount((typed.words / prompts).round()))),
-            (s.questions, _percent(typed.questions / prompts), s.askedSomething(count: formatCount(typed.questions))),
+            (
+              s.questions,
+              formatPercent(typed.questions / prompts),
+              s.askedSomething(count: formatCount(typed.questions)),
+            ),
             (
               s.longestPrompt,
               switch (typed.longest) {
@@ -505,7 +510,7 @@ class _ShareList extends StatelessWidget {
 
   List<Widget> _row(BuildContext context, _ShareRow row, bool stacked, TextStyle? muted) {
     final label = DefaultTextStyle.merge(style: Theme.of(context).textTheme.bodyMedium, child: row.label);
-    final value = Text('${row.value} · ${_percent(row.share)}', style: muted, overflow: TextOverflow.ellipsis);
+    final value = Text('${row.value} · ${formatPercent(row.share)}', style: muted, overflow: TextOverflow.ellipsis);
     final numbers = [
       if (row.error case final error?) ...[
         Text(error, style: muted?.copyWith(color: AppColors.of(context).error)),
@@ -1118,7 +1123,7 @@ class _LengthHistogramState extends State<_LengthHistogram> {
         : s.lengthDetail(
             length: spans[hover],
             prompts: s.prompts(n: lengths[hover], count: formatCount(lengths[hover])),
-            percent: _percent(prompts == 0 ? 0 : lengths[hover] / prompts),
+            percent: formatPercent(prompts == 0 ? 0 : lengths[hover] / prompts),
           );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1364,11 +1369,11 @@ class _TokenMix extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-                Text('${formatTokens(tokens)} · ${_percent(total == 0 ? 0 : tokens / total)}', style: muted),
+                Text('${formatTokens(tokens)} · ${formatPercent(total == 0 ? 0 : tokens / total)}', style: muted),
               ],
             ),
           ),
-        Text(s.fromCache(percent: _percent(requests.cacheRate)), style: muted),
+        Text(s.fromCache(percent: formatPercent(requests.cacheRate)), style: muted),
       ],
     );
   }
@@ -1404,22 +1409,10 @@ String _shortDate(Translations t, int day) {
   return t.usage.stats.shortDate(month: t.usage.stats.months[date.month - 1], day: date.day);
 }
 
-/// `128,767`.
-String formatCount(int value) {
-  final digits = value.abs().toString();
-  final grouped = StringBuffer(value < 0 ? '-' : '');
-  for (var index = 0; index < digits.length; index++) {
-    if (index > 0 && (digits.length - index) % 3 == 0) grouped.write(',');
-    grouped.write(digits[index]);
-  }
-  return grouped.toString();
-}
-
-/// `$14,937.48`; a sum under a dollar keeps four decimals (`$0.0123`), as omp prints request costs.
+/// `$14,937.48` (German `14.937,48 $`); a sum under a dollar keeps four decimals (`$0.0123`), as omp prints request
+/// costs.
 String _money(double usd) {
-  if (usd > 0 && usd < 1) return '\$${usd.toStringAsFixed(4)}';
+  if (usd > 0 && usd < 1) return formatUsd(usd, 4);
   final cents = (usd * 100).round();
-  return '\$${formatCount(cents ~/ 100)}.${(cents % 100).toString().padLeft(2, '0')}';
+  return t.units.usd(value: '${formatCount(cents ~/ 100)}$decimalSeparator${(cents % 100).toString().padLeft(2, '0')}');
 }
-
-String _percent(double fraction) => '${(fraction * 100).toStringAsFixed(1)}%';

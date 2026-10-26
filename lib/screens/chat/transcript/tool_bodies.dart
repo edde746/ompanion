@@ -8,6 +8,7 @@ import '../../../app/theme.dart';
 import '../../../files/file_paths.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../utils/compact_duration.dart';
+import '../../../utils/number_format.dart';
 import '../../../utils/token_count.dart';
 import '../../../widgets/activity_mark.dart';
 import '../mode_controls.dart' show goalStatusLabel, goalUsage;
@@ -105,7 +106,7 @@ ToolParts _bash(BuildContext context, ToolData data) {
     meta: [
       if (timedOut) t.tool.timedOut,
       if (exitCode != null && exitCode != 0) t.tool.exitCode(code: exitCode),
-      if (wall is num) t.seconds(value: (wall / 1000).toStringAsFixed(2)),
+      if (wall is num) t.seconds(value: formatFixed(wall / 1000, 2)),
     ],
     expanded: true,
     open: null,
@@ -613,7 +614,7 @@ class _AgentRow extends StatelessWidget {
       if (agent.tokens case final tokens? when tokens > 0)
         context.t.transcript.tool.tokens(count: formatTokens(tokens)),
       if (agent.duration != null)
-        context.t.transcript.seconds(value: (agent.duration!.inMilliseconds / 1000).toStringAsFixed(1)),
+        context.t.transcript.seconds(value: formatFixed(agent.duration!.inMilliseconds / 1000, 1)),
     ];
     return InkWell(
       borderRadius: BorderRadius.circular(6),

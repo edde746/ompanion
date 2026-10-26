@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../database/app_database.dart';
@@ -148,6 +149,7 @@ class OmpanionApp extends StatelessWidget {
               },
               locale: TranslationProvider.of(context).flutterLocale,
               supportedLocales: AppLocaleUtils.supportedLocales,
+              localizationsDelegates: GlobalMaterialLocalizations.delegates,
               builder: (context, child) => WindowChrome(child: child!),
               home: const ConnectPromptHost(child: NotificationHost(child: ShellScreen())),
             );

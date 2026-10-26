@@ -1,5 +1,7 @@
-/// [tokens] for people: `950`, `1.2K`, `128K`, `1M`, `1.5M`, `17.4B`; one decimal unless the value is whole in its
-/// unit.
+import 'number_format.dart';
+
+/// [tokens] for people: `950`, `1.2K`, `128K`, `1M`, `1.5M`, `17.4B` (German `1,2K`); one decimal unless the value is
+/// whole in its unit.
 String formatTokens(int tokens) {
   if (tokens < 1000) return '$tokens';
   // Rounded to tenths of the unit first, so 999,960 reads `1M` rather than `1000K`.
@@ -12,5 +14,5 @@ String formatTokens(int tokens) {
       : ((tokens / 100000000).round(), 'B');
   final whole = tenths ~/ 10;
   final decimal = tenths % 10;
-  return decimal == 0 ? '$whole$unit' : '$whole.$decimal$unit';
+  return decimal == 0 ? '$whole$unit' : '$whole$decimalSeparator$decimal$unit';
 }

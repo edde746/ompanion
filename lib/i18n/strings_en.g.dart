@@ -62,6 +62,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$themeEditor$en themeEditor = Translations$themeEditor$en.internal(_root);
 	late final Translations$notifications$en notifications = Translations$notifications$en.internal(_root);
 	late final Translations$time$en time = Translations$time$en.internal(_root);
+	late final Translations$units$en units = Translations$units$en.internal(_root);
 	late final Translations$sessions$en sessions = Translations$sessions$en.internal(_root);
 	late final Translations$install$en install = Translations$install$en.internal(_root);
 	late final Translations$chat$en chat = Translations$chat$en.internal(_root);
@@ -1068,12 +1069,6 @@ class Translations$settings$en {
 	/// en: 'System'
 	String get languageSystem => 'System';
 
-	/// en: 'English'
-	String get languageEnglish => 'English';
-
-	/// en: 'Deutsch'
-	String get languageGerman => 'Deutsch';
-
 	/// en: '$base base'
 	String customBase({required Object base}) => '${base} base';
 
@@ -1384,6 +1379,39 @@ class Translations$time$en {
 
 	/// en: '${n}d'
 	String days({required Object n}) => '${n}d';
+}
+
+// Path: units
+class Translations$units$en {
+	Translations$units$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: '${value}ms'
+	String milliseconds({required Object value}) => '${value}ms';
+
+	/// en: '${value}s'
+	String seconds({required Object value}) => '${value}s';
+
+	/// en: '${value}m'
+	String minutes({required Object value}) => '${value}m';
+
+	/// en: '${value}h'
+	String hours({required Object value}) => '${value}h';
+
+	/// en: '${value}d'
+	String days({required Object value}) => '${value}d';
+
+	/// en: '$big$small'
+	String pair({required Object big, required Object small}) => '${big}${small}';
+
+	/// en: '$value%'
+	String percent({required Object value}) => '${value}%';
+
+	/// en: '\$$value'
+	String usd({required Object value}) => '\$${value}';
 }
 
 // Path: sessions
@@ -4208,6 +4236,9 @@ class Translations$config$stats$en {
 	/// en: 'Avg. speed'
 	String get speed => 'Avg. speed';
 
+	/// en: '$n tok/s'
+	String tokensPerSecond({required Object n}) => '${n} tok/s';
+
 	/// en: 'Requests per hour'
 	String get perHour => 'Requests per hour';
 
@@ -4961,8 +4992,6 @@ extension on Translations {
 			'settings.editColors' => 'Edit colors',
 			'settings.language' => 'Language',
 			'settings.languageSystem' => 'System',
-			'settings.languageEnglish' => 'English',
-			'settings.languageGerman' => 'Deutsch',
 			'settings.customBase' => ({required Object base}) => '${base} base',
 			'settings.customPicked' => ({required Object base, required Object count}) => '${base} base · ${count} changed',
 			'settings.buildChannel' => 'Build channel',
@@ -5130,6 +5159,14 @@ extension on Translations {
 			'time.minutes' => ({required Object n}) => '${n}m',
 			'time.hours' => ({required Object n}) => '${n}h',
 			'time.days' => ({required Object n}) => '${n}d',
+			'units.milliseconds' => ({required Object value}) => '${value}ms',
+			'units.seconds' => ({required Object value}) => '${value}s',
+			'units.minutes' => ({required Object value}) => '${value}m',
+			'units.hours' => ({required Object value}) => '${value}h',
+			'units.days' => ({required Object value}) => '${value}d',
+			'units.pair' => ({required Object big, required Object small}) => '${big}${small}',
+			'units.percent' => ({required Object value}) => '${value}%',
+			'units.usd' => ({required Object value}) => '\$${value}',
 			'sessions.offline' => 'Offline',
 			'sessions.connecting' => 'Connecting…',
 			'sessions.online' => ({required Object version}) => 'omp ${version}',
@@ -5432,14 +5469,14 @@ extension on Translations {
 			'transcript.tool.movedTo' => ({required Object path}) => 'Moved to ${path}',
 			'transcript.tool.noChanges' => 'No changes',
 			'transcript.tool.todoProgress' => ({required Object done, required Object total}) => '${done} of ${total} done',
+			_ => null,
+		} ?? switch (path) {
 			'transcript.tool.agents' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} agent', other: '${n} agents', ), 
 			'transcript.tool.openAgent' => 'Open agent',
 			'transcript.tool.agentPending' => 'Pending',
 			'transcript.tool.agentRunning' => 'Running',
 			'transcript.tool.agentCompleted' => 'Done',
 			'transcript.tool.agentFailed' => 'Failed',
-			_ => null,
-		} ?? switch (path) {
 			'transcript.tool.agentAborted' => 'Aborted',
 			'transcript.tool.askWaiting' => 'Waiting for your answer below',
 			'transcript.tool.recommended' => 'Recommended',
@@ -5689,6 +5726,7 @@ extension on Translations {
 			'config.stats.cost' => 'Cost',
 			'config.stats.ttft' => 'Avg. first token',
 			'config.stats.speed' => 'Avg. speed',
+			'config.stats.tokensPerSecond' => ({required Object n}) => '${n} tok/s',
 			'config.stats.perHour' => 'Requests per hour',
 			'config.stats.byModel' => 'By model',
 			'config.stats.byFolder' => 'By project',

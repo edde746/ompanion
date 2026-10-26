@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ompanion/i18n/strings.g.dart';
 import 'package:ompanion/utils/token_count.dart';
 
 void main() {
@@ -27,5 +28,19 @@ void main() {
     for (final MapEntry(key: tokens, value: text) in cases.entries) {
       expect(formatTokens(tokens), text, reason: '$tokens tokens');
     }
+  });
+
+  group('in German', () {
+    setUp(() => LocaleSettings.setLocaleSync(AppLocale.de));
+    tearDown(() => LocaleSettings.setLocaleSync(AppLocale.en));
+
+    test('the decimal is a comma', () {
+      expect(
+        [
+          for (final tokens in [999, 1234, 128000, 128500, 1500000, 17406968354]) formatTokens(tokens),
+        ],
+        ['999', '1,2K', '128K', '128,5K', '1,5M', '17,4B'],
+      );
+    });
   });
 }
