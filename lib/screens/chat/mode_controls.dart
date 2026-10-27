@@ -81,7 +81,7 @@ Offset _menuOffset(BuildContext button, GlobalKey above, double width) {
   final start = (button.findRenderObject()! as RenderBox).localToGlobal(Offset.zero).dx;
   final block = above.currentContext!.findRenderObject()! as RenderBox;
   final end = block.localToGlobal(Offset(block.size.width, 0)).dx;
-  return menuOffsetAbove(button, above, alignStart: false).translate(-math.max(0.0, start + width - end), 0);
+  return menuOffsetAbove(button, above).translate(-math.max(0.0, start + width - end), 0);
 }
 
 /// [ToolbarButton.color] of a held state: a paused or budget-limited goal, a suspended loop.

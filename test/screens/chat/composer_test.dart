@@ -637,6 +637,61 @@ void main() {
     await tearDownProviders(tester);
   });
 
+  testWidgets(
+    'on a phone the model list opens without the keyboard and keeps above the composer as the keyboard moves it',
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+      addTearDown(tester.view.reset);
+      sessions = _MachineSessions(connector: MachineConnector(SecretStore(), KnownHostsStore(db)), machines: machines);
+      final session = await attachedSession(tester);
+      session.omp.models = [
+        for (var n = 0; n < 30; n++)
+          {
+            'provider': 'fake',
+            'id': 'fake-$n',
+            'name': 'Fake $n',
+            'reasoning': false,
+            'input': ['text'],
+            'contextWindow': 128000,
+          },
+      ];
+      await pumpComposer(tester, session);
+      await tester.tap(find.byKey(const ValueKey('model-picker')));
+      await tester.pumpAndSettle();
+      final search = find.descendant(of: find.byType(AppSearchField), matching: find.byType(EditableText));
+      bool searching() => tester.widget<EditableText>(search).focusNode.hasFocus;
+      expect(searching(), isFalse, reason: 'opening leaves the keyboard down');
+
+      final list = find.ancestor(of: find.byType(AppSearchField), matching: find.byType(Material)).first;
+      final block = find.ancestor(of: composer, matching: find.byType(Material)).first;
+      Future<Rect> keyboard(double height) async {
+        tester.view.viewInsets = FakeViewPadding(bottom: height);
+        tester.view.padding = FakeViewPadding(top: 47, bottom: height > 0 ? 0 : 34);
+        await tester.pumpAndSettle();
+        final rect = tester.getRect(list);
+        expect(tester.getRect(block).top - rect.bottom, AppSizes.gap, reason: 'above the composer, keyboard $height');
+        expect(rect.top, greaterThanOrEqualTo(47 + AppSizes.gap), reason: 'under the status bar, keyboard $height');
+        return rect;
+      }
+
+      await tester.tap(find.byType(AppSearchField));
+      final raised = await keyboard(336);
+      expect(searching(), isTrue);
+      expect((await keyboard(0)).height, greaterThan(raised.height), reason: 'the list takes the room back');
+
+      await keyboard(336);
+      await tester.tap(find.text('Fake 1'));
+      await tester.pumpAndSettle();
+      expect(session.omp.sent.last, containsPair('type', 'set_model'));
+      expect(find.byType(AppSearchField), findsNothing);
+
+      await tearDownProviders(tester);
+    },
+  );
+
   group('attachments', () {
     Future<void> paste(WidgetTester tester) async {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);

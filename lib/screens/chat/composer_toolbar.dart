@@ -56,7 +56,7 @@ class _ThinkingPickerState extends State<ThinkingPicker> {
     }
     setState(() {
       _levels = levels;
-      _offset = menuOffsetAbove(context, widget.above, alignStart: false);
+      _offset = menuOffsetAbove(context, widget.above);
     });
     _menu.open();
   }

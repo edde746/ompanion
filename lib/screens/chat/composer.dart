@@ -947,7 +947,7 @@ class _AttachButtonState extends State<_AttachButton> {
             ? null
             : () {
                 if (controller.isOpen) return controller.close();
-                setState(() => _offset = menuOffsetAbove(context, widget.above, alignStart: false));
+                setState(() => _offset = menuOffsetAbove(context, widget.above));
                 controller.open();
               },
       ),

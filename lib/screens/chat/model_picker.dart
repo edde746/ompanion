@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/rpc.dart';
 import 'package:omp_core/session.dart';
@@ -40,8 +41,6 @@ class ModelPicker extends StatefulWidget {
 
 class _ModelPickerState extends State<ModelPicker> {
   final _menu = MenuController();
-  Offset _offset = Offset.zero;
-  double _width = _ModelList.maxWidth;
 
   Future<void> _pick(RpcModel picked) async {
     _menu.close();
@@ -54,56 +53,72 @@ class _ModelPickerState extends State<ModelPicker> {
     }
   }
 
+  /// The list over the composer block: it starts at the block's start, is at most as wide, and ends [AppSizes.gap]
+  /// above it, no taller than the room up to the safe area. RawMenuAnchor builds this in layout whenever the button
+  /// moves, so the list follows the composer as the on-screen keyboard raises or lowers it. MenuAnchor builds its
+  /// children once, so a list sized at open would lie over the composer and under the keyboard once that rises.
+  Widget _overlay(BuildContext context, RawMenuOverlayInfo info, Machine machine) {
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final block = widget.above.currentContext!.findRenderObject()! as RenderBox;
+    final rect = MatrixUtils.transformRect(block.getTransformTo(overlay), Offset.zero & block.size);
+    // The view's own inset: the composer's MediaQuery has the status bar taken out by the chat's SafeArea.
+    final top = MediaQueryData.fromView(View.of(context)).padding.top + AppSizes.gap;
+    final width = math.min(_ModelList.maxWidth, rect.width);
+    return Positioned(
+      left: Directionality.of(context) == TextDirection.rtl ? rect.right - width : rect.left,
+      bottom: info.overlaySize.height - rect.top + AppSizes.gap,
+      width: width,
+      child: TapRegion(
+        groupId: info.tapRegionGroupId,
+        onTapOutside: (_) => _menu.close(),
+        // Esc closes the list before the chat's shortcut, which would abort a run, sees it.
+        child: CallbackShortcuts(
+          bindings: {const SingleActivator(LogicalKeyboardKey.escape): _menu.close},
+          child: Material(
+            color: Theme.of(context).colorScheme.surfaceBright,
+            borderRadius: const BorderRadius.all(Radius.circular(AppSizes.radius)),
+            clipBehavior: Clip.antiAlias,
+            child: _ModelList(
+              load: ({required bool refresh}) =>
+                  context.read<SessionsProvider>().models(machine, widget.session.rpc, refresh: refresh),
+              current: widget.model,
+              room: rect.top - AppSizes.gap - top,
+              onPick: (picked) => unawaited(_pick(picked)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final model = widget.model;
     final machine = widget.machine;
-    return MenuAnchor(
+    return RawMenuAnchor(
       controller: _menu,
-      alignmentOffset: _offset,
-      // The list pads itself evenly; the theme's vertical menu padding would make its top inset deeper than its sides.
-      style: const MenuStyle(padding: WidgetStatePropertyAll(EdgeInsets.zero)),
-      menuChildren: [
-        if (machine != null)
-          _ModelList(
-            load: ({required bool refresh}) =>
-                context.read<SessionsProvider>().models(machine, widget.session.rpc, refresh: refresh),
-            current: model,
-            width: _width,
-            onPick: (picked) => unawaited(_pick(picked)),
-          ),
-      ],
+      overlayBuilder: (context, info) => machine == null ? const SizedBox.shrink() : _overlay(context, info, machine),
       builder: (context, controller, _) => ToolbarButton(
         key: const ValueKey('model-picker'),
         icon: Symbols.auto_awesome,
         label: model == null ? t.chat.noModel : (model.name ?? model.id),
         tooltip: model?.selector,
-        onPressed: machine == null
-            ? null
-            : () {
-                if (controller.isOpen) return controller.close();
-                // The wide list starts where the composer does and is at most as wide.
-                setState(() {
-                  _offset = menuOffsetAbove(this.context, widget.above, alignStart: true);
-                  _width = math.min(_ModelList.maxWidth, widget.above.currentContext!.size!.width);
-                });
-                controller.open();
-              },
+        onPressed: machine == null ? null : () => controller.isOpen ? controller.close() : controller.open(),
       ),
     );
   }
 }
 
-/// The `alignmentOffset` of a composer toolbar menu opened from [button]: the menu ends [AppSizes.gap] above the
-/// composer block [above] instead of covering it, and starts at the block's start with [alignStart], else at the
-/// button's. A menu does not fit below the composer, so MenuAnchor flips it up by the offset's `dy`.
-Offset menuOffsetAbove(BuildContext button, GlobalKey above, {required bool alignStart}) {
+/// The `alignmentOffset` of a composer toolbar menu opened from [button]: the menu starts at the button and ends
+/// [AppSizes.gap] above the composer block [above] instead of covering it. A menu does not fit below the composer, so
+/// MenuAnchor flips it up by the offset's `dy`.
+Offset menuOffsetAbove(BuildContext button, GlobalKey above) {
   final anchor = button.findRenderObject()! as RenderBox;
   final block = anchor.globalToLocal(
     (above.currentContext!.findRenderObject()! as RenderBox).localToGlobal(Offset.zero),
   );
-  return Offset(alignStart ? block.dx : 0, AppSizes.gap - block.dy);
+  return Offset(0, AppSizes.gap - block.dy);
 }
 
 /// A low-emphasis toolbar control: icon, label and a chevron, the height of every other control.
@@ -179,13 +194,15 @@ List<RpcModel> filterModels(List<RpcModel> models, String query) {
 }
 
 class _ModelList extends StatefulWidget {
-  const _ModelList({required this.load, required this.current, required this.width, required this.onPick});
+  const _ModelList({required this.load, required this.current, required this.room, required this.onPick});
 
   static const double maxWidth = 440;
 
   final Future<List<RpcModel>> Function({required bool refresh}) load;
   final ModelRef? current;
-  final double width;
+
+  /// The height between the safe area's top and the composer block, less the gaps.
+  final double room;
   final ValueChanged<RpcModel> onPick;
 
   @override
@@ -201,15 +218,13 @@ class _ModelListState extends State<_ModelList> {
     final t = context.t;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final screen = MediaQuery.sizeOf(context);
     Widget message(Widget child) => Padding(
       padding: const EdgeInsets.all(24),
       child: Center(heightFactor: 1, child: child),
     );
-    final width = widget.width;
-    // As tall as the models it lists, up to the cap; a longer list scrolls.
+    // As tall as the models it lists, up to the cap and the room; a longer list scrolls. The search row stays whole.
     return ConstrainedBox(
-      constraints: BoxConstraints(minWidth: width, maxWidth: width, maxHeight: math.min(420, screen.height * 0.6)),
+      constraints: BoxConstraints(maxHeight: math.min(420, math.max(widget.room, AppSizes.control + 2 * AppSizes.gap))),
       child: Padding(
         padding: const EdgeInsets.all(AppSizes.gap),
         child: Column(
@@ -231,7 +246,12 @@ class _ModelListState extends State<_ModelList> {
                       ),
                     ),
                     child: AppSearchField(
-                      autofocus: true,
+                      // On iOS and Android focus would raise the on-screen keyboard over most of the list, which
+                      // is there to be tapped; a tap on the field raises it.
+                      autofocus: switch (theme.platform) {
+                        TargetPlatform.iOS || TargetPlatform.android => false,
+                        _ => true,
+                      },
                       hint: t.chat.searchModels,
                       onChanged: (query) => setState(() => _query = query),
                     ),
@@ -263,6 +283,8 @@ class _ModelListState extends State<_ModelList> {
                       current != null && current.provider == model.provider && current.id == model.id;
                   // A column rather than a lazy list: the menu measures its content, which a viewport cannot report.
                   return SingleChildScrollView(
+                    // Not the route's PrimaryScrollController, which a scroll view takes by default on iOS and Android.
+                    primary: false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
