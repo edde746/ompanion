@@ -41,8 +41,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        // flutter_local_notifications requires desugaring (its README), even on Android, where the app never
-        // initializes it.
+        // flutter_local_notifications requires desugaring (its README); it schedules the usage reminders.
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

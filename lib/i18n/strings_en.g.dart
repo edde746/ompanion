@@ -61,6 +61,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$settings$en settings = Translations$settings$en.internal(_root);
 	late final Translations$themeEditor$en themeEditor = Translations$themeEditor$en.internal(_root);
 	late final Translations$notifications$en notifications = Translations$notifications$en.internal(_root);
+	late final Translations$usageReminders$en usageReminders = Translations$usageReminders$en.internal(_root);
 	late final Translations$time$en time = Translations$time$en.internal(_root);
 	late final Translations$units$en units = Translations$units$en.internal(_root);
 	late final Translations$sessions$en sessions = Translations$sessions$en.internal(_root);
@@ -1358,6 +1359,90 @@ class Translations$notifications$en {
 
 	/// en: 'Open'
 	String get open => 'Open';
+}
+
+// Path: usageReminders
+class Translations$usageReminders$en {
+	Translations$usageReminders$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Notify me when it resets'
+	String get limitTooltip => 'Notify me when it resets';
+
+	/// en: 'Notify me when this account is usable again'
+	String get accountTooltip => 'Notify me when this account is usable again';
+
+	/// en: 'Notifying in $duration'
+	String setIn({required Object duration}) => 'Notifying in ${duration}';
+
+	/// en: 'Notifying at every reset'
+	String get setEvery => 'Notifying at every reset';
+
+	/// en: 'Notifying in $duration, then at every reset'
+	String setEveryIn({required Object duration}) => 'Notifying in ${duration}, then at every reset';
+
+	/// en: 'Notifying each time it runs out, once it is usable again'
+	String get setRunsOut => 'Notifying each time it runs out, once it is usable again';
+
+	/// en: 'Notifying in $duration, then each time it runs out'
+	String setRunsOutIn({required Object duration}) => 'Notifying in ${duration}, then each time it runs out';
+
+	/// en: 'When it resets (in $duration)'
+	String once({required Object duration}) => 'When it resets (in ${duration})';
+
+	/// en: 'When usable again (in $duration)'
+	String onceUsable({required Object duration}) => 'When usable again (in ${duration})';
+
+	/// en: 'When usable again (nothing ran out)'
+	String get onceUsableNone => 'When usable again (nothing ran out)';
+
+	/// en: 'At every reset'
+	String get every => 'At every reset';
+
+	/// en: 'Each time it runs out'
+	String get everyRunOut => 'Each time it runs out';
+
+	/// en: 'Off'
+	String get off => 'Off';
+
+	/// en: '$limit has reset'
+	String limitReset({required Object limit}) => '${limit} has reset';
+
+	/// en: 'Usable again'
+	String get usableAgain => 'Usable again';
+
+	/// en: 'Usage limits'
+	String get channel => 'Usage limits';
+
+	/// en: 'Usage reminders'
+	String get title => 'Usage reminders';
+
+	/// en: 'at $time'
+	String at({required Object time}) => 'at ${time}';
+
+	/// en: 'every reset'
+	String get everyReset => 'every reset';
+
+	/// en: 'each time it runs out'
+	String get eachRunOut => 'each time it runs out';
+
+	/// en: 'next at $time'
+	String next({required Object time}) => 'next at ${time}';
+
+	/// en: 'waiting for the next window'
+	String get waitingWindow => 'waiting for the next window';
+
+	/// en: 'nothing ran out'
+	String get waitingRunOut => 'nothing ran out';
+
+	/// en: 'Remove reminder'
+	String get remove => 'Remove reminder';
+
+	/// en: 'Setting the reminder failed: $error'
+	String failed({required Object error}) => 'Setting the reminder failed: ${error}';
 }
 
 // Path: time
@@ -5155,6 +5240,31 @@ extension on Translations {
 			'notifications.finished' => 'Finished',
 			'notifications.runFailed' => 'The run failed',
 			'notifications.open' => 'Open',
+			'usageReminders.limitTooltip' => 'Notify me when it resets',
+			'usageReminders.accountTooltip' => 'Notify me when this account is usable again',
+			'usageReminders.setIn' => ({required Object duration}) => 'Notifying in ${duration}',
+			'usageReminders.setEvery' => 'Notifying at every reset',
+			'usageReminders.setEveryIn' => ({required Object duration}) => 'Notifying in ${duration}, then at every reset',
+			'usageReminders.setRunsOut' => 'Notifying each time it runs out, once it is usable again',
+			'usageReminders.setRunsOutIn' => ({required Object duration}) => 'Notifying in ${duration}, then each time it runs out',
+			'usageReminders.once' => ({required Object duration}) => 'When it resets (in ${duration})',
+			'usageReminders.onceUsable' => ({required Object duration}) => 'When usable again (in ${duration})',
+			'usageReminders.onceUsableNone' => 'When usable again (nothing ran out)',
+			'usageReminders.every' => 'At every reset',
+			'usageReminders.everyRunOut' => 'Each time it runs out',
+			'usageReminders.off' => 'Off',
+			'usageReminders.limitReset' => ({required Object limit}) => '${limit} has reset',
+			'usageReminders.usableAgain' => 'Usable again',
+			'usageReminders.channel' => 'Usage limits',
+			'usageReminders.title' => 'Usage reminders',
+			'usageReminders.at' => ({required Object time}) => 'at ${time}',
+			'usageReminders.everyReset' => 'every reset',
+			'usageReminders.eachRunOut' => 'each time it runs out',
+			'usageReminders.next' => ({required Object time}) => 'next at ${time}',
+			'usageReminders.waitingWindow' => 'waiting for the next window',
+			'usageReminders.waitingRunOut' => 'nothing ran out',
+			'usageReminders.remove' => 'Remove reminder',
+			'usageReminders.failed' => ({required Object error}) => 'Setting the reminder failed: ${error}',
 			'time.now' => 'now',
 			'time.minutes' => ({required Object n}) => '${n}m',
 			'time.hours' => ({required Object n}) => '${n}h',
@@ -5444,6 +5554,8 @@ extension on Translations {
 			'transcript.imageNotFile' => ({required Object path}) => 'Not a file: ${path}',
 			'transcript.imageDenied' => ({required Object path}) => 'No permission to read ${path}',
 			'transcript.imageNotImage' => ({required Object path}) => 'Not an image: ${path}',
+			_ => null,
+		} ?? switch (path) {
 			'transcript.imageUnsupported' => ({required Object path, required Object size}) => '${path} (${size}) is in a format this app cannot show',
 			'transcript.imageTooLarge' => ({required Object path, required Object size}) => '${path} (${size}) is too large to load on its own',
 			'transcript.imageFailed' => ({required Object path, required Object error}) => 'Could not load ${path}: ${error}',
@@ -5469,8 +5581,6 @@ extension on Translations {
 			'transcript.tool.movedTo' => ({required Object path}) => 'Moved to ${path}',
 			'transcript.tool.noChanges' => 'No changes',
 			'transcript.tool.todoProgress' => ({required Object done, required Object total}) => '${done} of ${total} done',
-			_ => null,
-		} ?? switch (path) {
 			'transcript.tool.agents' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} agent', other: '${n} agents', ), 
 			'transcript.tool.openAgent' => 'Open agent',
 			'transcript.tool.agentPending' => 'Pending',

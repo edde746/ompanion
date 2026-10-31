@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import '../database/app_database.dart';
 import '../i18n/strings.g.dart';
 import '../notifications/desktop_notifications.dart';
+import '../notifications/local_notifications.dart';
 import '../notifications/push_service.dart';
+import '../notifications/usage_reminders.dart';
 import '../providers/keys_provider.dart';
 import '../providers/machines_provider.dart';
 import '../providers/settings_provider.dart';
@@ -108,14 +110,27 @@ class OmpanionApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => DockController(machines)),
         Provider.value(value: images),
+        if (notifications)
+          Provider(create: (_) => LocalNotifications(), dispose: (_, local) => local.dispose(), lazy: false),
         if (notifications && isDesktop)
           Provider(
             create: (context) => DesktopNotifications.following(
+              local: context.read<LocalNotifications>(),
               sessions: context.read<SessionsProvider>(),
               shell: context.read<ShellProvider>(),
               settings: settings,
             ),
             dispose: (_, notifications) => notifications.dispose(),
+            lazy: false,
+          ),
+        if (notifications)
+          ChangeNotifierProvider(
+            create: (context) => UsageReminders.following(
+              local: context.read<LocalNotifications>(),
+              settings: settings,
+              sessions: context.read<SessionsProvider>(),
+              machines: machines,
+            ),
             lazy: false,
           ),
         if (notifications && (Platform.isAndroid || Platform.isIOS))

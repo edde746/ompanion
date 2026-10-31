@@ -1,10 +1,12 @@
 import 'dart:convert';
 
 import 'package:omp_core/host.dart';
+import 'package:omp_core/rpc.dart' show asJsonObject;
 import 'package:omp_core/session.dart';
 
 import '../models/machine.dart';
 import '../sessions/sessions_provider.dart';
+import 'cli_results.dart';
 import 'omp_cli.dart';
 
 /// What the configuration pages act on: one machine through its runtime, and the project of the active chat
@@ -122,3 +124,7 @@ final class ConfigTarget {
     }
   }
 }
+
+/// `omp usage --json` on [target], with the reports omp cached (`omp usage invalidate` drops them first).
+Future<UsageSnapshot> readUsage(ConfigTarget target) async =>
+    UsageSnapshot.fromJson(asJsonObject(cliJson((await target.omp(const ['usage', '--json'])).stdout), 'omp usage'));

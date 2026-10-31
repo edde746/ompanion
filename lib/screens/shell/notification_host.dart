@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
-import '../../notifications/desktop_notifications.dart';
+import '../../notifications/local_notifications.dart';
 import '../../notifications/push_service.dart';
 import '../../providers/machines_provider.dart';
 import '../../providers/shell_provider.dart';
@@ -14,8 +14,9 @@ import '../../sessions/show_session.dart';
 import '../config/model_picker.dart' show resumeModelChooser;
 import '../machines/connect_dialogs.dart';
 
-/// Opens the session a tapped notification points at: taps while the app runs, and the one that launched the app once
-/// the machines are loaded. Also says when this phone's push registration could not be written to a machine.
+/// Opens what a tapped notification points at, a session or the usage pane: taps while the app runs, and the one that
+/// launched the app once the machines are loaded. Also says when this phone's push registration could not be written
+/// to a machine.
 class NotificationHost extends StatefulWidget {
   const NotificationHost({super.key, required this.child});
 
@@ -31,15 +32,15 @@ class _NotificationHostState extends State<NotificationHost> {
   @override
   void initState() {
     super.initState();
-    if (context.read<DesktopNotifications?>() case final desktop?) {
-      _subscriptions.add(desktop.taps.listen(_show));
-      unawaited(_showLaunchTap(desktop.takeLaunchTap));
+    if (context.read<LocalNotifications?>() case final local?) {
+      _subscriptions.add(local.taps.listen(_onLocalTap));
+      unawaited(_showLaunchTap(local.takeLaunchTap, _onLocalTap));
     }
     if (context.read<PushService?>() case final push?) {
       _subscriptions
         ..add(push.taps.listen(_show))
         ..add(push.failures.listen(_registrationFailed));
-      unawaited(_showLaunchTap(push.takeLaunchTap));
+      unawaited(_showLaunchTap(push.takeLaunchTap, _show));
     }
   }
 
@@ -51,7 +52,7 @@ class _NotificationHostState extends State<NotificationHost> {
     super.dispose();
   }
 
-  Future<void> _showLaunchTap(Future<SessionTarget?> Function() take) async {
+  Future<void> _showLaunchTap<T extends Object>(Future<T?> Function() take, Future<void> Function(T tap) show) async {
     final machines = context.read<MachinesProvider>();
     if (!machines.loaded) {
       final loaded = Completer<void>();
@@ -64,7 +65,16 @@ class _NotificationHostState extends State<NotificationHost> {
       machines.removeListener(check);
     }
     final tap = await take();
-    if (tap != null && mounted) await _show(tap);
+    if (tap != null && mounted) await show(tap);
+  }
+
+  Future<void> _onLocalTap(LocalTap tap) async {
+    switch (tap) {
+      case SessionTap(:final target):
+        await _show(target);
+      case UsageTap():
+        context.read<ShellProvider>().select(const UsageSelection());
+    }
   }
 
   Future<void> _show(SessionTarget target) async {

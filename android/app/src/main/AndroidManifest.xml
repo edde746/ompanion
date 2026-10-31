@@ -2,8 +2,10 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- SSH to machines. -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Push notifications; requested when the user turns push on (Android 13 and later). -->
+    <!-- Push notifications; requested when the user turns push on or sets a usage reminder (Android 13 and later). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Usage reminders: flutter_local_notifications schedules them again after a reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- A restored backup carries flutter_secure_storage values whose Keystore key did not travel with
          them, so they fail to decrypt ("Failed to unwrap key"). Private keys never leave the device. -->
     <application
@@ -65,6 +67,21 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="sessions"/>
+        <!-- Usage reminders, scheduled through flutter_local_notifications as inexact alarms: the receiver posts one when
+             its alarm goes off, the boot receiver schedules them again after a reboot or an app update. -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

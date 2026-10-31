@@ -59,6 +59,7 @@ class TranslationsDe extends Translations with BaseTranslations<AppLocale, Trans
 	@override late final _Translations$settings$de settings = _Translations$settings$de._(_root);
 	@override late final _Translations$themeEditor$de themeEditor = _Translations$themeEditor$de._(_root);
 	@override late final _Translations$notifications$de notifications = _Translations$notifications$de._(_root);
+	@override late final _Translations$usageReminders$de usageReminders = _Translations$usageReminders$de._(_root);
 	@override late final _Translations$time$de time = _Translations$time$de._(_root);
 	@override late final _Translations$units$de units = _Translations$units$de._(_root);
 	@override late final _Translations$sessions$de sessions = _Translations$sessions$de._(_root);
@@ -702,6 +703,40 @@ class _Translations$notifications$de extends Translations$notifications$en {
 	@override String get finished => 'Fertig';
 	@override String get runFailed => 'Der Lauf ist fehlgeschlagen';
 	@override String get open => 'Öffnen';
+}
+
+// Path: usageReminders
+class _Translations$usageReminders$de extends Translations$usageReminders$en {
+	_Translations$usageReminders$de._(TranslationsDe root) : this._root = root, super.internal(root);
+
+	final TranslationsDe _root; // ignore: unused_field
+
+	// Translations
+	@override String get limitTooltip => 'Beim Reset benachrichtigen';
+	@override String get accountTooltip => 'Benachrichtigen, sobald dieses Konto wieder nutzbar ist';
+	@override String setIn({required Object duration}) => 'Benachrichtigung in ${duration}';
+	@override String get setEvery => 'Benachrichtigung bei jedem Reset';
+	@override String setEveryIn({required Object duration}) => 'Benachrichtigung in ${duration}, danach bei jedem Reset';
+	@override String get setRunsOut => 'Benachrichtigung jedes Mal, wenn es ausgeschöpft war und wieder nutzbar ist';
+	@override String setRunsOutIn({required Object duration}) => 'Benachrichtigung in ${duration}, danach jedes Mal, wenn es ausgeschöpft ist';
+	@override String once({required Object duration}) => 'Beim Reset (in ${duration})';
+	@override String onceUsable({required Object duration}) => 'Wenn wieder nutzbar (in ${duration})';
+	@override String get onceUsableNone => 'Wenn wieder nutzbar (nichts ausgeschöpft)';
+	@override String get every => 'Bei jedem Reset';
+	@override String get everyRunOut => 'Jedes Mal, wenn es ausgeschöpft ist';
+	@override String get off => 'Aus';
+	@override String limitReset({required Object limit}) => '${limit} zurückgesetzt';
+	@override String get usableAgain => 'Wieder nutzbar';
+	@override String get channel => 'Nutzungslimits';
+	@override String get title => 'Nutzungserinnerungen';
+	@override String at({required Object time}) => 'um ${time}';
+	@override String get everyReset => 'bei jedem Reset';
+	@override String get eachRunOut => 'jedes Mal, wenn ausgeschöpft';
+	@override String next({required Object time}) => 'nächste um ${time}';
+	@override String get waitingWindow => 'wartet auf das nächste Zeitfenster';
+	@override String get waitingRunOut => 'nichts ausgeschöpft';
+	@override String get remove => 'Erinnerung entfernen';
+	@override String failed({required Object error}) => 'Die Erinnerung konnte nicht gesetzt werden: ${error}';
 }
 
 // Path: time
@@ -2789,6 +2824,31 @@ extension on TranslationsDe {
 			'notifications.finished' => 'Fertig',
 			'notifications.runFailed' => 'Der Lauf ist fehlgeschlagen',
 			'notifications.open' => 'Öffnen',
+			'usageReminders.limitTooltip' => 'Beim Reset benachrichtigen',
+			'usageReminders.accountTooltip' => 'Benachrichtigen, sobald dieses Konto wieder nutzbar ist',
+			'usageReminders.setIn' => ({required Object duration}) => 'Benachrichtigung in ${duration}',
+			'usageReminders.setEvery' => 'Benachrichtigung bei jedem Reset',
+			'usageReminders.setEveryIn' => ({required Object duration}) => 'Benachrichtigung in ${duration}, danach bei jedem Reset',
+			'usageReminders.setRunsOut' => 'Benachrichtigung jedes Mal, wenn es ausgeschöpft war und wieder nutzbar ist',
+			'usageReminders.setRunsOutIn' => ({required Object duration}) => 'Benachrichtigung in ${duration}, danach jedes Mal, wenn es ausgeschöpft ist',
+			'usageReminders.once' => ({required Object duration}) => 'Beim Reset (in ${duration})',
+			'usageReminders.onceUsable' => ({required Object duration}) => 'Wenn wieder nutzbar (in ${duration})',
+			'usageReminders.onceUsableNone' => 'Wenn wieder nutzbar (nichts ausgeschöpft)',
+			'usageReminders.every' => 'Bei jedem Reset',
+			'usageReminders.everyRunOut' => 'Jedes Mal, wenn es ausgeschöpft ist',
+			'usageReminders.off' => 'Aus',
+			'usageReminders.limitReset' => ({required Object limit}) => '${limit} zurückgesetzt',
+			'usageReminders.usableAgain' => 'Wieder nutzbar',
+			'usageReminders.channel' => 'Nutzungslimits',
+			'usageReminders.title' => 'Nutzungserinnerungen',
+			'usageReminders.at' => ({required Object time}) => 'um ${time}',
+			'usageReminders.everyReset' => 'bei jedem Reset',
+			'usageReminders.eachRunOut' => 'jedes Mal, wenn ausgeschöpft',
+			'usageReminders.next' => ({required Object time}) => 'nächste um ${time}',
+			'usageReminders.waitingWindow' => 'wartet auf das nächste Zeitfenster',
+			'usageReminders.waitingRunOut' => 'nichts ausgeschöpft',
+			'usageReminders.remove' => 'Erinnerung entfernen',
+			'usageReminders.failed' => ({required Object error}) => 'Die Erinnerung konnte nicht gesetzt werden: ${error}',
 			'time.now' => 'jetzt',
 			'time.minutes' => ({required Object n}) => '${n} min',
 			'time.hours' => ({required Object n}) => '${n} h',
@@ -3078,6 +3138,8 @@ extension on TranslationsDe {
 			'transcript.imageNotFile' => ({required Object path}) => 'Keine Datei: ${path}',
 			'transcript.imageDenied' => ({required Object path}) => 'Keine Berechtigung zum Lesen von ${path}',
 			'transcript.imageNotImage' => ({required Object path}) => 'Kein Bild: ${path}',
+			_ => null,
+		} ?? switch (path) {
 			'transcript.imageUnsupported' => ({required Object path, required Object size}) => '${path} (${size}) hat ein Format, das diese App nicht anzeigen kann',
 			'transcript.imageTooLarge' => ({required Object path, required Object size}) => '${path} (${size}) ist zu groß, um einzeln geladen zu werden',
 			'transcript.imageFailed' => ({required Object path, required Object error}) => '${path} konnte nicht geladen werden: ${error}',
@@ -3103,8 +3165,6 @@ extension on TranslationsDe {
 			'transcript.tool.movedTo' => ({required Object path}) => 'Verschoben nach ${path}',
 			'transcript.tool.noChanges' => 'Keine Änderungen',
 			'transcript.tool.todoProgress' => ({required Object done, required Object total}) => '${done} von ${total} erledigt',
-			_ => null,
-		} ?? switch (path) {
 			'transcript.tool.agents' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('de'))(n, one: '${n} Agent', other: '${n} Agenten', ), 
 			'transcript.tool.openAgent' => 'Agenten öffnen',
 			'transcript.tool.agentPending' => 'Ausstehend',

@@ -217,15 +217,14 @@ final class _AccountBuilder {
 }
 
 /// Null for a report without an account label: it is never merged.
-String? _mergeKey(UsageReport report) {
-  if (report.accountLabel == null) return null;
-  final identity = report.identity;
-  return [
-    report.provider,
-    for (final part in [identity.email, identity.accountId, identity.projectId, identity.orgId])
-      part?.toLowerCase() ?? '',
-  ].join('\u0000');
-}
+String? _mergeKey(UsageReport report) =>
+    report.accountLabel == null ? null : '${report.provider}\u0000${usageAccountKey(report.identity)}';
+
+/// What tells the accounts of one provider apart: email, account id, project id and organization, case-insensitive.
+String usageAccountKey(UsageIdentity identity) => [
+  for (final part in [identity.email, identity.accountId, identity.projectId, identity.orgId])
+    part?.toLowerCase() ?? '',
+].join('\u0000');
 
 bool _newer(UsageReport report, UsageReport than) {
   final time = report.fetchedAt;

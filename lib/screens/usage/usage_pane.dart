@@ -13,6 +13,8 @@ import '../../config/config_target.dart';
 import '../../config/omp_cli.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
+import '../../notifications/usage_reminder.dart';
+import '../../notifications/usage_reminders.dart';
 import '../../providers/machines_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../sessions/sessions_provider.dart';
@@ -153,21 +155,23 @@ class _UsagePaneState extends State<UsagePane> {
 
   /// Runs `omp usage --json` on the machine, and the policy settings for the policy lines; [fresh] drops omp's cached
   /// reports first (`omp usage invalidate`), so every provider is asked again. The caller rebuilds for the loading
-  /// state.
+  /// state. The reminders take every answer.
   Future<void> _fetch(String id, {bool fresh = false}) async {
     final machine = _machines.firstWhere((machine) => machine.id == id);
     final generation = _generations[id] = (_generations[id] ?? 0) + 1;
     _fetches[id] = const _Loading();
     final target = ConfigTarget(machine: machine, sessions: context.read<SessionsProvider>());
+    final reminders = context.read<UsageReminders?>();
     _Fetch<MachineUsage> result;
     try {
       if (fresh) await target.omp(const ['usage', 'invalidate']);
-      final usage = target.omp(const ['usage', '--json']);
+      final usage = readUsage(target);
       final settings = _policies(target);
       // Both run at once; when both fail, the usage error is the one shown. The settings error is still raised by
       // the await below whenever the usage succeeded.
       settings.ignore();
-      final snapshot = UsageSnapshot.fromJson(asJsonObject(cliJson((await usage).stdout), 'omp usage'));
+      final snapshot = await usage;
+      reminders?.observe(snapshot);
       final (:policies, :reservePct) = await settings;
       result = _Loaded(
         MachineUsage(machine: machine.name, snapshot: snapshot, policies: policies, reservePct: reservePct),
@@ -727,6 +731,10 @@ class _AccountBlock extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSizes.gap),
+              if (report.limits.any((limit) => limit.resetsAt != null)) ...[
+                _ReminderButton(report: report, limit: null, now: now),
+                const SizedBox(width: 4),
+              ],
               _MachineTags(account.machines),
             ],
           ),
@@ -753,10 +761,11 @@ class _AccountBlock extends StatelessWidget {
                 return constraints.maxWidth < 560
                     ? Column(
                         children: [
-                          for (final row in rows) _StackedLimit(template: row.template, limit: row.limit, now: now),
+                          for (final row in rows)
+                            _StackedLimit(template: row.template, limit: row.limit, report: report, now: now),
                         ],
                       )
-                    : _LimitTable(rows: rows, now: now);
+                    : _LimitTable(rows: rows, report: report, now: now);
               },
             ),
         ],
@@ -829,9 +838,10 @@ typedef _LimitRow = ({LimitTemplate template, UsageLimit? limit});
 
 /// Limits in columns, as `omp usage` pads them: status, title, bar, amounts and reset.
 class _LimitTable extends StatelessWidget {
-  const _LimitTable({required this.rows, required this.now});
+  const _LimitTable({required this.rows, required this.report, required this.now});
 
   final List<_LimitRow> rows;
+  final UsageReport report;
   final DateTime now;
 
   @override
@@ -863,7 +873,7 @@ class _LimitTable extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 16),
                   child: DefaultTextStyle.merge(
                     style: theme.textTheme.bodySmall,
-                    child: _LimitDetails(limit: limit, now: now),
+                    child: _LimitDetails(limit: limit, report: report, now: now),
                   ),
                 ),
               ),
@@ -876,10 +886,11 @@ class _LimitTable extends StatelessWidget {
 
 /// A limit on a narrow screen: status, title and amounts on one line, the bar under them.
 class _StackedLimit extends StatelessWidget {
-  const _StackedLimit({required this.template, required this.limit, required this.now});
+  const _StackedLimit({required this.template, required this.limit, required this.report, required this.now});
 
   final LimitTemplate template;
   final UsageLimit? limit;
+  final UsageReport report;
   final DateTime now;
 
   @override
@@ -903,7 +914,7 @@ class _StackedLimit extends StatelessWidget {
             padding: const EdgeInsets.only(left: 18),
             child: DefaultTextStyle.merge(
               style: Theme.of(context).textTheme.bodySmall,
-              child: _LimitDetails(limit: limit, now: now),
+              child: _LimitDetails(limit: limit, report: report, now: now),
             ),
           ),
         ],
@@ -946,11 +957,13 @@ class _LimitTitle extends StatelessWidget {
   }
 }
 
-/// `describeAmount` and the reset countdown, then the limit's notes; "not reported" for a limit the account lacks.
+/// `describeAmount` and the reset countdown, then the limit's notes; "not reported" for a limit the account lacks. The
+/// countdown opens the limit's reminder.
 class _LimitDetails extends StatelessWidget {
-  const _LimitDetails({required this.limit, required this.now});
+  const _LimitDetails({required this.limit, required this.report, required this.now});
 
   final UsageLimit? limit;
+  final UsageReport report;
   final DateTime now;
 
   @override
@@ -964,20 +977,152 @@ class _LimitDetails extends StatelessWidget {
     final limit = this.limit;
     if (limit == null) return Text(t.usage.notReported, style: secondary);
     final resetsAt = limit.resetsAt;
-    final line = [
-      _amount(t, limit),
-      if (resetsAt != null && resetsAt.isAfter(now))
-        t.usage.resetsIn(
-          verb: limit.resetLabel ?? t.usage.resets,
-          duration: formatUsageDuration(resetsAt.difference(now)),
+    final amount = _amount(t, limit);
+    return DefaultTextStyle.merge(
+      style: secondary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (resetsAt != null && resetsAt.isAfter(now))
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('$amount · '),
+                _ReminderButton(
+                  report: report,
+                  limit: limit,
+                  now: now,
+                  label: t.usage.resetsIn(
+                    verb: limit.resetLabel ?? t.usage.resets,
+                    duration: formatUsageDuration(resetsAt.difference(now)),
+                  ),
+                ),
+              ],
+            )
+          else
+            Text(amount),
+          if (limit.notes.isNotEmpty) Text(limit.notes.join(' · ')),
+        ],
+      ),
+    );
+  }
+}
+
+/// The reminder of [limit]'s reset, or with no [limit] of the account being usable again ([UsageReminders]): a menu
+/// of once, every time and off, opened from the limit's reset countdown ([label]) or from a bell in the account's
+/// header. Without [UsageReminders] (widget tests) the countdown is plain text and the account has no bell.
+class _ReminderButton extends StatelessWidget {
+  const _ReminderButton({required this.report, required this.limit, required this.now, this.label});
+
+  final UsageReport report;
+  final UsageLimit? limit;
+  final DateTime now;
+
+  /// The countdown a limit's reminder opens from.
+  final String? label;
+
+  Future<void> _choose(
+    BuildContext context,
+    UsageReminders reminders,
+    UsageReminder? current,
+    ReminderMode? mode,
+  ) async {
+    final t = context.t;
+    final messenger = ScaffoldMessenger.of(context);
+    final limit = this.limit;
+    try {
+      if (mode == null) {
+        if (current != null) await reminders.remove(current);
+        return;
+      }
+      final set = await reminders.set(
+        UsageReminder(
+          provider: report.provider,
+          account: usageAccountKey(report.identity),
+          limitId: limit?.id,
+          mode: mode,
+          label: report.accountLabel,
+          title: limit == null ? null : limitTitle(limit),
+          at: reminderTime(report, limit?.id, mode, now),
         ),
-    ].join(' · ');
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(line, style: secondary),
-        if (limit.notes.isNotEmpty) Text(limit.notes.join(' · '), style: secondary),
+      );
+      if (!set) messenger.showSnackBar(SnackBar(content: Text(t.notifications.denied)));
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(t.usageReminders.failed(error: '$error'))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reminders = context.watch<UsageReminders?>();
+    final label = this.label;
+    if (reminders == null) return label == null ? const SizedBox.shrink() : Text(label);
+    final t = context.t.usageReminders;
+    final scheme = Theme.of(context).colorScheme;
+    final limitId = limit?.id;
+    final current = reminders.reminderFor(report.provider, usageAccountKey(report.identity), limitId);
+    final onceAt = reminderTime(report, limitId, ReminderMode.once, now);
+    String until(DateTime at) => formatUsageDuration(at.difference(now));
+    final tooltip = switch ((current?.mode, current?.at)) {
+      (ReminderMode.once, final at?) => t.setIn(duration: until(at)),
+      (ReminderMode.always, final at?) =>
+        limitId == null ? t.setRunsOutIn(duration: until(at)) : t.setEveryIn(duration: until(at)),
+      (ReminderMode.always, null) => limitId == null ? t.setRunsOut : t.setEvery,
+      _ => limitId == null ? t.accountTooltip : t.limitTooltip,
+    };
+    Widget item(ReminderMode? mode, String text, {bool enabled = true}) => MenuItemButton(
+      leadingIcon: SizedBox.square(
+        dimension: 18,
+        child: current?.mode == mode ? Icon(Symbols.check, size: 18, color: scheme.onSurface) : null,
+      ),
+      onPressed: enabled
+          ? () => current?.mode == mode ? null : unawaited(_choose(context, reminders, current, mode))
+          : null,
+      child: Text(text),
+    );
+    final active = current != null;
+    final mark = Icon(
+      active ? Symbols.notifications_active : Symbols.notifications,
+      size: label == null ? 18 : 14,
+      fill: active ? 1 : 0,
+      color: active ? scheme.onSurface : scheme.onSurfaceVariant,
+    );
+    return MenuAnchor(
+      menuChildren: [
+        if (onceAt != null)
+          item(
+            ReminderMode.once,
+            limitId == null ? t.onceUsable(duration: until(onceAt)) : t.once(duration: until(onceAt)),
+          )
+        else if (limitId == null)
+          item(ReminderMode.once, t.onceUsableNone, enabled: false),
+        item(ReminderMode.always, limitId == null ? t.everyRunOut : t.every),
+        item(null, t.off),
       ],
+      builder: (context, controller, _) {
+        void toggle() => controller.isOpen ? controller.close() : controller.open();
+        if (label == null) {
+          return IconButton(
+            tooltip: tooltip,
+            onPressed: toggle,
+            icon: mark,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+            style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+          );
+        }
+        return Tooltip(
+          message: tooltip,
+          child: InkWell(
+            onTap: toggle,
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [Text(label), const SizedBox(width: 4), mark]),
+            ),
+          ),
+        );
+      },
     );
   }
 }

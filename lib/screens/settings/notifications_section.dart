@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:omp_core/companion.dart';
 import 'package:omp_core/host.dart' show NotificationKind;
 import 'package:provider/provider.dart';
@@ -11,14 +12,17 @@ import '../../app/theme.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/machine.dart';
 import '../../notifications/push_service.dart';
+import '../../notifications/usage_reminder.dart';
+import '../../notifications/usage_reminders.dart';
 import '../../providers/machines_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../sessions/sessions_provider.dart';
+import '../usage/usage_overview.dart';
 import 'settings_card.dart';
 
 /// The Notifications section of the settings pane. Desktops: notifications about the sessions open here, and the
 /// kinds. Phones: push notifications, the kinds they ask the machines for, and a test notification from each connected
-/// machine.
+/// machine. Both: the usage reminders set in the usage pane.
 class NotificationsSection extends StatefulWidget {
   const NotificationsSection({super.key});
 
@@ -88,6 +92,7 @@ class _NotificationsSectionState extends State<NotificationsSection> {
     final theme = Theme.of(context);
     final settings = context.watch<SettingsProvider>();
     final push = context.watch<PushService?>();
+    final reminders = context.watch<UsageReminders?>();
     if (push == null && !isDesktop) return const SizedBox.shrink();
     final n = t.notifications;
     final availability = push?.availability;
@@ -139,6 +144,92 @@ class _NotificationsSectionState extends State<NotificationsSection> {
           const SizedBox(height: AppSizes.gap),
           _TestCard(push: push, testing: _testing, onTest: (machine) => unawaited(_sendTest(push, machine))),
         ],
+        if (reminders != null && reminders.reminders.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(t.usageReminders.title, style: theme.textTheme.titleSmall),
+          const SizedBox(height: AppSizes.gap),
+          _RemindersCard(reminders: reminders),
+        ],
+      ],
+    );
+  }
+}
+
+/// The usage reminders: what each waits for, on which account, when it notifies, and a button that removes it.
+class _RemindersCard extends StatelessWidget {
+  const _RemindersCard({required this.reminders});
+
+  final UsageReminders reminders;
+
+  Future<void> _remove(BuildContext context, UsageReminder reminder) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await reminders.remove(reminder);
+    } on Object catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('$error')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t.usageReminders;
+    final theme = Theme.of(context);
+    final hide = context.watch<SettingsProvider>().get(Prefs.usageHideIdentities);
+    final localizations = MaterialLocalizations.of(context);
+    final use24 = MediaQuery.alwaysUse24HourFormatOf(context);
+    final now = DateTime.now();
+    String when(DateTime at) {
+      final time = localizations.formatTimeOfDay(TimeOfDay.fromDateTime(at), alwaysUse24HourFormat: use24);
+      return DateUtils.isSameDay(at, now) ? time : '${localizations.formatShortMonthDay(at)} $time';
+    }
+
+    return SettingsCard(
+      children: [
+        for (final reminder in reminders.reminders)
+          Padding(
+            padding: const EdgeInsets.only(left: 16, right: 8, top: 4, bottom: 4),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AppSizes.control),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(reminder.title ?? t.usableAgain, style: theme.textTheme.bodyMedium),
+                        Text(
+                          [
+                            if (!hide) ?reminder.label,
+                            formatProviderName(reminder.provider),
+                            ...switch ((reminder.mode, reminder.at)) {
+                              (ReminderMode.once, final at?) => [t.at(time: when(at))],
+                              (ReminderMode.once, null) => const <String>[],
+                              (ReminderMode.always, final at?) => [
+                                reminder.limitId == null ? t.eachRunOut : t.everyReset,
+                                t.next(time: when(at)),
+                              ],
+                              (ReminderMode.always, null) => [
+                                reminder.limitId == null ? t.eachRunOut : t.everyReset,
+                                reminder.limitId == null ? t.waitingRunOut : t.waitingWindow,
+                              ],
+                            },
+                          ].join(' · '),
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSizes.gap),
+                  IconButton(
+                    tooltip: t.remove,
+                    onPressed: () => unawaited(_remove(context, reminder)),
+                    icon: const Icon(Symbols.notifications_off),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }

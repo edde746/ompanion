@@ -177,6 +177,7 @@ what stock lacks.
 | Terminal | APP (PTY over SSH; local PTY on desktop) | terminal dock | M7 |
 | File explorer, viewer, editor | APP (SFTP / local IO) | files dock | M7 |
 | Port forwards | APP | machines | M7 |
+| Usage reset reminders: a limit's reset (once or every reset), an account usable again (once or each time it runs out) | APP: local notifications scheduled at the reset times of CLI `usage --json` (PLAN D26) | usage pane (each limit's reset countdown, a bell in each account's header); settings, Notifications | M10 |
 
 ## App-native equivalents
 

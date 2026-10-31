@@ -7,6 +7,7 @@ import '../app/language.dart';
 import '../app/palette.dart';
 import '../database/app_database.dart';
 import '../models/dock_tab.dart';
+import '../notifications/usage_reminder.dart';
 
 /// A typed app setting stored as a JSON value in the `settings` table.
 sealed class Pref<T> {
@@ -98,6 +99,23 @@ final class PalettePref extends Pref<AppPalette> {
   Object? encode(AppPalette value) => value.toJson();
 }
 
+final class UsageRemindersPref extends Pref<List<UsageReminder>> {
+  const UsageRemindersPref(super.key, super.defaultValue);
+
+  @override
+  List<UsageReminder> decode(Object? json) {
+    if (json is! List) throw FormatException('setting $key: expected a list');
+    try {
+      return List.unmodifiable(json.map(UsageReminder.fromJson));
+    } on FormatException catch (error) {
+      throw FormatException('setting $key: ${error.message}');
+    }
+  }
+
+  @override
+  Object? encode(List<UsageReminder> value) => [for (final reminder in value) reminder.toJson()];
+}
+
 abstract final class Prefs {
   static const themeMode = EnumPref<AppThemeMode>('theme_mode', AppThemeMode.system, AppThemeMode.values);
 
@@ -145,6 +163,9 @@ abstract final class Prefs {
   /// Machines that may still hold this phone's registration file after push was turned off; each one's next
   /// connect removes it.
   static const pushRemovals = StringListPref('push_removals', []);
+
+  /// The usage pane's reminders of limit resets, with the time each one is scheduled for.
+  static const usageReminders = UsageRemindersPref('usage_reminders', []);
 }
 
 /// App settings, loaded once at startup; reads are synchronous afterwards.
