@@ -791,7 +791,10 @@ class _QuestionView extends StatelessWidget {
         children: [
           if (question.header != null)
             Text(question.header!, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
-          Text(question.question, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          TranscriptMarkdown(
+            question.question,
+            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
           for (final (index, (label, description)) in question.options.indexed)
             Padding(
               padding: const EdgeInsets.only(top: 3),

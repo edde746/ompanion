@@ -5,6 +5,7 @@ import '../../i18n/strings.g.dart';
 import 'ask.dart';
 import 'request_frame.dart';
 import 'transcript/code_style.dart';
+import 'transcript/markdown.dart';
 
 /// The companion's full-fidelity `ask` form, inline: every question with its header, options with descriptions,
 /// previews and the recommended mark, multi-select, an "Other" answer and a note, plus "chat about this".
@@ -103,22 +104,25 @@ class _AskFormState extends State<AskForm> {
       navigation: widget.navigation,
       error: widget.error,
       deadline: deadline == null ? null : DateTime.fromMillisecondsSinceEpoch(deadline),
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (index, question) in params.questions.indexed) ...[
-            if (index > 0) const SizedBox(height: 20),
-            _QuestionForm(
-              question: question,
-              draft: _drafts[index],
-              custom: _custom[index],
-              note: _notes[index],
-              enabled: !busy,
-              onChanged: () => setState(() {}),
-            ),
+      // The panel sits outside the transcript's selection area; text of the form is selectable here.
+      body: SelectionArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (index, question) in params.questions.indexed) ...[
+              if (index > 0) const SizedBox(height: 20),
+              _QuestionForm(
+                question: question,
+                draft: _drafts[index],
+                custom: _custom[index],
+                note: _notes[index],
+                enabled: !busy,
+                onChanged: () => setState(() {}),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
       actions: [
         TextButton(onPressed: busy ? null : () => widget.onSubmit(askChat), child: Text(t.ask.chat)),
@@ -197,7 +201,8 @@ class _QuestionForm extends StatelessWidget {
       children: [
         if (header != null)
           Text(header, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        Text(question.question, style: theme.textTheme.bodyLarge),
+        // Markdown, as omp's ask dialog renders the question; its links open.
+        TranscriptMarkdown(question.question, style: theme.textTheme.bodyLarge),
         if (question.multi) Text(t.ask.multi, style: secondary),
         const SizedBox(height: 4),
         if (question.multi) ...[

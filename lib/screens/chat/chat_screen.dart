@@ -22,6 +22,7 @@ import 'link_banner.dart';
 import 'request_panel.dart';
 import 'status_strip.dart';
 import 'transcript/message_rows.dart' show TranscriptRowView;
+import 'transcript/transcript_actions.dart' show TranscriptScope;
 import 'transcript/transcript_view.dart';
 
 /// One open session: header, transcript, the panels above the composer, the open requests inline, and the
@@ -101,7 +102,11 @@ class ChatScreen extends StatelessWidget {
                 CommandOutputs(key: ObjectKey(session), session: session),
                 ExecPanel(session: session),
                 ExtensionWidgets(session: session, placement: WidgetPlacement.aboveEditor),
-                RequestPanel(session: session),
+                // The ask form renders its questions as transcript markdown: links to files and code copies act here.
+                TranscriptScope(
+                  actions: actions(null),
+                  child: RequestPanel(session: session),
+                ),
                 Composer(session: session),
                 ExtensionWidgets(session: session, placement: WidgetPlacement.belowEditor),
               ]),

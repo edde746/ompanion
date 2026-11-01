@@ -194,7 +194,7 @@ holding a `ListTile` with a `check`, not `CheckedPopupMenuItem`. Android's text 
 
 ## Markdown
 
-Assistant replies, thinking blocks, summaries and extension messages render markdown in one vertical rhythm:
+Assistant replies, thinking blocks, summaries, extension messages and `ask` questions render markdown in one vertical rhythm:
 GitHub's markdown spacing scaled to a 14 px body; the gaps stay as they are at 15. Code: `TranscriptMarkdown` in
 `lib/screens/chat/transcript/markdown.dart`. Gaps are between line boxes, in logical pixels at text scale 1, and
 grow with the text scale.
