@@ -1,0 +1,16 @@
+.dock-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 24px;
+  color: var(--on-surface-variant);
+  text-align: center;
+}
+
+.dock-empty-state-message {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}

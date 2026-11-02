@@ -1,0 +1,88 @@
+.licenses-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--inset-top) var(--inset-right) 0 var(--inset-left);
+}
+
+/* One readable column, as wide as the transcript's. */
+.licenses-page-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap);
+  min-height: 0;
+  padding: 24px 24px calc(24px + var(--inset-bottom));
+  overflow-y: auto;
+}
+
+.licenses-page-body > * {
+  flex: none;
+  width: 100%;
+  max-width: 760px;
+}
+
+.licenses-page-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 16px;
+  text-align: center;
+}
+
+/* The mark is not square: it fits the 48 px box as Flutter's Image does. */
+.licenses-page-mark {
+  margin-bottom: 8px;
+  object-fit: contain;
+}
+
+.licenses-page-name {
+  font: var(--headline-small);
+  letter-spacing: var(--headline-small-tracking);
+}
+
+.licenses-page-legalese,
+.licenses-page-detail {
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* A group of the list, headed as the settings pane's sections are. */
+.licenses-page-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.licenses-page-group + .licenses-page-group {
+  margin-top: 16px;
+}
+
+.licenses-page-group-title {
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+.licenses-page-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.licenses-page-failed {
+  color: var(--error);
+}
+
+.licenses-page-text {
+  margin: 0;
+  font: var(--code);
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}

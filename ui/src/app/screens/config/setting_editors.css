@@ -1,0 +1,100 @@
+.setting-editors-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.setting-editors-field-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.setting-editors-field-input {
+  flex: 1;
+}
+
+.setting-editors-error {
+  margin: 4px 12px 0;
+  color: var(--error);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.setting-editors-helper {
+  margin: 4px 12px 0;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.setting-editors-secret {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.setting-editors-secret .button {
+  margin-left: 4px;
+}
+
+.setting-editors-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.setting-editors-chip {
+  display: inline-flex;
+}
+
+.setting-editors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setting-editors-json {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-editors-json-summary {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font: 400 12px / 1.4 var(--font-mono);
+  font-variant-ligatures: none;
+}
+
+.setting-editors-dialog.dialog {
+  width: 420px;
+}
+
+.setting-editors-json-dialog.dialog {
+  width: 560px;
+}
+
+/* A filled field like TextField's, several lines tall, in the code font. */
+.setting-editors-area {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  font: 400 13px / 1.4 var(--font-mono);
+  font-variant-ligatures: none;
+  resize: vertical;
+}
+
+.setting-editors-area:focus {
+  background: var(--surface-container-highest);
+}

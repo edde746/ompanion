@@ -1,0 +1,10 @@
+{
+  "extends": "../../../ui/tsconfig.test.json",
+  "compilerOptions": {
+    "types": ["../../../ui/node_modules/vite/client", "bun"],
+    "typeRoots": ["../../../ui/node_modules/@types"],
+    "paths": { "playwright-core": ["../../../ui/node_modules/playwright-core"] }
+  },
+  "include": ["*.ts"],
+  "exclude": []
+}

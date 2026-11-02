@@ -1,0 +1,65 @@
+.settings-link-row,
+.settings-switch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  min-height: calc(var(--control) + 8px);
+  padding: 4px 8px 4px 16px;
+}
+
+.settings-link-row {
+  position: relative;
+  width: 100%;
+  min-height: var(--control);
+  padding-right: 16px;
+  isolation: isolate;
+}
+
+.settings-link-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--on-surface);
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .settings-link-row:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.settings-link-row:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-link-row::before {
+    transition-duration: 0s;
+  }
+}
+
+.settings-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.settings-row-label {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.settings-row-detail {
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.settings-link-row-mark {
+  color: var(--on-surface-variant);
+}

@@ -1,0 +1,221 @@
+/* Hover actions: hidden until the pointer is on the row or the row's menu is open; touch screens always show them.
+   Two classes, so the rule wins over `.icon-button`'s display whatever order the stylesheets load in. */
+.icon-button.machine-sessions-hover {
+  display: none;
+}
+
+.list-row:hover .icon-button.machine-sessions-hover,
+.list-row:focus-visible .icon-button.machine-sessions-hover,
+.list-row:has(:focus-visible) .icon-button.machine-sessions-hover,
+.machine-sessions-menu-open .icon-button.machine-sessions-hover {
+  display: inline-flex;
+}
+
+.machine-sessions-muted {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.machine-sessions-warning {
+  color: var(--warning);
+}
+
+.machine-sessions-error {
+  color: var(--error);
+}
+
+/* Machine row: the chevron in a 24 px column, then the icon with its status dot, then the name. */
+.machine-sessions-chevron {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 2px;
+  color: var(--on-surface-variant);
+}
+
+.machine-sessions-machine-icon {
+  position: relative;
+  display: flex;
+  flex: none;
+  margin-right: 10px;
+  color: var(--on-surface-variant);
+}
+
+.machine-sessions-status-dot {
+  position: absolute;
+  top: -1px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.machine-sessions-machine-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--body-medium);
+  font-weight: 600;
+  letter-spacing: var(--body-medium-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-sessions-busy {
+  display: flex;
+  flex: none;
+  padding: 0 5px;
+}
+
+/* Notice: 44 px (52 on touch screens), the text cut to two lines. */
+.machine-sessions-notice {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  height: 44px;
+  padding: 0 12px 0 34px;
+  color: var(--on-surface-variant);
+}
+
+.machine-sessions-notice-touch {
+  height: 52px;
+}
+
+.machine-sessions-notice-error {
+  color: var(--error);
+}
+
+.machine-sessions-notice-text {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.machine-sessions-empty {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: var(--list-row-height);
+  padding: 0 16px 0 54px;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* "Pinned": a row's size and insets without its tap target. */
+.machine-sessions-pinned {
+  display: flex;
+  flex: none;
+  gap: 10px;
+  align-items: center;
+  height: var(--list-row-height);
+  margin: 0 8px;
+  padding-right: 4px;
+}
+
+/* Project row: the path in the session titles' column, 6 px after the folder icon. */
+.machine-sessions-path {
+  flex: 1;
+  min-width: 0;
+  margin-left: 6px;
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-sessions-project-mark {
+  display: flex;
+  flex: none;
+  padding: 0 4px 0 6px;
+}
+
+.machine-sessions-more {
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.machine-sessions-match {
+  background: rgb(var(--on-surface-rgb) / 0.22);
+  color: inherit;
+}
+
+/* Session row: the mark in a 14 px column, the title 6 px after it, then the machine's name and the time. */
+.machine-sessions-mark-slot {
+  display: flex;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+}
+
+.machine-sessions-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.machine-sessions-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--on-surface);
+}
+
+.machine-sessions-dot-muted {
+  background: var(--on-surface-variant);
+}
+
+.machine-sessions-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: rgb(var(--on-surface-rgb) / 0.85);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-sessions-title-strong {
+  color: var(--on-surface);
+}
+
+.machine-sessions-title-unread {
+  font-weight: 700;
+}
+
+.machine-sessions-place {
+  flex: none;
+  max-width: 96px;
+  margin-left: 6px;
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-sessions-time {
+  flex: none;
+  margin: 0 4px 0 6px;
+  color: var(--on-surface-variant);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+  white-space: nowrap;
+}

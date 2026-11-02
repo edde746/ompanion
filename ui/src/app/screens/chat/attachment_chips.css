@@ -1,0 +1,192 @@
+.attachment-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+  padding: 12px 12px 0;
+}
+
+.attachment-chips-image {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+
+.attachment-chips-thumbnail {
+  display: block;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.attachment-chips-thumbnail img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+}
+
+.attachment-chips-chip {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  max-width: 100%;
+  height: var(--control);
+  padding-right: 4px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+}
+
+.attachment-chips-body {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  gap: var(--gap);
+  min-width: 0;
+  padding-left: 10px;
+  margin-right: 4px;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  color: inherit;
+}
+
+.attachment-chips-tap {
+  position: relative;
+  isolation: isolate;
+}
+
+.attachment-chips-tap::before,
+.attachment-chips-thumbnail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+.attachment-chips-thumbnail {
+  position: relative;
+  color: var(--on-surface);
+}
+
+.attachment-chips-thumbnail::after {
+  z-index: 1;
+}
+
+@media (hover: hover) {
+  .attachment-chips-tap:hover::before,
+  .attachment-chips-thumbnail:hover::after {
+    opacity: 0.08;
+  }
+}
+
+.attachment-chips-tap:focus-visible::before,
+.attachment-chips-thumbnail:focus-visible::after {
+  opacity: 0.1;
+}
+
+.attachment-chips-icon {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.attachment-chips-label {
+  min-width: 0;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-chips-detail {
+  flex: none;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.attachment-chips-remove {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--on-surface-variant);
+  isolation: isolate;
+}
+
+.attachment-chips-remove::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .attachment-chips-remove:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.attachment-chips-remove:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attachment-chips-tap::before,
+  .attachment-chips-thumbnail::after,
+  .attachment-chips-remove::before {
+    transition-duration: 0s;
+  }
+}
+
+.attachment-chips-remove-on-image {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 24px;
+  height: 24px;
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+}
+
+.attachment-chips-preview {
+  width: min(720px, calc(100vw - 48px));
+}
+
+.attachment-chips-preview-text {
+  max-height: 60vh;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  font: var(--code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.attachment-chips-preview-note {
+  margin: var(--gap) 0 0;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}

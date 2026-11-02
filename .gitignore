@@ -1,28 +1,27 @@
 # Downloaded omp binaries and throwaway test homes
 /.tools/
 
-# Dart / Flutter
-.dart_tool/
-.packages
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
+# Build outputs: the UI's bundle, the core's bindings, the shells' apps (scripts write them to /build/)
+/build/
+/ui/dist/
+# Built by scripts/build_companion.sh
+/ui/companion/
+/shells/android/.gradle/
+/shells/android/.kotlin/
+/shells/**/build/
+# The Android upload key (shells/android/build.sh)
+/shells/android/key.properties
+/shells/android/**/*.jks
+/shells/android/**/*.keystore
+/shells/apple/*.xcodeproj/
+/shells/apple/DerivedData/
+
+# Editors
 *.iml
 *.ipr
 *.iws
 .idea/
 .vscode/
-coverage/
-**/doc/api/
-.pub-cache/
-.pub/
-.widget_preview/
-migrate_working_dir/
-**/ios/Flutter/.last_build_id
-
-# Symbolication and obfuscation maps
-app.*.symbols
-app.*.map.json
 
 # Miscellaneous
 *.class
@@ -31,31 +30,16 @@ app.*.map.json
 *.swp
 .atom/
 .build/
-.buildlog/
 .history
 .svn/
 .swiftpm/
-
-# Platform build output
-**/Pods/
-**/.symlinks/
-**/Flutter/ephemeral/
-**/Flutter/Generated.xcconfig
-**/Flutter/flutter_export_environment.sh
+coverage/
 **/xcuserdata/
 local.properties
-**/android/.gradle/
-**/android/app/debug
-**/android/app/profile
-**/android/app/release
-**/windows/flutter/ephemeral/
-**/linux/flutter/ephemeral/
 
 # Bun / TypeScript
 node_modules/
 companion/dist/
-# Built by scripts/build_companion.sh
-/assets/companion/ompx.js
 
 # Fastlane. .env holds the App Store Connect and Play credentials. The report and the README are written by
 # every run; the metadata and the screenshots next to them are committed on purpose.

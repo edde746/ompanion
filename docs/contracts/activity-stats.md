@@ -2,9 +2,9 @@
 
 How the usage pane's Stats tab gets every machine's activity: a script that runs on the machine with the probe's Bun,
 reads the omp session files, keeps per-file numbers between calls, and prints one small JSON document of totals.
-Code: `packages/omp_core/lib/src/host/activity_stats.dart` (the script, `readActivityStats`, the typed result),
-`lib/screens/usage/activity_overview.dart` (machines merged, streaks, chart series),
-`lib/screens/usage/activity_view.dart` and `lib/screens/usage/usage_pane.dart` (the tab).
+Code: `ui/src/core/host/activity_stats.ts` (the script, `readActivityStats`, the typed result),
+`ui/src/app/screens/usage/activity_overview.ts` (machines merged, streaks, chart series),
+`ui/src/app/screens/usage/activity_view.tsx` and `ui/src/app/screens/usage/usage_pane.tsx` (the tab).
 
 ## Why not `omp stats --json`
 
@@ -12,7 +12,7 @@ Code: `packages/omp_core/lib/src/host/activity_stats.dart` (the script, `readAct
 it. Measured on this Mac with omp 18.6.3 on a synthetic home of 2,438 session files (2.35 GB, 128,767 requests over
 312 days): 19.4 s for the first call, 0.16 to 0.57 s for the next ones; omp 18.3.1 took 31.5 s cold. Its JSON has
 no days, so a contribution grid or a streak cannot come from it, and its hourly series covers 24 hours. The stats page
-on the machine page (`lib/screens/config/stats_page.dart`) still shows `omp stats` for one machine.
+on the machine page (`ui/src/app/screens/config/stats_page.tsx`) still shows `omp stats` for one machine.
 
 ## Running
 
@@ -32,11 +32,11 @@ from U+007F up is a `\u` escape), so no code page on the way changes a path.
 
 ## Input
 
-The Dart side puts `const input = {...};` in front of the script:
+`readActivityStats` puts `const input = {...};` in front of the script:
 
 |Field|Meaning|
 |---|---|
-|`zone`|the device's time zone as `[start ms, offset minutes]` pairs, oldest first, from 2020 to two days after now; the first pair also covers everything before it. `ActivityQuery.local` finds each change to the minute|
+|`zone`|the device's time zone as `[start ms, offset minutes]` pairs, oldest first, from 2020 to two days after now; the first pair also covers everything before it. `activityQueryLocal` finds each change to the minute|
 |`today`|the device's today as a local day number (days since 1970-01-01 of the local date)|
 |`ranges`|`[7, 30, 365, 0]`: the last 7, 30 and 365 days ending today, and all time|
 |`marker`|the output marker|
@@ -168,11 +168,11 @@ prompts take about 0.3 s of a cold scan with 10 MB of prompt text: each prose pa
 its first character, shouting is checked only in sentences with a run of capitals, and a prompt's repeated words are
 normalized once.
 
-In the app (macOS profile build, both machines asked at once, both on this Mac): 5.6 s from opening the tab cold to
-both answers (this Mac 2.0 s, the Docker machine 5.5 s, sharing the CPU); a refresh 0.38–0.44 s (305–343 ms and
-137–192 ms). Switching ranges and scrolling the tab built frames in 0.9–1.0 ms on average (8.1 ms at the 99th
-percentile) and rastered them in 2.1 ms (4.8 ms); the window was in the background, so macOS paced it below 60 Hz
-and frame pacing was not measured.
+In the Flutter app at commit `359d920` (macOS profile build, both machines asked at once, both on this Mac): 5.6 s
+from opening the tab cold to both answers (this Mac 2.0 s, the Docker machine 5.5 s, sharing the CPU); a refresh
+0.38–0.44 s (305–343 ms and 137–192 ms). Switching ranges and scrolling the tab built frames in 0.9–1.0 ms on average
+(8.1 ms at the 99th percentile) and rastered them in 2.1 ms (4.8 ms); the window was in the background, so macOS paced
+it below 60 Hz and frame pacing was not measured. The web UI's Stats tab has not been measured.
 
 Both give the same request count and cost as `omp stats` on the same files, except where a file repeats an entry id:
 omp's database keeps one row per `(session_file, entry_id)` and drops the rest; the script counts every line. The

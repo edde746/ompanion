@@ -1,0 +1,37 @@
+.about-section {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: var(--gap);
+}
+
+.about-section-heading,
+.about-section-title {
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+.about-section-app {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+/* The mark is not square: it fits the 28 px box as Flutter's Image does. */
+.about-section-mark {
+  flex: none;
+  object-fit: contain;
+}
+
+.about-section-app-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.about-section-version {
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}

@@ -1,0 +1,119 @@
+.status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 4px 12px;
+}
+
+.status-strip-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+}
+
+.status-strip-chip-icon {
+  display: flex;
+  flex: none;
+}
+
+.status-strip-chip-text,
+.status-strip-status {
+  min-width: 0;
+  overflow: hidden;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface);
+}
+
+.status-strip-chip-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.status-strip-status {
+  max-width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.extension-widgets-below {
+  padding-top: 8px;
+}
+
+.extension-widgets-panel,
+.command-outputs {
+  margin: 2px 12px;
+}
+
+.extension-widgets-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  color: var(--on-surface);
+  text-align: start;
+  transition: background-color 50ms linear;
+}
+
+@media (hover: hover) {
+  .extension-widgets-header:hover {
+    background: rgb(var(--on-surface-rgb) / 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .extension-widgets-header {
+    transition-duration: 0s;
+  }
+}
+
+.extension-widgets-name,
+.command-outputs-title {
+  flex: 1;
+  min-width: 0;
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.extension-widgets-lines,
+.command-outputs-text {
+  font: var(--code);
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "calt" 0,
+    "liga" 0;
+  color: var(--on-surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.extension-widgets-lines {
+  padding: 0 12px 8px;
+}
+
+.command-outputs {
+  padding: 4px 4px 8px 12px;
+}
+
+.command-outputs-header {
+  display: flex;
+  align-items: center;
+}
+
+/* Reversed, as the Dart's scroll view: it opens on the newest lines and stays there while more arrive. */
+.command-outputs-scroll {
+  display: flex;
+  flex-direction: column-reverse;
+  max-height: 240px;
+  overflow-y: auto;
+}

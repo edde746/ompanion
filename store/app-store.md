@@ -24,17 +24,17 @@ Evidence for each of our files is in section 11 (byte and character counts).
 
 | Field | Value |
 |---|---|
-| Name | `ompanion: omp client` — `ios/fastlane/metadata/en-US/name.txt` |
+| Name | `ompanion: omp client` — `store/fastlane/ios/metadata/en-US/name.txt` |
 | Subtitle | `Coding agent over SSH` — `subtitle.txt` |
 | Bundle ID | `com.edde746.ompanion` |
 | SKU | your choice; suggest `ompanion-ios-001`. Must be unique in your account and is never shown to users. |
 | Primary language | English (U.S.) |
-| Primary category | Developer Tools (`DEVELOPER_TOOLS`) — `ios/fastlane/metadata/primary_category.txt` |
+| Primary category | Developer Tools (`DEVELOPER_TOOLS`) — `store/fastlane/ios/metadata/primary_category.txt` |
 | Secondary category | Productivity (`PRODUCTIVITY`) — `secondary_category.txt` |
 | Content rights | **Yes, it contains, shows or accesses third-party content, and I have the necessary rights** (see section 6) |
 | Age rating | see section 5; computed 9+, and you may override higher |
 | Price | US$4.99, the owner's choice (the GitHub build is free); no in-app purchases, no subscriptions. The listing texts therefore never say "free". |
-| Copyright | `2026 Edvard Wikhall` — `ios/fastlane/metadata/copyright.txt` |
+| Copyright | `2026 Edvard Wikhall` — `store/fastlane/ios/metadata/copyright.txt` |
 | License agreement | Apple's standard EULA. The app is GPLv3 and published by its sole copyright holder (`store/README.md`, "Licence"). |
 | Routing app coverage file | none |
 | Mac and Apple Vision Pro | Apple offers an iPhone and iPad app on Apple silicon Macs and on Apple Vision Pro unless you opt out. The Mac App Store is out of scope and the iOS build is not tested on either, so under **Pricing and Availability** deselect "Make this app available" in **iPhone and iPad Apps on Apple Silicon Mac** and "Make this app available on Apple Vision Pro" in **iPhone and iPad Apps on Apple Vision Pro** ([Macs with Apple silicon](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/manage-availability-of-iphone-and-ipad-apps-on-macs-with-apple-silicon), [Apple Vision Pro](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/manage-availability-of-iphone-and-ipad-apps-on-apple-vision-pro)). |
@@ -66,19 +66,20 @@ so the copyright line uses the same legal name for consistency. Change it if you
 | Marketing URL | `en-US/marketing_url.txt` → `https://ompanion.app` |
 | Privacy Policy URL | `en-US/privacy_url.txt` → `https://ompanion.app/privacy` |
 | What's New | `en-US/release_notes.txt` |
-| Build | the 1.0.0 build uploaded from `flutter build ipa` |
+| Build | the build `shells/apple/build.sh --ipa --core` exports and `fastlane ios deploy_appstore` uploads |
 | Version release | automatic after approval, or manual — your choice |
 
 Check all three URLs in an incognito window before submitting; a dead privacy-policy URL is an automatic
 5.1.1(i) rejection.
 
 Later versions: `scripts/release/deploy.py` (`store/README.md`, Later releases) uploads the build from
-`flutter build ipa`, creates the version, sets What's New from `en-US/release_notes.txt` and attaches the build;
-it changes no other field. `(cd ios && fastlane deploy_appstore)` uploads the whole listing when it changes.
+`shells/apple/build.sh --ipa --core`, creates the version, sets What's New from `en-US/release_notes.txt` and
+attaches the build; it changes no other field. `fastlane ios deploy_appstore`, run from `store/`, uploads the whole
+listing when it changes.
 
 ## 4. App Review information
 
-`ios/fastlane/metadata/review_information/` holds these files, which `deliver` uploads. The file name is the
+`store/fastlane/ios/metadata/review_information/` holds these files, which `deliver` uploads. The file name is the
 **option key** fastlane looks up (not the App Store Connect attribute), so these names matter:
 
 | Field | File | Value |
@@ -89,7 +90,7 @@ it changes no other field. `(cd ios && fastlane deploy_appstore)` uploads the wh
 | Email | `email_address.txt` | **field for the user** |
 | Notes | `notes.txt` | the canonical text is `store/review-demo/README.md` §"Console answers"; the file here is that text plus the guideline paragraphs (2.1/4.2, 2.5.2, 5.1.2(i), no VPN functionality, AI output). The whole file is the field's text, under the 4,000-byte limit (`store/README.md`, "Length check"). It names the host, `217.160.119.181`, and user `root`, and points to Sign-In Information for the password, which is never committed. |
 | Sign-in required | `demo_user.txt`, `demo_password.txt` | **Yes**: user `root`, password `REVIEW_PASSWORD` from `store/review-demo/.env`. The app has no account of its own, but this is the form an App Review person looks at first, and the notes' step 1 sends them here for the password. deliver sets "Sign-in required" to Yes only when both files are non-empty. |
-| Trade representative contact (EU DSA) | `ios/fastlane/metadata/trade_representative_contact_information/*.txt` | optional and **field for the user** (legal name, address, phone); only needed if you appoint an EU trade representative and want it uploaded with the metadata |
+| Trade representative contact (EU DSA) | `store/fastlane/ios/metadata/trade_representative_contact_information/*.txt` | optional and **field for the user** (legal name, address, phone); only needed if you appoint an EU trade representative and want it uploaded with the metadata |
 
 `notes.txt` is the review notes text, pasted or uploaded whole. The contact and password files start with
 `FILL` until filled in, and `deploy_appstore` refuses to upload while any does.
@@ -110,7 +111,7 @@ Capabilities:
 
 | Question | Answer | Why |
 |---|---|---|
-| Unrestricted Web Access | **No** | There is no browser and no WebView. Links open in the system browser (Safari), outside the app. A model reply can name a web image, and the app fetches it only when the user taps "Load image" — that is a single fetch of a named URL, not browsing. |
+| Unrestricted Web Access | **No** | The screens are one WKWebView showing the page bundled inside the app, from its own `app://` scheme; it never shows a website. Any other navigation is cancelled, and an http(s) link opens in Safari, outside the app (`shells/apple/Sources/Shared/Shell.swift`, `policy(for:)` and `createWebViewWith`). The page's content security policy lets it load nothing from the network (`ui/index.html`). A model reply can name a web image: the app's core downloads it only when the user taps "Load image", a single fetch of a named URL, not browsing. |
 | User-Generated Content | **No** | Nothing the app shows is broadly distributed. Prompts and replies stay between the user and their own machine; there is no feed, no profile page, no publishing, no sharing with other users. |
 | Social Media | **No** | No redistribution, amplification or discovery of anyone's content; no likes, comments, shares or views. |
 | Social Media Disabled for Users Under 13 | **No** | App Store Connect asks it even with Social Media No (seen 2026-09-27). The app has no social media to disable and no age gate (Parental Controls and Age Assurance are No). |
@@ -154,8 +155,9 @@ responsibility, and a mis-rated app "could trigger an inquiry from government re
   or accesses third-party content, and I have the necessary rights.** Apple's rule covers apps that "contain,
   show, or access third-party content"
   ([App information](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information)),
-  and ompanion does all three: it bundles open-source libraries (BSD, MIT and Apache-2.0, listed under
-  Settings → About → Open-source licenses), it fetches omp's MIT-licensed release from its official GitHub
+  and ompanion does all three: it bundles open-source libraries, syntax grammars and fonts (MIT, BSD,
+  Apache-2.0, ISC, Zlib, MPL-2.0, the TextMate bundle licence and OFL-1.1; every one, with its licence text, under
+  Settings → About → Open-source licenses, and in `docs/research/licenses.md`), it fetches omp's MIT-licensed release from its official GitHub
   release when a machine cannot download it itself, and it shows a web image named in a reply after the user
   taps "Load image". The rights come from those licences and from the user's own request; the app
   redistributes nothing. Everything else it displays is the user's own files and agent output.
@@ -187,22 +189,29 @@ Reasoning, checked against the code:
   also passes through our relay with each notification, which keeps nothing. The SDK's device model, language,
   time zone and OS version go to Google only for topic subscriptions, which the app does not use.
 - The table is the union of the `PrivacyInfo.xcprivacy` bundles the linked Firebase products ship inside the
-  built `Runner.app` (checked 2026-09-27, firebase-ios-sdk 12.19.2): FirebaseMessaging declares Device ID (App
-  Functionality), Other Data Types (Analytics) and Other Diagnostic Data (App Functionality);
-  FirebaseInstallations and GoogleDataTransport declare Other Diagnostic Data (Analytics). Xcode's privacy
-  report for an archive (Product → Archive → Generate Privacy Report) aggregates these manifests; check it
-  against this table before answering. None of it happens before push notifications are on: Firebase is not
-  started until then. GoogleAppMeasurement resolves in the package graph but is not linked.
+  built `ompanion.app` (the 1.2.1 (4) archive, checked 2026-11-02, firebase-ios-sdk 12.19.2, pinned in
+  `shells/apple/project.yml`): FirebaseMessaging declares Device ID (App Functionality), Other Data Types
+  (Analytics) and Other Diagnostic Data (App Functionality); FirebaseInstallations and GoogleDataTransport declare
+  Other Diagnostic Data (Analytics); no other bundle in the app declares a collected type. Xcode's privacy report
+  for an archive (Product → Archive → Generate Privacy Report) aggregates these manifests; check it against this
+  table before answering. None of it happens before push notifications are on: `Push.swift` configures Firebase
+  only when push is turned on (`startFirebase`). GoogleAppMeasurement resolves in the package graph but is not
+  linked (the app links FirebaseCore, FirebaseInstallations and FirebaseMessaging only, and the binary holds no
+  GoogleAppMeasurement symbol).
 - The notification text is encrypted on the user's own machine with a key the phone made and is readable only
   on that phone; the relay, Google and Apple carry ciphertext. Nothing else of ours reports anything: no
-  analytics, crash-reporting or advertising SDK; the only other HTTP clients in the app are `dart:io
-  HttpClient` for the omp release download and `Image.network` for a tapped web image.
+  analytics, crash-reporting or advertising SDK. The only other HTTP client in the app is the core's
+  (Go's `net/http`, `core/net.go` `net.fetch`), which downloads the omp release and a tapped web image; the page
+  itself loads nothing from the network.
 - What else leaves the device goes to the user's own machines over SSH (their data, their machines, and
   encrypted in transit), to `github.com` when the user installs omp on a machine that has no curl or wget (a
   public file, no user data), and to the host of a web image the user tapped "Load image" on. Links and
   sign-in pages open in the user's browser, outside the app.
 - No account, no email address, no usage data, no crash logs, no location, no contacts and no photos are
-  collected by us. Files the user attaches go to their own machine over SSH. The random per-install id the app
+  collected by us. Files the user attaches go to their own machine over SSH, and so do photos and videos: the web
+  view's picker offers the photo library and the camera (the app declares `NSPhotoLibraryUsageDescription`,
+  `NSCameraUsageDescription` and `NSMicrophoneUsageDescription` for it), and what the user picks or takes goes
+  only into the message. The random per-install id the app
   generates goes only to the user's own machines, inside its requests to omp and in the phone's push
   registration file there.
 - If Apple's reviewer asks how the app can show AI output and collect nothing else: the AI runs on the user's
@@ -211,20 +220,25 @@ Reasoning, checked against the code:
 
 ## 8. Export compliance
 
-`ios/Runner/Info.plist` sets `ITSAppUsesNonExemptEncryption` to `NO`, so App Store Connect asks nothing about an
-uploaded build. It is the answer App Store Connect recorded for builds 1 and 2 and the one Plezy declares. What the
-app uses, from
+The iOS target's Info.plist properties in `shells/apple/project.yml` set `ITSAppUsesNonExemptEncryption` to `NO`
+(the archived 1.2.1 (4) app's `Info.plist` reads `false`), so App Store Connect asks nothing about an uploaded
+build. It is the answer App Store Connect recorded for builds 1 and 2 and the one Plezy declares. What the app
+uses, from
 [Export compliance documentation for encryption](https://developer.apple.com/help/app-store-connect/reference/app-information/export-compliance-documentation-for-encryption)
 and [Complying with encryption export regulations](https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations):
 
 - **Does your app use encryption?** **Yes.**
 - **Which kind?** Apple's table has three rows: encryption limited to what Apple's OS provides; "an industry
   standard algorithm, not provided within the Apple operating system"; and proprietary algorithms.
-  ompanion is the **second** row. `dartssh2` implements SSH in Dart: the ciphers
-  `packages/omp_core/lib/src/ssh/ssh_link.dart` offers (ChaCha20-Poly1305, AES-GCM, AES-CTR), Curve25519,
-  ECDH and Diffie-Hellman key exchange, and Ed25519, RSA and ECDSA signatures; key generation is Ed25519
-  (`pinenacl`). The one HTTPS request, the omp download, uses `dart:io`'s TLS, which is BoringSSL inside the
-  Dart runtime, not Apple's. Nothing proprietary.
+  ompanion is the **second** row. The app's Go core (`core/`, linked into the app as `Ompcore.xcframework`)
+  implements SSH with `golang.org/x/crypto/ssh` v0.58.0 at that package's default algorithms (`core/ssh_dial.go`
+  sets none): AES-GCM, ChaCha20-Poly1305 and AES-CTR ciphers; HMAC-SHA2 and HMAC-SHA1 MACs; ML-KEM-768 with
+  X25519, Curve25519, ECDH (NIST P-256, P-384, P-521) and Diffie-Hellman key exchange; Ed25519, ECDSA and RSA
+  host keys and signatures. Key generation (`core/keys.go`) is Go's Ed25519, RSA and ECDSA, and a
+  passphrase-protected private key is AES-encrypted with a bcrypt-pbkdf key. HTTPS (the omp download and a tapped
+  web image, `core/net.go`) goes through Go's own `crypto/tls`, not Apple's. The screens run in WebKit and load
+  only from the app bundle. The Notification Service Extension decrypts notifications with CryptoKit's
+  AES-256-GCM, which is Apple's. Nothing proprietary.
 - **What `NO` declares:** the app "only uses forms of encryption that are exempt from export compliance
   documentation requirements", so no documentation is uploaded. Apple asks for the French encryption declaration
   when an app that needs documentation is offered in France, and France is among the app's territories (checked
@@ -237,7 +251,7 @@ and [Complying with encryption export regulations](https://developer.apple.com/d
 ## 9. Screenshots, icon and previews
 
 The 1320×2868 iPhone (6.9-inch, portrait) and 2048×2732 iPad (13-inch, portrait) sets are in
-`ios/fastlane/screenshots/en-US/`, tooling in `store/screenshots/`, and the paths and caveats in
+`store/fastlane/ios/screenshots/en-US/`, tooling in `store/screenshots/`, and the paths and caveats in
 `store/README.md`. What the guidelines require of them: they show the app in use, not a splash screen (2.3.3);
 they may carry text overlays; they must be suitable for all audiences even though the app is older-rated
 (2.3.8); and they may not contain prices, other platforms' names, or unverifiable claims (2.3.7, 2.3.10).
@@ -248,14 +262,14 @@ Desktop-only features are absent from both the captures and the descriptions.
 | Guideline | What it says | Our position |
 |---|---|---|
 | [2.1 App Completeness](https://developer.apple.com/app-store/review/guidelines/#performance) | final version, working URLs, demo account info, backend live during review | The app is complete; the three URLs are live once the repo is public; the demo server `217.160.119.181` (`store/review-demo/`) is the "backend" and must be **up during review**, with credit left on its OpenRouter key; the review notes give host, port, user and password. |
-| [2.5.2 Software Requirements](https://developer.apple.com/app-store/review/guidelines/#software-requirements) | apps are self-contained and may not download, install or execute code that changes the app's features | The app installs **omp** — someone else's open-source binary — on the **user's own remote machine** over SSH, at the user's request, like an SSH client running commands on a server. It never runs downloaded code **on the device**, and nothing it downloads changes its own features. The machine fetches the omp release itself when it has curl or wget (PowerShell on Windows); otherwise the app streams the release asset from GitHub to the machine over SFTP without storing it. The companion extension it uploads runs inside the user's own omp on that machine. Explained in the review notes. |
-| [2.5.1, 2.5.5](https://developer.apple.com/app-store/review/guidelines/#software-requirements) | public APIs, works on IPv6-only networks | Flutter and public libraries only. SSH is IPv6-capable; test on an IPv6-only network before submitting if you can. |
-| [4.2 Minimum Functionality / 4.2.3](https://developer.apple.com/app-store/review/guidelines/#minimum-functionality) | apps should work on their own without installing another app; disclose first-launch downloads | Nothing is required on the device. What the app needs is a machine of the user's, which is the same position as an SSH client. The demo server means a reviewer needs neither a machine nor an AI account: it has omp and a model we pay for. |
+| [2.5.2 Software Requirements](https://developer.apple.com/app-store/review/guidelines/#software-requirements) | apps are self-contained and may not download, install or execute code that changes the app's features | The app installs **omp** — someone else's open-source binary — on the **user's own remote machine** over SSH, at the user's request, like an SSH client running commands on a server. It never runs downloaded code **on the device**, and nothing it downloads changes its own features. The machine fetches the omp release itself when it has curl or wget (PowerShell on Windows); otherwise the app's core downloads the release asset from GitHub into its cache, uploads it to the machine over SFTP and deletes its copy (`ui/src/core/host/install.ts`, `fetchOmpAsset` and `uploadOmp`). The companion extension it uploads runs inside the user's own omp on that machine. Explained in the review notes. |
+| [2.5.1, 2.5.5](https://developer.apple.com/app-store/review/guidelines/#software-requirements) | public APIs, works on IPv6-only networks | Public APIs only: `otool -L` on the archived app and its extension lists system frameworks and libraries only (UIKit, WebKit, Foundation, Security, CryptoKit, UserNotifications, SystemConfiguration, CoreTelephony, libsqlite3, libz, the Swift runtime); Firebase and the Go core are linked statically. The Go core dials SSH with Go's `net` package, which connects to IPv6 and IPv4 addresses; test on an IPv6-only network before submitting if you can. |
+| [4.2 Minimum Functionality / 4.2.3](https://developer.apple.com/app-store/review/guidelines/#minimum-functionality) | apps should work on their own without installing another app; disclose first-launch downloads; not a repackaged website | Nothing is required on the device. What the app needs is a machine of the user's, which is the same position as an SSH client. The demo server means a reviewer needs neither a machine nor an AI account: it has omp and a model we pay for. The screens are HTML in a WKWebView, but bundled in the app, not a website, over native code that does the work: the Go core (SSH, SFTP, the terminal) and the Swift shell (keychain, notifications, push); if a reviewer reads it as a web wrapper, that is the answer. |
 | [4.2.7 Remote Desktop Clients](https://developer.apple.com/app-store/review/guidelines/#minimum-functionality) | mirroring of specific software must be user-owned, executed on the host, no store-like UI | Read it even though its LAN clause does not fit an SSH client: the host is the user's own computer, everything runs on that host, there is no store UI, and account creation happens on the host. |
 | [4.7 Mini apps, chatbots, plug-ins](https://developer.apple.com/app-store/review/guidelines/#extensions) | software not embedded in the binary, including chatbots and plug-ins, brings extra rules; 4.7.1 asks for filtering, a way to report content, and blocking | The companion extension is not offered on the device: it is uploaded into the user's own omp installation on the user's own machine. The agent in the chat is the user's own install with the user's own provider accounts, not a chatbot we offer, and the app has no report or filter control of its own. The one exception is the review demo server, whose model we pay for; it exists only for the review, and the notes say so. **Flagged as the most likely guideline to draw a question**; the review notes' 2.5.2 and AI-content paragraphs make this argument. |
-| [5.1.1(i) Privacy policies](https://developer.apple.com/app-store/review/guidelines/#privacy) | a privacy policy in metadata **and inside the app** | The policy is at the privacy URL, and the app links it in **Settings → About** (`lib/screens/settings/about_section.dart`): privacy policy, source code, issue tracker, licence ("GPL-3.0"), Flutter's bundled-package licence list and the version line. Both halves of the guideline are satisfied. |
+| [5.1.1(i) Privacy policies](https://developer.apple.com/app-store/review/guidelines/#privacy) | a privacy policy in metadata **and inside the app** | The policy is at the privacy URL, and the app links it in **Settings → About** (`ui/src/app/screens/settings/about_section.tsx`): the version line, "A client for omp, the oh-my-pi coding agent" (omp's repository), privacy policy, source code, "Report an issue" (the issue tracker), license ("GPL-3.0", the repository's `LICENSE`) and "Open-source licenses" (the licences of every package the page bundles). Both halves of the guideline are satisfied. |
 | [5.1.2(i) Data Use and Sharing](https://developer.apple.com/app-store/review/guidelines/#privacy) | disclose sharing with third parties, including third-party AI, and get permission | The app sends prompts only to the user's own omp, on the user's own machine, which calls the providers the user configured with the user's own credentials. The app never contacts a provider, keeps no provider key (a key typed into the Providers page goes over SSH to omp), and shows nothing to the developer. Explained in the review notes and in the privacy policy. On the review demo server the machine is ours: its omp sends the reviewer's prompts to OpenRouter and Z.ai with our key, which the review notes' 5.1.2(i) paragraph says. |
-| VPN (automated analysis) | App Review asks what user data a VPN collects, why, and who it is shared with, or a confirmation that there is no VPN | ompanion has no VPN: no Network Extension framework or entitlement, no tunnel, no routing. No Mach-O in the built `Runner.app` links `NetworkExtension.framework`, the entitlements are push and keychain groups only, and the one app extension is the Notification Service Extension. It opens SSH connections only; a machine may sit on the user's Tailscale network, which Tailscale's own app carries. The review notes' "No VPN functionality" paragraph says so. |
+| VPN (automated analysis) | App Review asks what user data a VPN collects, why, and who it is shared with, or a confirmation that there is no VPN | ompanion has no VPN: no Network Extension framework or entitlement, no tunnel, no routing. No Mach-O in the built `ompanion.app` links `NetworkExtension.framework` (`otool -L` on the app and its extension, 1.2.1 (4) archive, 2026-11-02); the signed entitlements are `aps-environment` and `keychain-access-groups` (the app's group and the push group; the extension has the push group only), and the one app extension is the Notification Service Extension. It opens SSH connections only; a machine may sit on the user's Tailscale network, which Tailscale's own app carries. The review notes' "No VPN functionality" paragraph says so. |
 
 ## 11. Counts (evidence)
 

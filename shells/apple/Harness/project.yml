@@ -1,0 +1,28 @@
+# XcodeGen spec of the macOS smoke run's paths harness (PathsHarness.swift): a UI test bundle that acts on the running
+# app, so it has no app target. smoke.sh copies both files to ../../build/apple/harness and builds it there for testing.
+name: PathsHarness
+options:
+  deploymentTarget:
+    macOS: "13.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    GENERATE_INFOPLIST_FILE: YES
+targets:
+  PathsHarness:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: PathsHarness.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.edde746.ompanion.pathsharness
+schemes:
+  PathsHarness:
+    build:
+      targets:
+        PathsHarness: [test]
+    test:
+      targets: [PathsHarness]

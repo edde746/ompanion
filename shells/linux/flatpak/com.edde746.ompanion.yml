@@ -1,0 +1,67 @@
+# Packs the Linux shell: built here against the GNOME runtime's GTK 4 and WebKitGTK 6, next to the core
+# (libompcore.so) and the page (ui/) of a build.sh build. build-flatpak.sh stages them beside a copy of this file:
+# src/ (the shell's sources and VERSION), core/, ui/.
+app-id: com.edde746.ompanion
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: ompanion
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  # WebKit's GPU rendering.
+  - --device=dri
+  # This computer: omp, the commands it runs and the terminal's shell need the user's own tools, not the runtime's, so
+  # they start on the host through `flatpak-spawn --host` (core/exec.go, flatpakStart). This lifts the sandbox.
+  - --talk-name=org.freedesktop.Flatpak
+  # What those host processes work on is host paths: the directories sessions run in, the Files panel, attachments and
+  # the files mentioned where they are, ~/.omp, and ~/.ssh for its config, keys and known_hosts.
+  - --filesystem=host
+  - --socket=ssh-auth
+  - --talk-name=org.freedesktop.Notifications
+  # libsecret (the shell's secrets, and the Flutter app's it imports) uses the Secret portal where the desktop has one,
+  # and the keyring's own service where it has not.
+  - --talk-name=org.freedesktop.secrets
+build-options:
+  # The core comes stripped and without DWARF from build.sh; the shell is stripped as it installs.
+  no-debuginfo: true
+modules:
+  - name: release-tty
+    buildsystem: simple
+    build-commands:
+      - cc -O2 -Wall -Wextra -Werror -o release-tty release-tty.c
+      - install -Dm755 release-tty /app/libexec/release-tty
+    sources:
+      - type: file
+        path: release-tty.c
+
+  - name: ompanion
+    buildsystem: simple
+    build-commands:
+      - cmake -S src/shells/linux -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DOMPCORE_DIR="$PWD/core"
+      - cmake --build build
+      # The shell finds libompcore.so, ui/ and icons/ next to its resolved path, so a link is enough for /app/bin.
+      - install -Dm755 -s build/ompanion /app/ompanion/ompanion
+      - install -Dm755 core/libompcore.so /app/ompanion/libompcore.so
+      - cp -R ui /app/ompanion/ui
+      - install -Dm644 src/shells/linux/ompanion.png /app/ompanion/icons/com.edde746.ompanion.png
+      - mkdir -p /app/bin && ln -s ../ompanion/ompanion /app/bin/ompanion
+      - install -Dm644 com.edde746.ompanion.desktop /app/share/applications/com.edde746.ompanion.desktop
+      - install -Dm644 com.edde746.ompanion.metainfo.xml /app/share/metainfo/com.edde746.ompanion.metainfo.xml
+      - install -Dm644 src/shells/linux/ompanion.png /app/share/icons/hicolor/256x256/apps/com.edde746.ompanion.png
+    sources:
+      - type: dir
+        path: src
+        dest: src
+      - type: dir
+        path: core
+        dest: core
+      - type: dir
+        path: ui
+        dest: ui
+      - type: file
+        path: com.edde746.ompanion.desktop
+      - type: file
+        path: com.edde746.ompanion.metainfo.xml

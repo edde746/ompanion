@@ -1,0 +1,125 @@
+.ask-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ask-form-question {
+  display: flex;
+  flex-direction: column;
+}
+
+.ask-form-header {
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+/* bodyLarge, as the Dart form gives its questions. */
+.ask-form-question-text {
+  --chat-body-size: 16px;
+  letter-spacing: var(--body-large-tracking);
+}
+
+.ask-form-secondary {
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.ask-form-options {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+/* A dense, compact list tile without content padding: the control, 12 px, then the label over its subtitle. */
+.ask-form-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 50ms linear;
+}
+
+.ask-form-option-two-line {
+  min-height: 56px;
+  padding: 4px 0;
+}
+
+@media (hover: hover) {
+  .ask-form-option:hover:not(.ask-form-option-disabled) {
+    background: rgb(var(--on-surface-rgb) / 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask-form-option {
+    transition-duration: 0s;
+  }
+}
+
+.ask-form-option-disabled {
+  color: rgb(var(--on-surface-rgb) / 0.38);
+  cursor: default;
+}
+
+.ask-form-option-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ask-form-option-title {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  font: 400 13px / 1.5 var(--font-sans);
+  letter-spacing: var(--body-large-tracking);
+}
+
+.ask-form-recommended {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--surface-container-highest);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.ask-form-option-subtitle {
+  color: var(--on-surface-variant);
+  font: 400 12px / 1.43 var(--font-sans);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.ask-form-option-disabled .ask-form-option-subtitle {
+  color: inherit;
+}
+
+.ask-form-preview {
+  display: block;
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--surface-container-high);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ask-form-other {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ask-form-field {
+  flex: 1;
+}
+
+.ask-form-note {
+  margin-top: var(--gap);
+}

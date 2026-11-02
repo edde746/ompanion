@@ -1,0 +1,65 @@
+.key-dialogs-import.dialog,
+.key-dialogs-generated.dialog {
+  width: 560px;
+}
+
+.key-dialogs-generate.dialog {
+  width: 468px;
+}
+
+.key-dialogs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Four lines tall, growing to eight before it scrolls. */
+.key-dialogs-pem {
+  width: 100%;
+  min-height: calc(4 * 12px * 1.4 + 16px);
+  max-height: calc(8 * 12px * 1.4 + 16px);
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius);
+  outline: none;
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  font: var(--code);
+  font-variant-ligatures: none;
+  resize: vertical;
+}
+
+.key-dialogs-pem:focus {
+  background: var(--surface-container-highest);
+}
+
+.key-dialogs-file {
+  display: flex;
+  margin: -8px 0 -4px;
+}
+
+.key-dialogs-helper {
+  padding-left: 12px;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.key-dialogs-error {
+  margin: 0;
+  color: var(--error);
+}
+
+.key-dialogs-body {
+  margin: 0;
+}
+
+.key-dialogs-public {
+  margin: 0;
+  color: var(--on-surface);
+  font: var(--code);
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}

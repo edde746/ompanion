@@ -1,0 +1,476 @@
+.activity-view {
+  container: activity-view / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--on-surface);
+}
+
+/* Chart cards: two to a row from 840 px, each as tall as its own content. */
+.activity-view-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+@container activity-view (min-width: 840px) {
+  .activity-view-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.activity-view-section {
+  padding-top: 12px;
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+.activity-view-none {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  color: var(--on-surface-variant);
+}
+
+/* A muted line that names what the pointer is on; one line tall when empty. */
+.activity-view-line {
+  min-width: 0;
+  min-height: 16px;
+  overflow: hidden;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-view-note {
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+}
+
+.activity-view-numbers {
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  font-variant-numeric: tabular-nums;
+  color: var(--on-surface-variant);
+}
+
+/* Stat tiles. */
+.activity-view-tiles {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-view-tile-label {
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+  color: var(--on-surface-variant);
+}
+
+.activity-view-tile-value {
+  margin-top: 6px;
+  overflow: hidden;
+  font: var(--headline-small);
+  letter-spacing: var(--headline-small-tracking);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-view-tile-detail {
+  min-height: 16px;
+  margin-top: 2px;
+  overflow: hidden;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * Chart card. Off-screen cards are not laid out, as Flutter's SliverList lays out only the rows near the viewport: the
+ * engine skips a card's contents until it nears the viewport and keeps its last height while it skips them again. The
+ * estimate stands in for a card not laid out yet.
+ */
+.activity-view-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 250px;
+}
+
+.activity-view-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.activity-view-card-title {
+  flex: 1;
+  min-width: 0;
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+/* Share rows. */
+.activity-view-share {
+  container: activity-view-share / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.activity-view-share-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.activity-view-share-label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.activity-view-share-code {
+  min-width: 0;
+  overflow: hidden;
+  font: var(--code);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-view-share-numbers {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--gap);
+  min-width: 0;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  font-variant-numeric: tabular-nums;
+  color: var(--on-surface-variant);
+}
+
+.activity-view-share-error {
+  flex: none;
+  color: var(--error);
+}
+
+.activity-view-share-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The quota bar's shape: 6 px, a surfaceContainerHighest track filled in onSurface. */
+.activity-view-share-bar {
+  height: 6px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--surface-container-highest);
+}
+
+.activity-view-share-fill {
+  height: 100%;
+  background: var(--on-surface);
+}
+
+@container activity-view-share (max-width: 479.98px) {
+  .activity-view-share-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .activity-view-share-label {
+    flex: none;
+  }
+}
+
+/* Charts drawn in SVG. */
+.activity-view-chart {
+  display: block;
+  direction: ltr;
+}
+
+.activity-view-axis {
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+  fill: var(--on-surface-variant);
+}
+
+/* The contribution grid's steps; `background` for the legend's squares. */
+.activity-view-level-0 {
+  fill: var(--surface-container-highest);
+  background: var(--surface-container-highest);
+}
+
+.activity-view-level-1 {
+  fill: rgb(var(--text-rgb) / 0.28);
+  background: rgb(var(--text-rgb) / 0.28);
+}
+
+.activity-view-level-2 {
+  fill: rgb(var(--text-rgb) / 0.48);
+  background: rgb(var(--text-rgb) / 0.48);
+}
+
+.activity-view-level-3 {
+  fill: rgb(var(--text-rgb) / 0.72);
+  background: rgb(var(--text-rgb) / 0.72);
+}
+
+.activity-view-level-4 {
+  fill: var(--on-surface);
+  background: var(--on-surface);
+}
+
+.activity-view-halo {
+  fill: var(--on-surface);
+}
+
+/* Contribution grid. */
+.activity-view-heatmap {
+  container: activity-view-heatmap / inline-size;
+}
+
+.activity-view-heatmap-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  height: var(--control);
+  margin-bottom: 12px;
+}
+
+.activity-view-heatmap-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A right-to-left scroller starts at its right edge and keeps its offset from there. */
+.activity-view-heatmap-scroll {
+  overflow-x: auto;
+  direction: rtl;
+}
+
+.activity-view-heatmap-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.activity-view-heatmap-foot > .activity-view-line {
+  flex: 1;
+}
+
+.activity-view-legend {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+}
+
+.activity-view-legend-step {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.activity-view-legend-more {
+  margin-left: 1px;
+}
+
+/* A phone gives the readout a line of its own, so a tapped day's numbers fit. */
+@container activity-view-heatmap (max-width: 479.98px) {
+  .activity-view-heatmap-foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .activity-view-legend {
+    align-self: flex-end;
+  }
+}
+
+/* Bar chart and length histogram. */
+.activity-view-chart-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.activity-view-chart-head > .activity-view-line {
+  flex: 1;
+}
+
+.activity-view-axis-value {
+  flex: none;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+}
+
+.activity-view-chart-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+}
+
+.activity-view-bar {
+  fill: var(--on-surface);
+}
+
+.activity-view-bars-hovering .activity-view-bar {
+  fill: rgb(var(--text-rgb) / 0.55);
+}
+
+.activity-view-bars-hovering .activity-view-bar-hover {
+  fill: var(--on-surface);
+}
+
+.activity-view-bar-track {
+  fill: var(--surface-container-highest);
+}
+
+.activity-view-bar-failed {
+  fill: var(--error);
+}
+
+.activity-view-histogram-labels {
+  display: flex;
+  margin-top: 6px;
+}
+
+.activity-view-histogram-labels > span {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Week-by-hour grid. */
+.activity-view-punchcard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Word cloud. */
+.activity-view-cloud {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.activity-view-cloud-words {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 10px;
+}
+
+.activity-view-word {
+  font-family: var(--font-sans);
+  line-height: calc(20 / 14);
+  letter-spacing: var(--body-medium-tracking);
+  cursor: default;
+}
+
+.activity-view-word-level-0,
+.activity-view-word-level-1 {
+  color: rgb(var(--text-rgb) / 0.45);
+}
+
+.activity-view-word-level-2 {
+  color: rgb(var(--text-rgb) / 0.6);
+}
+
+.activity-view-word-level-3 {
+  color: rgb(var(--text-rgb) / 0.8);
+}
+
+.activity-view-word-level-4 {
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.activity-view-cloud-hovering .activity-view-word {
+  opacity: 0.5;
+}
+
+.activity-view-cloud-hovering .activity-view-word-hover {
+  opacity: 1;
+  color: var(--on-surface);
+}
+
+/* Token mix. */
+.activity-view-mix-bar {
+  display: flex;
+  height: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--surface-container-highest);
+}
+
+.activity-view-mix-bar > span {
+  flex-basis: 0;
+}
+
+.activity-view-mix-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.activity-view-swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 2px;
+}
+
+.activity-view-mix-label {
+  flex: 1;
+  min-width: 0;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.activity-view-tone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

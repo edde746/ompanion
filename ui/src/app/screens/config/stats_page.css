@@ -1,0 +1,122 @@
+.stats-page-body {
+  padding-top: 8px;
+}
+
+.stats-page-none {
+  margin: 0;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.stats-page-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+}
+
+.stats-page-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 168px;
+}
+
+.stats-page-metric-label {
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.stats-page-metric-value {
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+.stats-page-bars {
+  display: flex;
+  height: 96px;
+}
+
+.stats-page-bar {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  min-width: 0;
+  height: 100%;
+  padding: 0 1px;
+}
+
+.stats-page-bar span {
+  display: block;
+  width: 100%;
+  border-radius: 2px;
+  background: var(--on-surface-variant);
+}
+
+.stats-page-bar span.stats-page-bar-empty {
+  background: var(--surface-container-high);
+}
+
+.stats-page-bar-ends {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 4px;
+  color: var(--on-surface-variant);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.stats-page-table-scroll {
+  overflow-x: auto;
+}
+
+/* The table, not the scrolled view, has the rounded corners: they scroll with it. */
+.stats-page-table-clip {
+  width: max-content;
+  min-width: 100%;
+  overflow: hidden;
+  border-radius: var(--card-radius);
+}
+
+.stats-page-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.stats-page-table th,
+.stats-page-table td {
+  padding: 8px 12px;
+  text-align: end;
+  white-space: nowrap;
+}
+
+/* Number columns shrink to their content, so the first column takes the room left. */
+.stats-page-table :is(th, td):not(:first-child) {
+  width: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-page-table :is(th, td):first-child {
+  text-align: start;
+}
+
+.stats-page-table th {
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.stats-page-table td {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.stats-page-table tbody tr:nth-child(odd) td {
+  background: var(--surface-container);
+}
+
+.stats-page-table tbody tr:nth-child(even) td {
+  background: var(--surface-container-low);
+}

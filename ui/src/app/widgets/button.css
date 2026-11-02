@@ -1,0 +1,106 @@
+.button,
+.icon-button {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+}
+
+/*
+ * Material's state layer: the foreground colour over the button, 8 % on hover, 10 % focused, fading as InkWell's
+ * highlights do (50 ms). The pressed highlight and the splash are ripple.ts's (`data-ripple`).
+ */
+.button::before,
+.icon-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .button:hover:not(:disabled)::before,
+  .icon-button:hover:not(:disabled)::before {
+    opacity: 0.08;
+  }
+}
+
+.button:focus-visible::before,
+.icon-button:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button::before,
+  .icon-button::before {
+    transition-duration: 0s;
+  }
+}
+
+.button {
+  gap: 8px;
+  min-height: var(--control);
+  padding: 0 14px;
+  border-radius: var(--radius);
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+  white-space: nowrap;
+}
+
+.button-filled {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.button-tonal {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.button-text {
+  padding: 0 10px;
+  color: var(--on-surface);
+}
+
+.button-filled:disabled,
+.button-tonal:disabled {
+  background: rgb(var(--on-surface-rgb) / 0.12);
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+.button-text:disabled {
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--on-surface-variant);
+}
+
+.icon-button-filled {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.icon-button-tonal {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.icon-button:disabled {
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+.icon-button-filled:disabled,
+.icon-button-tonal:disabled {
+  background: rgb(var(--on-surface-rgb) / 0.12);
+}

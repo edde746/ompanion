@@ -1,0 +1,151 @@
+# XcodeGen spec of the Apple shell (docs/contracts/bridge.md). build.sh generates ompanion.xcodeproj from it, after
+# putting the page in ../../build/apple/ui and building ../../build/core/apple/Ompcore.xcframework, with the version
+# from VERSION at the repo's root in OMPANION_VERSION and OMPANION_BUILD.
+name: ompanion
+options:
+  deploymentTarget:
+    iOS: "16.0"
+    macOS: "13.0"
+packages:
+  # Exact pins: the versions release 1.2.1 shipped.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.0
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    exactVersion: 12.19.2
+settings:
+  base:
+    PRODUCT_NAME: ompanion
+    PRODUCT_BUNDLE_IDENTIFIER: com.edde746.ompanion
+    DEVELOPMENT_TEAM: G88U5B5783
+    MARKETING_VERSION: ${OMPANION_VERSION}
+    CURRENT_PROJECT_VERSION: ${OMPANION_BUILD}
+    SWIFT_VERSION: "6.0"
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_CFBundleDisplayName: ompanion
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+targets:
+  ompanion-macOS:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/Shared
+      - Sources/macOS
+      - path: Resources/ompanion.icon
+        type: file
+        buildPhase: resources
+      - path: ../../build/apple/ui
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - framework: ../../build/core/apple/Ompcore.xcframework
+        embed: false
+      # Direct builds only (build.sh builds no other macOS channel).
+      - package: Sparkle
+    # Merged into the generated Info.plist.
+    info:
+      path: ../../build/apple/Info-macOS.plist
+      properties:
+        # Sparkle (main.swift, release builds) checks on its own schedule without asking first. The feed is the latest
+        # published GitHub release's appcast.xml, whose DMG carries an EdDSA signature from the key this is the public
+        # half of; the Flutter app's, so its installs update to this app.
+        SUEnableAutomaticChecks: true
+        SUFeedURL: https://github.com/edde746/ompanion/releases/latest/download/appcast.xml
+        SUPublicEDKey: jGZQuB9KSmTJdadmZ6Z050AW6rLKdDpTRPRfJI8fSms=
+    settings:
+      base:
+        # Not XcodeGen's `entitlements`, which writes the file over from its `properties`.
+        CODE_SIGN_ENTITLEMENTS: Entitlements/macOS.entitlements
+        # The app's icon (Resources/ompanion.icon, from scripts/generate_icons.sh); XcodeGen's default is AppIcon.
+        ASSETCATALOG_COMPILER_APPICON_NAME: ompanion
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        INFOPLIST_KEY_NSHumanReadableCopyright: Copyright © 2026 com.edde746. All rights reserved.
+  ompanion-iOS:
+    type: application
+    platform: iOS
+    # iOS.xcconfig: Firebase's client config.
+    configFiles:
+      Debug: iOS.xcconfig
+      Release: iOS.xcconfig
+    sources:
+      - Sources/Shared
+      - Sources/iOS
+      - Sources/Push
+      - path: Resources/ompanion.icon
+        type: file
+        buildPhase: resources
+      - path: Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      - path: ../../build/apple/ui
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - framework: ../../build/core/apple/Ompcore.xcframework
+        embed: false
+      - target: NotificationService
+      - package: Firebase
+        products: [FirebaseCore, FirebaseInstallations, FirebaseMessaging]
+    # Merged into the generated Info.plist. One scene: the process has one core, whose listener is one page.
+    info:
+      path: ../../build/apple/Info-iOS.plist
+      properties:
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
+        # Export compliance (store/app-store.md §8): only exempt encryption, so App Store Connect never holds an
+        # uploaded build for the questionnaire.
+        ITSAppUsesNonExemptEncryption: false
+        # SSH to a machine on the same network triggers iOS local network privacy (Apple TN3179).
+        NSLocalNetworkUsageDescription: ompanion connects over SSH to the computers on your own network that run the omp coding agent. It reaches only the machines you add.
+        NSPhotoLibraryUsageDescription: ompanion can attach photos and videos you pick to a message for the omp coding agent on your own machines. It reads only the items you select.
+        # The web view's file picker offers the camera; without these keys choosing it ends the app.
+        NSCameraUsageDescription: ompanion can attach a photo or video you take to a message for the omp coding agent on your own machines.
+        NSMicrophoneUsageDescription: ompanion records sound only with a video you take to attach to a message for the omp coding agent.
+        # Push (docs/contracts/push.md). Firebase runs only while push is on, set up in code (Push.swift), and hands
+        # over the APNs token explicitly; it registers the installation ID with FCM rather than issuing a token.
+        FirebaseAppDelegateProxyEnabled: false
+        FirebaseMessagingAutoInitEnabled: false
+        FirebaseMessagingInstallationIdEnabled: true
+        # Firebase's client config from Firebase.xcconfig; empty without it.
+        OmpanionFirebaseAPIKey: $(FIREBASE_API_KEY)
+        OmpanionFirebaseAppID: $(FIREBASE_GOOGLE_APP_ID)
+        OmpanionFirebaseProjectID: $(FIREBASE_PROJECT_ID)
+        OmpanionFirebaseSenderID: $(FIREBASE_GCM_SENDER_ID)
+        # The keychain group the app shares with its Notification Service Extension for the push key.
+        OmpanionKeychainGroup: $(AppIdentifierPrefix)com.edde746.ompanion.push
+    settings:
+      base:
+        CODE_SIGN_ENTITLEMENTS: Entitlements/iOS.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: ompanion
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+  # Decrypts the relay's notifications before iOS shows them (docs/contracts/push.md, Receiving).
+  NotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Sources/NotificationService
+      - Sources/Push
+    info:
+      path: ../../build/apple/Info-NotificationService.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+        OmpanionKeychainGroup: $(AppIdentifierPrefix)com.edde746.ompanion.push
+    settings:
+      base:
+        CODE_SIGN_ENTITLEMENTS: Entitlements/NotificationService.entitlements
+        PRODUCT_NAME: NotificationService
+        # The project's display name (ompanion) would win over an Info.plist property.
+        INFOPLIST_KEY_CFBundleDisplayName: NotificationService
+        PRODUCT_BUNDLE_IDENTIFIER: com.edde746.ompanion.NotificationService
+        TARGETED_DEVICE_FAMILY: "1,2"

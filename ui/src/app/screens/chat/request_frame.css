@@ -1,0 +1,70 @@
+/* A flat surfaceContainer block; the transcript keeps at least half of the window, a long form scrolls inside. */
+.request-frame {
+  display: flex;
+  flex-direction: column;
+  max-height: 50vh;
+  padding: 8px 8px 12px 16px;
+  border-radius: var(--card-radius);
+  background: var(--surface-container);
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.request-frame-title-row {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--gap);
+  height: var(--control);
+}
+
+.request-frame-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.request-frame-countdown {
+  flex: none;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.request-frame-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  margin-top: 4px;
+  padding-right: 8px;
+  overflow-y: auto;
+}
+
+/* The panel sits outside the transcript's selection area; a form's text is selectable here. */
+.request-frame-selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.request-frame-error {
+  flex: none;
+  margin: 8px 0 0;
+  color: var(--error);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.request-frame-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--gap);
+  margin-top: 12px;
+  padding-right: 8px;
+}

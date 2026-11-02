@@ -1,0 +1,58 @@
+.color-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A pointer down on either area belongs to the picker at once: no scrolling, no text selection. */
+.color-picker-area,
+.color-picker-hue {
+  position: relative;
+  flex: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.color-picker-area {
+  height: 160px;
+  border-radius: var(--radius);
+}
+
+/* One halo tall, so the handle on the 12 px stadium is inside the target. */
+.color-picker-hue {
+  display: flex;
+  align-items: center;
+  height: 18px;
+}
+
+.color-picker-hue-track {
+  flex: 1;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+
+/* The handle's centre is the picked point; it may reach past the area's edge, as Flutter paints it. */
+.color-picker-halo {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.color-picker-handle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.color-picker-hex {
+  align-self: flex-start;
+  width: 120px;
+}

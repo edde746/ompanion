@@ -1,0 +1,47 @@
+.chat-screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Without a session: the header row alone (one title bar tall, the shell's buttons at its ends). */
+.chat-screen-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: var(--title-bar-height);
+  padding: 0 4px;
+}
+
+.chat-screen-place {
+  flex: 1;
+  align-self: stretch;
+}
+
+/* The transcript's column: rows at most 760 px wide, centred (docs/design.md, Transcript column). */
+.chat-screen-column {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.chat-screen-transcript {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/*
+ * The home indicator's inset is the room under the composer, or 8 px where it is smaller (rule 13); while the on-screen
+ * keyboard is up, the composer sits 8 px above it.
+ */
+.chat-screen-bottom {
+  flex: none;
+  padding-bottom: max(var(--inset-bottom), var(--inset-keyboard) + 8px);
+}

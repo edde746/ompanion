@@ -1,0 +1,181 @@
+/* In the transcript's column, 12 px inside its edges, 4 px above and below. */
+.request-panel {
+  padding: 4px 12px;
+}
+
+.request-panel-navigation {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.request-panel-position {
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.request-panel-column {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Flutter's Text keeps the line breaks it is given. */
+.request-panel-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.request-panel-small {
+  margin-top: 12px;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.request-panel-intent {
+  margin-bottom: var(--gap);
+  color: var(--on-surface-variant);
+}
+
+.request-panel-detail {
+  margin-top: var(--gap);
+}
+
+.request-panel-call,
+.request-panel-json,
+.request-panel-url {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.request-panel-call {
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+}
+
+.request-panel-json {
+  margin-top: var(--gap);
+}
+
+/* `select`: dense list tiles with 8 px content padding, one or two lines; standard density on touch screens. */
+.request-panel-options {
+  display: flex;
+  flex-direction: column;
+}
+
+.request-panel-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 40px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  color: var(--on-surface);
+  isolation: isolate;
+}
+
+.request-panel-option-two-line {
+  min-height: 56px;
+}
+
+.request-panel-option-touch {
+  min-height: 48px;
+}
+
+.request-panel-option-touch.request-panel-option-two-line {
+  min-height: 64px;
+}
+
+.request-panel-option::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .request-panel-option:hover:not(:disabled)::before {
+    opacity: 0.08;
+  }
+}
+
+.request-panel-option:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-panel-option::before {
+    transition-duration: 0s;
+  }
+}
+
+.request-panel-option:disabled {
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+.request-panel-option-title {
+  font: 400 13px / 1.5 var(--font-sans);
+  letter-spacing: var(--body-large-tracking);
+}
+
+.request-panel-option-subtitle {
+  color: var(--on-surface-variant);
+  font: 400 12px / 1.43 var(--font-sans);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.request-panel-option:disabled .request-panel-option-subtitle {
+  color: inherit;
+}
+
+/* The theme's filled field, 6 to 16 lines of code tall: 6 px above and below the text, 12 px beside it. */
+.request-panel-editor {
+  display: block;
+  width: 100%;
+  min-height: calc(6 * 1.4em + 12px);
+  max-height: calc(16 * 1.4em + 12px);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  resize: none;
+  overflow-y: auto;
+}
+
+.request-panel-editor:focus {
+  background: var(--surface-container-highest);
+}
+
+.request-panel-instructions {
+  margin-bottom: 12px;
+}
+
+.request-panel-url-row {
+  display: flex;
+  align-items: center;
+}
+
+/* At most three lines, scrolling past them, as the Dart's SelectableText with maxLines 3. */
+.request-panel-url {
+  flex: 1;
+  min-width: 0;
+  max-height: calc(3 * 1.4em);
+  overflow-y: auto;
+}
+
+.request-panel-error {
+  color: var(--error);
+}
+
+.request-panel-note {
+  color: var(--on-surface-variant);
+}

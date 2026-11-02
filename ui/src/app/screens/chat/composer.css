@@ -1,0 +1,111 @@
+.composer {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 12px 0;
+}
+
+/* One flat block with the queue on top, the attachments and the text in the middle, the toolbar at the bottom. */
+.composer-block {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--card-radius);
+  background: var(--surface-container);
+}
+
+/* The goal and the loop in a row of their own above the toolbar, from its first icon edge. */
+.composer-modes {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: var(--control);
+  padding: 0 8px 0 4px;
+}
+
+.composer-modes > * {
+  min-width: 0;
+}
+
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 0 8px 8px 4px;
+}
+
+/*
+ * The pickers side by side: the model, thinking and meter, then the goal and the loop. The goal and the loop keep the
+ * width their labels need; the model's name shrinks first, down to its icon, chevron and 40 px of name, then the
+ * thinking label. The rest of the row stays free, so send sits at the end.
+ */
+.composer-pickers {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  height: var(--control);
+  overflow: hidden;
+}
+
+.composer-model {
+  display: flex;
+  flex: 0 1000 auto;
+  min-width: calc(52px + 40px);
+}
+
+.composer-thinking {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 52px;
+}
+
+.composer-model > *,
+.composer-thinking > * {
+  min-width: 0;
+}
+
+.composer-gap {
+  flex: none;
+  width: 4px;
+}
+
+.composer-upload {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control);
+  height: var(--control);
+  color: var(--on-surface-variant);
+}
+
+.composer-external {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--gap);
+  padding: 10px 8px 10px 12px;
+}
+
+.composer-external-icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--on-surface-variant);
+}
+
+.composer-external-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.composer-external-state {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  font-weight: 600;
+}
+
+.composer-external-detail {
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}

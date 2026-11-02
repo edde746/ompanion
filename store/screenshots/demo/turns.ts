@@ -11,8 +11,10 @@
  * `hero` works in `~/code/api-server` (rate limiting for the upload route); `deploy` works in
  * `~/work/pipeline`, whose project config asks for tool approval, so its cards wait for a tap.
  *
- * Every parent turn carries `match: <phrase of the user prompt>` and every subagent turn
- * `match: '"name":"yield"'`, the routing the fake provider documents: only subagents are offered `yield`.
+ * Every parent turn carries `match: <phrase of the user prompt>`. A subagent's turns match the quoted phrase of its
+ * own assignment as its request carries it (`\"limiter contract\"`): the parent's requests carry the same assignment
+ * inside the `task` call's arguments, escaped once more, so they never match it. From omp 18.10.3 a subagent ends
+ * with its final message rather than a `yield` call (harness/README.md).
  * The two sessions run at the same time against one provider and never steal each other's turns.
  *
  * The hashline `edit` must quote the snapshot tag omp minted during the `read`, so the first turn is queued
@@ -20,6 +22,7 @@
  *
  * `store/screenshots/capture.sh` starts this; `store/screenshots/README.md` has the manual recipe.
  */
+import { PROMPTS } from "./prompts.ts";
 
 const PROVIDER = argOf("--provider") ?? "http://127.0.0.1:18991";
 /** Text the finished patch adds to the read file; seeing it in a read means a previous run already ran. */
@@ -27,12 +30,13 @@ const DIRTY_MARK: Record<string, string | undefined> = { hero: "rate-limit.js", 
 
 const SESSION = argOf("--session") ?? "hero";
 
-/** The prompts the capture harness types into the composer; every turn matches on them. */
-export const PROMPTS = {
-  hero: "Add rate limiting to the upload endpoint so one client cannot exhaust the put path, then run the tests.",
-  ask: "Document the limit in the README, and ask me for the numbers you should write down.",
-  deploy: "Rotate the deploy token in deploy.sh and smoke-test the staging deploy.",
-} as const;
+/**
+ * What a conversation request carries of a user message and omp's title request does not: the title request quotes
+ * the message inside `<user>…</user>`, so a turn matched on the bare prompt would answer it (and lose its place).
+ */
+const said = (prompt: string): string => `"text":"${prompt}`;
+const HERO = said(PROMPTS.hero);
+const DEPLOY = said(PROMPTS.deploy);
 
 type Step =
   | { text: string }
@@ -40,14 +44,14 @@ type Step =
   | { toolCall: { name: string; arguments: Record<string, unknown> } }
   | { delayMs: number };
 
-interface Turn {
-  steps: Step[];
-  match?: string;
-  wait?: true;
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
-}
+type Turn =
+  | { steps: Step[]; match?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }
+  | { wait: true; match: string };
 
 const call = (name: string, args: Record<string, unknown>): Step => ({ toolCall: { name, arguments: args } });
+
+/** What only the request of the subagent whose assignment quotes [phrase] carries (see the header). */
+const subagent = (phrase: string): string => `\\"${phrase}\\"`;
 
 /** One text step per line, a frame apart, so the app renders the answer while it streams. */
 function lines(text: string, delayMs = 25): Step[] {
@@ -158,7 +162,7 @@ PUT 8.=8:
 `;
 
 const ASK_TURN: Turn = {
-  match: PROMPTS.ask,
+  match: said(PROMPTS.ask),
   steps: [
     { thinking: "The README documents the endpoints but not the limit. The numbers are a product call, so I ask." },
     { text: "The README has no rate-limit row yet. Two numbers go into it, and both are your call." },
@@ -193,7 +197,7 @@ const ASK_TURN: Turn = {
 
 const HERO_BEFORE_EDIT: Turn[] = [
   {
-    match: PROMPTS.hero,
+    match: HERO,
     steps: [
       {
         thinking:
@@ -203,13 +207,13 @@ const HERO_BEFORE_EDIT: Turn[] = [
       call("read", { i: "Reading the upload route", path: "src/routes/upload.ts" }),
     ],
   },
-  { match: PROMPTS.hero, wait: true },
+  { match: HERO, wait: true },
 ];
 
 function heroAfterEdit(tag: string): Turn[] {
   return [
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "Planning the change." },
         call("todo", {
@@ -224,14 +228,14 @@ function heroAfterEdit(tag: string): Turn[] {
       ],
     },
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "The route is a buffer-and-store; the limiter belongs in front of the read." },
         call("todo", { i: "Finished reading the route", op: "done", task: "Read the upload route" }),
       ],
     },
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "Handing three things to subagents: the limiter contract, the README wording and the test names." },
         call("task", {
@@ -240,99 +244,84 @@ function heroAfterEdit(tag: string): Turn[] {
           tasks: [
             {
               name: "contract",
-              task: "Read test/rate-limit.test.ts and report the exact contract it expects from src/lib/rate-limit.ts: exported names, option names, return shape and edge cases. Reply with the report only.",
+              task: 'Read test/rate-limit.test.ts and report the "limiter contract" it expects from src/lib/rate-limit.ts: exported names, option names, return shape and edge cases. Reply with the report only.',
             },
             {
               name: "docs",
-              task: "Read README.md and report the rows its endpoint table is missing once POST /upload answers 429 with Retry-After. Reply with the rows only.",
+              task: 'Read README.md and report the "missing rows" of its endpoint table once POST /upload answers 429 with Retry-After. Reply with the rows only.',
             },
             {
               name: "tests",
-              task: "Read src/routes/upload.ts and list the cases its guard does not cover yet. Reply with the list only.",
+              task: 'Read src/routes/upload.ts and list the "uncovered cases" of its guard. Reply with the list only.',
             },
           ],
         }),
       ],
     },
     {
-      match: '"name":"yield"',
+      match: subagent("limiter contract"),
       steps: [
         { text: "Reading the test that pins the limiter." },
         call("read", { i: "Reading the rate-limit test", path: "test/rate-limit.test.ts" }),
       ],
     },
     {
-      match: '"name":"yield"',
-      steps: [
-        call("yield", {
-          data: {
-            module: "src/lib/rate-limit.ts",
-            exports: ["TokenBucket", "createRateLimiter", "clientAddress", "allowance", "tooManyRequests"],
-            options: "TokenBucketOptions { capacity, refillPerSecond, now? }",
-            decision: "Decision { allowed, retryAfterSeconds }",
-            edges: ["a burst of capacity is allowed", "the next request reports retryAfterSeconds", "buckets are per client", "a request without a peer address uses the key 'unknown'"],
-          },
-        }),
-      ],
+      match: subagent("limiter contract"),
+      steps: lines(`Module \`src/lib/rate-limit.ts\`.
+
+- Exports: \`TokenBucket\`, \`createRateLimiter\`, \`clientAddress\`, \`allowance\`, \`tooManyRequests\`
+- Options: \`TokenBucketOptions { capacity, refillPerSecond, now? }\`
+- Decision: \`{ allowed, retryAfterSeconds }\`
+- Edges: a burst of \`capacity\` is allowed; the next request reports \`retryAfterSeconds\`; buckets are per client; a request without a peer address uses the key \`unknown\`.
+`),
     },
     {
-      match: '"name":"yield"',
+      match: subagent("missing rows"),
       steps: [
         { text: "Checking the README's endpoint table." },
         call("read", { i: "Reading the README", path: "README.md" }),
       ],
     },
     {
-      match: '"name":"yield"',
-      steps: [
-        call("yield", {
-          data: {
-            missing_rows: ["| `/upload` | POST | `429` when the client is over its rate limit |"],
-            note: "the table already documents 201 and 413",
-          },
-        }),
-      ],
+      match: subagent("missing rows"),
+      steps: lines("| `/upload` | POST | `429` when the client is over its rate limit |\n\nThe table already documents 201 and 413.\n"),
     },
     {
-      match: '"name":"yield"',
+      match: subagent("uncovered cases"),
       steps: [
         { text: "Listing the uncovered cases." },
         call("read", { i: "Reading the upload route", path: "src/routes/upload.ts" }),
       ],
     },
     {
-      match: '"name":"yield"',
-      steps: [
-        call("yield", {
-          data: {
-            uncovered: ["a client that refills between bursts", "two clients sharing one address behind a proxy", "the guard's answer when the body is already too large"],
-          },
-        }),
-      ],
+      match: subagent("uncovered cases"),
+      steps: lines(
+        "- a client that refills between bursts\n- two clients sharing one address behind a proxy\n- the guard's answer when the body is already too large\n",
+      ),
     },
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "The contract is clear: a token bucket per client, `allowance` for the route, `tooManyRequests` for the answer." },
         call("todo", { i: "Contract agreed with the subagent", op: "done", task: "Read the test that pins the limiter" }),
       ],
     },
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "Adding the limiter module." },
         call("write", { path: "src/lib/rate-limit.ts", content: RATE_LIMIT_MODULE }),
       ],
     },
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "The module is in." },
         call("todo", { i: "Module written", op: "done", task: "Add the rate-limit module" }),
       ],
     },
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "Wiring the route: one import, and a guard before the body is read." },
         call("edit", {
@@ -352,31 +341,31 @@ PUT >16:
       ],
     },
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "The guard is in place." },
         call("todo", { i: "Route wired", op: "done", task: "Wire the upload route" }),
       ],
     },
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "Module and route are wired; running the suite." },
         call("bash", { i: "Running the tests", command: "npm test" }),
       ],
     },
     {
-      match: PROMPTS.hero,
+      match: HERO,
       steps: [
         { text: "Green. Writing the summary." },
         call("todo", { i: "Suite is green", op: "done", task: "Run the type check and the tests" }),
       ],
     },
-    { match: PROMPTS.hero, steps: lines(HERO_ANSWER) },
+    { match: HERO, steps: lines(HERO_ANSWER) },
     // One long answer the machine list can show as a session that is still working while the sidebar is
     // photographed: the last prompt waits behind this slow turn rather than finishing in a second.
     {
-      match: "Run the long check",
+      match: said(PROMPTS.long),
       steps: [
         { text: "Starting the long check.\n" },
         ...Array.from({ length: 24 }, (_, index): Step[] => [
@@ -394,7 +383,7 @@ PUT >16:
 
 const DEPLOY_BEFORE_EDIT: Turn[] = [
   {
-    match: PROMPTS.deploy,
+    match: DEPLOY,
     steps: [
       {
         thinking:
@@ -404,26 +393,26 @@ const DEPLOY_BEFORE_EDIT: Turn[] = [
       call("read", { i: "Reading the deploy script", path: "deploy.sh" }),
     ],
   },
-  { match: PROMPTS.deploy, wait: true },
+  { match: DEPLOY, wait: true },
 ];
 
 function deployAfterEdit(tag: string): Turn[] {
   return [
     {
-      match: PROMPTS.deploy,
+      match: DEPLOY,
       steps: [
         { text: "Rotating the token: read it from a file and fail loudly when it is missing." },
         call("edit", { i: "Reading the deploy token from a file", input: DEPLOY_EDIT.replace("#TAG", `#${tag}`) }),
       ],
     },
     {
-      match: PROMPTS.deploy,
+      match: DEPLOY,
       steps: [
         { text: "Now the smoke test against staging." },
         call("bash", { i: "Smoke-testing the staging deploy", command: "sh scripts/smoke.sh" }),
       ],
     },
-    { match: PROMPTS.deploy, steps: lines("The smoke test passed once the token was read from the file.") },
+    { match: DEPLOY, steps: lines("The smoke test passed once the token was read from the file.") },
   ];
 }
 

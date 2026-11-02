@@ -1,0 +1,24 @@
+/* The app under the pushed pages, fixed so a transition that scales it past the window adds no scrolling. */
+.page-base {
+  position: fixed;
+  inset: 0;
+}
+
+/* The pushed pages' box over the app; pointers pass where no page is. */
+.page-host {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* A page reaches the window's edges and keeps its content inside the insets itself. */
+.page-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  pointer-events: auto;
+}

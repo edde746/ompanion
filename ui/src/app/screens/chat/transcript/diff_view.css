@@ -1,0 +1,72 @@
+/* DiffView (diff_view.tsx): rows of a line number, a marker and the text, which wraps. */
+.diff-view {
+  display: flex;
+  flex-direction: column;
+}
+
+.diff-view-row {
+  display: flex;
+  align-items: flex-start;
+}
+
+.diff-view-added {
+  background: var(--diff-add-surface);
+}
+
+.diff-view-removed {
+  background: var(--diff-remove-surface);
+}
+
+/* Dart's SelectionContainer.disabled: a copied diff holds the code without its numbers and markers. */
+.diff-view-number,
+.diff-view-marker {
+  flex: none;
+  color: var(--on-surface-variant);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* One `ch` is JetBrains Mono's 0.6 em advance; diff_view.tsx sets the digit count. */
+.diff-view-number {
+  width: calc(var(--diff-view-digits, 3) * 1ch + 8px);
+  text-align: right;
+}
+
+.diff-view-marker {
+  width: 18px;
+  text-align: center;
+  white-space: pre;
+}
+
+.diff-view-added .diff-view-marker {
+  color: var(--diff-add);
+}
+
+.diff-view-removed .diff-view-marker {
+  color: var(--diff-remove);
+}
+
+.diff-view-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff-view-hunk .diff-view-text,
+.diff-view-meta .diff-view-text,
+.diff-view-gap .diff-view-text {
+  color: var(--on-surface-variant);
+}
+
+.diff-view-heading .diff-view-text {
+  font-weight: bold;
+}
+
+.diff-view-added .diff-view-changed {
+  background: rgb(var(--diff-add-rgb) / 0.3);
+}
+
+.diff-view-removed .diff-view-changed {
+  background: rgb(var(--diff-remove-rgb) / 0.3);
+}

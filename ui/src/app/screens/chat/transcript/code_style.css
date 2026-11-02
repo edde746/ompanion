@@ -1,0 +1,57 @@
+/*
+ * The monospace style of code, terminal output and diffs in the transcript (code_style.dart): JetBrains Mono, so every
+ * platform gets the same metrics and inline and block code match, two px under the transcript's body text. Its
+ * ligatures are off: code shows the characters the file holds (`=>`, `++`, `!=`), not glyphs standing for them.
+ */
+.code-style {
+  font-family: var(--font-mono);
+  font-size: var(--chat-code-size, 12px);
+  line-height: 1.4;
+  color: var(--on-surface);
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "calt" 0,
+    "liga" 0;
+}
+
+/* The syntax tokens highlighter.ts gives highlighted code (highlightedSpans): Atom One's groups. */
+.code-style-comment {
+  color: var(--comment);
+  font-style: italic;
+}
+
+.code-style-keyword {
+  color: var(--keyword);
+}
+
+.code-style-tag {
+  color: var(--tag);
+}
+
+.code-style-literal {
+  color: var(--literal);
+}
+
+.code-style-string {
+  color: var(--string);
+}
+
+.code-style-number {
+  color: var(--number);
+}
+
+.code-style-title {
+  color: var(--title);
+}
+
+.code-style-built-in {
+  color: var(--built-in);
+}
+
+.code-style-emphasis {
+  font-style: italic;
+}
+
+.code-style-strong {
+  font-weight: bold;
+}

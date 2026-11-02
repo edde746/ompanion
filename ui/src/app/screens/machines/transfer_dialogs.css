@@ -1,0 +1,113 @@
+.transfer-dialogs-export {
+  width: min(508px, 100%);
+}
+
+.transfer-dialogs-import {
+  width: min(568px, 100%);
+}
+
+.transfer-dialogs-status {
+  margin-top: 12px;
+}
+
+.transfer-dialogs-failed {
+  color: var(--error);
+}
+
+.transfer-dialogs-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The theme's filled field, 6 lines tall growing to 12, in the code font at bodySmall size. */
+.transfer-dialogs-text {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(6 * 18px + 24px);
+  max-height: calc(12 * 18px + 24px);
+  padding: 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  font: 400 12px / 18px var(--font-mono);
+  font-variant-ligatures: none;
+  resize: none;
+}
+
+.transfer-dialogs-text:focus {
+  background: var(--surface-container-highest);
+}
+
+.transfer-dialogs-start {
+  display: flex;
+}
+
+.transfer-dialogs-title {
+  margin: 4px 0 4px;
+  color: var(--on-surface);
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+.transfer-dialogs-small {
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* One host's keys on the muted error surface until they are trusted. */
+.transfer-dialogs-change {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: var(--card-radius);
+  background: var(--error-surface);
+}
+
+.transfer-dialogs-confirmed {
+  background: var(--surface-container-high);
+}
+
+.transfer-dialogs-change-host {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.transfer-dialogs-change-icon {
+  color: var(--error);
+}
+
+.transfer-dialogs-change-host .transfer-dialogs-title {
+  margin: 0;
+}
+
+.transfer-dialogs-label {
+  margin-top: 4px;
+  color: var(--on-surface);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.transfer-dialogs-code {
+  overflow-wrap: anywhere;
+  font: 400 12px / 1.4 var(--font-mono);
+  font-variant-ligatures: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.transfer-dialogs-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.transfer-dialogs-trusted {
+  color: var(--on-surface);
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+}

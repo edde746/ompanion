@@ -1,0 +1,341 @@
+/*
+ * The page gets its own theme (theme_editor_screen.tsx), so it takes its tone and text from its own roles. Its side
+ * insets are the Scaffold's SafeArea; the 840 px breakpoint measures the room inside them.
+ */
+.theme-editor {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--inset-top) var(--inset-right) 0 var(--inset-left);
+  background: var(--surface);
+  color: var(--on-surface);
+  container-type: inline-size;
+}
+
+.theme-editor-reset-all {
+  margin-right: var(--gap);
+}
+
+/* A narrow page: the preview in a 240 px strip above the list. */
+.theme-editor-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: max(var(--inset-bottom), var(--inset-keyboard));
+}
+
+.theme-editor-preview-slot {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  padding: 8px 16px 0;
+}
+
+/* The preview, in the custom theme: every token at work. */
+.theme-editor-preview {
+  flex: none;
+  height: 240px;
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+/* A wide page: the preview 320 px wide beside the list. */
+@container (min-width: 840px) {
+  .theme-editor-body {
+    flex-direction: row;
+  }
+
+  .theme-editor-preview-slot {
+    order: 1;
+    width: 344px;
+    padding: 24px 24px 24px 0;
+  }
+
+  .theme-editor-preview {
+    flex: 1;
+    height: auto;
+  }
+}
+
+.theme-editor-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: 0;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.theme-editor-list > * {
+  flex: none;
+}
+
+.theme-editor-title {
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+.theme-editor-start {
+  margin-bottom: var(--gap);
+}
+
+.theme-editor-group {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  margin-top: 24px;
+}
+
+.theme-editor-group > .card {
+  margin-top: var(--gap);
+}
+
+.theme-editor-note {
+  margin-top: 4px;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* The whole row is the target, its ink across the card. */
+.theme-editor-token-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: var(--control);
+  padding: 4px 8px 4px 16px;
+  isolation: isolate;
+  cursor: pointer;
+}
+
+.theme-editor-token-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--on-surface);
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .theme-editor-token-row:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.theme-editor-token-row:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-editor-token-row::before {
+    transition-duration: 0s;
+  }
+}
+
+.theme-editor-swatch {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.theme-editor-token-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  margin-left: 12px;
+}
+
+.theme-editor-token-name {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.theme-editor-token-use {
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.theme-editor-token-hex {
+  flex: none;
+  margin-left: var(--gap);
+  color: var(--on-surface-variant);
+  font: var(--code);
+  font-variant-ligatures: none;
+}
+
+.theme-editor-token-reset {
+  display: flex;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-left: 4px;
+}
+
+.theme-editor-picker {
+  padding: 4px 16px 16px;
+}
+
+.theme-editor-preview-sessions {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  background: var(--surface-container-low);
+}
+
+.theme-editor-preview-session {
+  padding: 6px 8px;
+}
+
+.theme-editor-preview-selected {
+  border-radius: var(--radius);
+  background: var(--surface-container-highest);
+}
+
+.theme-editor-preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: 12px;
+}
+
+.theme-editor-preview-texts {
+  display: flex;
+  flex-direction: column;
+}
+
+.theme-editor-preview-muted {
+  color: var(--on-surface-variant);
+}
+
+.theme-editor-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: 8px;
+  border-radius: var(--card-radius);
+  background: var(--surface-container);
+}
+
+.theme-editor-preview-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.theme-editor-preview-spacer {
+  flex: 1;
+}
+
+.theme-editor-preview-menu-item {
+  align-self: flex-start;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--surface-bright);
+}
+
+.theme-editor-preview-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.theme-editor-preview-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.theme-editor-preview-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.theme-editor-preview-success {
+  background: var(--success);
+}
+
+.theme-editor-preview-warning {
+  background: var(--warning);
+}
+
+.theme-editor-preview-error {
+  background: var(--error);
+}
+
+.theme-editor-preview-failure {
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--error-surface);
+  color: var(--error);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.theme-editor-preview-diff {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+.theme-editor-preview-diff code {
+  padding: 2px 8px;
+  font: var(--code);
+  font-variant-ligatures: none;
+}
+
+.theme-editor-preview-diff-add {
+  background: var(--diff-add-surface);
+  color: var(--diff-add);
+}
+
+.theme-editor-preview-diff-remove {
+  background: var(--diff-remove-surface);
+  color: var(--diff-remove);
+}
+
+.theme-editor-preview-code {
+  margin: 0;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--surface-container);
+  color: var(--on-surface);
+  font: var(--code);
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+}
+
+.theme-editor-preview-comment {
+  font-style: italic;
+}
+
+.theme-editor-preview-ansi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.theme-editor-preview-swatch {
+  width: 26px;
+  height: 14px;
+  border-radius: 3px;
+}

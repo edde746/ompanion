@@ -1,0 +1,93 @@
+/* Holds the dialog's Escape handler without a box of its own. */
+.login-dialogs-keys {
+  display: contents;
+}
+
+/* A 520 px content box, as the Flutter dialog's. */
+.login-dialogs.dialog {
+  width: 568px;
+  max-width: 100%;
+}
+
+.login-dialogs-waiting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-dialogs-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-dialogs-url {
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  font: var(--code);
+  font-variant-ligatures: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.login-dialogs-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.login-dialogs-small,
+.login-dialogs-notice {
+  color: var(--on-surface);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  overflow-wrap: anywhere;
+}
+
+.login-dialogs-notice {
+  margin-top: 8px;
+}
+
+.login-dialogs-failure {
+  color: var(--error);
+}
+
+.login-dialogs-question {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.login-dialogs-question .login-dialogs-row,
+.login-dialogs-question .login-dialogs-buttons {
+  margin-top: 8px;
+}
+
+.login-dialogs-question-title {
+  color: var(--on-surface);
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+.login-dialogs-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.login-dialogs-input {
+  flex: 1;
+}
+
+.login-dialogs-done {
+  margin-top: 16px;
+  color: var(--success);
+}
+
+.login-dialogs-error {
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+  color: var(--error);
+  white-space: pre-wrap;
+  user-select: text;
+}

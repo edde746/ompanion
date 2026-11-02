@@ -1,0 +1,146 @@
+require 'dotenv'
+require 'fileutils'
+require 'shellwords'
+
+# Run from store/, where fastlane finds this folder: `fastlane ios deploy_appstore`, `fastlane android release`.
+PROJECT_ROOT = File.expand_path("../..", __dir__)
+PROJECT_ROOT_ARG = Shellwords.escape(PROJECT_ROOT)
+
+Dotenv.load(File.join(PROJECT_ROOT, ".env"))
+
+# The companion bundle and the page's dependencies, which the shells' release builds need: each builds the page
+# itself with its store channel (VITE_OMPANION_CHANNEL).
+def prepare_page
+  sh("cd #{PROJECT_ROOT_ARG} && scripts/build_companion.sh && cd ui && bun install --frozen-lockfile")
+end
+
+# VERSION's semver and build number (versionName and versionCode on Android).
+def read_version
+  match = File.read(File.join(PROJECT_ROOT, "VERSION")).strip.match(/\A(\d+\.\d+\.\d+)\+(\d+)\z/)
+  UI.user_error!("VERSION is not <major.minor.patch>+<build>.") if match.nil?
+  [match[1], match[2].to_i]
+end
+
+platform :ios do
+  desc "Build the App Store IPA and upload it with its metadata and screenshots; never submits for review"
+  lane :deploy_appstore do |options|
+    # An App Store Connect API key is the credential to prefer. Without one, FASTLANE_USER: the metadata upload then
+    # logs in as that Apple ID, with FASTLANE_PASSWORD or a password prompt and a two-factor code, and the binary
+    # upload uses FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD. Both live in .env (store/README.md). Half a key is a
+    # mistake worth failing on, as in CI.
+    api_key_names = [
+      "APP_STORE_CONNECT_API_KEY_KEY_ID",
+      "APP_STORE_CONNECT_API_KEY_ISSUER_ID",
+      "APP_STORE_CONNECT_API_KEY_KEY_FILEPATH"
+    ]
+    missing = api_key_names.reject { |name| !ENV[name].to_s.empty? }
+    api_key =
+      if missing.empty?
+        app_store_connect_api_key(
+          key_id: ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"],
+          issuer_id: ENV["APP_STORE_CONNECT_API_KEY_ISSUER_ID"],
+          key_filepath: ENV["APP_STORE_CONNECT_API_KEY_KEY_FILEPATH"]
+        )
+      elsif missing.length < api_key_names.length
+        UI.user_error!("Half an App Store Connect API key in .env: also set #{missing.join(', ')} (store/README.md).")
+      end
+    if api_key.nil? && ENV["FASTLANE_USER"].to_s.empty?
+      UI.user_error!(
+        "No App Store Connect credentials. Put APP_STORE_CONNECT_API_KEY_KEY_ID, " \
+        "APP_STORE_CONNECT_API_KEY_ISSUER_ID and APP_STORE_CONNECT_API_KEY_KEY_FILEPATH in .env, or " \
+        "FASTLANE_USER and FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD (store/README.md)."
+      )
+    end
+
+    # Everything cheap is checked before the archive, so a missing directory fails in seconds rather than after
+    # a build. A lane option arrives as the string "true" from the command line, so compare as one.
+    metadata_path = File.join(PROJECT_ROOT, "store/fastlane/ios/metadata")
+    screenshots_path = File.join(PROJECT_ROOT, "store/fastlane/ios/screenshots")
+    skip_screenshots = options.fetch(:skip_screenshots, false).to_s == "true"
+    UI.user_error!("No App Store metadata in #{metadata_path} (store/README.md).") unless Dir.exist?(metadata_path)
+    # The review contact and the demo password are left as FILL lines in the repository (store/README.md);
+    # uploading one would put it in front of App Review.
+    unfilled = Dir[File.join(metadata_path, "**/*.txt")].select do |path|
+      File.read(path).start_with?("FILL")
+    end
+    unless unfilled.empty?
+      names = unfilled.map { |path| path.delete_prefix("#{metadata_path}/") }.sort
+      UI.user_error!("Fill these in first (store/README.md): #{names.join(', ')}")
+    end
+    if !skip_screenshots && Dir[File.join(screenshots_path, "**/*.png")].empty?
+      UI.user_error!(
+        "No screenshots in #{screenshots_path}: run the capture tooling in store/screenshots first, " \
+        "or pass skip_screenshots:true to upload the metadata alone."
+      )
+    end
+
+    # Archived and exported with the Xcode account's Apple Distribution certificate through automatic signing
+    # (shells/apple/project.yml, team G88U5B5783), the page built with the appstore channel. The old export goes
+    # first, so a failed build never leaves the last one to upload; --core relinks the core, which carries VERSION.
+    ipa = File.join(PROJECT_ROOT, "build/apple/ipa/ompanion.ipa")
+    FileUtils.rm_rf(File.dirname(ipa))
+    prepare_page
+    sh("cd #{PROJECT_ROOT_ARG} && shells/apple/build.sh --ipa --core")
+    UI.user_error!("shells/apple/build.sh --ipa left no #{ipa}.") unless File.exist?(ipa)
+
+    upload_to_app_store(
+      ipa: ipa,
+      api_key: api_key,
+      metadata_path: metadata_path,
+      screenshots_path: screenshots_path,
+      # The repository's screenshot set is the store's screenshot set: replace, never merge with an older run.
+      overwrite_screenshots: true,
+      # fastlane's screenshot check only knows the sizes it has been taught; the App Store accepts more, so a
+      # rejected size must not stop the metadata upload: `fastlane ios deploy_appstore skip_screenshots:true`
+      # uploads everything else and leaves the screenshots to App Store Connect by hand.
+      skip_screenshots: skip_screenshots,
+      force: true,
+      submit_for_review: false
+    )
+  end
+end
+
+platform :android do
+  desc "Build the Play AAB and upload it with its metadata; internal track, draft release, unless told otherwise"
+  lane :release do |options|
+    # A brand-new Play app only accepts a draft release: the Play API answers anything else with "Only releases
+    # with status draft may be created on draft app". So the default uploads to internal testing as a draft
+    # that nobody receives until it is rolled out in Play Console. Once the app is live:
+    #   fastlane android release release_status:completed          # internal testing, live on upload
+    #   fastlane android release track:production release_status:completed
+    # (https://support.google.com/googleplay/android-developer/answer/9859348)
+    track = options[:track] || "internal"
+    release_status = options[:release_status] || "draft"
+
+    json_key = ENV["PLAY_JSON_KEY_PATH"].to_s
+    UI.user_error!("Set PLAY_JSON_KEY_PATH in .env to the Play service-account JSON key (store/README.md).") if json_key.empty?
+    UI.user_error!("PLAY_JSON_KEY_PATH points at no file: #{json_key}") unless File.exist?(File.expand_path(json_key))
+
+    metadata_path = File.join(PROJECT_ROOT, "store/fastlane/android/metadata/android")
+    UI.user_error!("No Play metadata in #{metadata_path} (store/README.md).") unless Dir.exist?(metadata_path)
+    # Without shells/android/key.properties the release build signs with the debug key
+    # (shells/android/app/build.gradle.kts), which Play rejects only after the build and the upload.
+    key_properties = File.join(PROJECT_ROOT, "shells/android/key.properties")
+    UI.user_error!("No #{key_properties}: the bundle would be signed with the debug key (README, Releasing).") unless File.exist?(key_properties)
+
+    version_name, version_code = read_version
+    UI.message("Uploading #{version_name}+#{version_code} to the #{track} track as a #{release_status} release")
+
+    # The release build makes the direct APKs and the bundle with the play channel; --core relinks the core, which
+    # carries VERSION.
+    prepare_page
+    sh("cd #{PROJECT_ROOT_ARG} && shells/android/build.sh --release --core")
+
+    aab = File.join(PROJECT_ROOT, "build/android/app-release.aab")
+    UI.user_error!("shells/android/build.sh --release left no #{aab}.") unless File.exist?(aab)
+
+    upload_to_play_store(
+      aab: aab,
+      json_key: json_key,
+      metadata_path: metadata_path,
+      track: track,
+      release_status: release_status,
+      version_code: version_code
+    )
+  end
+end

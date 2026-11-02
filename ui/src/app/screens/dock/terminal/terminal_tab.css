@@ -1,0 +1,140 @@
+.terminal-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* The tab strip and the zoom and new terminal buttons: one control tall plus 4 px above and below. */
+.terminal-tab-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: calc(var(--control) + 8px);
+}
+
+.terminal-tab-strip {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
+  padding: 4px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+/* Rule 8: the shown terminal is a stadium in surfaceContainerHighest. */
+.terminal-tab-button {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: var(--control);
+  padding: 0 4px 0 12px;
+  border-radius: calc(var(--control) / 2);
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  transition: background-color 50ms linear;
+}
+
+@media (hover: hover) {
+  .terminal-tab-button:not(.terminal-tab-button-selected):hover {
+    background: rgb(var(--on-surface-rgb) / 0.08);
+  }
+}
+
+.terminal-tab-button:focus-visible {
+  outline: none;
+  background: rgb(var(--on-surface-rgb) / 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-tab-button {
+    transition-duration: 0s;
+  }
+}
+
+.terminal-tab-button-selected {
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+}
+
+.terminal-tab-button-title {
+  max-width: 140px;
+  overflow: hidden;
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-tab-button .terminal-tab-button-close {
+  color: inherit;
+}
+
+.terminal-tab-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* MaterialBanner with the theme's surfaceContainer, errorContainer for a failure; its actions under the text. */
+.terminal-tab-banner {
+  flex: none;
+  background: var(--surface-container);
+}
+
+.terminal-tab-banner-failed {
+  background: var(--error-container);
+}
+
+.terminal-tab-banner-message {
+  padding: 24px 16px 4px;
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.terminal-tab-banner-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 8px;
+}
+
+.terminal-tab-screen {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--surface);
+}
+
+/* TerminalView's 6 px padding; xterm.js fits its grid to this box. */
+.terminal-tab-slot {
+  position: absolute;
+  inset: 6px;
+}
+
+.terminal-tab-slot .xterm {
+  height: 100%;
+}
+
+/* xterm.css paints these black; the rows' remainder under the grid and the IME's preedit take the theme's tones. */
+.terminal-tab-slot .xterm .xterm-viewport {
+  background-color: var(--surface);
+}
+
+.terminal-tab-slot .xterm .composition-view {
+  background: var(--surface);
+  color: var(--on-surface);
+}
+
+.terminal-tab-starting {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+}

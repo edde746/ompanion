@@ -1,0 +1,367 @@
+{
+  "store": {
+    "machines": [
+      {
+        "id": "fc401b40150b4adbcb99269dc6794527",
+        "name": "Studio",
+        "kind": "local",
+        "port": 22,
+        "tailscale": false,
+        "createdAt": 1762157525112,
+        "updatedAt": 1762157525112,
+        "jumps": []
+      },
+      {
+        "id": "baa0ce5c31af5f4d4750ed445071822a",
+        "name": "Büro – Zoë's 服务器",
+        "kind": "ssh",
+        "host": "build.example.org",
+        "port": 2222,
+        "user": "deploy",
+        "auth": "key",
+        "keyId": "b63ddd376055657744d822dcc9f968da",
+        "tailscale": false,
+        "createdAt": 1764583200000,
+        "updatedAt": 1784674033999,
+        "jumps": [
+          {
+            "id": "7114be72a9a5de5cf989d895a9b58574",
+            "host": "bastion.example.org",
+            "port": 22,
+            "user": "jump",
+            "auth": "password"
+          },
+          {
+            "id": "19a9c791e3f2193512334b68af76d453",
+            "host": "10.20.0.5",
+            "port": 2200,
+            "user": "ops",
+            "auth": "agent"
+          }
+        ]
+      },
+      {
+        "id": "df62567e423e5b887214e42af007fecf",
+        "name": "Home NAS",
+        "kind": "ssh",
+        "host": "nas.home.arpa",
+        "port": 22,
+        "user": "admin",
+        "auth": "keyboardInteractive",
+        "sshConfigAlias": "nas",
+        "tailscale": false,
+        "createdAt": 1767972612345,
+        "updatedAt": 1767972612345,
+        "jumps": []
+      },
+      {
+        "id": "4911a8e41d27ca507e7c8e56f8e986c0",
+        "name": "Router",
+        "kind": "ssh",
+        "host": "192.168.1.1",
+        "port": 22,
+        "user": "root",
+        "auth": "password",
+        "tailscale": false,
+        "createdAt": 1774745999500,
+        "updatedAt": 1774746000500,
+        "jumps": []
+      },
+      {
+        "id": "24a14d1ef2f10a3ea4fe1a0ced45d76a",
+        "name": "raspberrypi",
+        "kind": "ssh",
+        "host": "raspberrypi.tail1a2b3c.ts.net",
+        "port": 22,
+        "user": "pi",
+        "auth": "none",
+        "tailscale": true,
+        "createdAt": 1781547631042,
+        "updatedAt": 1781547631042,
+        "jumps": []
+      },
+      {
+        "id": "85c06c10ca5ed7cab0233ef816a69bfa",
+        "name": "Archive",
+        "kind": "ssh",
+        "host": "archive.example.net",
+        "port": 22,
+        "user": "edde",
+        "auth": "key",
+        "keyId": "8433aa4fe2e3281379f134a79f0f5c32",
+        "tailscale": false,
+        "createdAt": 1788073627070,
+        "updatedAt": 1793013071111,
+        "jumps": [
+          {
+            "id": "7f903f8e333080dfd6a59727e71d255e",
+            "host": "gw.example.net",
+            "port": 22,
+            "user": "edde",
+            "auth": "key",
+            "keyId": "0e86cdbfe9fe8179c0b1bc27faf3d87d"
+          }
+        ]
+      }
+    ],
+    "keys": [
+      {
+        "id": "0e86cdbfe9fe8179c0b1bc27faf3d87d",
+        "name": "MacBook ed25519",
+        "type": "ssh-ed25519",
+        "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE/5XRbJEaQkPuCA4lLhiFW88Pcx4j72hHAiR9mSyN7W MacBook ed25519",
+        "fingerprint": "SHA256:hHyLGmYC5EmHyb5iEo02ODXcXIImlX3wu3UvHcYPpao",
+        "createdAt": 1762157662531
+      },
+      {
+        "id": "8433aa4fe2e3281379f134a79f0f5c32",
+        "name": "Work laptop",
+        "type": "ssh-ed25519",
+        "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFHdLvJT979jmwvVrUskPLVdbLL2rpCD/WHGn18v6HAP edde@work-laptop",
+        "fingerprint": "SHA256:/VLTFlZY3UY8HMIKNKt8XFrcsG5Q7nZKQdz4+1JpvqY",
+        "createdAt": 1771355021008
+      },
+      {
+        "id": "b63ddd376055657744d822dcc9f968da",
+        "name": "deploy RSA 4096",
+        "type": "ssh-rsa",
+        "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC3//haLzXuAdSUOfneySBMhco6iroBjHSydongCrWvPMw83oxbVXtKkllcbuxSe263g/lv0JfZVfLQgHDTIdLeF32wNBULeeoylh3XRyOHCXsn5rbkHShibrYZgjOOeglO3t9rhtIMiPwbW4zmHZpvG/PoUfFT/6qZ3b6lGSBD08ZiqheAN4cLGZkG1wVrwGNAjTm9ZJPDfZWPXs2G8+aO7w4E00eGBeBvfwmz9bv1Sfc5k6V7rYJhLvZZgwKBV5elOViprjI4LD8qnSJp/rPQBmlhniB40z+gqSaG5rS8CQP49Y2H8KzzMRfnO0aF051ia9oWzSyWaR9CcZ8cerazOBX86MsUQoDu5rC+zmUVR5PJQ4QrnJ62SECljupwhSyFKJuBET46QLXE49aeNgSzc0vThwyssVkNBWEcniC7FxbRqmzZDDvA5DJf8zp94znHP4SU17SJ/VdpcA2GVkDTAZcLrfsdDcFf8l7PnzhLraz86LtyMnyFAw/oWVMv5CRAz2OHJzEvVvlFKPRXbG1Q+OU4eIS1cwSb/FlLuxqWjfsc/CRruUnKFhTWn4AjtA26eLj1YbAKyJZKWvzA1Z51LyoTmS3isCiUJ2W3r87uudOd0X35udVVDbQkXQmJoQgWLNUBMHE1AIkqT3IXFyb1NZTAdFYq2RztGpxawqcLTw==",
+        "fingerprint": "SHA256:ZdNxDlrdF5p9T7uEjDFGWq647lQMg6T7MIoFL3ulDe4",
+        "createdAt": 1775112909770
+      }
+    ],
+    "known_hosts": [
+      {
+        "host": "raspberrypi.tail1a2b3c.ts.net",
+        "port": 22,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIDEkMInaSBpuvegtS7v56Ht+nLpoHm5q9i2IDPot/u6y",
+        "fingerprint": "SHA256:3XAXZrhMqDpHilc11uQagv8IeNRZ+JO+Pr3o9E77MRw",
+        "addedAt": 1781547631042
+      },
+      {
+        "host": "raspberrypi.tail1a2b3c.ts.net",
+        "port": 22,
+        "keyType": "ecdsa-sha2-nistp256",
+        "keyBlob": "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH440N0bIzckwilNLdiyJf0zYzNbHGo17GRrn06u91A/l/ErAEUqJsYsiMetUxGAk+vV3oqe8QlhU4OYdRkaB7Q=",
+        "fingerprint": "SHA256:3QgcoEMhUERr35/0mCNCMk8aJ5WOHKlrTlBx8OcVOx8",
+        "addedAt": 1781547631042
+      },
+      {
+        "host": "raspberrypi.tail1a2b3c.ts.net",
+        "port": 22,
+        "keyType": "ssh-rsa",
+        "keyBlob": "AAAAB3NzaC1yc2EAAAADAQABAAABgQDG32ziP0EA0+0nwQCJuXO5U4dxgc804PPfroyzBwBDPbloHjhzpC3SHpleqMKAH0CX1RMfLxBl2NqdRl5HGM/8QnRCG4qvnOrLQn4ZBjrI+5JfFhpEfbeQ6Z1BIjPfyG6lLda+HLQm1Y2zWuHqw04VeKyfERajHtiEMeKv0lMZKJC2GP28pay7h+DCJoawl7C+ameFGOYmtaCJus8d1FB+NF5M+eZpscKPBLYcTeq2ZktXLs7o/K5hulqRQ9ZraxNV2eAKO5mOsuUQrZI6qpR+9eYoUs+eZJ/sf8t7X14cx42iM7xPgdHlpqc/SxNcCXJZfyAcc+y25pN/19xrivCLUP9e4eHq7erXQAIOPOkyF1AXVtbac792sSAQ54xunTQ/ecSEZiTvt/TZHklRU7yg6dMYIJtzGYsmdoEo8BMlmuEGY5EuPG1B1UR2gOBX60jxT/vbSjRPUm3sfUcU+fvSOWdaZTXT/liDHpqtc3wN9bpWsH8GtikBEt283pu5EG0=",
+        "fingerprint": "SHA256:KKM6ungclzRWUTKl+mtNN9/rR48ViWpIm2xHurLIRWs",
+        "addedAt": 1781547631042
+      },
+      {
+        "host": "bastion.example.org",
+        "port": 22,
+        "keyType": "ecdsa-sha2-nistp256",
+        "keyBlob": "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBOy9fD9//kG3UJAA0ygU0MhV9QftgG0bYN5pnHC68GFM9ZWSoHs2nskFMjsSz6qnAV/WIoFQ4EvbmRn531tAOqk=",
+        "fingerprint": "SHA256:JhBJpHaIBeFBu3xIQYCW4ruvvLG4scZpgiI1M/ni7oo",
+        "addedAt": 1764583304004
+      },
+      {
+        "host": "10.20.0.5",
+        "port": 2200,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIMmi9dan+2Mq0gurJvpTDatQ/Tz+EmeYO9/UzjtJ4U/y",
+        "fingerprint": "SHA256:BSsdhySruia2OFDO4GjqCxmDVYNM6vkSHFkJGiEYYpk",
+        "addedAt": 1764583319900
+      },
+      {
+        "host": "build.example.org",
+        "port": 2222,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIOxN91g4VLassTG/sQVscnPcO+VFZrkvTiwHLdxBG6Kj",
+        "fingerprint": "SHA256:DdYc7lcLbeooQH561qPbc1TbFdgZta0sRfoQ6MDGBSU",
+        "addedAt": 1764583337250
+      },
+      {
+        "host": "nas.home.arpa",
+        "port": 22,
+        "keyType": "ssh-rsa",
+        "keyBlob": "AAAAB3NzaC1yc2EAAAADAQABAAABgQCktLEymMNBcv1kK193LlHZzw3bU4Ie7IrYzXbuZvqVnwuJ3TLCZltKahIKYERaeCfU1J2NN+EP79zitxZFfEWfkKnB0v/yojeWmWCvwf36NJ0BwjP8jRexjDfqowYkfoRAbVSDtH0fN0LKPRnDMMpfbr1LootWCaclMNg7YHGq7fX2QRMMRnQMm84ZBG8IgV7vd3/3R0CHZ0CvZPMId4ATOtNIkY3gt5nzasuTAjLC20L8i0TXMK+ul9MQtP5CfXuncXFQDjSKPXMMIOqy0aaWewU+4JaV3kyc584MFvVM/rcIW2mXp+mLDOl2FUgXMN5/U0ZtXBwsF8J3synJ7OJCZ3LUXCjNvz5e+kCVi286un5xHjAplZDIhEz3VmbQB6991WbvjuhvDVQpVYVB/aPrG4Ea0pLC+Qc6+2+cXBpJZ6Tr/28AEdKCJI8zIEobDG2wijkErr4unm+O+GnqQCifLyPhSMQ3ovlnw3OC6LonLtbo43q5BcL8nbPgbUT/c1M=",
+        "fingerprint": "SHA256:3GGRLcmY9gInJVgHV918oD1jkqR1Hm5w/uff6r8Gx0Y",
+        "addedAt": 1767972660000
+      },
+      {
+        "host": "192.168.1.1",
+        "port": 22,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIMBPEXmFy0KMVQ3yi1zs8ir34SWiGv+3zR0C5EmPILyd",
+        "fingerprint": "SHA256:hi44Vi4skoXldPVjgNTBMPWylbEQsTIBOQ28F2+Ymuw",
+        "addedAt": 1774746123456
+      },
+      {
+        "host": "bastion.example.org",
+        "port": 22,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIA7kywjCpPGDnx+JRt6XWeaTfpQUSCNc+fvPIXabH7bn",
+        "fingerprint": "SHA256:WbNwqB/z/BIFnSSm5IAA1aVGaPdnlJeYbXTfIOL5TJc",
+        "addedAt": 1777957505555
+      },
+      {
+        "host": "gw.example.net",
+        "port": 22,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIGJI/ZLUjD11Bfa40iJftBc7RIdJr+2EDLhOqHSii9t6",
+        "fingerprint": "SHA256:mi2g22nwNBOz3Va3eYWjKnJ/HGKDD4wNCPxe3Ed9aFU",
+        "addedAt": 1788073679999
+      },
+      {
+        "host": "archive.example.net",
+        "port": 22,
+        "keyType": "ecdsa-sha2-nistp384",
+        "keyBlob": "AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBPqbBpP+D88e5ayN41Z9JwqMl+Z2+AQFuNHJz+jewqXjIb8Gqe4QqV2bGtmydKXM3ktCuImC6FcKOMqnZZJIZdR5+ywy0Fd8nUyjoM1fboOZ8tLRPmX22jnpONU58/uTcw==",
+        "fingerprint": "SHA256:5IIxlFX8RnMlgNmWNY8Yzb+TZ+a51gzZMlEAZZRwNT8",
+        "addedAt": 1788073680123
+      }
+    ],
+    "settings": [
+      {
+        "key": "local_machine_seeded",
+        "value": true
+      },
+      {
+        "key": "device_id",
+        "value": "8f9f009f2dc0f866da755c5a317b78ef"
+      },
+      {
+        "key": "language",
+        "value": "de"
+      },
+      {
+        "key": "theme_mode",
+        "value": "custom"
+      },
+      {
+        "key": "custom_theme",
+        "value": {
+          "base": "dark",
+          "colors": {
+            "background": "#0B1020",
+            "accent": "#FF8800",
+            "ansiBlue": "#5C9DFF"
+          }
+        }
+      },
+      {
+        "key": "sidebar_width",
+        "value": 312.5
+      },
+      {
+        "key": "dock_width",
+        "value": 400.0
+      },
+      {
+        "key": "dock_open",
+        "value": false
+      },
+      {
+        "key": "dock_tab",
+        "value": "files"
+      },
+      {
+        "key": "desktop_notifications",
+        "value": false
+      },
+      {
+        "key": "notify_done",
+        "value": false
+      },
+      {
+        "key": "push_removals",
+        "value": [
+          "df62567e423e5b887214e42af007fecf"
+        ]
+      },
+      {
+        "key": "usage_reminders",
+        "value": [
+          {
+            "provider": "anthropic",
+            "account": "edde@example.com",
+            "limit": "five_hour",
+            "mode": "once",
+            "label": "edde@example.com",
+            "title": "5-hour limit",
+            "at": 1793640600000
+          },
+          {
+            "provider": "openai-codex",
+            "account": "acct-7Hq2xP",
+            "limit": null,
+            "mode": "always",
+            "label": null,
+            "title": null,
+            "at": null
+          }
+        ]
+      },
+      {
+        "key": "project_collapsed:fc401b40150b4adbcb99269dc6794527:/Users/edde/Projects/ompanion",
+        "value": true
+      },
+      {
+        "key": "project_collapsed:baa0ce5c31af5f4d4750ed445071822a:/home/deploy/Prüfstand",
+        "value": false
+      }
+    ],
+    "read_markers": [
+      {
+        "machineId": "fc401b40150b4adbcb99269dc6794527",
+        "path": "/Users/edde/.omp/agent/sessions/--Users-edde-Projects-ompanion--/2026-10-28T08-12-44-901Z_019a2a0b-3c4d-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
+        "seenModified": 1793353631000
+      },
+      {
+        "machineId": "baa0ce5c31af5f4d4750ed445071822a",
+        "path": "/home/deploy/.omp/agent/sessions/--home-deploy-Prüfstand--/2026-10-29T16-58-01-204Z_019a2f1c-55d0-7e41-9c3b-6a1f0e2d4b87.jsonl",
+        "seenModified": 1793293378000
+      },
+      {
+        "machineId": "24a14d1ef2f10a3ea4fe1a0ced45d76a",
+        "path": "/home/pi/.omp/agent/sessions/--home-pi-sensors--/2026-10-30T19-40-12-008Z_019a3a7e-0c11-7f02-a1b2-c3d4e5f60718.jsonl",
+        "seenModified": 1793491199000
+      }
+    ],
+    "pinned_sessions": [
+      {
+        "machineId": "fc401b40150b4adbcb99269dc6794527",
+        "sessionId": "019a2a0b-3c4d-7e5f-8a9b-0c1d2e3f4a5b",
+        "path": "/Users/edde/.omp/agent/sessions/--Users-edde-Projects-ompanion--/2026-10-28T08-12-44-901Z_019a2a0b-3c4d-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
+        "cwd": "/Users/edde/Projects/ompanion",
+        "pinnedAt": 1793176200000
+      },
+      {
+        "machineId": "24a14d1ef2f10a3ea4fe1a0ced45d76a",
+        "sessionId": "019a3a7e-0c11-7f02-a1b2-c3d4e5f60718",
+        "path": "/home/pi/.omp/agent/sessions/--home-pi-sensors--/2026-10-30T19-40-12-008Z_019a3a7e-0c11-7f02-a1b2-c3d4e5f60718.jsonl",
+        "cwd": "/home/pi/sensors",
+        "title": "Sensor logger",
+        "firstMessage": "Write a script that logs the DHT22 every minute",
+        "pinnedAt": 1793389510500
+      },
+      {
+        "machineId": "baa0ce5c31af5f4d4750ed445071822a",
+        "sessionId": "019a2f1c-55d0-7e41-9c3b-6a1f0e2d4b87",
+        "path": "/home/deploy/.omp/agent/sessions/--home-deploy-Prüfstand--/2026-10-29T16-58-01-204Z_019a2f1c-55d0-7e41-9c3b-6a1f0e2d4b87.jsonl",
+        "cwd": "/home/deploy/Prüfstand",
+        "title": "Fix the flaky deploy 🚀",
+        "firstMessage": "Why does the deploy fail every other run?\nThe logs are in ./logs.",
+        "pinnedAt": 1793448000000
+      }
+    ]
+  },
+  "secrets": {
+    "ssh-key.0e86cdbfe9fe8179c0b1bc27faf3d87d.private": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\nQyNTUxOQAAACBP+V0WyRGkJD7ggOJS4YhVvPD3MeI+9oRwIkfZksje1gAAAJiflISwn5SE\nsAAAAAtzc2gtZWQyNTUxOQAAACBP+V0WyRGkJD7ggOJS4YhVvPD3MeI+9oRwIkfZksje1g\nAAAEDpF+gTNhOCwky9YUBSiIJ5oaZEgydYyzuAFoZLGwiOlU/5XRbJEaQkPuCA4lLhiFW8\n8Pcx4j72hHAiR9mSyN7WAAAAD01hY0Jvb2sgZWQyNTUxOQECAwQFBg==\n-----END OPENSSH PRIVATE KEY-----\n",
+    "ssh-key.8433aa4fe2e3281379f134a79f0f5c32.private": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABDsJ7MUq2\nzlkKHVL8KtXFJ7AAAAGAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIFHdLvJT979jmwvV\nrUskPLVdbLL2rpCD/WHGn18v6HAPAAAAoBNTsBdm0zduw5gkA7b/7+zVfZi1WP7U4Je99L\nVxGs4Rb8O6OrD9Pj++F8EAhCxbFeOBjW+WdXIqtYNNOQwuUU3D3rqbLHNAPC5APjZh13Oa\nFvIUBopRbJxioQlqACO0CLDfFFVm26r3S9CZg7qJjOhFCzcKV5YWzjaARy2QdXYMkhDoZX\nMxN4QK+nBhKHLS+XbOisKtGfINCLjNEMxEHZA=\n-----END OPENSSH PRIVATE KEY-----\n",
+    "ssh-key.8433aa4fe2e3281379f134a79f0f5c32.passphrase": "correct horse battery staple",
+    "ssh-key.b63ddd376055657744d822dcc9f968da.private": "-----BEGIN RSA PRIVATE KEY-----\n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\n-----END RSA PRIVATE KEY-----\n",
+    "password.7114be72a9a5de5cf989d895a9b58574": "jump-host-s3cret",
+    "password.4911a8e41d27ca507e7c8e56f8e986c0": "Pässwörd 日本語 🔑",
+    "ssh-key-file.SHA256:e1CRmGTBhKEC7gzErFuG5E/XIEuE6i1a/O+UXIp/+64.passphrase": "old Mac ecdsa"
+  }
+}

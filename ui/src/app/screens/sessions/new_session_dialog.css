@@ -1,0 +1,201 @@
+.new-session-dialog.dialog {
+  position: relative;
+  width: 560px;
+}
+
+/* Room for the connecting mark at the title's end. */
+.new-session-dialog .dialog-title {
+  padding-right: 24px;
+}
+
+/* At the end of the title's 32 px line. */
+.new-session-connecting {
+  position: absolute;
+  top: 33px;
+  right: 24px;
+  display: flex;
+}
+
+.new-session-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.new-session-mode {
+  display: flex;
+  margin-bottom: 4px;
+}
+
+.new-session-hint {
+  margin: 0;
+  color: var(--on-surface-variant);
+}
+
+/* Five rows at most; a longer list scrolls, so the dialog keeps one height. */
+.new-session-recent {
+  max-height: calc(var(--list-row-height) * 5);
+  overflow-y: auto;
+}
+
+.new-session-recent .list-row {
+  margin: 0;
+}
+
+.new-session-recent-row {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 100%;
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.new-session-recent-row > .icon {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.new-session-recent-path {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.new-session-recent-head,
+.new-session-recent-tail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The directories above the last one give way first. */
+.new-session-recent-head {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.new-session-recent-tail {
+  flex: none;
+  max-width: 100%;
+}
+
+.new-session-model {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.new-session-model-tip {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.new-session-model-field.button {
+  flex: 1;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 8px 0 12px;
+}
+
+.new-session-model-field > .icon {
+  color: var(--on-surface-variant);
+}
+
+.new-session-model-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+}
+
+.new-session-model-default.icon-button {
+  color: var(--on-surface);
+}
+
+.new-session-error {
+  margin: 0;
+  color: var(--error);
+}
+
+.new-session-picker.dialog {
+  width: 528px;
+}
+
+.new-session-picker .dialog-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.new-session-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 420px;
+  max-height: 100%;
+  min-height: 0;
+}
+
+.new-session-picker-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.new-session-picker-path {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--on-surface);
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.new-session-picker-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.new-session-picker-list .list-row {
+  margin: 0;
+}
+
+.new-session-picker-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  margin: 0;
+  text-align: center;
+}
+
+.new-session-picker-row {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  color: var(--on-surface);
+}
+
+.new-session-picker-row > .icon {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.new-session-picker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

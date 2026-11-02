@@ -1,0 +1,63 @@
+.mode-controls-header {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.mode-controls-text {
+  max-height: 160px;
+  overflow-y: auto;
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.mode-controls-quiet {
+  color: var(--on-surface-variant);
+}
+
+/* pre-wrap keeps the two spaces on each side of a separator dot. */
+.mode-controls-fact {
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.mode-controls-whole {
+  white-space: nowrap;
+}
+
+.mode-controls-held {
+  color: var(--warning);
+}
+
+.mode-controls-command {
+  font: var(--code);
+  letter-spacing: 0;
+  font-variant-ligatures: none;
+}
+
+.mode-controls-budget {
+  flex: none;
+  padding: 4px 12px 8px;
+}
+
+/* Inside the popover, tones step up from the popover's own (docs/design.md, Content inside a popover). */
+.mode-controls-budget .text-field {
+  background: rgb(var(--on-surface-rgb) / 0.06);
+}
+
+.mode-controls-budget .text-field:focus-within {
+  background: rgb(var(--on-surface-rgb) / 0.08);
+}
+
+.mode-controls-budget .text-field-input {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}

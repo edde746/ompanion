@@ -1,0 +1,67 @@
+.app-segmented {
+  display: inline-flex;
+  flex: none;
+  max-width: 100%;
+  height: var(--control);
+  padding: 3px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+}
+
+.app-segmented-segment {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 12px;
+  border-radius: calc(var(--radius) - 3px);
+  color: var(--on-surface-variant);
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+  white-space: nowrap;
+  isolation: isolate;
+}
+
+/* The state layer: hover 8 %, focus 10 %, fading over InkWell's 50 ms; ripple.ts draws the pressed one. */
+.app-segmented-segment::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .app-segmented-segment:hover:not(:disabled, .app-segmented-selected)::before {
+    opacity: 0.08;
+  }
+}
+
+.app-segmented-segment:focus-visible::before {
+  opacity: 0.1;
+}
+
+.app-segmented-selected {
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+  cursor: default;
+}
+
+.app-segmented-segment:disabled {
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+.app-segmented-segment > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-segmented-segment::before {
+    transition-duration: 0s;
+  }
+}

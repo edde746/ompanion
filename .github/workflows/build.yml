@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Version to release as a draft, e.g. 1.0.0 (must match pubspec.yaml); omit for Actions artifacts only
+        description: Version to release as a draft, e.g. 1.0.0 (must match VERSION); omit for Actions artifacts only
         default: ""
         type: string
       build_android:
@@ -30,14 +30,7 @@ on:
         type: boolean
 
 env:
-  # Recorded before any bump: desktop_drop and pasteboard still apply the Kotlin Gradle Plugin, and Gradle warns
-  # that a future Flutter will refuse to build a project whose plugins do. Both are direct dependencies (drag and
-  # drop, the clipboard), so a Flutter upgrade needs that warning checked first.
-  FLUTTER_VERSION: "3.47.1"
-  BUN_VERSION: "1.4.0"
-  # Flutter's Linux toolchain plus libsecret for flutter_secure_storage_linux (the other plugins need only GTK 3), and
-  # the Flatpak tools that pack the bundle.
-  LINUX_APT_PACKAGES: clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev flatpak flatpak-builder
+  BUN_VERSION: "1.4.2"
 
 jobs:
   name:
@@ -56,7 +49,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: ${{ inputs.release_tag != '' }}
         with:
-          sparse-checkout: pubspec.yaml
+          sparse-checkout: VERSION
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -81,8 +74,8 @@ jobs:
           [ "$MACOS_SIGNING" = true ] || fail "A release ships a signed, notarized DMG: set the six signing secrets (README, Releasing)."
           [ "$SPARKLE_SIGNING" = true ] || fail "A release ships the appcast installed Mac apps update from: set SPARKLE_PRIVATE_KEY (README, Releasing)."
           [ "$ANDROID_SIGNING" = true ] || fail "A release ships an APK signed with the upload key: set the four Android secrets (README, Releasing)."
-          version=$(sed -n 's/^version: *\([^+ ]*\).*/\1/p' pubspec.yaml)
-          [ "$RELEASE_TAG" = "$version" ] || fail "The release tag $RELEASE_TAG is not pubspec.yaml's version $version."
+          version=$(cut -d+ -f1 VERSION)
+          [ "$RELEASE_TAG" = "$version" ] || fail "The release tag $RELEASE_TAG is not VERSION's version $version."
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
             fail "The tag $RELEASE_TAG already exists."
           fi
@@ -113,20 +106,11 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-          pub-cache: false
-
-      - name: Cache Pub dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
 
       - name: Cache Gradle
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -134,17 +118,23 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('shells/android/**/*.gradle*', 'shells/android/gradle/wrapper/gradle-wrapper.properties') }}
 
-      - name: Build the companion
-        run: scripts/build_companion.sh
+      # gomobile at the version core/go.mod pins; core/scripts/bind-android.sh finds it in $(go env GOPATH)/bin and
+      # the runner's NDK through ANDROID_NDK_HOME.
+      - name: Install gomobile
+        working-directory: core
+        run: go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
 
-      - name: Install dependencies
-        run: flutter pub get --enforce-lockfile
+      # build.sh builds the page once per channel from these.
+      - name: Build the companion and install the page's dependencies
+        run: |
+          scripts/build_companion.sh
+          cd ui && bun install --frozen-lockfile
 
       # All four or none: the upload key signs the APK and the Play bundle. A fork, or a checkout before the
-      # maintainer set the secrets, builds with the debug key (android/app/build.gradle.kts); half of them is a
-      # mistake worth failing on, because it silently produces an unshippable artifact.
+      # maintainer set the secrets, builds with the debug key (shells/android/app/build.gradle.kts); half of them is
+      # a mistake worth failing on, because it silently produces an unshippable artifact.
       - name: Check the signing secrets
         id: signing
         env:
@@ -182,29 +172,29 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          # storeFile is relative to android/app, which is where the release build type resolves it.
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
-          cat > android/key.properties << EOF
+          # storeFile is relative to shells/android/app, which is where the release build type resolves it.
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > shells/android/app/upload-keystore.jks
+          cat > shells/android/key.properties << EOF
           storePassword=$ANDROID_STORE_PASSWORD
           keyPassword=$ANDROID_KEY_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           storeFile=upload-keystore.jks
           EOF
 
-      # The APK the GitHub release carries (no channel flag: that is the direct build) and the bundle the Play
-      # lane uploads (the play channel), both signed by the key above when it is there.
-      - name: Build APK
-        run: flutter build apk --release
-
-      - name: Build the Play bundle
-        run: flutter build appbundle --release --dart-define=OMPANION_CHANNEL=play
+      # The APKs the GitHub release carries (the direct channel) and the bundle the Play phase uploads (the play
+      # channel), all signed by the key above when it is there.
+      - name: Build the APK and the Play bundle
+        run: shells/android/build.sh --release
 
       - name: Clean up the keystore
         if: always()
-        run: rm -f android/app/upload-keystore.jks android/key.properties
+        run: rm -f shells/android/app/upload-keystore.jks shells/android/key.properties
 
-      - name: Name the APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk ompanion-android.apk
+      # The universal APK, like the Flutter app's single app-release.apk.
+      - name: Name the APK and the bundle
+        run: |
+          cp build/android/app-release-universal.apk ompanion-android.apk
+          cp build/android/app-release.aab ompanion-android.aab
 
       - name: Upload APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -213,9 +203,6 @@ jobs:
           path: ompanion-android.apk
           if-no-files-found: error
           compression-level: 0
-
-      - name: Name the bundle
-        run: cp build/app/outputs/bundle/release/app-release.aab ompanion-android.aab
 
       # A store artifact, not a release asset: the release job drops it before it counts the release's files.
       - name: Upload the bundle
@@ -230,7 +217,7 @@ jobs:
     name: Build iOS
     needs: name
     if: ${{ inputs.build_ios }}
-    # Xcode 26 or newer: the app icons are Icon Composer .icon bundles.
+    # Xcode 26 or newer: the app icon is an Icon Composer .icon bundle.
     runs-on: macos-26
     timeout-minutes: 45
     permissions:
@@ -247,36 +234,34 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-          pub-cache: false
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
 
-      - name: Cache Pub dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+      # gomobile at the version core/go.mod pins; core/scripts/bind-apple.sh finds it in $(go env GOPATH)/bin.
+      - name: Install XcodeGen and gomobile
+        run: |
+          brew install xcodegen
+          cd core && go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
 
-      - name: Build the companion
-        run: scripts/build_companion.sh
+      # build.sh builds the page with the channel from these.
+      - name: Build the companion and install the page's dependencies
+        run: |
+          scripts/build_companion.sh
+          cd ui && bun install --frozen-lockfile
 
-      - name: Install dependencies
-        run: flutter pub get --enforce-lockfile
-
+      # The direct channel, as the Flutter app's GitHub IPA was; unsigned (CODE_SIGNING_ALLOWED=NO).
       - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
+        run: shells/apple/build.sh --device --channel direct
 
       # An .ipa is the app in a Payload folder, zipped. Unsigned: sideloading tools sign it for the device. ditto
       # keeps the bundle's symlinks and permissions.
       - name: Package the IPA
         run: |
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
-          cp -R build/ios/iphoneos/Runner.app "$RUNNER_TEMP/ipa/Payload/"
+          cp -R build/apple/ios-device/ompanion.app "$RUNNER_TEMP/ipa/Payload/"
           ditto -c -k --keepParent "$RUNNER_TEMP/ipa/Payload" ompanion-ios.ipa
 
       - name: Upload the IPA
@@ -291,7 +276,7 @@ jobs:
     name: Build macOS
     needs: name
     if: ${{ inputs.build_macos }}
-    # Xcode 26 or newer: the app icons are Icon Composer .icon bundles.
+    # Xcode 26 or newer: the app icon is an Icon Composer .icon bundle.
     runs-on: macos-26
     # Two notarizations wait on Apple's queue: under a minute each on 2026-09-27, but 54 minutes for the app and 16
     # for the DMG on 2026-10-06. A cancelled job cancels a release run, so the limit leaves room for a slow queue.
@@ -300,6 +285,7 @@ jobs:
       contents: read
     env:
       ARTIFACT: ompanion-macos-${{ needs.name.outputs.sha }}
+      APP: build/apple/macos-release/ompanion.app
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -310,29 +296,25 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-          pub-cache: false
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
 
-      - name: Cache Pub dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+      - name: Install XcodeGen and gomobile
+        run: |
+          brew install xcodegen
+          cd core && go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
 
-      - name: Build the companion
-        run: scripts/build_companion.sh
+      - name: Build the companion and install the page's dependencies
+        run: |
+          scripts/build_companion.sh
+          cd ui && bun install --frozen-lockfile
 
-      - name: Install dependencies
-        run: flutter pub get --enforce-lockfile
-
+      # Universal (arm64 and x86_64), the direct channel, with Sparkle; ad-hoc signed until the steps below.
       - name: Build macOS
-        run: flutter build macos --release
+        run: shells/apple/build.sh --release
 
       # All six are needed together: a certificate without notary credentials, or the other way round,
       # cannot ship a DMG Gatekeeper accepts. None of them means a fork or a checkout before the
@@ -432,14 +414,12 @@ jobs:
           echo "Signing with $IDENTITY"
           echo "IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
 
-          # Inside-out with hardened runtime; the same script signs the local ad-hoc release build.
-          scripts/sign_app.sh "$IDENTITY" build/macos/Build/Products/Release/ompanion.app \
-            macos/Runner/Release.entitlements
+          # Inside-out with hardened runtime, Sparkle's helpers included.
+          scripts/sign_app.sh "$IDENTITY" "$APP" shells/apple/Entitlements/macOS.entitlements
 
       - name: Verify the signature
         if: steps.signing.outputs.signed == 'true'
         run: |
-          APP=build/macos/Build/Products/Release/ompanion.app
           codesign -dvvv "$APP"
           codesign -d --entitlements :- "$APP" > "$RUNNER_TEMP/entitlements.plist"
           /usr/libexec/PlistBuddy -c Print "$RUNNER_TEMP/entitlements.plist"
@@ -452,7 +432,6 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          APP=build/macos/Build/Products/Release/ompanion.app
           # notarytool takes a .zip, a .dmg or a .pkg; ditto keeps the symlinks and permissions of the bundle.
           ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/ompanion.zip"
           scripts/notarize.sh "$RUNNER_TEMP/ompanion.zip" "$APP" "$RUNNER_TEMP"
@@ -464,7 +443,7 @@ jobs:
         run: |
           # What the user drags into /Applications: the app and a link to that folder.
           mkdir -p "$RUNNER_TEMP/dmg"
-          cp -R build/macos/Build/Products/Release/ompanion.app "$RUNNER_TEMP/dmg/"
+          cp -R "$APP" "$RUNNER_TEMP/dmg/"
           ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
           hdiutil create -format ULMO -srcfolder "$RUNNER_TEMP/dmg" -volname ompanion ompanion-macos.dmg
 
@@ -493,13 +472,13 @@ jobs:
           if [ -f "$KEYCHAIN_PATH" ]; then security delete-keychain "$KEYCHAIN_PATH"; fi
           rm -f "$CERTIFICATE_PATH"
 
-      # Installed copies update through Sparkle (macos/Runner/Info.plist): its feed is appcast.xml on the latest
-      # published release, and it installs the DMG only if the enclosure's EdDSA signature verifies against the
-      # app's SUPublicEDKey. The signature covers the DMG's final bytes, so it comes after the stapled ticket.
+      # Installed copies update through Sparkle (SUFeedURL in the app's Info.plist): its feed is appcast.xml on the
+      # latest published release, and it installs the DMG only if the enclosure's EdDSA signature verifies against
+      # the app's SUPublicEDKey. The signature covers the DMG's final bytes, so it comes after the stapled ticket.
       - name: Write the appcast
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-          # The tools of the Sparkle package the app links (macos/Runner.xcodeproj).
+          # The tools of the Sparkle package the app links (shells/apple/project.yml).
           SPARKLE_VERSION: "2.10.0"
           SPARKLE_SHA256: c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c
         run: |
@@ -517,9 +496,9 @@ jobs:
           # The key reaches sign_update on stdin, never on disk.
           signature=$(printf '%s' "$SPARKLE_PRIVATE_KEY" | "$RUNNER_TEMP/sparkle/bin/sign_update" --ed-key-file - -p ompanion-macos.dmg)
 
-          # The app in the DMG. Its version is pubspec.yaml's (CFBundleShortVersionString, the release tag) and its
+          # The app in the DMG. Its version is VERSION's semver (CFBundleShortVersionString, the release tag) and its
           # build number (CFBundleVersion) is what Sparkle compares.
-          plist=build/macos/Build/Products/Release/ompanion.app/Contents/Info.plist
+          plist=$APP/Contents/Info.plist
           read_plist() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist"; }
           version=$(read_plist CFBundleShortVersionString)
 
@@ -535,7 +514,7 @@ jobs:
           exit(key.isValidSignature(Data(base64Encoded: arguments[2])!, for: file) ? 0 : 1)
           EOF
           if ! swift "$RUNNER_TEMP/verify.swift" "$(read_plist SUPublicEDKey)" "$signature" ompanion-macos.dmg; then
-            echo "::error title=Wrong update key::SPARKLE_PRIVATE_KEY is not the private half of SUPublicEDKey (macos/Runner/Info.plist), so installed copies would reject this DMG."
+            echo "::error title=Wrong update key::SPARKLE_PRIVATE_KEY is not the private half of the app's SUPublicEDKey (shells/apple), so installed copies would reject this DMG."
             exit 1
           fi
 
@@ -573,12 +552,10 @@ jobs:
     name: Build Windows
     needs: name
     if: ${{ inputs.build_windows }}
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       contents: read
-    env:
-      ARTIFACT: ompanion-windows-${{ needs.name.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -589,47 +566,62 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-          pub-cache: false
+      # The direct channel (VITE_OMPANION_CHANNEL's default), which the shell copies from ui/dist.
+      - name: Build the UI
+        run: |
+          scripts/build_companion.sh
+          cd ui
+          bun install --frozen-lockfile
+          VITE_OMPANION_CHANNEL=direct bun run build
 
-      - name: Cache Pub dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~\AppData\Local\Pub\Cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-
-      - name: Build the companion
-        shell: bash
-        run: scripts/build_companion.sh
-
-      - name: Install dependencies
-        run: flutter pub get --enforce-lockfile
-
+      # Cross-built with llvm-mingw in Docker: the zip's x64 build, and arm64, which the Store package also carries.
       - name: Build Windows
-        run: flutter build windows --release
+        run: shells/windows/build.sh x64 arm64
 
-      - name: Zip the Release folder
+      # For the package job; not named ompanion-*, so the release job never downloads it.
+      - name: Upload the builds
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-builds-${{ needs.name.outputs.sha }}
+          path: |
+            build/windows-x64/
+            build/windows-arm64/
+          if-no-files-found: error
+          retention-days: 1
+
+  package-windows:
+    name: Package Windows
+    needs: [name, build-windows]
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      ARTIFACT: ompanion-windows-${{ needs.name.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Download the builds
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: windows-builds-${{ needs.name.outputs.sha }}
+          path: build
+
+      # With the runner's Windows SDK: build/windows-package/ompanion-windows-x64.zip, the x64 build as it is, and
+      # ompanion-windows.msixbundle, unsigned on purpose: the Store re-signs it during certification.
+      - name: Pack the zip and the Store package
         shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ompanion-windows-x64.zip
+        run: shells/windows/msix/build-msix.ps1
 
       - name: Upload the zip
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.ARTIFACT }}
-          path: ompanion-windows-x64.zip
+          path: build/windows-package/ompanion-windows-x64.zip
           if-no-files-found: error
           compression-level: 0
-
-      # Unsigned on purpose: the Store re-signs the bundle during certification (windows/build-msix.ps1).
-      - name: Build the Store package
-        shell: pwsh
-        run: .\windows\build-msix.ps1
 
       # A store artifact, not a release asset: without the Store's signature the package does not install, so the
       # release job drops it before it counts the release's files.
@@ -637,7 +629,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ompanion-windows-msix-${{ needs.name.outputs.sha }}
-          path: build/windows/msix/ompanion-windows.msixbundle
+          path: build/windows-package/ompanion-windows.msixbundle
           if-no-files-found: error
           compression-level: 0
 
@@ -656,73 +648,55 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Linux dependencies
+      # flatpak-builder packs the Flatpak (the runtime and SDK come from Flathub); the shell itself builds in Docker.
+      - name: Install the Flatpak tools
         run: |
           sudo apt-get update
-          # shellcheck disable=SC2086 # one package per word
-          sudo apt-get install -y --no-install-recommends $LINUX_APT_PACKAGES
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder zip
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-          pub-cache: false
-
-      - name: Cache Pub dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-
-      - name: Build the companion
-        run: scripts/build_companion.sh
-
-      - name: Install dependencies
-        run: flutter pub get --enforce-lockfile
+      # The direct channel (VITE_OMPANION_CHANNEL's default), which the shell copies from ui/dist.
+      - name: Build the UI
+        run: |
+          scripts/build_companion.sh
+          cd ui
+          bun install --frozen-lockfile
+          VITE_OMPANION_CHANNEL=direct bun run build
 
       - name: Build Linux
-        run: flutter build linux --release
+        run: shells/linux/build.sh amd64
 
-      # zip keeps the executable bits, which the artifact zip would drop.
-      - name: Zip the bundle
-        working-directory: build/linux/x64/release/bundle
-        run: zip -qr "$GITHUB_WORKSPACE/ompanion-linux-x64.zip" .
-
-      # The runtime and SDK the manifest names come from Flathub.
-      - name: Build the Flatpak
+      # build/ompanion-linux-x64.flatpak, and build/ompanion-linux-x64.zip of build/linux-amd64 with its executable
+      # bits, which the artifact zip would drop.
+      - name: Build the Flatpak and the zip
         run: |
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          linux/build-flatpak.sh
-          cp build/linux/ompanion-linux-x64.flatpak .
+          shells/linux/flatpak/build-flatpak.sh
 
       # Installed as a user installs it, and checked in its sandbox against the runtime rather than this runner's
       # libraries. dbus-run-session gives flatpak-spawn the session bus a desktop would.
       - name: Check the Flatpak
         run: |
-          flatpak install --user --noninteractive ompanion-linux-x64.flatpak
-          dbus-run-session -- linux/check-flatpak.sh
+          flatpak install --user --noninteractive build/ompanion-linux-x64.flatpak
+          dbus-run-session -- shells/linux/flatpak/check-flatpak.sh
 
-      - name: Upload the bundle and the Flatpak
+      - name: Upload the zip and the Flatpak
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.ARTIFACT }}
           path: |
-            ompanion-linux-x64.flatpak
-            ompanion-linux-x64.zip
+            build/ompanion-linux-x64.flatpak
+            build/ompanion-linux-x64.zip
           if-no-files-found: error
           compression-level: 0
 
   release:
     name: Draft the release
-    needs: [name, build-android, build-ios, build-macos, build-windows, build-linux]
+    needs: [name, build-android, build-ios, build-macos, build-windows, package-windows, build-linux]
     # Runs only when every build succeeded; "Check the release" made sure all five were selected.
     if: ${{ inputs.release_tag != '' }}
     runs-on: ubuntu-latest
@@ -739,9 +713,9 @@ jobs:
           path: release
           merge-multiple: true
 
-      # The Android job also uploads the Play bundle as ompanion-android-aab-<sha>, and the Windows job the Microsoft
-      # Store bundle as ompanion-windows-msix-<sha>. Those are store artifacts, not release assets, so they go before
-      # the count: the release holds the six downloads a user can use and the appcast Mac apps update from.
+      # The Android job also uploads the Play bundle as ompanion-android-aab-<sha>, and the Windows package job the
+      # Microsoft Store bundle as ompanion-windows-msix-<sha>. Those are store artifacts, not release assets, so they
+      # go before the count: the release holds the six downloads a user can use and the appcast Mac apps update from.
       - name: Drop the store bundles
         run: rm -f release/*.aab release/*.msixbundle
 

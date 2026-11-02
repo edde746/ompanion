@@ -1,0 +1,40 @@
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 4px 0;
+}
+
+.queue-list-row {
+  display: flex;
+  align-items: center;
+  height: var(--row-height);
+  margin-bottom: 2px;
+  padding-left: 10px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+}
+
+.queue-list-kind {
+  display: flex;
+  flex: none;
+  margin-right: var(--gap);
+  color: var(--on-surface-variant);
+}
+
+.queue-list-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-list-more {
+  padding: 4px 12px;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}

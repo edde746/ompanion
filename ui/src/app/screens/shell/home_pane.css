@@ -1,0 +1,23 @@
+.home-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+}
+
+.home-pane-icon {
+  color: var(--on-surface-variant);
+}
+
+.home-pane-title {
+  margin-top: 16px;
+  font: var(--title-large);
+  letter-spacing: var(--title-large-tracking);
+}
+
+.home-pane-body {
+  margin: 8px 0 24px;
+}

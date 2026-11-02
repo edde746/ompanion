@@ -1,0 +1,64 @@
+.ssh-config-picker {
+  width: min(468px, 100%);
+}
+
+.ssh-config-picker-loading {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.ssh-config-picker-error {
+  color: var(--error);
+}
+
+/* A one-line ListTile: the icon, the alias, the activity mark while it resolves. */
+.ssh-config-picker-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  color: var(--on-surface-variant);
+  text-align: start;
+  isolation: isolate;
+}
+
+.ssh-config-picker-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .ssh-config-picker-row:enabled:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.ssh-config-picker-row:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ssh-config-picker-row::before {
+    transition-duration: 0s;
+  }
+}
+
+.ssh-config-picker-alias {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--on-surface);
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+}

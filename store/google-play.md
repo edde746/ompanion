@@ -22,10 +22,10 @@ Our texts use sentence-case headings, no emoji anywhere, and no superlatives.
 
 | Field | Value | File |
 |---|---|---|
-| App name | `ompanion: omp client` | `android/fastlane/metadata/android/en-US/title.txt` |
+| App name | `ompanion: omp client` | `store/fastlane/android/metadata/android/en-US/title.txt` |
 | Short description | `Chat with your own omp coding agent over SSH. No account, no tracking.` | `short_description.txt` |
 | Full description | see file | `full_description.txt` |
-| App icon | 512×512 PNG | `android/fastlane/metadata/android/en-US/images/icon.png` |
+| App icon | 512×512 PNG | `store/fastlane/android/metadata/android/en-US/images/icon.png` |
 | Feature graphic | 1024×500 PNG | `images/featureGraphic.png` |
 | Phone screenshots | 2–8, 16:9 or 9:16, min 320 px, max 3840 px a side | `images/phoneScreenshots/` |
 | 7-inch tablet screenshots | up to 8 | `images/sevenInchScreenshots/` |
@@ -59,8 +59,8 @@ blocks publication ([Prepare your app for review](https://support.google.com/goo
 | Government apps | **No.** Not developed by or for a government. |
 | Financial features | **No financial features.** |
 | Health apps | **No health features.** |
-| Advertising ID | **No.** The app declares no `AD_ID` permission and has no advertising or attribution SDK. The merged manifest's permissions (`aapt2 dump permissions` on the release APK, 2026-09-27) are `INTERNET`, `POST_NOTIFICATIONS`, `VIBRATE` (flutter_local_notifications), `ACCESS_NETWORK_STATE`, `WAKE_LOCK` and `com.google.android.c2dm.permission.RECEIVE` (Firebase Messaging), plus androidx.core's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. |
-| Permissions declaration form | Not triggered: no SMS/call log, no location, no background location, no foreground-service type, no `QUERY_ALL_PACKAGES`, no restricted permission. None of the permissions above is restricted. |
+| Advertising ID | **No.** The app declares no `AD_ID` permission and has no advertising or attribution SDK. The merged manifest's permissions (`aapt2 dump permissions` on the 1.2.1 (4) release APK of `shells/android`, 2026-11-02) are `INTERNET`, `POST_NOTIFICATIONS` and `RECEIVE_BOOT_COMPLETED` (the app's own manifest; the last re-arms scheduled notifications after a reboot), `ACCESS_NETWORK_STATE`, `WAKE_LOCK` and `com.google.android.c2dm.permission.RECEIVE` (Firebase Messaging), plus androidx.core's own signature permission `com.edde746.ompanion.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. |
+| Permissions declaration form | Not triggered: no SMS/call log, no location, no background location, no camera or microphone, no storage or media permission, no foreground-service type, no exact alarm, no `QUERY_ALL_PACKAGES`, no restricted permission. None of the permissions above is restricted. |
 | DSA / trader status (EEA) | **field for the user** — Play asks each developer account whether it is a trader. Selling the app is commercial activity, which points to trader status, but that is a legal statement about you, not about the app. Answer it in the account's compliance section. |
 | AI-generated content | There is no dedicated App content form for this. The in-app AI-Generated Content policy is the likeliest policy question for this app, and the app has no in-app report control (section 8). The per-asset "AI-generated" declaration lives with each store-listing image, and our answer there is **No**. |
 
@@ -120,9 +120,11 @@ Store's computed 9+ rating: Play's target audience is who the app is *for*, Appl
 - Controlled substances: **No**.
 - Gambling and simulated gambling: **No**.
 - Horror, discrimination, drugs, alcohol, tobacco: **No**.
-- Interactive elements: **Unrestricted Internet — No** (no browser, no WebView; links open in the user's
-  browser outside the app). **Users Interact — No** (no messaging, no UGC, no social features between
-  users). **Shares Location — No** (the app never reads location). **Digital Purchases — No** (no in-app purchases).
+- Interactive elements: **Unrestricted Internet — No** (the screens are a WebView showing the page bundled in
+  the app, from `appassets.androidplatform.net`; any other navigation is refused and an http(s) link opens in the
+  user's browser, outside the app: `shells/android/…/MainActivity.kt`, `shouldOverrideUrlLoading`). **Users Interact — No** (no
+  messaging, no UGC, no social features between users). **Shares Location — No** (the app never reads
+  location). **Digital Purchases — No** (no in-app purchases).
 
 The Summary page shows the calculated ratings before you submit; because of the language answer, expect
 them above the lowest tier. Misrepresenting an app's content is itself a policy violation, so answer what the
@@ -173,7 +175,8 @@ Why, checked against the code
   interactions. The random per-install id the app generates goes only to the user's own machines, inside its
   SSH requests to omp and in the phone's push registration file there.
 - **Judgement call to keep in mind:** photos and files the user attaches do leave the device (over SSH, to
-  their own machine), and the file picker is why the iOS build needs `NSPhotoLibraryUsageDescription`. The
+  their own machine); on Android the WebView's file chooser hands them over through the system picker
+  (`shells/android/…/MainActivity.kt`, `onShowFileChooser`), with no storage or media permission. The
   exemption above covers them: the recipient is the user's own machine, and we cannot read them. If a
   reviewer challenges it, the privacy policy says the same thing in plain words.
 
@@ -206,8 +209,8 @@ reaches the developer; arguing scope is the alternative. Decide which before the
 ## 9. Release mechanics that affect the listing
 
 - A brand-new Play app can only be published as a **draft** release first: upload the bundle, complete every
-  declaration above, then roll out. `android/fastlane/Fastfile` defaults to internal testing and
-  a draft; `track:production release_status:completed` publishes.
+  declaration above, then roll out. `store/fastlane/Fastfile`'s `fastlane android release` (run from `store/`)
+  defaults to internal testing and a draft; `track:production release_status:completed` publishes.
 - **New personal developer account:** Play requires a closed test with **at least 12 testers opted in for 14
   continuous days** before you can apply for production access, and internal testing does not count
   ([App testing requirements](https://support.google.com/googleplay/android-developer/answer/14151465)).
@@ -215,11 +218,12 @@ reaches the developer; arguing scope is the alternative. Decide which before the
   are the Google Group `edde-testers@googlegroups.com`; `store/README.md`, Google Play step 9, has the links.
 - Play requires new apps and updates to target API level 36 from 31 August 2026
   ([Target API level requirements](https://developer.android.com/google/play/requirements/target-sdk));
-  the Flutter 3.47 defaults already do (compileSdk 36, targetSdk 36, minSdk 24), so nothing is pinned.
+  `shells/android/app/build.gradle.kts` pins compileSdk 36, targetSdk 36 and minSdk 24, the Flutter app's
+  levels (`aapt2 dump badging` on the release APK: `minSdkVersion:'24'`, `targetSdkVersion:'36'`).
 - Later releases go up with `scripts/release/deploy.py` (`store/README.md`, Later releases): it uploads the
   bundle the release run built in CI, signed with the upload key, through the Play
   Developer API, and releases it with status completed on the `PLAY_TRACK` track: `alpha`, the default closed
-  track, until production access is granted, then `production`. `(cd android && fastlane release)` stays as the
+  track, until production access is granted, then `production`. `fastlane android release`, run from `store/`, stays as the
   manual path. The first bundle goes through the console by hand in Testing → Internal testing: Play's API knows
   no package until the console has received one (`store/README.md`, Google Play step 8).
 

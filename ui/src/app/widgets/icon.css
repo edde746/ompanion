@@ -1,0 +1,11 @@
+.icon {
+  display: block;
+  flex: none;
+  fill: currentColor;
+}
+
+/* Optical size 48 strokes are 60 units of the 960 grid at weight 400, optical size 24 ones 80: 10 more on each side. */
+.icon path {
+  stroke: currentColor;
+  stroke-width: 20;
+}

@@ -1,0 +1,72 @@
+.settings-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  height: 100%;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+/* The pane scrolls; its blocks keep their height (a card clips its content, so it would shrink to nothing). */
+.settings-pane > * {
+  flex: none;
+}
+
+.settings-pane > .card {
+  align-self: stretch;
+}
+
+.settings-pane-heading {
+  margin-bottom: var(--gap);
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+.settings-pane-section {
+  margin-top: 24px;
+}
+
+.settings-pane-gap {
+  height: var(--gap);
+}
+
+.settings-pane-channel {
+  margin-bottom: 4px;
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+.settings-pane-muted {
+  color: var(--on-surface-variant);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.settings-pane-shortcuts {
+  align-self: stretch;
+  padding: 8px 16px;
+  border-radius: var(--card-radius);
+  background: var(--surface-container);
+}
+
+.settings-pane-shortcut {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  height: var(--row-height);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.settings-pane-shortcut > :first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-pane-keys {
+  color: var(--on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}

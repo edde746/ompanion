@@ -1,0 +1,41 @@
+.connect-dialogs-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A fact's label over its value: labelMedium in onSurface, 8 px under the value above it. */
+.connect-dialogs-label {
+  display: block;
+  margin-top: 8px;
+  color: var(--on-surface);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.connect-dialogs-first-label {
+  margin-top: 16px;
+}
+
+/* Keys and fingerprints: the code font, selectable to compare them. */
+.connect-dialogs-code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.connect-dialogs-key {
+  margin-top: 4px;
+}
+
+/* CheckboxListTile with the box leading: the 40 px target's box lines up with the fields' edge. */
+.connect-dialogs-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -11px;
+  color: var(--on-surface);
+}

@@ -1,0 +1,29 @@
+/* The drawer and its scrim over the center pane; a drag anywhere on them moves the drawer (DrawerController). */
+.dock-drawer-box {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+}
+
+/* DrawerController's default scrimColor, Colors.black54, at the drawer's value. */
+.dock-drawer-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.54);
+}
+
+/*
+ * Material 3's end Drawer: surfaceContainerLow, its start corners rounded 16; its content inside the insets and above
+ * the on-screen keyboard, so a terminal or editor in it is not typed into blind.
+ */
+.dock-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 100%;
+  padding: var(--inset-top) var(--inset-right) max(var(--inset-bottom), var(--inset-keyboard)) 0;
+  overflow: hidden;
+  border-radius: 16px 0 0 16px;
+  background: var(--surface-container-low);
+}

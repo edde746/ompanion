@@ -1,0 +1,91 @@
+.skills-page-searching,
+.skills-page-count {
+  padding: 8px 0;
+}
+
+.skills-page-no-hits {
+  padding: 16px 0;
+}
+
+.skills-page-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+}
+
+.skills-page-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.skills-page-row-title {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  overflow-wrap: anywhere;
+}
+
+.skills-page-row-subtitle {
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+/* Flutter's AlertDialog content was 480 px wide inside its 24 px padding. */
+.skills-page-info {
+  width: 528px;
+}
+
+.skills-page-info-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.skills-page-choices {
+  display: flex;
+  flex-direction: column;
+}
+
+/* SimpleDialogOption: a full-width row, 8 px above and below its text. */
+.skills-page-choice {
+  position: relative;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  isolation: isolate;
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  text-align: start;
+}
+
+.skills-page-choice::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .skills-page-choice:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.skills-page-choice:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skills-page-choice::before {
+    transition-duration: 0s;
+  }
+}

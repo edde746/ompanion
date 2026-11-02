@@ -1,0 +1,32 @@
+/*
+ * ripple.ts's ink inside a `[data-ripple]` host: a layer the host's shape clips, over the host's fill and state layer
+ * and under its content. Zero specificity, so a host's own `position` wins; it has to stay positioned.
+ */
+:where([data-ripple]) {
+  position: relative;
+  isolation: isolate;
+}
+
+.ink-ripple {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.ink-ripple-highlight,
+.ink-ripple-splash {
+  position: absolute;
+  background: currentColor;
+  opacity: 0;
+}
+
+.ink-ripple-highlight {
+  inset: 0;
+}
+
+.ink-ripple-splash {
+  border-radius: 50%;
+}

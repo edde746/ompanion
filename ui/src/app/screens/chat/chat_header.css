@@ -1,0 +1,85 @@
+.chat-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: var(--title-bar-height);
+  padding: 0 4px;
+}
+
+/* The title moves the window with the header's empty parts; it takes no clicks of its own. */
+.chat-header-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  margin: 0 var(--gap);
+  pointer-events: none;
+}
+
+.chat-header-name,
+.chat-header-place,
+.chat-header-place-alone {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chat-header-name {
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+  color: var(--on-surface);
+}
+
+/* A path, so the code font, at the size of the muted line it replaces. */
+.chat-header-place,
+.chat-header-place-alone {
+  font: 400 11px / 1.4 var(--font-mono);
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "calt" 0,
+    "liga" 0;
+  color: var(--on-surface-variant);
+}
+
+/* An untitled session goes by its place alone, at the body's size. */
+.chat-header-place-alone {
+  font-size: 14px;
+  color: var(--on-surface);
+}
+
+.chat-header-machine {
+  color: var(--on-surface-variant);
+}
+
+.chat-header-state {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-header-run {
+  margin-right: 12px;
+}
+
+.chat-header-muted {
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+  white-space: nowrap;
+}
+
+.button.chat-header-held,
+.icon-button.chat-header-held {
+  background: var(--surface-container-highest);
+}
+
+.chat-header-stop {
+  margin-left: var(--gap);
+}
+
+.chat-header-menu {
+  margin-left: 4px;
+}

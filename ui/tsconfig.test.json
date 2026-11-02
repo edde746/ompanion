@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "bun"],
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test/**/*", "scripts"],
+  "exclude": []
+}

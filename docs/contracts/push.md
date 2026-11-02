@@ -3,12 +3,13 @@
 How a session on a machine reaches a phone that is not connected: the phone leaves a registration file on the
 machine, the companion in every detached run encrypts a notification for it, and the relay hands the ciphertext to
 Firebase Cloud Messaging (FCM), which delivers it through Google Play services on Android and APNs on iOS. Code:
-`companion/src/notify.ts` (the sender), `relay/` (the relay), `packages/omp_core/lib/src/host/push_registration.dart`
-(the registration file), `lib/notifications/push_service.dart` (the app side), and the receivers:
-`android/app/src/main/kotlin/com/edde746/ompanion/push/`, `ios/Runner/Push.swift` and `ios/NotificationService/`.
+`companion/src/notify.ts` (the sender), `relay/` (the relay), `ui/src/core/host/push_registration.ts` (the registration
+file), `ui/src/app/notifications/push_service.ts` (the app side, over the shell's `shell.push*` methods), and the
+receivers: `shells/android/app/src/main/kotlin/com/edde746/ompanion/push/`, `shells/apple/Sources/iOS/Push.swift`,
+`shells/apple/Sources/NotificationService/` and `shells/apple/Sources/Push/` (the decryption both Apple targets share).
 
 Desktops do not use this path: a running desktop app shows local notifications for the sessions it has open
-(`lib/notifications/desktop_notifications.dart`), with the same kinds and triggers as far as the app's view of a
+(`ui/src/app/notifications/desktop_notifications.ts`), with the same kinds and triggers as far as the app's view of a
 session shows them.
 
 ## Why this contract exists

@@ -16,8 +16,8 @@ out=${1:-/tmp/ompanion-store/StoreShots/contact-sheet.png}
 only=${2:-}
 
 files=$(find \
-  "$repo/ios/fastlane/screenshots" \
-  "$repo/android/fastlane/metadata/android/en-US/images" \
+  "$repo/store/fastlane/ios/screenshots" \
+  "$repo/store/fastlane/android/metadata/android/en-US/images" \
   "$repo/store/microsoft/screenshots" \
   "$repo/store/app-icon-1024.png" \
   -name '*.png' 2>/dev/null | sort)

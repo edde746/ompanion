@@ -1,0 +1,280 @@
+/* lib/screens/chat/transcript/tool_bodies.dart: the bodies of the tool cards, in the transcript's text theme. */
+
+.tool-bodies-gap-4 {
+  flex: none;
+  height: 4px;
+}
+
+.tool-bodies-gap-6 {
+  flex: none;
+  height: 6px;
+}
+
+.tool-bodies-gap-8 {
+  flex: none;
+  height: 8px;
+}
+
+.tool-bodies-dim,
+.tool-bodies-todo-text,
+.tool-bodies-agent-text,
+.tool-bodies-option-text,
+.tool-bodies-source-snippet {
+  font: 400 var(--chat-body-small-size, 12px) / 1.33 var(--font-sans);
+  letter-spacing: var(--body-small-tracking);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tool-bodies-dim,
+.tool-bodies-muted {
+  color: var(--on-surface-variant);
+}
+
+/* One line, cut with `…` where it no longer fits. */
+.tool-bodies-one-line {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  word-break: break-all;
+}
+
+.tool-bodies-diff {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Todo */
+
+.tool-bodies-todo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.tool-bodies-todo-icon {
+  display: flex;
+  flex: none;
+  margin-top: 1px;
+}
+
+.tool-bodies-todo-pending,
+.tool-bodies-todo-abandoned {
+  color: var(--on-surface-variant);
+}
+
+.tool-bodies-todo-inProgress {
+  color: var(--on-surface);
+}
+
+.tool-bodies-todo-completed {
+  color: var(--success);
+}
+
+.tool-bodies-todo-blocked,
+.tool-bodies-todo-blocker {
+  color: var(--error);
+}
+
+.tool-bodies-todo-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-bodies-todo-content {
+  color: var(--on-surface);
+}
+
+.tool-bodies-todo-crossed {
+  color: var(--on-surface-variant);
+  text-decoration: line-through;
+}
+
+.tool-bodies-todo-active {
+  font-weight: 600;
+}
+
+/* Task subagents and search sources: flat rows with an ink tone while they open something. */
+
+.tool-bodies-agent,
+.tool-bodies-source {
+  position: relative;
+  padding: 4px 2px;
+  border-radius: 6px;
+  isolation: isolate;
+}
+
+.tool-bodies-agent-opens,
+.tool-bodies-source-opens {
+  cursor: pointer;
+}
+
+.tool-bodies-agent-opens::before,
+.tool-bodies-source-opens::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .tool-bodies-agent-opens:hover::before,
+  .tool-bodies-source-opens:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.tool-bodies-agent-opens:focus-visible::before,
+.tool-bodies-source-opens:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-bodies-agent-opens::before,
+  .tool-bodies-source-opens::before {
+    transition-duration: 0s;
+  }
+}
+
+.tool-bodies-agent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tool-bodies-agent-mark {
+  display: flex;
+  flex: none;
+  margin-top: 3px;
+}
+
+.tool-bodies-agent-pending,
+.tool-bodies-agent-aborted {
+  color: var(--on-surface-variant);
+}
+
+.tool-bodies-agent-running {
+  color: var(--on-surface);
+}
+
+.tool-bodies-agent-completed {
+  color: var(--success);
+}
+
+.tool-bodies-agent-failed {
+  color: var(--error);
+}
+
+.tool-bodies-agent-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--on-surface);
+}
+
+.tool-bodies-agent-id {
+  font-weight: 600;
+}
+
+.tool-bodies-agent-activity {
+  font-style: italic;
+}
+
+.tool-bodies-agent-open {
+  display: flex;
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+/* Ask */
+
+.tool-bodies-question {
+  display: flex;
+  flex-direction: column;
+  padding-top: 6px;
+}
+
+.tool-bodies-question-header {
+  font: 500 var(--chat-label-small-size, 11px) / 1.45 var(--font-sans);
+  letter-spacing: var(--label-small-tracking);
+  color: var(--on-surface-variant);
+}
+
+.tool-bodies-question-text {
+  font-weight: 600;
+}
+
+.tool-bodies-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 3px;
+}
+
+.tool-bodies-option-icon {
+  display: flex;
+  flex: none;
+  margin-top: 2px;
+  color: var(--on-surface-variant);
+}
+
+.tool-bodies-option-selected,
+.tool-bodies-option-custom {
+  color: var(--on-surface);
+}
+
+.tool-bodies-option-custom {
+  display: flex;
+  flex: none;
+}
+
+.tool-bodies-option-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--on-surface);
+}
+
+.tool-bodies-option-chosen {
+  font-weight: 600;
+}
+
+.tool-bodies-option-recommended {
+  font-size: var(--chat-label-small-size, 11px);
+  color: var(--on-surface-variant);
+}
+
+/* Web search sources */
+
+.tool-bodies-source {
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-bodies-source-title {
+  overflow: hidden;
+  font: 400 var(--chat-body-size, 14px) / 1.43 var(--font-sans);
+  letter-spacing: var(--body-medium-tracking);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+  text-decoration-color: var(--on-surface-variant);
+}
+
+.tool-bodies-source-host {
+  font: 500 var(--chat-label-small-size, 11px) / 1.45 var(--font-sans);
+  letter-spacing: var(--label-small-tracking);
+  color: var(--on-surface-variant);
+}
+
+.tool-bodies-source-snippet {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

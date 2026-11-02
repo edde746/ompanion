@@ -1,0 +1,60 @@
+.pill-tabs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.pill-tabs-tab {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--control);
+  padding: 0 16px;
+  border-radius: calc(var(--control) / 2);
+  color: var(--on-surface-variant);
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+  white-space: nowrap;
+}
+
+.pill-tabs-icons .pill-tabs-tab {
+  padding: 0;
+}
+
+.pill-tabs-selected {
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+}
+
+/* tabs.tsx slides this pill from the old tab to the new one; the tabs (positioned, later) paint over it. */
+.pill-tabs-indicator {
+  position: absolute;
+  left: 0;
+  display: none;
+  border-radius: calc(var(--control) / 2);
+  background: var(--surface-container-highest);
+}
+
+.pill-tabs[data-sliding] .pill-tabs-indicator {
+  display: block;
+}
+
+.pill-tabs[data-sliding] .pill-tabs-selected {
+  background: none;
+}
+
+/* TabBar has no hover or splash (theme.dart: overlayColor none); keyboard focus still shows. */
+.pill-tabs-tab:focus-visible:not(.pill-tabs-selected) {
+  background: rgb(var(--on-surface-rgb) / 0.1);
+}
+
+/* The labels' colours follow the indicator (TabBar's _TabStyle), over kTabScrollDuration along Curves.ease. */
+@media (prefers-reduced-motion: no-preference) {
+  .pill-tabs-tab {
+    transition: color 300ms var(--curve-ease);
+  }
+}

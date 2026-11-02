@@ -1,0 +1,312 @@
+/*
+ * The transcript's markdown (docs/design.md, "Markdown"; markdown.dart). The root's text is the transcript's body:
+ * `:where` keeps it at zero specificity, so a caller's class (thinking text, a question) sets colour, size and weight.
+ */
+:where(.markdown) {
+  font: 400 var(--chat-body-size, 14px) / 1.5 var(--font-sans);
+  letter-spacing: var(--body-medium-tracking);
+  color: var(--on-surface);
+  overflow-wrap: anywhere;
+}
+
+.markdown-block {
+  display: flow-root;
+}
+
+.markdown-source {
+  white-space: pre-wrap;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote {
+  margin: 0;
+  padding: 0;
+}
+
+/* Headings one step above the body each (bodyMedium of the transcript's theme), without a rule under the first. */
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6,
+.markdown .markdown-h1,
+.markdown .markdown-h2,
+.markdown .markdown-h3,
+.markdown .markdown-h4,
+.markdown .markdown-h5,
+.markdown .markdown-h6 {
+  margin: 0;
+  font-size: var(--chat-body-size, 14px);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdown h1,
+.markdown .markdown-h1 {
+  font-size: calc(var(--chat-body-size, 14px) + 6px);
+}
+
+.markdown h2,
+.markdown .markdown-h2 {
+  font-size: calc(var(--chat-body-size, 14px) + 3px);
+}
+
+.markdown h3,
+.markdown .markdown-h3 {
+  font-size: calc(var(--chat-body-size, 14px) + 1px);
+}
+
+.markdown strong {
+  font-weight: 700;
+}
+
+/* Inline code: a chip of surfaceContainerHigh behind the code font, one per line it wraps over. */
+.markdown-code {
+  padding: 1px 0;
+  border-radius: 4px;
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  font-family: var(--font-mono);
+  font-size: 0.94em;
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "calt" 0,
+    "liga" 0;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.markdown-link {
+  color: var(--on-surface);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .markdown-link:hover {
+    color: var(--on-surface-variant);
+  }
+}
+
+/* A quote: a flat block of dimmed text; its paragraphs a short line apart. */
+.markdown .markdown-quote {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container);
+  color: var(--on-surface-variant);
+}
+
+.markdown-quote > * + * {
+  margin-top: 1.15em;
+}
+
+/* A thematic break is a gap, not a rule. */
+.markdown-rule {
+  height: 8px;
+}
+
+/*
+ * List items as gpt_markdown draws them: the marker hangs before the content, a bullet 0.3 em across, 7 px in and 10 px
+ * before the text; a number in weight 100, 6 px on both sides. A top-level item is a block of its own; a nested item
+ * sits 4 px under its parent's line and 6 px from the next (2 below it, 4 above that one).
+ */
+.markdown .markdown-list {
+  list-style: none;
+}
+
+.markdown-item {
+  display: flex;
+  align-items: baseline;
+}
+
+.markdown-item .markdown-item {
+  padding-top: 4px;
+  padding-bottom: 2px;
+}
+
+.markdown-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.markdown-bullet {
+  position: relative;
+  flex: none;
+  width: 0.3em;
+  margin: 0 10px 0 7px;
+}
+
+.markdown-bullet::before {
+  content: "";
+  position: absolute;
+  top: 0.6em;
+  left: 0;
+  width: 0.3em;
+  height: 0.3em;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.markdown-number {
+  flex: none;
+  margin: 0 6px;
+  font-weight: 100;
+}
+
+/* Task items: the box where a list item has its bullet, centred on the label's first line. */
+.markdown-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.markdown-task {
+  display: flex;
+  align-items: flex-start;
+  padding-left: 2px;
+}
+
+.markdown-task-box {
+  flex: none;
+  display: flex;
+  margin-right: 8px;
+  padding-top: max(0px, calc((1.5em - 16px) / 2));
+  color: var(--on-surface-variant);
+}
+
+.markdown-task-box-checked {
+  color: var(--on-surface);
+}
+
+.markdown-task-label {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Maths: a display formula on its own lines, at the text's start, scrolling sideways when it is wider. */
+.markdown-math-display {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.markdown-math-display .katex-display {
+  margin: 0;
+}
+
+/* KaTeX centres the formula inside its display box; gpt_markdown sets it at the text's start. */
+.markdown-math-display .katex-display > .katex {
+  text-align: left;
+}
+
+/*
+ * Tables fill the column (render.tsx sizes the columns): 12 × 8 px cells in the body size less one, a muted w600
+ * header, rows alternating two surface tones, the corners rounded, no lines. Code in a cell has its font and no chip.
+ */
+.markdown-table {
+  border-radius: var(--radius);
+}
+
+.markdown-table table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  min-width: 100%;
+  font-size: var(--chat-cell-size, 13px);
+}
+
+.markdown-table tr {
+  background: var(--surface-container);
+}
+
+.markdown-table tbody tr:nth-child(odd) {
+  background: var(--surface-container-low);
+}
+
+.markdown-table th,
+.markdown-table td {
+  padding: 8px 12px;
+  vertical-align: top;
+  font-weight: 400;
+}
+
+.markdown-table th {
+  font-weight: 600;
+  color: var(--on-surface-variant);
+}
+
+.markdown-table .markdown-code {
+  padding: 0;
+  background: none;
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* While render.tsx measures the columns: every cell on one line, the table as wide as that makes it. */
+.markdown-table .markdown-table-measuring {
+  table-layout: auto !important;
+  width: max-content !important;
+  min-width: 0;
+}
+
+.markdown-table-measuring col {
+  width: auto !important;
+}
+
+.markdown-table-measuring th,
+.markdown-table-measuring td {
+  white-space: nowrap;
+}
+
+.markdown-table-fitted {
+  table-layout: fixed;
+}
+
+/* Images: inline data and machine images as they come, a web image as a chip that loads it on a tap. */
+.markdown-image {
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
+.markdown-remote-image {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-container);
+  vertical-align: middle;
+}
+
+.markdown-remote-image > .icon {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.markdown-remote-image-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.markdown-remote-image-alt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.markdown-remote-image-host {
+  font: var(--label-small);
+  font-size: var(--chat-label-small-size, 11px);
+  letter-spacing: var(--label-small-tracking);
+  color: var(--on-surface-variant);
+}
+
+.markdown-remote-image-failed {
+  color: var(--error);
+}

@@ -1,0 +1,32 @@
+{
+  "packages": {
+    "solid-js": { "text": "solid-js.txt" },
+    "@solidjs/web": { "text": "solid-js.txt" },
+    "@shikijs/langs/elixir": { "license": "Apache-2.0", "text": "elixir-tmbundle.txt" },
+    "@shikijs/langs/toml": { "license": "TextMate bundle license", "text": "textmate-toml.txt" },
+    "@shikijs/langs/yaml": { "license": "TextMate bundle license", "text": "textmate-yaml.txt" }
+  },
+  "vendored": [
+    {
+      "name": "KaTeX fonts",
+      "version": "",
+      "license": "OFL-1.1",
+      "text": "katex-fonts.txt",
+      "in": "node_modules/katex/dist/fonts/"
+    },
+    {
+      "name": "google/material-design-icons",
+      "version": "",
+      "license": "Apache-2.0",
+      "text": "material-design-icons.txt",
+      "in": "src/app/widgets/glyphs/"
+    },
+    {
+      "name": "material_color_utilities",
+      "version": "0.13.0",
+      "license": "Apache-2.0",
+      "text": "material_color_utilities.txt",
+      "in": "src/app/hct.ts"
+    }
+  ]
+}

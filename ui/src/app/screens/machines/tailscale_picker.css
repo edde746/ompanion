@@ -1,0 +1,93 @@
+.tailscale-picker {
+  width: min(528px, 100%);
+}
+
+.tailscale-picker-loading {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+/* The search field stays above the devices while they scroll. */
+.tailscale-picker-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-bottom: var(--gap);
+  background: var(--surface-container);
+}
+
+.tailscale-picker-error {
+  color: var(--error);
+}
+
+/* A two-line ListTile: the online dot, the name over the address, OS and whether it is offline. */
+.tailscale-picker-peer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  text-align: start;
+  isolation: isolate;
+}
+
+.tailscale-picker-peer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .tailscale-picker-peer:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.tailscale-picker-peer:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tailscale-picker-peer::before {
+    transition-duration: 0s;
+  }
+}
+
+.tailscale-picker-dot {
+  display: flex;
+  color: var(--on-surface-variant);
+}
+
+.tailscale-picker-online {
+  color: var(--success);
+}
+
+.tailscale-picker-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tailscale-picker-name {
+  overflow-wrap: anywhere;
+  color: var(--on-surface);
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+}
+
+.tailscale-picker-details {
+  overflow-wrap: anywhere;
+  color: var(--on-surface-variant);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}

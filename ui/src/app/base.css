@@ -1,0 +1,152 @@
+/* The only stylesheet that styles elements globally (docs/app.md). Components style their own classes next to them. */
+
+/* JetBrains Mono, variable weight, one woff2 per script; a page loads only the scripts it shows. */
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  /* The app scrolls inside its panes; the page itself never bounces under them. */
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--surface);
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  /*
+   * As in the Flutter app, chrome text is not selectable: a double click on a button or a row would select its label.
+   * Content people copy from (transcript, file previews) opts back in with `user-select: text`.
+   */
+  -webkit-user-select: none;
+  user-select: none;
+  caret-color: var(--on-surface);
+}
+
+#root {
+  height: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+  font: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* `appearance: none`: WebKit draws a search input as its own rounded field, in its own colours. */
+input,
+textarea {
+  border: 0;
+  outline: none;
+  background: none;
+  padding: 0;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
+
+/* A search field's clear button is the app's own (AppSearchField). */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--on-surface-variant);
+  opacity: 1;
+}
+
+/* Rule 1: no strokes. Controls show focus with their own tone instead of an outline. */
+:focus,
+:focus-visible {
+  outline: none;
+}
+
+::selection {
+  background: rgb(var(--on-surface-rgb) / 0.25);
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
+  /* Code shows the characters the file holds (`=>`, `!=`), not ligatures standing for them. */
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+}
+
+/*
+ * Windows and Linux draw the Flutter app's thin scrollbar: a rounded onSurfaceVariant thumb at half strength on no
+ * track. macOS keeps its overlay scrollbars; phones draw their own.
+ */
+:root[data-platform="windows"],
+:root[data-platform="linux"] {
+  scrollbar-color: rgb(var(--on-surface-variant-rgb) / 0.5) transparent;
+}
+
+:root[data-platform="windows"] ::-webkit-scrollbar,
+:root[data-platform="linux"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+:root[data-platform="windows"] ::-webkit-scrollbar-thumb,
+:root[data-platform="linux"] ::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgb(var(--on-surface-variant-rgb) / 0.5);
+}
+
+:root[data-platform="windows"] ::-webkit-scrollbar-corner,
+:root[data-platform="linux"] ::-webkit-scrollbar-corner {
+  background: transparent;
+}

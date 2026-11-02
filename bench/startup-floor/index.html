@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- The web shells' startup floor (../results/startup.md): a page with a few lines of static content and no app, so its
+     first frame is what the shell and the webview cost on their own. floor.js reports its timing as the app does. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'"
+    />
+    <title>ompanion</title>
+    <style>
+      body { margin: 0; font: 14px system-ui; display: flex; height: 100vh; background: Canvas; color: CanvasText; }
+      nav { width: 280px; padding: 16px; background: color-mix(in srgb, CanvasText 6%, Canvas); }
+      main { flex: 1; display: grid; place-content: center; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <nav><p>Machines</p><p>This computer</p></nav>
+    <main><h2>No machine selected</h2><p>Pick a machine on the left, or add one.</p></main>
+    <script type="module" src="./floor.js"></script>
+  </body>
+</html>

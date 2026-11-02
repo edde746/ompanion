@@ -20,12 +20,12 @@ Phases (in order):
     changelog   write the per-store release notes: keep a file changed since the
                 last release tag, generate the others from the raw notes with the
                 claude CLI
-    bump        set pubspec.yaml to <version>+<build>, commit it with the four
-                notes files as `chore(release): <version>`, push main
+    bump        set VERSION to <version>+<build>, commit it with the four notes
+                files as `chore(release): <version>`, push main
     farm_start  run .github/workflows/build.yml with release_tag=<version>; its
                 release job drafts the GitHub release once all five builds pass
-    ios         flutter build ipa (appstore channel), upload the IPA to App Store
-                Connect
+    ios         archive and export the App Store IPA (appstore channel) with the
+                Apple shell, upload it to App Store Connect
     asc         wait for the build, set What's New, attach the build to the
                 version, submit it for review with --submit (pending until then)
     farm_wait   wait for the build workflow, download the Play bundle and the
@@ -45,13 +45,13 @@ performing any.
 Release notes are committed files, one per channel:
     store/release-notes/<version>.md        GitHub release body: the raw notes
                                             (--notes defaults to this file)
-    android/fastlane/metadata/android/en-US/changelogs/<build>.txt
+    store/fastlane/android/metadata/android/en-US/changelogs/<build>.txt
                                             Play, 500 characters
-    ios/fastlane/metadata/en-US/release_notes.txt
+    store/fastlane/ios/metadata/en-US/release_notes.txt
                                             App Store What's New, 4000 characters
     store/microsoft/release_notes.txt       Microsoft Store What's new, 1500
                                             characters
-The build number is pubspec.yaml's plus one unless --build-number is given.
+The build number is VERSION's plus one unless --build-number is given.
 
 Credentials come from .env at the repository root (gitignored; the fastlane
 lanes read the same file):
@@ -72,7 +72,7 @@ lanes read the same file):
                                              keeps (see the Store caveat)
 GitHub auth comes from the `gh` CLI login. The IPA is signed by the Xcode
 account's distribution certificate (team G88U5B5783, pinned in
-ios/Runner.xcodeproj).
+shells/apple/project.yml).
 
 Play caveat: the bundle comes from the build workflow, not from this Mac. A
 release run refuses to start without the four Android signing secrets, so the
@@ -224,62 +224,30 @@ def parse_env_text(text: str, base: dict[str, str] | None = None) -> dict[str, s
     return values
 
 
-_TOP_LEVEL_VERSION = re.compile(r"^version:[ \t]*(.*)$")
-_PUBSPEC_VERSION = re.compile(
+_VERSION = re.compile(
     r"(?P<version>"
     r"(?:0|[1-9][0-9]*)\."
     r"(?:0|[1-9][0-9]*)\."
-    r"(?:0|[1-9][0-9]*)\+"
+    r"(?:0|[1-9][0-9]*)"
+    r")\+"
     r"(?P<build>[0-9]+)"
-    r")"
 )
 
 
-def parse_pubspec_version(contents: str) -> tuple[str, str]:
-    """The top-level `version: x.y.z+build` of a pubspec, and its build number."""
-    values = []
-    for line in contents.splitlines():
-        match = _TOP_LEVEL_VERSION.match(line)
-        if match:
-            values.append(re.sub(r"[ \t]+#.*$", "", match.group(1)).strip())
-    if len(values) != 1:
-        raise DeployError(f"expected one top-level 'version:' field, found {len(values)}")
-    match = _PUBSPEC_VERSION.fullmatch(values[0])
+def parse_version(contents: str) -> tuple[str, int]:
+    """The `x.y.z+build` of the VERSION file: the version and the build number."""
+    match = _VERSION.fullmatch(contents.strip())
     if not match:
-        raise DeployError(
-            "top-level version must use major.minor.patch+numeric-build syntax; "
-            f"got {values[0]!r}"
-        )
-    return match.group("version"), match.group("build")
-
-
-def bump_pubspec_text(text: str, new_version: str, new_build: int) -> str:
-    """Replace the single top-level version line, validating both sides."""
-    parse_pubspec_version(text)  # raises on malformed/missing version
-    replacement = f"version: {new_version}+{new_build}"
-    lines = text.splitlines(keepends=True)
-    out: list[str] = []
-    replaced = False
-    for line in lines:
-        if not replaced and re.match(r"^version:[ \t]", line):
-            newline = "\n" if line.endswith("\n") else ""
-            out.append(replacement + newline)
-            replaced = True
-        else:
-            out.append(line)
-    if not replaced:
-        raise DeployError("pubspec.yaml has no top-level version line")
-    result = "".join(out)
-    parse_pubspec_version(result)
-    return result
+        raise DeployError(f"VERSION must be major.minor.patch+numeric-build, one line; got {contents.strip()!r}")
+    return match.group("version"), int(match.group("build"))
 
 
 def release_files(version: str, build_number: int) -> dict[str, str]:
     """Each channel's committed release notes file, relative to the repository root."""
     return {
         "github": f"store/release-notes/{version}.md",
-        "play": f"android/fastlane/metadata/android/en-US/changelogs/{build_number}.txt",
-        "appstore": "ios/fastlane/metadata/en-US/release_notes.txt",
+        "play": f"store/fastlane/android/metadata/android/en-US/changelogs/{build_number}.txt",
+        "appstore": "store/fastlane/ios/metadata/en-US/release_notes.txt",
         "msstore": "store/microsoft/release_notes.txt",
     }
 
@@ -592,9 +560,8 @@ def git_output(args: list[str]) -> str:
     return run(["git", *args], capture=True, echo=False).stdout.strip()
 
 
-def read_pubspec_build() -> int:
-    _, build = parse_pubspec_version((ROOT / "pubspec.yaml").read_text(encoding="utf-8"))
-    return int(build)
+def read_version_build() -> int:
+    return parse_version((ROOT / "VERSION").read_text(encoding="utf-8"))[1]
 
 
 # ---------------------------------------------------------------------------
@@ -632,7 +599,9 @@ def phase_preflight(ctx: Context) -> None:
         )
 
     if "ios" in pending:
-        require_tool("flutter")
+        require_tool("bun")
+        require_tool("go")
+        require_tool("xcodegen")
         require_tool("xcodebuild", "Xcode command line tools")
         require_tool("xcrun", "Xcode command line tools")
     if pending & {"farm_start", "farm_wait", "release", "publish"}:
@@ -656,7 +625,7 @@ def phase_preflight(ctx: Context) -> None:
 # ---------------------------------------------------------------------------
 
 CHANGELOG_PROMPT = (
-    "Below is a changelog for a cross-platform Flutter app (iOS, Android, macOS, "
+    "Below is a changelog for a cross-platform app (iOS, Android, macOS, "
     "Linux, Windows). Return ONLY the entries relevant to the given platform. "
     "Keep the same format (section headers + bullet points). If a section has no "
     "relevant entries, omit it entirely. If an entry is not platform-specific, "
@@ -744,35 +713,35 @@ def phase_changelog(ctx: Context) -> None:
 
 
 def phase_bump(ctx: Context) -> None:
-    """Bump pubspec, commit it with the notes files, and push main.
+    """Bump VERSION, commit it with the notes files, and push main.
 
     The build workflow drafts the release only after every platform build
     succeeds; publishing the draft creates the tag. Store-only pushes can reuse
     an existing tag by omitting the farm and GitHub release phases.
     """
-    pubspec = ROOT / "pubspec.yaml"
-    text = pubspec.read_text(encoding="utf-8")
-    current_full, _ = parse_pubspec_version(text)
+    version_file = ROOT / "VERSION"
+    current_version, current_build = parse_version(version_file.read_text(encoding="utf-8"))
+    current_full = f"{current_version}+{current_build}"
     target_full = f"{ctx.version}+{ctx.build_number}"
-    paths = ["pubspec.yaml", *ctx.files.values()]
+    paths = ["VERSION", *ctx.files.values()]
     message = f"chore(release): {ctx.version}"
     if dry_guard(
         ctx,
-        f"bump pubspec {current_full} -> {target_full}, commit {', '.join(paths)} as "
+        f"bump VERSION {current_full} -> {target_full}, commit {', '.join(paths)} as "
         f"{message!r}, push main",
     ):
         return
     if current_full == target_full:
-        log(f"bump: pubspec already at {target_full}")
+        log(f"bump: VERSION already at {target_full}")
     else:
-        pubspec.write_text(bump_pubspec_text(text, ctx.version, ctx.build_number), encoding="utf-8")
+        version_file.write_text(f"{target_full}\n", encoding="utf-8")
     # A pathspec commit takes only these paths and never sweeps in unrelated
     # staged work; new notes files must be added first or the pathspec misses.
     run(["git", "add", "--", *paths])
     if git_output(["diff", "--cached", "--name-only", "--", *paths]):
         run(["git", "commit", "-m", message, "--", *paths])
     else:
-        log("bump: pubspec and notes already committed")
+        log("bump: VERSION and notes already committed")
     run(["git", "push", "origin", "main"])
     ctx.state.data["release_sha"] = git_output(["rev-parse", "HEAD"])
     ctx.state.save()
@@ -1101,7 +1070,15 @@ def phase_play(ctx: Context) -> None:
 # ---------------------------------------------------------------------------
 
 
-IPA_DIR = ROOT / "build/ios/ipa"
+IPA_DIR = ROOT / "build/apple/ipa"
+
+# The page and its companion bundle first (the shell builds the page itself with the appstore channel), then the
+# archive and the App Store export; --core relinks the core, which carries VERSION at link time.
+IPA_BUILD = [
+    (["scripts/build_companion.sh"], ROOT),
+    (["bun", "install", "--frozen-lockfile"], ROOT / "ui"),
+    (["shells/apple/build.sh", "--ipa", "--core"], ROOT),
+]
 
 
 def _find_single_ipa(directory: Path, label: str) -> Path:
@@ -1149,25 +1126,21 @@ def _upload_ipa(ctx: Context, ipa: Path) -> None:
 
 
 def phase_ios(ctx: Context) -> None:
-    if dry_guard(
-        ctx,
-        "flutter build ipa --release --dart-define=OMPANION_CHANNEL=appstore, upload the "
-        "IPA to App Store Connect",
-    ):
+    if dry_guard(ctx, "build the App Store IPA (shells/apple/build.sh --ipa), upload it to App Store Connect"):
         return
     if _asc_has_uploaded_build(ctx):
         log(f"ios: App Store Connect already has build {ctx.build_number}; skipping upload")
         return
-    # flutter build ipa exits 0 when only the export fails (no Xcode account to sign with) and leaves the last
-    # export in build/ios/ipa: 1.1.0's first run uploaded 1.0.0's IPA that way. So the old export goes first, and
-    # the new one must carry this release's version and build number.
+    # A failed export must never leave the last release's IPA to upload (1.1.0's first run uploaded 1.0.0's IPA that
+    # way). So the old export goes first, and the new one must carry this release's version and build number.
     if IPA_DIR.exists():
         shutil.rmtree(IPA_DIR)
-    run(["flutter", "build", "ipa", "--release", "--dart-define=OMPANION_CHANNEL=appstore"])
+    for cmd, cwd in IPA_BUILD:
+        run(cmd, cwd=cwd)
     if not IPA_DIR.is_dir() or not any(IPA_DIR.rglob("*.ipa")):
         raise DeployError(
-            "ios: flutter build ipa exported no IPA (its errors are above). It signs through the Apple ID signed in "
-            "to Xcode (Settings -> Accounts) with team G88U5B5783's cloud-managed distribution certificate"
+            "ios: shells/apple/build.sh --ipa exported no IPA (its errors are above). It signs through the Apple ID "
+            "signed in to Xcode (Settings -> Accounts) with team G88U5B5783's cloud-managed distribution certificate"
         )
     ipa = _find_single_ipa(IPA_DIR, "ios")
     expected = (ctx.version, str(ctx.build_number))
@@ -1372,8 +1345,8 @@ def phase_asc(ctx: Context) -> None:
         "\n  App Review signs in to the demo server for the whole review window\n"
         "  (store/README.md, App Store step 11). Before submitting:\n"
         "    ssh root@217.160.119.181 ompanion-demo-reset\n"
-        "    dart run store/review-demo/verify/verify.dart --host 217.160.119.181\n"
-        "  (with REVIEW_PASSWORD from store/review-demo/.env; store/review-demo/README.md,\n"
+        "    REVIEW_PASSWORD=... bun store/review-demo/verify/verify.ts --host 217.160.119.181\n"
+        "  (REVIEW_PASSWORD from store/review-demo/.env; store/review-demo/README.md,\n"
         "  Commands), and check that the OpenRouter key has credit left.\n"
     )
     if not ctx.confirm("Demo server reset and verified? Submit for review now?"):
@@ -1673,7 +1646,7 @@ def initialize_state(args: argparse.Namespace) -> State:
         return state
     if not args.version:
         raise DeployError("--version is required for a new release")
-    build_number = args.build_number or read_pubspec_build() + 1
+    build_number = args.build_number or read_version_build() + 1
     state = State(version=args.version, build_number=build_number)
     if not getattr(args, "dry_run", False):
         state.save()
@@ -1735,7 +1708,7 @@ def cmd_changelog(args: argparse.Namespace) -> int:
     if not (state and state.version == args.version):
         state = State(
             version=args.version,
-            build_number=args.build_number or read_pubspec_build() + 1,
+            build_number=args.build_number or read_version_build() + 1,
         )
     args.notes = args.notes or str(ROOT / release_files(state.version, state.build_number)["github"])
     args.dry_run = False
@@ -1775,7 +1748,7 @@ def build_parser() -> argparse.ArgumentParser:
     release.add_argument("--notes",
                          help="raw release notes (default: store/release-notes/<version>.md)")
     release.add_argument("--build-number", type=int,
-                         help="use this build number instead of pubspec+1 "
+                         help="use this build number instead of VERSION's plus one "
                               "(for a tree whose version was already bumped)")
     release.add_argument("--only", action="append", metavar="PHASE",
                          help="run only these phases (repeatable, comma-separated)")
@@ -1798,7 +1771,7 @@ def build_parser() -> argparse.ArgumentParser:
     changelog.add_argument("--notes",
                            help="raw release notes (default: store/release-notes/<version>.md)")
     changelog.add_argument("--build-number", type=int,
-                           help="build number naming the Play changelog (default: pubspec+1)")
+                           help="build number naming the Play changelog (default: VERSION's plus one)")
     changelog.set_defaults(func=cmd_changelog)
 
     status = sub.add_parser("status", help="show in-progress release state")

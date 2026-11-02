@@ -1,0 +1,383 @@
+/*
+ * One transcript row (message_rows.dart): at most the transcript column wide with 12 px side padding, centred; the gap
+ * above it is set per kind. Text sizes come from the transcript's text theme (transcript_view.css), the phone value
+ * as the fallback. Content is selectable; the rows' chrome (toggles, actions, facts) is not, as Flutter's
+ * SelectionContainer.disabled keeps it out.
+ */
+.message-rows-row {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding-right: 12px;
+  padding-left: 12px;
+  color: var(--on-surface);
+  font: 400 var(--chat-body-size, 14px) / 1.4286 var(--font-sans);
+  letter-spacing: var(--body-medium-tracking);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.message-rows-ink,
+.message-rows-actions,
+.message-rows-quiet,
+.message-rows-label,
+.message-rows-bubble-from,
+.message-rows-marker,
+.message-rows-summary-head,
+.message-rows-mentions,
+.message-rows-footer-facts,
+.message-rows-awaiting {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* bodySmall in onSurfaceVariant: thinking, footer notes and facts, the awaiting line, the turn summary. */
+.message-rows-quiet,
+.message-rows-ink.message-rows-line {
+  color: var(--on-surface-variant);
+  font: 400 var(--chat-body-small-size, 12px) / 1.3333 var(--font-sans);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* labelSmall in onSurfaceVariant. */
+.message-rows-label {
+  color: var(--on-surface-variant);
+  font: 500 var(--chat-label-small-size, 11px) / 1.4545 var(--font-sans);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.message-rows-dot {
+  color: rgb(var(--on-surface-variant-rgb) / 0.5);
+}
+
+.message-rows-fact {
+  white-space: nowrap;
+}
+
+/* Flutter's InkWell: a flat target that hugs its content, the text colour at 8 % on hover and 10 % focused. */
+.message-rows-ink {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: 6px;
+  isolation: isolate;
+}
+
+.message-rows-ink::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .message-rows-ink:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.message-rows-ink:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-rows-ink::before {
+    transition-duration: 0s;
+  }
+}
+
+/* The tool lines' columns: a 14 px mark, then the text at their 22 px edge. */
+.message-rows-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.message-rows-ink.message-rows-line {
+  display: inline-flex;
+}
+
+.message-rows-line > .icon:last-child {
+  margin-left: -6px;
+}
+
+.message-rows-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+/* The disabled Reset's tooltip lives on its wrapper: a disabled button gets no pointer events in every browser. */
+.message-rows-action-wait {
+  display: inline-flex;
+}
+
+.message-rows-action-wait > .icon-button {
+  pointer-events: none;
+}
+
+/* A user message: the bubble at the right, its actions before it, fading in while the row is hovered. */
+.message-rows-user {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+/* AnimatedOpacity: 120 ms, linearly (an implicit animation's default curve). */
+.message-rows-user > .message-rows-actions {
+  opacity: 0;
+  transition: opacity 120ms linear;
+}
+
+.message-rows-user:hover > .message-rows-actions,
+.message-rows-user > .message-rows-actions:focus-within,
+.message-rows-user-touch > .message-rows-actions {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-rows-user > .message-rows-actions {
+    transition-duration: 0s;
+  }
+}
+
+.message-rows-bubble {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 90%;
+  padding: 12px 16px;
+  border-radius: var(--card-radius);
+  background: var(--surface-container-high);
+}
+
+.message-rows-bubble-agent {
+  background: var(--surface-container);
+  color: var(--on-surface-variant);
+}
+
+.message-rows-bubble-from {
+  padding-bottom: 4px;
+  color: var(--on-surface-variant);
+  font: 500 var(--chat-label-small-size, 11px) / 1.4545 var(--font-sans);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.message-rows-bubble-text {
+  max-width: 100%;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message-rows-fold {
+  gap: 2px;
+  margin-top: 6px;
+  margin-bottom: 2px;
+  color: var(--on-surface-variant);
+  font: 400 var(--chat-body-small-size, 12px) / 1.3333 var(--font-sans);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* As wide as the bubble, so a thumbnail wider than a phone's bubble shrinks to it. */
+.message-rows-bubble-images {
+  align-self: stretch;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.message-rows-thinking {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Open, the reasoning shows at the 22 px edge in onSurfaceVariant at the body's size. */
+.message-rows-thinking-text {
+  align-self: stretch;
+  padding-top: 2px;
+  padding-left: 22px;
+  color: var(--on-surface-variant);
+}
+
+.message-rows-turn-facts {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-rows-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.message-rows-error {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--error-surface);
+  color: var(--error);
+  font: 400 var(--chat-body-small-size, 12px) / 1.3333 var(--font-sans);
+  letter-spacing: var(--body-small-tracking);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.message-rows-interrupted {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.message-rows-warning {
+  color: var(--warning);
+}
+
+/* The facts, then the actions right after them. */
+.message-rows-footer-facts {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+.message-rows-footer-text {
+  min-width: 0;
+}
+
+.message-rows-awaiting {
+  display: flex;
+  padding: 0;
+}
+
+.message-rows-card-body {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.message-rows-execution > * + * {
+  margin-top: 8px;
+}
+
+.message-rows-execution-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--on-surface-variant);
+}
+
+.message-rows-command {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message-rows-failed {
+  color: var(--error);
+}
+
+.message-rows-execution > .message-rows-execution-notes {
+  margin-top: 6px;
+}
+
+.message-rows-custom-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.message-rows-collapsible-head {
+  display: flex;
+  box-sizing: border-box;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--card-radius);
+  color: var(--on-surface-variant);
+}
+
+.message-rows-collapsible-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-rows-collapsible-body {
+  padding: 0 10px 10px;
+}
+
+.message-rows-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.message-rows-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-surface-variant);
+}
+
+.message-rows-summary-title {
+  min-width: 0;
+  margin: 0 4px 0 6px;
+  overflow: hidden;
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-rows-summary-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+/* A thin centred note. */
+.message-rows-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--on-surface-variant);
+}
+
+.message-rows-marker-text {
+  min-width: 0;
+  overflow: hidden;
+  font: 500 var(--chat-label-small-size, 11px) / 1.4545 var(--font-sans);
+  letter-spacing: var(--label-small-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-rows-mentions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 6px;
+}

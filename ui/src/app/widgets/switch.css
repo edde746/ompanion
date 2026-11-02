@@ -1,0 +1,105 @@
+/*
+ * Material 3's geometry: a 52 × 32 track; the thumb 16 px off, 24 px on, 28 px while pressed. switch.tsx moves the
+ * thumb between these resting states.
+ */
+.switch {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  width: 52px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--surface-container-highest);
+  /* Vertical pans still scroll the page; horizontal ones drag the thumb. */
+  touch-action: pan-y;
+}
+
+.switch-on {
+  background: var(--primary);
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--on-surface-variant);
+  transform: translate(-50%, -50%);
+}
+
+.switch-on .switch-thumb {
+  left: 36px;
+  width: 24px;
+  height: 24px;
+  background: var(--on-primary);
+}
+
+.switch[data-pressed] .switch-thumb {
+  width: 28px;
+  height: 28px;
+}
+
+/* The radial reaction around the thumb (toggleable.dart paintRadialReaction): a 40 px halo. */
+.switch-thumb::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--on-surface);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0);
+}
+
+@media (hover: hover) {
+  .switch:hover:not(:disabled) .switch-thumb::before {
+    opacity: 0.08;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.switch:focus-visible .switch-thumb::before,
+.switch[data-pressed] .switch-thumb::before {
+  opacity: 0.1;
+  transform: translate(-50%, -50%);
+}
+
+.switch:disabled {
+  background: rgb(var(--on-surface-rgb) / 0.12);
+}
+
+.switch:disabled .switch-thumb {
+  background: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* _SwitchPainter's colour animation: easeOut forward and easeIn back, so easeOut either way, over the toggle. */
+  .switch,
+  .switch-thumb {
+    transition: background-color 300ms var(--curve-ease-out);
+  }
+
+  /*
+   * Hover and focus show the halo at full size, fading over 50 ms (_kReactionFadeDuration); a press grows it from
+   * the centre over kRadialReactionDuration. Both along Curves.fastOutSlowIn.
+   */
+  .switch-thumb::before {
+    transition:
+      opacity 50ms var(--curve-fast-out-slow-in),
+      transform 100ms var(--curve-fast-out-slow-in);
+  }
+
+  .switch:hover .switch-thumb::before,
+  .switch:focus-visible .switch-thumb::before {
+    transition-duration: 50ms, 0s;
+  }
+
+  .switch[data-pressed] .switch-thumb::before {
+    transition-duration: 0s, 100ms;
+  }
+}

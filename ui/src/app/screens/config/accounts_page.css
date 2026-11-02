@@ -1,0 +1,169 @@
+/* The bootstrap banner and the search field, in line with the list's rows. */
+.accounts-page-bar {
+  flex: none;
+  padding: 0 16px 8px;
+}
+
+.accounts-page-center {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.accounts-page-empty {
+  padding: 8px;
+}
+
+.accounts-page-tile {
+  margin: 1px 0;
+  border-radius: var(--card-radius);
+}
+
+.accounts-page-tile-open {
+  margin: 4px 0;
+  background: var(--surface-container);
+}
+
+.accounts-page-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--control);
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  isolation: isolate;
+}
+
+/* InkWell's state layer: onSurface over the row, 8 % on hover, 10 % focused. */
+.accounts-page-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .accounts-page-header:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.accounts-page-header:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accounts-page-header::before {
+    transition-duration: 0s;
+  }
+}
+
+.accounts-page-names {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.accounts-page-name {
+  overflow-wrap: anywhere;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.accounts-page-other {
+  flex: 1;
+  min-width: 0;
+}
+
+.accounts-page-id {
+  overflow-wrap: anywhere;
+  color: var(--on-surface-variant);
+  font: 400 11px / 1.4 var(--font-mono);
+  font-variant-ligatures: none;
+}
+
+.accounts-page-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: 0 4px 0 8px;
+}
+
+.accounts-page-chevron {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.accounts-page-details {
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px 12px;
+}
+
+.accounts-page-overridden {
+  margin-top: 4px;
+  color: var(--warning);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.accounts-page-credential {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.accounts-page-credential-icon {
+  flex: none;
+  margin-right: 8px;
+  color: var(--on-surface-variant);
+}
+
+.accounts-page-credential-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.accounts-page-sign-in {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.accounts-page-sign-in p {
+  flex: 1;
+  min-width: 0;
+}
+
+.accounts-page-key-field {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  margin-top: 12px;
+}
+
+.accounts-page-key-input {
+  flex: 1;
+}
+
+.accounts-page-other-id {
+  margin-top: 12px;
+}
+
+.accounts-page-other-details .accounts-page-key-field {
+  margin-top: var(--gap);
+}

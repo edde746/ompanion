@@ -1,11 +1,11 @@
 #!/bin/bash
-# Signs a Flutter macOS app bundle inside-out, the way the notary service wants it. macOS only (codesign,
-# BSD find, `sort -z`), and bash for `read -d ''`, which is how the NUL-separated paths are iterated:
+# Signs a macOS app bundle (the Apple shell's release build) inside-out, the way the notary service wants it. macOS
+# only (codesign, BSD find, `sort -z`), and bash for `read -d ''`, which is how the NUL-separated paths are iterated:
 #
 #   scripts/sign_app.sh <identity> <app-bundle> <entitlements>
 #
-# <identity> is a Developer ID Application keychain identity, or `-` for an ad-hoc signature (a local
-# release build: `scripts/sign_app.sh - build/macos/Build/Products/Release/ompanion.app macos/Runner/Release.entitlements`).
+# <identity> is a Developer ID Application keychain identity, or `-` for an ad-hoc signature (a local release build:
+# `scripts/sign_app.sh - build/apple/macos-release/ompanion.app shells/apple/Entitlements/macOS.entitlements`).
 # The app bundle itself is signed last, with <entitlements>. Nested code gets none, except Sparkle's
 # Downloader.xpc, which keeps whatever Sparkle signed it with.
 set -eu

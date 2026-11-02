@@ -1,0 +1,62 @@
+.text-field {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: var(--control);
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  cursor: text;
+}
+
+.text-field:focus-within {
+  background: var(--surface-container-highest);
+}
+
+.text-field-disabled {
+  background: rgb(var(--field-rgb) / 0.5);
+  color: rgb(var(--on-surface-rgb) / 0.38);
+  cursor: default;
+}
+
+/* bodyLarge: a 24 px line with 6 px above and below fills the control. */
+.text-field-input {
+  flex: 1;
+  height: 100%;
+  padding: 6px 12px;
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+}
+
+.text-field-code {
+  font: 400 14px / 24px var(--font-mono);
+  letter-spacing: 0;
+  font-variant-ligatures: none;
+}
+
+/* The glyph's ink sits 12 px from the field's edge and 12 px from the text (app_search_field.dart). */
+.text-field-prefix {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding-left: 10px;
+  color: var(--on-surface-variant);
+}
+
+.text-field-prefix + .text-field-input {
+  padding-left: 9px;
+}
+
+.text-field-suffix {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control);
+  height: 100%;
+  color: var(--on-surface-variant);
+}
+
+.text-field-suffix:not(:has(*)) {
+  display: none;
+}

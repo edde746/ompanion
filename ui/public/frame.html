@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <!-- The agent HTML's policy; see src/AgentFrame.tsx. No source reaches the network. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'"
+    />
+    <script>
+      // Replaces this document with the agent HTML the page posts, keeping this document's policy, then reports the
+      // content height whenever it changes.
+      addEventListener("message", function onHtml(event) {
+        if (event.source !== parent || !event.data || typeof event.data.html !== "string") return;
+        removeEventListener("message", onHtml);
+        document.open();
+        document.write(event.data.html);
+        document.close();
+        var root = document.documentElement;
+        var reported = -1;
+        var report = function () {
+          // The root element's box, not scrollHeight: scrollHeight never drops below the frame's current height.
+          var height = Math.ceil(root.getBoundingClientRect().height);
+          if (height === reported) return;
+          reported = height;
+          parent.postMessage({ type: "ompanion-frame-height", height: height }, "*");
+        };
+        new ResizeObserver(report).observe(root);
+        report();
+      });
+      parent.postMessage({ type: "ompanion-frame-ready" }, "*");
+    </script>
+  </head>
+  <body></body>
+</html>

@@ -1,4 +1,0 @@
-app_identifier("com.edde746.ompanion")
-
-# Credentials come from .env, not from here: an App Store Connect API key or FASTLANE_USER, which the
-# deploy_appstore lane checks for (ios/fastlane/Fastfile, store/README.md).

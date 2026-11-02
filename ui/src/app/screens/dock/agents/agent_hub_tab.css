@@ -1,0 +1,287 @@
+/* The Agent Hub (agent_hub_tab.dart): the roster, and one agent's detail with its transcript. */
+.agent-hub,
+.agent-hub-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.agent-hub-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding: 4px 4px 0 16px;
+}
+
+.agent-hub-summary {
+  flex: 1;
+  min-width: 0;
+  color: var(--on-surface-variant);
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+}
+
+/* IconButton's selected state takes the primary colour. */
+.agent-hub-toggle-selected {
+  color: var(--primary);
+}
+
+.agent-hub-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* In line with the tiles' status icons. */
+.agent-hub-section {
+  padding: 8px 12px 4px;
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.agent-hub-tile {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  isolation: isolate;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* InkWell's state layer: onSurface, 8 % on hover, 10 % focused. */
+.agent-hub-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--on-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .agent-hub-tile:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.agent-hub-tile:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-hub-tile::before {
+    transition-duration: 0s;
+  }
+}
+
+.agent-hub-tile-status {
+  flex: none;
+  padding-top: 2px;
+}
+
+.agent-hub-tile-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.agent-hub-tile-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.agent-hub-tile-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+.agent-hub-tag {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-container-highest);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.agent-hub-tile-subtitle {
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.agent-hub-usage {
+  color: var(--on-surface-variant);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.agent-hub-status {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--on-surface-variant);
+}
+
+.agent-hub-status-completed {
+  color: var(--success);
+}
+
+.agent-hub-status-failed {
+  color: var(--error);
+}
+
+.agent-hub-detail-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding: 4px 4px 0;
+}
+
+.agent-hub-detail-header > .agent-hub-status {
+  margin-right: 8px;
+}
+
+.agent-hub-detail-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+.agent-hub-detail-status {
+  flex: none;
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.agent-hub-detail-facts {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 16px 8px;
+}
+
+.agent-hub-detail-details {
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* Three lines until tapped open. */
+.agent-hub-detail-task {
+  display: -webkit-box;
+  padding-top: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  white-space: pre-wrap;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.agent-hub-detail-task-open {
+  display: block;
+  -webkit-line-clamp: none;
+}
+
+.agent-hub-detail-transcript {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.agent-hub-loading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-hub-detail-error {
+  display: -webkit-box;
+  flex: none;
+  padding: 4px 12px;
+  overflow: hidden;
+  background: var(--error-surface);
+  color: var(--error);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.agent-hub-detail-view {
+  flex: 1;
+  min-height: 0;
+}
+
+.agent-hub-note {
+  flex: none;
+  padding: 12px;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.agent-hub-steer {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  gap: var(--gap);
+  padding: 8px 12px 12px;
+}
+
+/* The theme's filled field, growing from one control tall to four lines of bodyLarge. */
+.agent-hub-steer-input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control);
+  max-height: calc(4 * 24px + 12px);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  resize: none;
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+}
+
+.agent-hub-steer-input:focus {
+  background: var(--surface-container-highest);
+}
+
+.agent-hub-steer-input:disabled {
+  background: rgb(var(--field-rgb) / 0.5);
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+.agent-hub-steer-input::placeholder {
+  color: var(--on-surface-variant);
+}

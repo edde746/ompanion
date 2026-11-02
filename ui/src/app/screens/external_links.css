@@ -1,0 +1,17 @@
+.external-links-body {
+  margin: 0;
+}
+
+/* SelectableText in the code style at bodySmall's size. */
+.external-links-url {
+  margin: 12px 0 0;
+  color: var(--on-surface);
+  font: 400 12px / 1.4 var(--font-mono);
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "calt" 0,
+    "liga" 0;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}

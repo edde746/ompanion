@@ -1,0 +1,99 @@
+.file-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.file-editor-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding: 4px 4px 0;
+}
+
+.file-editor-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--on-surface);
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-editor-dirty {
+  color: var(--on-surface-variant);
+}
+
+/* The save button's slot while it saves. */
+.file-editor-busy {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.file-editor-documents {
+  flex: none;
+  padding: 4px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.file-editor-notice {
+  flex: none;
+  margin: 4px 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container);
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.file-editor-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.file-editor-code {
+  flex: 1;
+  min-height: 0;
+}
+
+.file-editor-hidden {
+  display: none;
+}
+
+.file-editor-diff {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 0;
+  overflow-y: auto;
+}
+
+.file-editor-truncated {
+  padding: 12px;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.file-editor-center {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap);
+  padding: 24px;
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  text-align: center;
+}

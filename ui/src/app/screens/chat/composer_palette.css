@@ -1,0 +1,121 @@
+/* The slash palette and the `^` list (slash_palette.tsx, model_mention_palette.tsx): one look for both. */
+.composer-palette {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(36px * 10 + 8px);
+  margin-bottom: 6px;
+  padding: 4px 0;
+  overflow-y: auto;
+  border-radius: var(--card-radius);
+  background: var(--surface-container);
+}
+
+.composer-palette-row {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--gap);
+  height: 36px;
+  padding: 0 20px 0 12px;
+  color: var(--on-surface);
+  text-align: start;
+  isolation: isolate;
+}
+
+.composer-palette-row-selected {
+  background: var(--surface-container-highest);
+}
+
+/* InkWell's hover tone (the theme's hoverColor, 4 %) fades in 50 ms (ink_well.dart's getFadeDurationForType), hidden
+   on the selected row as its Container hides the ink; ripple.ts draws the pressed tone. */
+.composer-palette-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .composer-palette-row:not(.composer-palette-row-selected):hover::before {
+    opacity: 0.04;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-palette-row::before {
+    transition-duration: 0s;
+  }
+}
+
+.composer-palette-name {
+  flex: none;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.composer-palette-model {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composer-palette-detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.composer-palette-hint,
+.composer-palette-selector {
+  color: var(--on-surface-variant);
+  font: var(--code);
+  font-size: 12px;
+}
+
+.composer-palette-selector {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-palette-source {
+  flex: none;
+  color: var(--on-surface-variant);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.composer-palette-icon {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.composer-palette-note {
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.composer-palette-note-text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

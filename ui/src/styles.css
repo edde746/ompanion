@@ -1,0 +1,107 @@
+/* The smoke run's page (smoke.tsx): its lines, and the stage its checks render into. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --bg-sunken: #eceef1;
+  --fg: #1d2127;
+  --fg-muted: #5c6470;
+  --border: #d5d9df;
+  --term-bg: #15171c;
+  --term-fg: #e6e8eb;
+  --radius: 8px;
+  --gap: 12px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cantarell", "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111317;
+    --bg-sunken: #0b0c0f;
+    --fg: #e6e8eb;
+    --fg-muted: #9aa3ae;
+    --border: #2f343c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+#root {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  padding: calc(var(--safe-top) + var(--gap)) calc(var(--safe-right) + var(--gap)) calc(var(--safe-bottom) + var(--gap))
+    calc(var(--safe-left) + var(--gap));
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.muted {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.smoke-lines {
+  margin: 0;
+  padding: 8px;
+  background: var(--bg-sunken);
+  border-radius: var(--radius);
+}
+
+.smoke-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.smoke-terminal {
+  height: 220px;
+}
+
+/* Agent HTML */
+
+.agent-frame {
+  /* The reported height is the content's; borders go outside it. */
+  box-sizing: content-box;
+  display: block;
+  width: calc(100% - 2px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #ffffff;
+  min-height: 40px;
+}

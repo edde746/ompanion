@@ -15,14 +15,86 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: "3.47.1"
-  BUN_VERSION: "1.4.0"
+  BUN_VERSION: "1.4.2"
 
 jobs:
-  app:
-    name: App
+  ui:
+    name: UI
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      # The page bundles the companion (ui/companion/ompx.js, gitignored).
+      - name: Build the companion
+        working-directory: .
+        run: scripts/build_companion.sh
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # src/app/i18n/strings.g.ts, the strings' generated types, matches en.i18n.json.
+      - name: Check the strings
+        run: bun scripts/i18n.ts --check
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      # The run log pump's tests (src/core/channel/log_script.test.ts) run log.js with the omp release binary as Bun.
+      - name: Fetch omp
+        working-directory: .
+        run: scripts/fetch_omp.sh linux-x64
+
+      - name: Test
+        run: bun run test
+
+      - name: Build
+        run: bun run build
+
+  core:
+    name: Core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race ./...
+
+  release-script:
+    name: Release script
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
@@ -34,112 +106,6 @@ jobs:
       # The release pipeline's tests need only the standard library, so the runner's Python runs them.
       - name: Test the release script
         run: python3 scripts/release/test_deploy.py
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-          pub-cache: false
-
-      - name: Cache Pub dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-
-      # The app bundles the companion; without assets/companion/ompx.js no Flutter build or test runs.
-      - name: Build the companion
-        run: scripts/build_companion.sh
-
-      - name: Install dependencies
-        run: flutter pub get --enforce-lockfile
-
-      # Drift's generated output is not `dart format` clean and regenerating it would fight this step, so
-      # *.g.dart and the drift migration schemas are excluded.
-      - name: Check Dart formatting
-        run: |
-          git ls-files '*.dart' |
-            grep -v -e '\.g\.dart$' -e '^test/drift/.*/generated/' -e '^packages/' -e '^companion/' -e '^harness/' |
-            xargs -r dart format --output=none --set-exit-if-changed
-
-      - name: Verify generated files are committed
-        run: |
-          dart run slang
-          dart run build_runner build --delete-conflicting-outputs
-          git diff --exit-code
-          untracked=$(git ls-files --others --exclude-standard)
-          if [ -n "$untracked" ]; then
-            printf 'Generated files not committed:\n%s\n' "$untracked" >&2
-            exit 1
-          fi
-
-      - name: Analyze
-        run: flutter analyze
-
-      # flutter test includes test/sessions/sessions_provider_omp_test.dart, which starts this computer's omp.
-      - name: Fetch omp
-        run: scripts/fetch_omp.sh linux-x64
-
-      - name: Test
-        run: flutter test
-
-  core:
-    name: omp_core
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: packages/omp_core
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-          pub-cache: false
-
-      - name: Cache Pub dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-
-      # The runner ships pwsh, so windows_scripts_test.dart runs its PowerShell 7 group, where csh stands in for a
-      # login shell that misreads sh quoting. Ubuntu has no csh by default.
-      - name: Install csh
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends csh
-
-      - name: Install dependencies
-        run: dart pub get --enforce-lockfile
-
-      - name: Check Dart formatting
-        run: git ls-files '*.dart' | xargs -r dart format --output=none --set-exit-if-changed
-
-      - name: Analyze
-        run: dart analyze
-
-      # Tests tagged omp or docker stay skipped here (dart_test.yaml); the integration job runs them.
-      - name: Test
-        run: dart test
 
   companion:
     name: Companion
@@ -233,12 +199,12 @@ jobs:
         run: docker build --tag ompanion-push-relay .
 
   integration:
-    name: Integration (omp ${{ matrix.omp }}, Docker)
+    name: Integration (omp ${{ matrix.omp }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       contents: read
-    # The tested omp (harness/omp-version, what every other job runs) and the oldest one the app drives
+    # The tested omp (harness/omp-version, what every other run uses) and the oldest one the app drives
     # (minimumOmpVersion): a companion that works on one can fail on the other.
     strategy:
       fail-fast: false
@@ -256,7 +222,7 @@ jobs:
           MATRIX_OMP: ${{ matrix.omp }}
         run: |
           if [ "$MATRIX_OMP" = minimum ]; then
-            version=$(sed -n "s/^const minimumOmpVersion = '\(.*\)';\$/\1/p" packages/omp_core/lib/src/host/probe.dart)
+            version=$(sed -n 's/^export const minimumOmpVersion = "\(.*\)";$/\1/p' ui/src/core/host/probe.ts)
           else
             version=$(tr -d '[:space:]' <harness/omp-version)
           fi
@@ -268,64 +234,38 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      # The tests build the core's dev bridge (core/cmd/devbridge) and talk to it.
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-          pub-cache: false
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
 
-      - name: Cache Pub dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+      # OpenSSH's server for harness/studio-sshd.sh, which the SSH tests start as this user on loopback ports. csh
+      # stands in for a login shell that misreads sh quoting in the PowerShell 7 group (the runner ships pwsh). The
+      # image tests make previews with ffmpeg, and with CI set they fail rather than skip without it.
+      - name: Install OpenSSH server, csh and ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends openssh-server csh ffmpeg
 
-      # The runner and Docker's server are both x64: one binary serves the host and the SSH test machines.
       - name: Fetch omp
         run: scripts/fetch_omp.sh linux-x64
 
-      # The session tests upload companion/dist/ompx.js.
       - name: Build the companion
         run: scripts/build_companion.sh
 
-      - name: Start the SSH test machines
-        run: harness/sshd/up.sh
+      - name: Install dependencies
+        working-directory: ui
+        run: bun install --frozen-lockfile
 
-      # -P integration runs the whole suite, so the PowerShell group needs csh here too (see the core job).
-      - name: Install csh
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends csh
-
-      # The ffmpeg-tagged tests make image previews with this computer's ffmpeg; the ubuntu-24.04 runner image has
-      # none, and without it they fail rather than skip. Ubuntu's build encodes WebP, so CI covers the WebP preview.
-      - name: Install ffmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
-
-      - name: Install omp_core dependencies
-        working-directory: packages/omp_core
-        run: dart pub get --enforce-lockfile
-
-      # One file at a time: two Docker test files race on the target's shared run directory.
-      - name: omp_core integration tests
-        working-directory: packages/omp_core
-        run: dart test -P integration -j 1
-
-      - name: Companion end-to-end tests
-        working-directory: companion
+      - name: End-to-end tests
+        working-directory: ui
         run: bun run test:e2e
 
-      - name: Stop the SSH test machines
-        if: always()
-        run: harness/sshd/down.sh
-
-  # The Windows machine support end to end: this runner's own Win32-OpenSSH server, reached over dartssh2 with key
-  # authentication, runs the omp_core tests tagged windows (test/windows/) with the tested omp and the fake provider.
+  # The Windows machine support end to end: this runner's own Win32-OpenSSH server, reached with key authentication
+  # through the core's SSH client over its dev bridge, runs the UI's Windows host e2e tests with the tested omp and the
+  # fake provider.
   windows-host:
     name: Windows host (Win32-OpenSSH)
     runs-on: windows-latest
@@ -368,13 +308,12 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      # The tests build the core's dev bridge (core/cmd/devbridge) and talk to it.
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-          pub-cache: false
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
 
       - name: Fetch omp
         run: scripts/fetch_omp.sh windows-x64
@@ -384,15 +323,406 @@ jobs:
       - name: Install ffmpeg
         run: choco install ffmpeg --no-progress -y
 
-      # The session tests upload companion/dist/ompx.js.
+      # The session tests upload ui/companion/ompx.js.
       - name: Build the companion
         run: scripts/build_companion.sh
 
-      - name: Install omp_core dependencies
-        working-directory: packages/omp_core
-        run: dart pub get --enforce-lockfile
+      - name: Install dependencies
+        working-directory: ui
+        run: bun install --frozen-lockfile
 
       # Git Bash puts Git for Windows' sh on PATH, which the tests use for harness/omp-home.sh.
       - name: Windows host tests
-        working-directory: packages/omp_core
-        run: dart test -P windows -j 1 test/windows
+        working-directory: ui
+        run: bun test --conditions=browser --timeout=60000 ./src/core/host/windows_host.e2e.test.ts ./src/core/session/windows_session.e2e.test.ts
+
+  apple:
+    name: Apple shell
+    # Xcode 26 or newer: the app icon is an Icon Composer .icon bundle.
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+
+      # gomobile at the version core/go.mod pins; core/scripts/bind-apple.sh finds it in $(go env GOPATH)/bin.
+      - name: Install XcodeGen and gomobile
+        run: |
+          brew install xcodegen
+          cd core && go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
+
+      - name: Build the companion
+        run: scripts/build_companion.sh
+
+      - name: Build the UI
+        working-directory: ui
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Build macOS and the iOS simulator
+        run: shells/apple/build.sh --core
+
+      # The device slice compiles what the simulator build does not: the notification service extension.
+      - name: Build for iOS devices, unsigned
+        run: shells/apple/build.sh --device
+
+  android:
+    name: Android shell
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Java
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+
+      - name: Cache Gradle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('shells/android/**/*.gradle*', 'shells/android/gradle/wrapper/gradle-wrapper.properties') }}
+
+      # gomobile at the version core/go.mod pins; core/scripts/bind-android.sh finds it in $(go env GOPATH)/bin and
+      # the runner's NDK through ANDROID_NDK_HOME.
+      - name: Install gomobile
+        working-directory: core
+        run: go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
+
+      - name: Build the companion and install the page's dependencies
+        run: |
+          scripts/build_companion.sh
+          cd ui && bun install --frozen-lockfile
+
+      # The direct APKs and the play bundle, signed with the debug key (no key.properties here).
+      - name: Build the release APKs and the Play bundle
+        run: shells/android/build.sh --release
+
+      - name: Unit tests
+        working-directory: shells/android
+        run: ./gradlew testDebugUnitTest
+
+  linux:
+    name: Linux shell
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      # The whole history: the Flutter seed builds from the last Flutter commit (harness/flutter-seed/build.sh).
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The app's libraries for the run on the runner and shells/linux/ci.sh's tools (Xvfb, a keyring, xdotool,
+      # xclip); the Flutter seed's build tools; Flatpak.
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-1 libwebkitgtk-6.0-4 libsecret-1-0 bubblewrap xdg-dbus-proxy \
+            xvfb xauth dbus gnome-keyring libsecret-tools xdotool xclip python3-gi gir1.2-gtk-3.0 x11-apps netpbm zip \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev \
+            flatpak flatpak-builder
+
+      # Ubuntu 24.04 keeps unprivileged user namespaces from programs without an AppArmor profile, which WebKit's
+      # bubblewrap sandbox and Flatpak's portal need.
+      - name: Allow user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      # The Flutter app's last release toolchain, for the seed that writes the data the import reads.
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: "3.47.1"
+          cache: true
+
+      - name: Build the UI
+        run: |
+          scripts/build_companion.sh
+          cd ui
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Build
+        run: shells/linux/build.sh amd64
+
+      # Its last line is the seed binary's path.
+      - name: Build the Flutter seed
+        run: harness/flutter-seed/build.sh linux | tee "$RUNNER_TEMP/seed-build.txt"
+
+      - name: Build the Flatpak
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          shells/linux/flatpak/build-flatpak.sh
+          flatpak install --user --noninteractive build/ompanion-linux-x64.flatpak
+
+      # The smoke checks on the runner and in the Flatpak, each after the Flutter seed's data was imported; ci.sh
+      # runs its own session bus, keyring and Xvfb.
+      - name: Smoke on the runner and in the Flatpak, with the Flutter import
+        run: |
+          shells/linux/ci.sh --seed "$(tail -n 1 "$RUNNER_TEMP/seed-build.txt")" --flatpak \
+            build/linux-amd64 "$RUNNER_TEMP/smoke"
+
+      - name: Upload the smoke logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: linux-smoke
+          path: ${{ runner.temp }}/smoke/
+          if-no-files-found: ignore
+
+  windows-build:
+    name: Windows shell (cross-build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Build the UI
+        run: |
+          scripts/build_companion.sh
+          cd ui
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: JSON test
+        run: |
+          c++ -std=c++20 -Ishells/windows/src shells/windows/src/json.cpp shells/windows/test/json_test.cpp \
+            -o "$RUNNER_TEMP/json_test"
+          "$RUNNER_TEMP/json_test"
+
+      # Cross-built with llvm-mingw in Docker.
+      - name: Build
+        run: shells/windows/build.sh x64 arm64
+
+      - name: Upload the builds
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-build
+          path: |
+            build/windows-x64/
+            build/windows-arm64/
+          if-no-files-found: error
+          retention-days: 1
+
+  windows-x64:
+    name: Windows x64
+    needs: windows-build
+    runs-on: windows-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # The whole history: the Flutter seed builds from the last Flutter commit (harness/flutter-seed/build.sh).
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the builds
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: windows-build
+          path: build
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+
+      # Local exec, ConPTY and the rest of the core on Windows itself.
+      - name: Core tests
+        working-directory: core
+        run: go test ./...
+
+      # The seed only changes with harness/flutter-seed; saved right after it is built, whatever the job's outcome.
+      - name: Restore the Flutter seed
+        id: seed
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/seed
+          key: flutter-seed-windows-${{ hashFiles('harness/flutter-seed/**') }}
+
+      - name: Setup Flutter
+        if: steps.seed.outputs.cache-hit != 'true'
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: "3.47.1"
+
+      - name: Build the Flutter seed
+        if: steps.seed.outputs.cache-hit != 'true'
+        run: harness/flutter-seed/build.sh windows --out "$(cygpath -u "$RUNNER_TEMP")/seed"
+
+      - name: Save the Flutter seed
+        if: steps.seed.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/seed
+          key: ${{ steps.seed.outputs.cache-primary-key }}
+
+      # Windows PowerShell 5.1, whose WinRT projection reads the toast history. Every smoke check, the Flutter import
+      # of the seed's data among them; prints "ci.ps1: every check passed".
+      - name: Smoke, the zip's app
+        shell: powershell
+        run: shells\windows\ci.ps1 -App build\windows-x64 -Seed $env:RUNNER_TEMP\seed\Release
+
+      - name: Pack the MSIX bundle and the zip
+        shell: pwsh
+        run: shells/windows/msix/build-msix.ps1
+
+      - name: Smoke, the MSIX's app
+        shell: powershell
+        run: shells\windows\ci.ps1 -Bundle build\windows-package\ompanion-windows.msixbundle -Seed $env:RUNNER_TEMP\seed\Release
+
+      - name: Upload the smoke logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-x64-logs
+          path: build/windows-ci/
+          if-no-files-found: warn
+
+      # For the arm64 job.
+      - name: Upload the package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-package
+          path: build/windows-package/
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload the Flutter seed
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: flutter-seed-windows
+          path: ${{ runner.temp }}/seed/
+          if-no-files-found: error
+          retention-days: 1
+
+  windows-arm64:
+    name: Windows arm64
+    needs: windows-x64
+    runs-on: windows-11-arm
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Download the builds
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: windows-build
+          path: build
+
+      - name: Download the package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: windows-package
+          path: build/windows-package
+
+      # The x64 seed, emulated: it writes the same data an arm64 build would.
+      - name: Download the Flutter seed
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: flutter-seed-windows
+          path: ${{ runner.temp }}/seed
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+
+      # The runner's gcc is x64-only, so cgo cannot build core/capi here; build.sh's llvm-mingw builds it for arm64
+      # and the smoke runs use it.
+      - name: Core tests
+        working-directory: core
+        env:
+          CGO_ENABLED: "0"
+        run: go test ./...
+
+      # -NoDrop: on windows-11-arm a WWAHost window holds the front, so the harness cannot drag files onto the app;
+      # only the drop is skipped (ci.ps1 prints "paths: drop skipped").
+      - name: Smoke, the zip's app
+        shell: powershell
+        run: shells\windows\ci.ps1 -App build\windows-arm64 -Seed $env:RUNNER_TEMP\seed\Release -NoDrop
+
+      - name: Smoke, the MSIX's app
+        shell: powershell
+        run: shells\windows\ci.ps1 -Bundle build\windows-package\ompanion-windows.msixbundle -Seed $env:RUNNER_TEMP\seed\Release -NoDrop
+
+      - name: Upload the smoke logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-arm64-logs
+          path: build/windows-ci/
+          if-no-files-found: warn

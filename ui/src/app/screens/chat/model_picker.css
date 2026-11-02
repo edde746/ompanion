@@ -1,0 +1,119 @@
+.model-picker-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 0 1 auto;
+  margin: -4px 0;
+  padding: var(--gap);
+}
+
+.model-picker-search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.model-picker-search > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Inside the popover, tones step up from the popover's own as onSurface overlays (docs/design.md). The tone goes on
+   the whole field (the TextField's label), not its input, which would show a second tone inside the first. */
+.model-picker-search .text-field {
+  background: rgb(var(--on-surface-rgb) / 0.06);
+}
+
+.model-picker-search .text-field:focus-within {
+  background: rgb(var(--on-surface-rgb) / 0.08);
+}
+
+.model-picker-message {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  text-align: center;
+}
+
+.model-picker-rows {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.model-picker-provider {
+  padding: 8px 12px 4px;
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.model-picker-row {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  color: var(--on-surface);
+  isolation: isolate;
+}
+
+/* The hover and focus tones fade in 50 ms (ink_well.dart's getFadeDurationForType); ripple.ts draws the pressed one.
+   The current model keeps ListTile's selectedTileColor, 10 %. */
+.model-picker-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .model-picker-row:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.model-picker-row:focus-visible::before,
+.model-picker-row-selected::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model-picker-row::before {
+    transition-duration: 0s;
+  }
+}
+
+.model-picker-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.model-picker-row-name {
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.model-picker-row-detail {
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

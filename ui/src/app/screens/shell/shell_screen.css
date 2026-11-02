@@ -1,0 +1,134 @@
+/*
+ * Rule 13: each pane keeps its content inside the window's insets itself, so the sidebar's and the dock's tones run
+ * under them to the window's edges; a page beside a pane leaves that side's inset to the pane. At the bottom the
+ * on-screen keyboard counts as an inset: the panes keep their content above it.
+ */
+.shell-wide {
+  position: relative;
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.shell-dragging {
+  cursor: col-resize;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.shell-sidebar {
+  flex: none;
+  min-width: 0;
+  padding: var(--inset-top) 0 0 var(--inset-left);
+  background: var(--surface-container-low);
+}
+
+.shell-center {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: var(--inset-top);
+}
+
+.shell-center-left-inset {
+  padding-left: var(--inset-left);
+}
+
+.shell-center-right-inset {
+  padding-right: var(--inset-right);
+}
+
+.shell-dock {
+  flex: none;
+  min-width: 0;
+  padding: var(--inset-top) var(--inset-right) max(var(--inset-bottom), var(--inset-keyboard)) 0;
+  background: var(--surface-container-low);
+}
+
+/* A 6 px strip with the column-resize cursor and no stroke. */
+.shell-pane-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.shell-center-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.shell-center-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: var(--title-bar-height);
+  padding: 0 4px;
+}
+
+.shell-center-title {
+  flex: 1;
+  min-width: 0;
+  margin-left: 8px;
+  overflow: hidden;
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-center-body {
+  flex: 1;
+  min-height: 0;
+  margin-top: 4px;
+  padding-bottom: max(var(--inset-bottom), var(--inset-keyboard));
+}
+
+.shell-narrow {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* A page of the phone layout's stack (widgets/page_stack.tsx); a covered one stays laid out, hidden. */
+.shell-narrow-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+.shell-narrow-home {
+  padding: var(--inset-top) var(--inset-right) 0 var(--inset-left);
+  background: var(--surface-container-low);
+}
+
+/* As the home page: the dock's tone runs under the insets, its content stays inside them. */
+.shell-narrow-panels {
+  padding: var(--inset-top) var(--inset-right) max(var(--inset-bottom), var(--inset-keyboard)) var(--inset-left);
+  background: var(--surface-container-low);
+}
+
+.shell-narrow-chat {
+  padding: var(--inset-top) var(--inset-right) 0 var(--inset-left);
+}
+
+/* An app bar reaches the window's top edge and sits under the status bar. */
+.shell-narrow-app-bar {
+  flex: none;
+  padding: var(--inset-top) var(--inset-right) 0 var(--inset-left);
+  background: var(--surface);
+}
+
+.shell-narrow-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 var(--inset-right) max(var(--inset-bottom), var(--inset-keyboard)) var(--inset-left);
+}

@@ -1,0 +1,131 @@
+/* A full-width row, square, as the Flutter tree's InkWell rows: the active path's bar sits on the pane's edge. */
+.list-row.session-tree-row {
+  height: var(--row-height);
+  margin: 0;
+  padding: 0 8px 0 0;
+  border-radius: 0;
+  gap: 0;
+}
+
+.session-tree-row-path {
+  align-self: stretch;
+  flex: none;
+  width: 3px;
+}
+
+.session-tree-row-path-active {
+  background: var(--on-surface-variant);
+}
+
+.session-tree-row-toggle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+}
+
+.session-tree-row-toggle-button {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--on-surface);
+  cursor: pointer;
+  isolation: isolate;
+}
+
+.session-tree-row-toggle-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .session-tree-row-toggle-button:hover::before {
+    opacity: 0.08;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-tree-row-toggle-button::before {
+    transition-duration: 0s;
+  }
+}
+
+.session-tree-row-icon {
+  flex: none;
+  margin-right: 6px;
+  color: var(--on-surface-variant);
+}
+
+.session-tree-row-icon-user {
+  flex: none;
+  margin-right: 6px;
+  color: var(--on-surface);
+}
+
+.session-tree-row-label {
+  flex: none;
+  margin-right: 4px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.session-tree-row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--on-surface);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-tree-row-text-muted {
+  color: var(--on-surface-variant);
+}
+
+.session-tree-row-text-error {
+  color: var(--error);
+}
+
+.session-tree-row-text-leaf {
+  font-weight: 700;
+}
+
+.session-tree-row-text-empty {
+  font-style: italic;
+}
+
+.session-tree-row-hidden {
+  flex: none;
+  margin-left: 4px;
+  color: var(--on-surface-variant);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.session-tree-row-leaf {
+  display: flex;
+  flex: none;
+  margin-left: 4px;
+  color: var(--on-surface);
+}

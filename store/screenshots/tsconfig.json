@@ -1,0 +1,10 @@
+{
+  "extends": "../../ui/tsconfig.json",
+  "compilerOptions": {
+    "types": ["bun"],
+    "typeRoots": ["../../ui/node_modules/@types"],
+    "allowImportingTsExtensions": true
+  },
+  "include": ["capture.ts", "scenario", "demo/*.ts"],
+  "exclude": []
+}

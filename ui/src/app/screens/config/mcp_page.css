@@ -1,0 +1,96 @@
+.mcp-page-commands {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+  padding: 0 16px 8px;
+}
+
+.mcp-page-loading {
+  display: flex;
+  justify-content: center;
+}
+
+.mcp-page-none {
+  margin: 0;
+  padding: 8px 0;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.mcp-page-server {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+}
+
+.mcp-page-server-icon {
+  flex: none;
+  margin-right: 8px;
+  color: var(--on-surface-variant);
+}
+
+.mcp-page-server-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mcp-page-server-name {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  overflow-wrap: anywhere;
+}
+
+.mcp-page-server-target {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  font: 400 12px / 16px var(--font-mono);
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mcp-page-test {
+  display: inline-flex;
+  flex: none;
+}
+
+/* Some engines dispatch no pointer events on a disabled button; letting them through to the wrapper shows its tooltip. */
+.mcp-page-test .button:disabled {
+  pointer-events: none;
+}
+
+.mcp-page-below {
+  padding-top: 8px;
+}
+
+.mcp-page-note {
+  padding-top: 16px;
+}
+
+/* Flutter's AlertDialog content was 480 px wide inside its 24 px padding. */
+.mcp-page-add {
+  width: 528px;
+}
+
+.mcp-page-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mcp-page-add-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+}
+
+.mcp-page-add-helper {
+  padding-left: 12px;
+}

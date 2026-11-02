@@ -1,0 +1,51 @@
+.notifications-section {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+.notifications-section-reminders {
+  margin: 16px 0 var(--gap);
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+.notifications-section-reminder {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  min-height: calc(var(--control) + 8px);
+  padding: 4px 8px 4px 16px;
+}
+
+.notifications-section-tests {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--gap);
+}
+
+.notifications-section-test {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  height: calc(var(--control) + 8px);
+  padding: 0 8px 0 16px;
+}
+
+.notifications-section-test-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notifications-section-test-none {
+  margin: 0;
+  padding: 10px 16px;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}

@@ -1,0 +1,176 @@
+/* lib/screens/machines/machine_detail_pane.dart */
+.machine-detail-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px;
+  overflow-y: auto;
+  color: var(--on-surface);
+}
+
+.machine-detail-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.machine-detail-pane-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font: var(--headline-small);
+  letter-spacing: var(--headline-small-tracking);
+}
+
+.machine-detail-pane-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--gap);
+}
+
+/* A small grey label next to the machine's name. */
+.machine-detail-pane-tag {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.machine-detail-pane-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+  margin-top: 16px;
+}
+
+.machine-detail-pane-run {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.machine-detail-pane-run-mark {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.machine-detail-pane-run-succeeded {
+  color: var(--success);
+}
+
+.machine-detail-pane-run-failed {
+  color: var(--error);
+}
+
+.machine-detail-pane-run-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.machine-detail-pane-section {
+  margin: 24px 0 var(--gap);
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+/* Rows on one surfaceContainer block. */
+.machine-detail-pane-group {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 16px;
+  border-radius: var(--card-radius);
+  background: var(--surface-container);
+}
+
+/* One fact: a label column and a selectable value. */
+.machine-detail-pane-fact {
+  display: flex;
+  align-items: flex-start;
+  padding: 5px 0;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.machine-detail-pane-fact-label {
+  flex: none;
+  width: 120px;
+  color: var(--on-surface-variant);
+}
+
+.machine-detail-pane-fact-value {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.machine-detail-pane-unprobed {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 4px 0;
+}
+
+.machine-detail-pane-unprobed .machine-detail-pane-muted {
+  flex: 1;
+}
+
+.machine-detail-pane-muted {
+  color: var(--on-surface-variant);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.machine-detail-pane-hop,
+.machine-detail-pane-key {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.machine-detail-pane-hop {
+  padding: 6px 0;
+}
+
+.machine-detail-pane-key {
+  padding: 4px 0;
+}
+
+.machine-detail-pane-hop-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.machine-detail-pane-small {
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.machine-detail-pane-fingerprint {
+  color: var(--on-surface-variant);
+  font: 400 12px / 1.4 var(--font-mono);
+  font-variant-ligatures: none;
+  -webkit-user-select: text;
+  user-select: text;
+}

@@ -1,0 +1,167 @@
+.settings-page-center {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-page-controls {
+  display: grid;
+  flex: none;
+  grid-template-areas: "scope search refresh";
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--gap);
+  padding: 12px 12px 0 16px;
+}
+
+.settings-page-refresh {
+  grid-area: refresh;
+  margin-left: -4px;
+}
+
+.settings-page-scope {
+  display: inline-flex;
+  grid-area: scope;
+}
+
+.settings-page-search {
+  grid-area: search;
+}
+
+/* A phone gives the search field its own line, so the scope keeps its labels. */
+@media (max-width: 599px) {
+  .settings-page-controls {
+    grid-template-areas:
+      "scope . refresh"
+      "search search search";
+    row-gap: var(--gap);
+  }
+
+  .settings-page-search {
+    margin-right: 4px;
+  }
+}
+
+.settings-page-editing {
+  flex: none;
+  margin: 0;
+  padding: 6px 16px 0;
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-page-tabs {
+  margin-top: 8px;
+  padding: 0 12px;
+}
+
+.settings-page-list {
+  flex: 1;
+  min-height: 0;
+  margin-top: 4px;
+  padding-bottom: 32px;
+  overflow-y: auto;
+}
+
+.settings-page-note {
+  padding: 8px 16px 0;
+}
+
+.settings-page-section {
+  margin: 0;
+  padding: 16px 16px 4px;
+  color: var(--on-surface-variant);
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+.settings-page-gap {
+  height: 8px;
+}
+
+.settings-page-empty {
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+/*
+ * One setting: its texts, the editor at the end (or under them), and the reset button. A one-line field sits at the
+ * end of a wide row (280 px) and takes the row's width below the texts on a narrow one.
+ */
+.settings-page-tile {
+  display: grid;
+  grid-template-areas:
+    "text control reset"
+    "block block block";
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  padding: 8px 16px;
+  container-type: inline-size;
+}
+
+.settings-page-tile-text {
+  grid-area: text;
+  min-width: 0;
+}
+
+.settings-page-tile-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.settings-page-tile-label {
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+.settings-page-tile-text p {
+  margin: 0;
+}
+
+.settings-page-warning {
+  color: var(--warning);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.settings-page-path {
+  color: rgb(var(--on-surface-variant-rgb) / 0.7);
+  font: 400 11px / 1.4 var(--font-mono);
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+}
+
+.settings-page-tile-control {
+  grid-area: control;
+  margin-left: 12px;
+}
+
+.settings-page-tile-reset {
+  grid-area: reset;
+  margin-left: 4px;
+}
+
+.settings-page-tile-block {
+  grid-area: block;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+@container (min-width: 640px) {
+  .settings-page-tile-field {
+    grid-area: control;
+    width: 280px;
+    margin-top: 0;
+    margin-left: 12px;
+  }
+}

@@ -1,0 +1,92 @@
+.install-omp-dialog.dialog {
+  width: 560px;
+}
+
+.install-omp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.install-omp-text {
+  margin: 0;
+  color: var(--on-surface);
+}
+
+.install-omp-reason {
+  margin: -8px 0 0;
+  color: var(--on-surface-variant);
+}
+
+.install-omp-facts {
+  padding: 8px 12px;
+  border-radius: var(--card-radius);
+  background: var(--surface-container-high);
+}
+
+.install-omp-fact {
+  display: flex;
+  align-items: flex-start;
+  padding: 3px 0;
+}
+
+.install-omp-fact-label {
+  flex: none;
+  width: 110px;
+  color: var(--on-surface-variant);
+}
+
+.install-omp-fact-value {
+  flex: 1;
+  min-width: 0;
+  color: var(--on-surface);
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.install-omp-running {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  color: var(--on-surface);
+}
+
+.install-omp-done {
+  margin: 0;
+  color: var(--success);
+}
+
+.install-omp-failed {
+  margin: 0;
+  color: var(--error);
+  overflow-wrap: anywhere;
+}
+
+.install-omp-manual-toggle {
+  display: flex;
+  margin: -4px 0;
+}
+
+.install-omp-manual {
+  display: flex;
+  align-items: flex-start;
+  padding: 4px 4px 4px 12px;
+  border-radius: var(--card-radius);
+  background: var(--surface-container-high);
+}
+
+.install-omp-script {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 0;
+  overflow-x: auto;
+  color: var(--on-surface);
+  font: var(--code);
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}

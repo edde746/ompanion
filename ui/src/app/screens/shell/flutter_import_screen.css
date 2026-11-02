@@ -1,0 +1,71 @@
+/* Over everything, the app frame and its hosts included: nothing else may run before the data is settled. */
+.flutter-import-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--inset-top) + 24px) calc(var(--inset-right) + 24px) calc(var(--inset-bottom) + 24px)
+    calc(var(--inset-left) + 24px);
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--on-surface);
+}
+
+.flutter-import-screen-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  margin: auto 0;
+}
+
+.flutter-import-screen-icon {
+  color: var(--on-surface-variant);
+}
+
+.flutter-import-screen-title {
+  margin: 0;
+  font: var(--headline-small);
+  letter-spacing: var(--headline-small-tracking);
+}
+
+.flutter-import-screen-detail,
+.flutter-import-screen-hint {
+  margin: 0;
+  color: var(--on-surface-variant);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.flutter-import-screen-hint {
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* The core's own words, for a bug report: selectable, wrapped. */
+.flutter-import-screen-error {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 200px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border-radius: var(--radius);
+  background: var(--surface-container);
+  font: 400 12px / 1.5 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.flutter-import-screen-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+  margin-top: 8px;
+}

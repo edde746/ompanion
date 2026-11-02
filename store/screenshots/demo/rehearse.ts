@@ -7,8 +7,9 @@
  *   bun store/screenshots/demo/rehearse.ts --session hero [--keep]
  *   bun store/screenshots/demo/rehearse.ts --session deploy
  *
- * Needs `.tools/omp/18.3.1/omp-<platform>-<arch>` (`scripts/fetch_omp.sh`) and the built companion
- * (`scripts/build_companion.sh`). Deletes its temp directory unless `--keep`; kills omp and the provider.
+ * Needs the tested omp, `.tools/omp/<harness/omp-version>/omp-<platform>-<arch>` (`scripts/fetch_omp.sh`), and the
+ * built companion, `ui/companion/ompx.js` (`scripts/build_companion.sh`). Deletes its temp directory unless `--keep`;
+ * kills omp and the provider. Run it on studio: `scripts/studio.sh <stage> -- bun store/screenshots/demo/rehearse.ts`.
  */
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -17,10 +18,12 @@ import type { Subprocess } from "bun";
 import { FakeProvider } from "../../../harness/fake-provider/client.ts";
 import { isRecord } from "../../../harness/json.ts";
 import { createOmpHome, ompEnv } from "../../../harness/omp-home.ts";
+import { PROMPTS } from "./prompts.ts";
 
 const ROOT = path.join(import.meta.dir, "..", "..", "..");
-const OMP = path.join(ROOT, ".tools", "omp", "18.3.1", `omp-${process.platform}-${process.arch}`);
-const COMPANION = path.join(ROOT, "companion", "dist", "ompx.js");
+const OMP_VERSION = process.env.OMP_VERSION ?? (await Bun.file(path.join(ROOT, "harness", "omp-version")).text()).trim();
+const OMP = path.join(ROOT, ".tools", "omp", OMP_VERSION, `omp-${process.platform}-${process.arch}`);
+const COMPANION = path.join(ROOT, "ui", "companion", "ompx.js");
 const SESSION = argOf("--session") ?? "hero";
 const KEEP = process.argv.includes("--keep");
 const MODELS_YML = `providers:
@@ -82,7 +85,7 @@ async function main(): Promise<void> {
     const models = path.join(home, ".omp", "agent", "models.yml");
     await fs.writeFile(models, MODELS_YML.replace("BASE_URL", provider.baseUrl));
     await fs.appendFile(path.join(home, ".omp", "agent", "config.yml"), "modelRoles:\n  default: local/Fast\n");
-    const extension = path.join(home, ".ompanion", "companion", "18.3.1", "ompx.js");
+    const extension = path.join(home, ".ompanion", "companion", OMP_VERSION, "ompx.js");
     await fs.mkdir(path.dirname(extension), { recursive: true });
     await fs.copyFile(COMPANION, extension);
 
@@ -93,11 +96,12 @@ async function main(): Promise<void> {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const stderr = new Response(omp.stderr).text();
+    // Drained, so omp never blocks on a full pipe.
+    void new Response(omp.stderr).text();
     const frames: Frame[] = [];
     let send: (frame: Frame) => void = () => {};
     const waiting: Array<() => void> = [];
-    const reading = (async () => {
+    void (async () => {
       let buffer = "";
       const decoder = new TextDecoder("utf-8", { fatal: true });
       for await (const bytes of omp.stdout) {
@@ -129,7 +133,7 @@ async function main(): Promise<void> {
     await waitFor((frame) => frame.type === "ready", "omp ready");
     send({ id: "negotiate", type: "negotiate_protocol", protocolVersion: 2 });
     await waitFor((frame) => frame.id === "negotiate", "protocol v2");
-    send({ id: "prompt-1", type: "prompt", message: promptOf(SESSION) });
+    send({ id: "prompt-1", type: "prompt", message: SESSION === "deploy" ? PROMPTS.deploy : PROMPTS.hero });
 
     // Approvals are answered while the run is live, unless the session exists to show a waiting one: the
     // deploy session leaves its last approval open, exactly as the capture does.
@@ -215,12 +219,6 @@ async function inspect(project: string, omp: Subprocess<"pipe", "pipe", "pipe">)
     console.log(`\n$ ${command}   (exit ${code})\n${out}${err}`.slice(0, 6000));
   }
   omp.kill();
-}
-
-function promptOf(session: string): string {
-  return session === "deploy"
-    ? "Rotate the deploy token in deploy.sh and smoke-test the staging deploy."
-    : "Add rate limiting to the upload endpoint so one client cannot exhaust the put path, then run the tests.";
 }
 
 async function exists(file: string): Promise<boolean> {

@@ -1,0 +1,38 @@
+.link-banner {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--gap);
+  padding: 6px 8px 6px 16px;
+  background: var(--surface-container);
+}
+
+.link-banner-icon {
+  display: flex;
+  flex: none;
+  margin-right: 4px;
+}
+
+.link-banner-texts {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.link-banner-text {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  color: var(--on-surface);
+}
+
+.link-banner-detail {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+  overflow-wrap: anywhere;
+}

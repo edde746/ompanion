@@ -1,0 +1,257 @@
+.config-screen {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  background: var(--surface);
+  color: var(--on-surface);
+}
+
+.config-screen-plain,
+.config-screen-narrow {
+  flex-direction: column;
+}
+
+/* The app bar reaches the window's top and side edges; its content stays inside the insets (rule 13). */
+.config-screen-bar {
+  flex: none;
+  padding: var(--inset-top) var(--inset-right) 0 var(--inset-left);
+}
+
+.config-screen-center {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.config-screen-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+/* Phones: the section strip on the pane tone, 6 px above and below its pills, 12 px in from the sides. */
+.config-screen-strip {
+  flex: none;
+  padding: 6px calc(var(--inset-right) + 12px) 6px calc(var(--inset-left) + 12px);
+  background: var(--surface-container-low);
+}
+
+/*
+ * The page keeps clear of the side insets itself: its lists pad only along their scroll axis. It ends above the
+ * on-screen keyboard.
+ */
+.config-screen-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 var(--inset-right) var(--inset-keyboard) var(--inset-left);
+}
+
+.config-screen-wide .config-screen-page {
+  padding-left: 0;
+}
+
+/* The navigation rail: one pane surface from the window's top edge down (rule 10), 80 px wide while collapsed. */
+.config-rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+  padding: var(--inset-top) 0 0 var(--inset-left);
+  background: var(--surface-container-low);
+}
+
+.config-rail-extended {
+  align-items: stretch;
+  width: calc(256px + var(--inset-left));
+}
+
+/* On macOS the traffic lights sit over the rail's top: the back button goes below them (their bottom edge, less 8). */
+.config-rail-lights {
+  flex: none;
+  align-self: stretch;
+  height: calc(var(--title-bar-height) / 2 + 2px);
+}
+
+.config-rail-back {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 56px;
+}
+
+.config-rail-back .back-button.icon-button {
+  color: var(--on-surface);
+}
+
+.config-rail-destinations {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+  padding: 0 0 calc(max(var(--inset-bottom), var(--inset-keyboard)) + 8px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.config-rail-extended .config-rail-destinations {
+  align-items: stretch;
+  gap: 0;
+  padding: 0 12px calc(max(var(--inset-bottom), var(--inset-keyboard)) + 8px);
+}
+
+/* Material 3's rail destination: a 56 by 32 stadium around the icon, the label under it. */
+.config-rail-destination {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  color: var(--on-surface-variant);
+}
+
+.config-rail-indicator {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 32px;
+  border-radius: 16px;
+  isolation: isolate;
+}
+
+.config-rail-indicator::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .config-rail-destination:hover:not(.config-rail-selected) .config-rail-indicator::before {
+    opacity: 0.08;
+  }
+}
+
+.config-rail-destination:focus-visible .config-rail-indicator::before {
+  opacity: 0.1;
+}
+
+.config-rail-label {
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+  white-space: nowrap;
+}
+
+.config-rail-selected {
+  color: var(--on-surface);
+}
+
+.config-rail-selected .config-rail-indicator {
+  background: var(--surface-container-highest);
+}
+
+/* Extended: one stadium across icon and label, the icon where the collapsed rail centres it. */
+.config-rail-extended .config-rail-destination {
+  position: relative;
+  flex-direction: row;
+  gap: 12px;
+  height: 56px;
+  padding: 0 16px;
+  border-radius: 28px;
+  isolation: isolate;
+}
+
+.config-rail-extended .config-rail-destination::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .config-rail-extended .config-rail-destination:hover:not(.config-rail-selected)::before {
+    opacity: 0.08;
+  }
+}
+
+.config-rail-extended .config-rail-destination:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .config-rail-indicator::before,
+  .config-rail-extended .config-rail-destination::before {
+    transition-duration: 0s;
+  }
+}
+
+.config-rail-extended .config-rail-indicator {
+  width: 24px;
+  height: 24px;
+}
+
+.config-rail-extended .config-rail-selected,
+.config-rail-extended .config-rail-selected .config-rail-indicator {
+  background: none;
+}
+
+.config-rail-extended .config-rail-selected {
+  background: var(--surface-container-highest);
+}
+
+.config-rail-extended .config-rail-label {
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+}
+
+.config-screen-column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The page's title bar: Material 3's 64 px app bar without a leading slot, one title bar tall on macOS. */
+.config-screen-title {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: calc(64px + var(--inset-top));
+  padding: var(--inset-top) calc(var(--inset-right) + 16px) 0 16px;
+}
+
+.config-screen-title-lights {
+  height: var(--title-bar-height);
+}
+
+.config-screen-title h1 {
+  margin: 0;
+  overflow: hidden;
+  font: var(--title-large);
+  letter-spacing: var(--title-large-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

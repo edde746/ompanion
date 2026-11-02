@@ -16,9 +16,9 @@ The family, shared with the website:
   wide tracking for the numbered label; SF Pro Regular in the app's grey for the subline.
 - No lines, rims, borders or boxes: separation comes from tone, light and black shadow, as in the app.
 
-    python3 store/screenshots/compose.py --raw /tmp/ompanion-store/StoreShots/raw --repo .
+    python3 store/screenshots/compose.py --raw build/store-shots/raw --out .
     python3 store/screenshots/compose.py --verify
-    python3 store/screenshots/compose.py --review /tmp/ompanion-store/StoreShots/review
+    python3 store/screenshots/compose.py --review build/store-shots/review
 
 Needs Pillow (`python3 -m pip install pillow`) and `rsvg-convert` (`brew install librsvg`) for the icons and the
 π. Output sizes are the ones the stores accept today; see `store/screenshots/README.md` for the citations.
@@ -41,6 +41,7 @@ from typing import Iterable
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[1]  # the repository, whose assets/ hold the icon and the π
 BLACK = (0, 0, 0)
 INK = (237, 237, 237)
 MUTED = (143, 143, 143)
@@ -57,6 +58,7 @@ DEVICE_EDGE = (44, 44, 44)  # the body's outer edge, one step above #262626 so i
 CAPTIONS = json.loads((HERE / "captions.json").read_text())
 LAYOUTS = json.loads((HERE / "layouts.json").read_text())
 SHOT_ORDER = list(CAPTIONS["shots"])
+PLAY_IMAGES = "store/fastlane/android/metadata/android/en-US/images"
 
 
 @dataclass(frozen=True)
@@ -71,11 +73,11 @@ class Spec:
 
 
 SPECS: dict[str, Spec] = {
-    "ios-phone": Spec("ios-phone", (1320, 2868), ((1320, 2868), (2868, 1320)), "ios/fastlane/screenshots/en-US", "-iphone69"),
-    "ios-ipad": Spec("ios-ipad", (2048, 2732), ((2048, 2732), (2732, 2048)), "ios/fastlane/screenshots/en-US", "-ipad13"),
-    "play-phone": Spec("play-phone", (1080, 1920), ((1080, 1920), (1920, 1080)), "android/fastlane/metadata/android/en-US/images/phoneScreenshots"),
-    "play-7in": Spec("play-7in", (1920, 1080), ((1920, 1080), (1080, 1920)), "android/fastlane/metadata/android/en-US/images/sevenInchScreenshots"),
-    "play-10in": Spec("play-10in", (2560, 1440), ((2560, 1440), (1440, 2560)), "android/fastlane/metadata/android/en-US/images/tenInchScreenshots"),
+    "ios-phone": Spec("ios-phone", (1320, 2868), ((1320, 2868), (2868, 1320)), "store/fastlane/ios/screenshots/en-US", "-iphone69"),
+    "ios-ipad": Spec("ios-ipad", (2048, 2732), ((2048, 2732), (2732, 2048)), "store/fastlane/ios/screenshots/en-US", "-ipad13"),
+    "play-phone": Spec("play-phone", (1080, 1920), ((1080, 1920), (1920, 1080)), f"{PLAY_IMAGES}/phoneScreenshots"),
+    "play-7in": Spec("play-7in", (1920, 1080), ((1920, 1080), (1080, 1920)), f"{PLAY_IMAGES}/sevenInchScreenshots"),
+    "play-10in": Spec("play-10in", (2560, 1440), ((2560, 1440), (1440, 2560)), f"{PLAY_IMAGES}/tenInchScreenshots"),
     "ms-desktop": Spec("ms-desktop", (3840, 2160), ((3840, 2160),), "store/microsoft/screenshots"),
 }
 
@@ -237,9 +239,9 @@ def render_svg(source: Path, width: int) -> Image.Image:
 
 
 @cache
-def glyph_ink(repo: Path) -> Image.Image:
+def glyph_ink() -> Image.Image:
     """The π's coverage, cropped to its ink, rendered large once."""
-    alpha = render_svg(repo / "assets" / "ompanion_glyph.svg", 2048).getchannel("A")
+    alpha = render_svg(ROOT / "assets" / "ompanion_glyph.svg", 2048).getchannel("A")
     return alpha.crop(alpha.getbbox())
 
 
@@ -262,7 +264,7 @@ def value_noise(columns: int, rows: int, seed: int):
     return Image.blend(octaves[0], octaves[1], 0.35).point(lambda value: min(255, max(0, round((value - 128) * 1.8 + 128)))).load()
 
 
-def light(size: tuple[int, int], cell: int, sources: list[dict], repo: Path, keep_out: tuple[int, int, int, int] | None = None) -> Image.Image:
+def light(size: tuple[int, int], cell: int, sources: list[dict], keep_out: tuple[int, int, int, int] | None = None) -> Image.Image:
     """The dithered light: every source adds a density field on a grid of `cell`-pixel squares; a cell is lit in
     full colour when its density beats the Bayer threshold at its position, else it stays black.
 
@@ -299,7 +301,7 @@ def light(size: tuple[int, int], cell: int, sources: list[dict], repo: Path, kee
                         lift(row * columns + column, min(1.0, peak * (1 - r) ** gamma * broken), r, True)
         elif "pi" in source:
             pi = source["pi"]
-            ink = glyph_ink(repo)
+            ink = glyph_ink()
             glyph_height = pi["height"] * rows
             glyph_width = ink.width * glyph_height / ink.height
             soft = pi.get("blur", 0.02) * glyph_height
@@ -391,12 +393,18 @@ def device(image: Image.Image, shot: Image.Image, placement: dict, style: dict) 
     return left, top, left + body.width, top + body.height
 
 
-def zoom(image: Image.Image, shot: Image.Image, placement: dict, style: dict) -> tuple[int, int, int, int]:
-    """A rectangle of the capture, magnified, rounded, lifted on a black shadow. Returns its box.
+def zoom(image: Image.Image, shot: Image.Image, placement: dict, style: dict, regions: dict[str, tuple[int, int, int, int]]) -> tuple[int, int, int, int]:
+    """A part of the capture, magnified, rounded, lifted on a black shadow. Returns its box.
 
-    `crop` is in capture pixels, cut on element or row boundaries; `width` is the zoom's width on the canvas."""
+    `region` names the box of an element the scenario recorded with the capture (`regions`, capture pixels), so the
+    cut follows the element's own edges; `pad` widens it by capture pixels on every side, within the capture.
+    `width` is the zoom's width on the canvas."""
     width, height = image.size
-    x0, y0, x1, y1 = placement["crop"]
+    if placement["region"] not in regions:
+        raise SystemExit(f"the capture has no region {placement['region']!r} (it has {sorted(regions)})")
+    pad = placement.get("pad", 0)
+    x0, y0, x1, y1 = regions[placement["region"]]
+    x0, y0, x1, y1 = max(0, x0 - pad), max(0, y0 - pad), min(shot.width, x1 + pad), min(shot.height, y1 + pad)
     zoom_width = round(placement["width"] * width)
     scale = zoom_width / (x1 - x0)
     part = shot.crop((x0, y0, x1, y1)).resize((zoom_width, round((y1 - y0) * scale)), Image.LANCZOS)
@@ -407,19 +415,37 @@ def zoom(image: Image.Image, shot: Image.Image, placement: dict, style: dict) ->
     return left, top, left + part.width, top + part.height
 
 
+def capture_regions(source: Path, shot: Image.Image) -> dict[str, tuple[int, int, int, int]]:
+    """The boxes the scenario recorded beside the capture (`<shot>.json`: CSS px of its viewport), in capture pixels.
+    The page fills the capture's width; a desktop window's title bar, when the capture has one, sits above it."""
+    recorded = json.loads(source.with_suffix(".json").read_text())
+    viewport = recorded["viewport"]
+    scale = shot.width / viewport["width"]
+    top = shot.height - round(viewport["height"] * scale)
+    return {
+        name: (round(box["x"] * scale), top + round(box["y"] * scale),
+               round((box["x"] + box["width"]) * scale), top + round((box["y"] + box["height"]) * scale))
+        for name, box in recorded["regions"].items()
+        if box
+    }
+
+
 # ------------------------------------------------------------------------------------------------ compose
 
 
-def compose(spec: Spec, shot_name: str, shot: Image.Image, repo: Path) -> Image.Image:
+def compose(spec: Spec, shot_name: str, shot: Image.Image, regions: dict[str, tuple[int, int, int, int]]) -> Image.Image:
     spec_layout = LAYOUTS["classes"][spec.name]
     layout = spec_layout["shots"][shot_name]
     words = CAPTIONS["shots"][shot_name]
     words = {**words, **words.get(spec.name, {})}
     # The caption is measured on a scratch canvas first, so the light can stay clear of it.
     box = caption(Image.new("RGB", spec.size), spec_layout, layout["caption"], words)
-    image = light(spec.size, spec_layout["cell"], layout.get("light", []), repo, keep_out=box)
-    layers = [(device if "device" in layer else zoom)(image, shot, layer.get("device") or layer["zoom"], spec_layout["device"])
-              for layer in layout["layers"]]
+    image = light(spec.size, spec_layout["cell"], layout.get("light", []), keep_out=box)
+    layers = [
+        device(image, shot, layer["device"], spec_layout["device"]) if "device" in layer
+        else zoom(image, shot, layer["zoom"], spec_layout["device"], regions)
+        for layer in layout["layers"]
+    ]
     caption(image, spec_layout, layout["caption"], words)
     # A layout edit that runs the words into a device or a zoom fails here, not in review.
     x0, y0, x1, y1 = box
@@ -429,29 +455,30 @@ def compose(spec: Spec, shot_name: str, shot: Image.Image, repo: Path) -> Image.
     return image
 
 
-def compose_class(spec: Spec, raw: Path, repo: Path) -> list[Path]:
+def compose_class(spec: Spec, raw: Path, out: Path) -> list[Path]:
     written: list[Path] = []
     # A run that failed before its first capture must not empty the class's directory: keep what is there.
     if not any((raw / spec.name / f"{shot}.png").exists() for shot in SHOT_ORDER):
         print(f"{spec.name}: no raw captures, leaving the composed images alone")
         return written
-    for shot in SHOT_ORDER:
+    # The scenario captures every shot on every class; a gallery takes the ones its layout composes.
+    for shot in (name for name in SHOT_ORDER if name in LAYOUTS["classes"][spec.name]["shots"]):
         source = raw / spec.name / f"{shot}.png"
         if not source.exists():
             continue
         with Image.open(source) as opened:
             capture = opened.convert("RGB")
-        target = repo / spec.out / f"{shot}{spec.suffix}.png"
-        write(compose(spec, shot, capture, repo), target, alpha=False)
+        target = out / spec.out / f"{shot}{spec.suffix}.png"
+        write(compose(spec, shot, capture, capture_regions(source, capture)), target, alpha=False)
         written.append(target)
     return written
 
 
-def feature_graphic(repo: Path) -> Image.Image:
+def feature_graphic() -> Image.Image:
     """Play's feature graphic: the dithered π beside the wordmark and the hero's headline."""
     graphic = LAYOUTS["feature"]
     size = tuple(graphic["size"])
-    image = light(size, graphic["cell"], graphic["light"], repo)
+    image = light(size, graphic["cell"], graphic["light"])
     draw = ImageDraw.Draw(image)
     x, baseline = graphic["wordmark"]["at"][0] * size[0], graphic["wordmark"]["at"][1] * size[1]
     wordmark = font(graphic["wordmark"]["size"], 700)
@@ -496,9 +523,9 @@ def sheet(images: Iterable[Path], target: Path, tile_height: int, title: str, na
     write(canvas, target, alpha=False)
 
 
-def review(spec: Spec, repo: Path, directory: Path) -> None:
+def review(spec: Spec, out: Path, directory: Path) -> None:
     """What to judge a class by: the gallery as a contact sheet, as store thumbnails (300 px wide), the hero."""
-    present = [path for shot in SHOT_ORDER if (path := repo / spec.out / f"{shot}{spec.suffix}.png").exists()]
+    present = [path for shot in SHOT_ORDER if (path := out / spec.out / f"{shot}{spec.suffix}.png").exists()]
     if not present:
         return
     directory.mkdir(parents=True, exist_ok=True)
@@ -510,7 +537,7 @@ def review(spec: Spec, repo: Path, directory: Path) -> None:
         write(hero.convert("RGB"), directory / f"hero-{spec.name}.png", alpha=False)
 
 
-def verify(repo: Path) -> None:
+def verify(out: Path) -> None:
     """Checks every composed image against the stores' rules and exits non-zero when one fails."""
     rows: list[tuple[str, str, bool]] = []
 
@@ -518,18 +545,18 @@ def verify(repo: Path) -> None:
         with Image.open(path) as opened:
             alpha = opened.mode in ("RGBA", "LA") or "transparency" in opened.info
             ok = opened.size in tuple(sizes) and (alpha_allowed or not alpha)
-            rows.append((str(path.relative_to(repo)), f"{opened.size[0]}x{opened.size[1]} {'RGBA' if alpha else 'RGB'}", ok))
+            rows.append((str(path.relative_to(out)), f"{opened.size[0]}x{opened.size[1]} {'RGBA' if alpha else 'RGB'}", ok))
 
     for spec in SPECS.values():
         for shot in SHOT_ORDER:
-            path = repo / spec.out / f"{shot}{spec.suffix}.png"
+            path = out / spec.out / f"{shot}{spec.suffix}.png"
             if path.exists():
                 check(path, spec.accepted, alpha_allowed=False)
-    images = repo / "android/fastlane/metadata/android/en-US/images"
+    images = out / PLAY_IMAGES
     for path, size, alpha_allowed in (
         (images / "featureGraphic.png", (1024, 500), False),
         (images / "icon.png", (512, 512), True),
-        (repo / "store/app-icon-1024.png", (1024, 1024), False),
+        (out / "store/app-icon-1024.png", (1024, 1024), False),
     ):
         if path.exists():
             check(path, [size], alpha_allowed)
@@ -542,8 +569,8 @@ def verify(repo: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--raw", default="/tmp/ompanion-store/StoreShots/raw", help="directory of raw captures, one per class")
-    parser.add_argument("--repo", default=str(HERE.parents[1]), help="repository root the images are written into")
+    parser.add_argument("--raw", default=str(ROOT / "build/store-shots/raw"), help="directory of raw captures, one per class")
+    parser.add_argument("--out", default=str(ROOT), help="where the images go, in the repository's layout (store/…)")
     parser.add_argument("--only", action="append", choices=sorted(SPECS), help="compose one class (repeatable)")
     parser.add_argument("--review", help="write the review artifacts (sheets, thumbnails, heroes) into a directory")
     parser.add_argument("--skip-brands", action="store_true", help="skip the Play feature graphic and the icons")
@@ -551,21 +578,20 @@ def main() -> None:
     arguments = parser.parse_args()
 
     raw = Path(arguments.raw)
-    repo = Path(arguments.repo).resolve()
+    out = Path(arguments.out).resolve()
     if arguments.verify:
-        verify(repo)
+        verify(out)
         return
     for name in arguments.only or SPECS:
-        compose_class(SPECS[name], raw, repo)
+        compose_class(SPECS[name], raw, out)
     if not arguments.skip_brands:
-        images = repo / "android/fastlane/metadata/android/en-US/images"
-        write(feature_graphic(repo), images / "featureGraphic.png", alpha=False)
-        write(render_svg(repo / "assets" / "ompanion.svg", 512), images / "icon.png", alpha=True)
-        write(render_svg(repo / "assets" / "ompanion.svg", 1024), repo / "store/app-icon-1024.png", alpha=False)
+        write(feature_graphic(), out / PLAY_IMAGES / "featureGraphic.png", alpha=False)
+        write(render_svg(ROOT / "assets" / "ompanion.svg", 512), out / PLAY_IMAGES / "icon.png", alpha=True)
+        write(render_svg(ROOT / "assets" / "ompanion.svg", 1024), out / "store/app-icon-1024.png", alpha=False)
     if arguments.review:
         for name in arguments.only or SPECS:
-            review(SPECS[name], repo, Path(arguments.review))
-        with Image.open(repo / "android/fastlane/metadata/android/en-US/images/featureGraphic.png") as graphic:
+            review(SPECS[name], out, Path(arguments.review))
+        with Image.open(out / PLAY_IMAGES / "featureGraphic.png") as graphic:
             write(graphic.convert("RGB"), Path(arguments.review) / "feature-graphic.png", alpha=False)
             write(graphic.convert("RGB").resize((256, 125), Image.LANCZOS), Path(arguments.review) / "feature-graphic-small.png", alpha=False)
 

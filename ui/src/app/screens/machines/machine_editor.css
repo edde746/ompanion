@@ -1,0 +1,177 @@
+/* Up to 640 × 800 in a window; the whole screen on a compact one, its tone under the insets and the form inside them. */
+.machine-editor {
+  width: min(640px, 100%);
+  max-width: 640px;
+  max-height: min(800px, 100%);
+}
+
+/* The title and the import buttons stay on top while the form scrolls. */
+.machine-editor-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 12px;
+  background: var(--surface-container);
+}
+
+@media (max-width: 599.98px) {
+  .machine-editor {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    padding: calc(var(--inset-top) + 20px) calc(var(--inset-right) + 24px)
+      calc(max(var(--inset-bottom), var(--inset-keyboard)) + 12px) calc(var(--inset-left) + 24px);
+    border-radius: 0;
+    background: var(--surface);
+  }
+
+  .machine-editor-header {
+    background: var(--surface);
+  }
+}
+
+.machine-editor-title {
+  color: var(--on-surface);
+  font: var(--headline-small);
+  letter-spacing: var(--headline-small-tracking);
+}
+
+.machine-editor-imports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.machine-editor-body {
+  display: flex;
+  flex-direction: column;
+  color: var(--on-surface);
+}
+
+.machine-editor-kind {
+  display: flex;
+  margin-bottom: 16px;
+}
+
+.machine-editor-target {
+  margin-top: 16px;
+}
+
+.machine-editor-hop {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.machine-editor-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.machine-editor-host {
+  flex: 1;
+  min-width: 0;
+}
+
+.machine-editor-port {
+  flex: none;
+  width: 96px;
+}
+
+/* A field's helper line, where its error would be. */
+.machine-editor-helper {
+  padding-left: 12px;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* SwitchListTile: the label, the switch at the end; the whole row toggles it. */
+.machine-editor-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+  cursor: pointer;
+}
+
+/* CheckboxListTile with the box leading: the 40 px target's box lines up with the fields' edge. */
+.machine-editor-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+  margin-left: -11px;
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+  cursor: pointer;
+}
+
+.machine-editor-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.machine-editor-note-icon {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.machine-editor-small {
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.machine-editor-jumps-title {
+  margin: 16px 0 4px;
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+/* One tone below the dialog, so its fields and buttons keep their own tone. */
+.machine-editor-jump {
+  margin-top: 12px;
+  padding: 8px 8px 16px 16px;
+  border-radius: var(--card-radius);
+  background: var(--surface-container-low);
+}
+
+.machine-editor-jump-header {
+  display: flex;
+  align-items: center;
+}
+
+.machine-editor-jump-title {
+  flex: 1;
+  min-width: 0;
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+.machine-editor-jump-body {
+  padding-right: 8px;
+}
+
+.machine-editor-start {
+  display: flex;
+  margin-top: 8px;
+}
+
+.machine-editor-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+}

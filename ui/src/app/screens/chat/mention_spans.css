@@ -1,0 +1,63 @@
+/* An inline chip in the text (design.md, File mention and Model mention), centred on the line like a WidgetSpan with
+   PlaceholderAlignment.middle. */
+.mention-spans-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 1px 6px;
+  border: none;
+  border-radius: 6px;
+  background: var(--surface-container-highest);
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  vertical-align: middle;
+  isolation: isolate;
+}
+
+.mention-spans-icon {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.mention-spans-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-spans-button {
+  cursor: pointer;
+}
+
+/* InkWell's state layer, as the theme's buttons draw it. */
+.mention-spans-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .mention-spans-button:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.mention-spans-button:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mention-spans-button::before {
+    transition-duration: 0s;
+  }
+}

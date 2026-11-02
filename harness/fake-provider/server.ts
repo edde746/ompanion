@@ -4,8 +4,8 @@
  *
  *   bun harness/fake-provider/server.ts --port <port> [--host <address>] [--demo]
  *
- * Port 0 picks a free port. The host defaults to 127.0.0.1; Docker test machines on Linux need the
- * address of Docker's host gateway instead.
+ * Port 0 picks a free port. The host defaults to 127.0.0.1; an omp on another machine or in a container
+ * needs an address it can reach.
  *
  * The first stdout line is `listening <port>`. Model API: `POST /v1/chat/completions` (SSE when
  * `stream: true`), `GET /v1/models`. Control API: `POST /control/enqueue`, `POST /control/reset`,

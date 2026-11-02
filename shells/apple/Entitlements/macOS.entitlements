@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Direct builds: "this computer" spawns omp and shells, and the app reads ~/.ssh; the
+	     sandbox forbids both. A Mac App Store channel would need its own sandboxed entitlements. scripts/sign_app.sh
+	     signs release builds with these and the hardened runtime. -->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+</dict>
+</plist>

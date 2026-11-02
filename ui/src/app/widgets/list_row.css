@@ -1,0 +1,45 @@
+.list-row {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: var(--list-row-height);
+  margin: 0 8px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  isolation: isolate;
+  -webkit-touch-callout: none;
+}
+
+/* The state layer: hover 8 %, focus 10 %, fading over InkWell's 50 ms; ripple.ts draws the pressed one. */
+.list-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .list-row:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.list-row:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list-row::before {
+    transition-duration: 0s;
+  }
+}
+
+.list-row-selected {
+  background: var(--surface-container-highest);
+}

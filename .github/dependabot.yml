@@ -4,3 +4,11 @@ updates:
     directory: /
     schedule:
       interval: monthly
+  - package-ecosystem: gomod
+    directory: /core
+    schedule:
+      interval: monthly
+  - package-ecosystem: bun
+    directory: /ui
+    schedule:
+      interval: monthly

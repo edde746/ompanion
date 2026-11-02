@@ -1,5 +1,7 @@
 # Remote transport for the omp Flutter GUI — local · SSH · SSH+tunnel · Tailscale
 
+Recorded 2026-09-25 to 2026-09-27 for the Flutter app (commit `359d920`); its ompanion code paths name files of that commit.
+
 Scope: how a Flutter client (macOS, Windows, Linux, iOS, Android) reaches omp on many machines. User preference: **no host daemon** — drive `omp --mode rpc|rpc-ui` per session over SSH exec channels, plus CLI `--json`, SFTP, PTY. Daemon designs kept secondary.
 
 Citation keys: `ca:` = /tmp/oh-my-pi-18.3.0/packages/coding-agent/src/ · `omp://x.md` = /tmp/oh-my-pi-18.3.0/docs/x.md · `t3:` = https://github.com/pingdotgg/t3code/blob/main/ · `ds2:` = https://github.com/vicajilau/dartssh2/blob/main/ · [INFERENCE] = not verified by source or run.

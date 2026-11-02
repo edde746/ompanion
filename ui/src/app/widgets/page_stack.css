@@ -1,0 +1,23 @@
+/*
+ * The top page's edge shadow in the iOS transition (_CupertinoEdgeShadowDecoration): left of the page, moving with it,
+ * a gradient from 4/255 black at the page's edge to nothing over 5 % of the width. At rest it lies outside the box.
+ */
+.page-stack-shadow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -100%;
+  width: 100%;
+  background: linear-gradient(to left, rgb(0 0 0 / 0.0157), transparent 5%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The zoom transition's scrim under the entering page: the surface colour, up to 60 %. */
+.page-stack-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  opacity: 0;
+  pointer-events: none;
+}

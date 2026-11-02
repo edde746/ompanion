@@ -1,0 +1,289 @@
+/*
+ * The design tokens (docs/design.md, Tokens; lib/app/theme.dart, lib/app/palette.dart). theme.ts sets `data-base` (the
+ * palette's base) and `data-brightness` (its background's) on <html> and writes the Custom theme's picks inline over
+ * these. Palette tokens are named as in palette.dart, kebab-cased; the ColorScheme roles they drive follow them. A
+ * token some control needs at an alpha also has `--<token>-rgb` channels: `rgb(var(--text-rgb) / 0.38)`.
+ *
+ * The palette blocks also match any element with `data-base`, so `applyPalette(palette, element)` themes a subtree
+ * (the theme editor's preview): its roles derive again there from its own tokens.
+ */
+
+:root,
+[data-base] {
+  /* Palette tokens, Light base. */
+  --background: #ffffff;
+  --pane: #f7f7f7;
+  --card: #f0f0f0;
+  --field: #e8e8e8;
+  --selected: #dddddd;
+  --popover: #e4e4e4;
+  --text: #111111;
+  --text-muted: #5c5c5c;
+  --accent: #111111;
+  --on-accent: #ffffff;
+  --error: #b0413c;
+  --error-surface: #fbeceb;
+  --warning: #946200;
+  --success: #357a45;
+  --running: #5c5c5c;
+  --diff-add: #357a45;
+  --diff-add-surface: #e7f4ea;
+  --diff-remove: #b0413c;
+  --diff-remove-surface: #fbeceb;
+  --comment: #a0a1a7;
+  --keyword: #a626a4;
+  --tag: #e45649;
+  --literal: #0184bb;
+  --string: #50a14f;
+  --number: #986801;
+  --title: #4078f2;
+  --built-in: #c18401;
+  --ansi-black: #000000;
+  --ansi-red: #cd3131;
+  --ansi-green: #107c10;
+  --ansi-yellow: #949800;
+  --ansi-blue: #0451a5;
+  --ansi-magenta: #bc05bc;
+  --ansi-cyan: #0598bc;
+  --ansi-white: #555555;
+  --ansi-bright-black: #666666;
+  --ansi-bright-red: #cd3131;
+  --ansi-bright-green: #14ce14;
+  --ansi-bright-yellow: #b5ba00;
+  --ansi-bright-blue: #0451a5;
+  --ansi-bright-magenta: #bc05bc;
+  --ansi-bright-cyan: #0598bc;
+  --ansi-bright-white: #a5a5a5;
+
+  --background-rgb: 255 255 255;
+  --field-rgb: 232 232 232;
+  --text-rgb: 17 17 17;
+  --text-muted-rgb: 92 92 92;
+  --diff-add-rgb: 53 122 69;
+  --diff-remove-rgb: 176 65 60;
+
+  /* The roles no token drives keep the base's greys. */
+  --secondary: #444444;
+  --tertiary: #444444;
+  --outline: #8f8f8f;
+  --on-error-container: #5c1512;
+  --surface-dim: #dddddd;
+  --inverse-primary: #ededed;
+
+  /* ColorScheme roles, each driven by its token. */
+  --primary: var(--accent);
+  --on-primary: var(--on-accent);
+  --primary-container: var(--selected);
+  --on-primary-container: var(--text);
+  --on-secondary: var(--background);
+  --secondary-container: var(--field);
+  --on-secondary-container: var(--text);
+  --on-tertiary: var(--background);
+  --tertiary-container: var(--selected);
+  --on-tertiary-container: var(--text);
+  --on-error: var(--background);
+  --error-container: var(--error-surface);
+  --surface: var(--background);
+  --on-surface: var(--text);
+  --on-surface-rgb: var(--text-rgb);
+  --surface-bright: var(--popover);
+  --surface-container-lowest: var(--background);
+  --surface-container-low: var(--pane);
+  --surface-container: var(--card);
+  --surface-container-high: var(--field);
+  --surface-container-highest: var(--selected);
+  --on-surface-variant: var(--text-muted);
+  --on-surface-variant-rgb: var(--text-muted-rgb);
+  --outline-variant: var(--selected);
+  --shadow: #000000;
+  --scrim: #000000;
+  --inverse-surface: var(--text);
+  --on-inverse-surface: var(--background);
+
+  /* A modal dialog's scrim: black at 50 % in a light theme, 80 % in a dark one, so a dialog over a dialog stands out. */
+  --modal-scrim: rgb(0 0 0 / 0.5);
+  /*
+   * ansi.ts: SGR black and white text (AnsiPalette): onSurface and outline, swapped in a dark scheme so both read. The
+   * twelve hues' transcript colours (`--ansi-red-text`, `--ansi-red-surface`, …) derive from the palette in script,
+   * so theme.ts writes them inline.
+   */
+  --ansi-black-text: var(--on-surface);
+  --ansi-white-text: var(--outline);
+}
+
+:root {
+  /* AppSizes. */
+  --control: 36px;
+  --radius: 10px;
+  --card-radius: 12px;
+  --sheet-radius: 16px;
+  --gap: 8px;
+  --row-height: 32px;
+  --row-height-touch: 44px;
+  /* window_chrome.dart's titleBarHeight: every top header row. */
+  --title-bar-height: 52px;
+  /* A dense list row: rowHeight on desktops, rowHeightTouch on phones and tablets. */
+  --list-row-height: var(--row-height);
+
+  /* Screen insets (rule 13), from `shell.insets` (app/platform.ts); the webview's own until the shell answers. */
+  --inset-top: env(safe-area-inset-top, 0px);
+  --inset-right: env(safe-area-inset-right, 0px);
+  --inset-bottom: env(safe-area-inset-bottom, 0px);
+  --inset-left: env(safe-area-inset-left, 0px);
+  --inset-keyboard: 0px;
+
+  /*
+   * Flutter's curves that CSS can draw, for transitions in stylesheets (app/motion.ts has every curve the app uses, for
+   * motion driven from script). Durations are written where they are used, in Flutter's milliseconds.
+   */
+  --curve-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --curve-ease-in: cubic-bezier(0.42, 0, 1, 1);
+  --curve-ease-out: cubic-bezier(0, 0, 0.58, 1);
+  --curve-ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
+  --curve-fast-out-slow-in: cubic-bezier(0.4, 0, 0.2, 1);
+  --curve-linear-to-ease-out: cubic-bezier(0.35, 0.91, 0.33, 0.97);
+  --curve-ease-in-to-linear: cubic-bezier(0.67, 0.03, 0.65, 0.09);
+  --curve-standard: cubic-bezier(0.2, 0, 0, 1);
+  --curve-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --curve-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* Fonts (code_style.dart): the platform's UI font; JetBrains Mono for code, terminal and editor. */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans",
+    sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+
+  /*
+   * Material 3's type scale (Typography.material2021, englishLike2021): `font` shorthands plus their letter spacing.
+   * A component sets both: `font: var(--body-medium); letter-spacing: var(--body-medium-tracking);`.
+   */
+  --display-large: 400 57px / 64px var(--font-sans);
+  --display-large-tracking: -0.25px;
+  --display-medium: 400 45px / 52px var(--font-sans);
+  --display-medium-tracking: 0px;
+  --display-small: 400 36px / 44px var(--font-sans);
+  --display-small-tracking: 0px;
+  --headline-large: 400 32px / 40px var(--font-sans);
+  --headline-large-tracking: 0px;
+  --headline-medium: 400 28px / 36px var(--font-sans);
+  --headline-medium-tracking: 0px;
+  --headline-small: 400 24px / 32px var(--font-sans);
+  --headline-small-tracking: 0px;
+  --title-large: 400 22px / 28px var(--font-sans);
+  --title-large-tracking: 0px;
+  --title-medium: 500 16px / 24px var(--font-sans);
+  --title-medium-tracking: 0.15px;
+  --title-small: 500 14px / 20px var(--font-sans);
+  --title-small-tracking: 0.1px;
+  --body-large: 400 16px / 24px var(--font-sans);
+  --body-large-tracking: 0.5px;
+  --body-medium: 400 14px / 20px var(--font-sans);
+  --body-medium-tracking: 0.25px;
+  --body-small: 400 12px / 16px var(--font-sans);
+  --body-small-tracking: 0.4px;
+  --label-large: 500 14px / 20px var(--font-sans);
+  --label-large-tracking: 0.1px;
+  --label-medium: 500 12px / 16px var(--font-sans);
+  --label-medium-tracking: 0.5px;
+  --label-small: 500 11px / 16px var(--font-sans);
+  --label-small-tracking: 0.5px;
+  /* codeTextStyle: two px under bodyMedium, line height 1.4. */
+  --code: 400 12px / 1.4 var(--font-mono);
+}
+
+[data-base="dark"] {
+  --background: #000000;
+  --pane: #0b0b0b;
+  --card: #121212;
+  --field: #1a1a1a;
+  --selected: #262626;
+  --popover: #1e1e1e;
+  --text: #ededed;
+  --text-muted: #8f8f8f;
+  --accent: #ededed;
+  --on-accent: #000000;
+  --error: #e07a76;
+  --error-surface: #2a1413;
+  --warning: #d6a85c;
+  --success: #7dba8a;
+  --running: #8f8f8f;
+  --diff-add: #7dba8a;
+  --diff-add-surface: #0e2215;
+  --diff-remove: #e07a76;
+  --diff-remove-surface: #2a1212;
+  --comment: #5c6370;
+  --keyword: #c678dd;
+  --tag: #e06c75;
+  --literal: #56b6c2;
+  --string: #98c379;
+  --number: #d19a66;
+  --title: #61aeee;
+  --built-in: #e6c07b;
+  --ansi-black: #1e1e1e;
+  --ansi-red: #f14c4c;
+  --ansi-green: #23d18b;
+  --ansi-yellow: #e5e510;
+  --ansi-blue: #3b8eea;
+  --ansi-magenta: #d670d6;
+  --ansi-cyan: #29b8db;
+  --ansi-white: #cccccc;
+  --ansi-bright-black: #808080;
+  --ansi-bright-red: #ff6b6b;
+  --ansi-bright-green: #5af7b0;
+  --ansi-bright-yellow: #f5f543;
+  --ansi-bright-blue: #6cb6ff;
+  --ansi-bright-magenta: #e58fe5;
+  --ansi-bright-cyan: #5fd7f5;
+  --ansi-bright-white: #ffffff;
+
+  --background-rgb: 0 0 0;
+  --field-rgb: 26 26 26;
+  --text-rgb: 237 237 237;
+  --text-muted-rgb: 143 143 143;
+  --diff-add-rgb: 125 186 138;
+  --diff-remove-rgb: 224 122 118;
+
+  --secondary: #bdbdbd;
+  --tertiary: #bdbdbd;
+  --outline: #5c5c5c;
+  --on-error-container: #f2b8b5;
+  --surface-dim: #000000;
+  --inverse-primary: #111111;
+}
+
+[data-brightness="dark"] {
+  --modal-scrim: rgb(0 0 0 / 0.8);
+  --ansi-black-text: var(--outline);
+  --ansi-white-text: var(--on-surface);
+}
+
+:root[data-platform="ios"],
+:root[data-platform="android"] {
+  --list-row-height: var(--row-height-touch);
+}
+
+/*
+ * A theme change (theme.ts applyPalette) crossfades the page as MaterialApp's AnimatedTheme lerps the theme:
+ * kThemeAnimationDuration, linearly. The old and new pictures blend additively, so each pixel moves straight from its
+ * old colour to its new one.
+ */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 10ms;
+  }
+}
+
+/* While theme.ts writes a palette, colours change at once: no control fades its own on top of the theme's crossfade. */
+[data-theme-switching] *,
+[data-theme-switching] *::before,
+[data-theme-switching] *::after {
+  transition: none !important;
+}

@@ -1,0 +1,387 @@
+.usage-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.usage-pane-tabs {
+  margin: 8px 0;
+  padding: 0 12px;
+}
+
+.usage-pane-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 24px 32px;
+  overflow-y: auto;
+}
+
+.usage-pane-muted {
+  color: var(--on-surface-variant);
+}
+
+.usage-pane-error {
+  color: var(--error);
+}
+
+.usage-pane-small-muted,
+.usage-pane-small-error,
+.usage-pane-small-warning {
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+}
+
+.usage-pane-small-error {
+  color: var(--error);
+}
+
+.usage-pane-small-warning {
+  color: var(--warning);
+}
+
+.usage-pane-note {
+  padding-top: 16px;
+}
+
+.usage-pane-gap {
+  margin-bottom: var(--gap);
+}
+
+.usage-pane-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  height: var(--control);
+}
+
+.usage-pane-fetched {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-pane-compact {
+  display: none;
+}
+
+@media (max-width: 599px) {
+  .usage-pane-wide {
+    display: none;
+  }
+
+  .usage-pane-compact {
+    display: inline-flex;
+  }
+}
+
+.usage-pane-heading {
+  padding: 20px 0 var(--gap);
+  font: var(--title-medium);
+  letter-spacing: var(--title-medium-tracking);
+}
+
+.usage-pane-heading-trailing {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  color: var(--on-surface-variant);
+  white-space: pre;
+}
+
+.usage-pane-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* A machine: status, name, what it answered or why not, and the action that helps. */
+.usage-pane-machine {
+  display: flex;
+  align-items: center;
+  min-height: var(--control);
+  padding: 4px 0;
+}
+
+.usage-pane-machine-name {
+  flex: none;
+  margin: 0 12px 0 10px;
+  font-weight: 600;
+}
+
+.usage-pane-machine-detail {
+  flex: 1;
+  min-width: 0;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.usage-pane-ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-pane-asking {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.usage-pane-account {
+  margin-bottom: var(--gap);
+  container-type: inline-size;
+}
+
+.usage-pane-account-header {
+  display: flex;
+  align-items: flex-start;
+}
+
+.usage-pane-account-header > .usage-pane-dot {
+  margin-top: 6px;
+}
+
+.usage-pane-account-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0 var(--gap) 0 10px;
+}
+
+.usage-pane-account-label {
+  font-weight: 600;
+}
+
+.usage-pane-bell {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 50ms linear;
+}
+
+.usage-pane-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  transition: background-color 50ms linear;
+}
+
+@media (hover: hover) {
+  .usage-pane-bell:hover,
+  .usage-pane-countdown:hover {
+    background: rgb(var(--on-surface-rgb) / 0.08);
+  }
+}
+
+.usage-pane-bell:focus-visible,
+.usage-pane-countdown:focus-visible {
+  background: rgb(var(--on-surface-rgb) / 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .usage-pane-bell,
+  .usage-pane-countdown {
+    transition-duration: 0s;
+  }
+}
+
+.usage-pane-mark {
+  color: var(--on-surface-variant);
+}
+
+.usage-pane-mark-active {
+  color: var(--on-surface);
+}
+
+.usage-pane-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.usage-pane-policy {
+  padding: 2px 0 0 18px;
+}
+
+.usage-pane-no-limits {
+  padding-left: 18px;
+}
+
+/* Limits in columns, as `omp usage` pads them: status, title, bar, amounts and reset. */
+.usage-pane-limits {
+  display: grid;
+  grid-template-columns: 18px auto 1fr auto;
+  margin-top: 6px;
+}
+
+.usage-pane-limit {
+  display: contents;
+}
+
+.usage-pane-limit > span {
+  padding: 5px 0;
+}
+
+.usage-pane-limit > .usage-pane-limit-dot,
+.usage-pane-limit > .usage-pane-limit-bar {
+  padding-top: 11px;
+}
+
+.usage-pane-limit > .usage-pane-limit-title {
+  padding-right: 16px;
+}
+
+.usage-pane-limit > .usage-pane-limit-details {
+  display: flex;
+  flex-direction: column;
+  padding-left: 16px;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  font-variant-numeric: tabular-nums;
+  color: var(--on-surface-variant);
+}
+
+.usage-pane-reset-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* A narrow block: status, title and amounts on one line, the bar under them. */
+@container (width < 560px) {
+  .usage-pane-limits {
+    display: block;
+  }
+
+  .usage-pane-limit {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    align-items: center;
+    padding: 5px 0;
+  }
+
+  .usage-pane-limits .usage-pane-limit > span {
+    padding: 0;
+  }
+
+  .usage-pane-limits .usage-pane-limit > .usage-pane-limit-bar {
+    grid-column: 2;
+    padding: 4px 0;
+  }
+
+  .usage-pane-limits .usage-pane-limit > .usage-pane-limit-details {
+    grid-column: 2;
+  }
+}
+
+.usage-pane-bar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--surface-container-highest);
+}
+
+.usage-pane-bar-fill {
+  display: block;
+  height: 100%;
+}
+
+/* An account without usage data or a disabled credential. */
+.usage-pane-other {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap);
+  padding: 4px 0;
+}
+
+.usage-pane-other-icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  width: 18px;
+  height: 20px;
+  margin-right: calc(-1 * var(--gap));
+}
+
+.usage-pane-other-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.usage-pane-other-label > span {
+  white-space: pre-wrap;
+}
+
+.usage-pane-capacity-title {
+  margin-bottom: 4px;
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+}
+
+.usage-pane-capacity {
+  display: flex;
+  align-items: flex-start;
+  padding: 2px 0;
+}
+
+.usage-pane-capacity-window {
+  flex: none;
+  width: 96px;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.usage-pane-figures {
+  flex: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stats: the ranges and the machine choice, which wraps under them on a phone, then the refresh. */
+.usage-pane-stats-controls {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap);
+}
+
+.usage-pane-stats-choices {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: var(--gap);
+  min-width: 0;
+}
+
+.usage-pane-ranges {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.usage-pane-activity {
+  padding-top: 20px;
+}

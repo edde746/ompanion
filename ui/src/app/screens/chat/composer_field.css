@@ -1,0 +1,29 @@
+.composer-field {
+  position: relative;
+  min-height: calc(12px + 21px);
+  /* Ten lines at most; more scroll. */
+  max-height: calc(12px + 21px * 10);
+  /* 11 + the glyphs' side bearing puts the ink on the 12 px edge of the model icon below. */
+  padding: 12px 12px 0 11px;
+  overflow-y: auto;
+  color: var(--on-surface);
+  /* The app's body size (14 px) everywhere: on tablets and desktop windows the transcript's 15 px read too large here. */
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.composer-field-empty::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: var(--on-surface-variant);
+  pointer-events: none;
+}
+
+.composer-field-chip {
+  -webkit-user-select: all;
+  user-select: all;
+}

@@ -1,5 +1,8 @@
 # UI libraries: markdown, highlighting, transcript list, terminal, editor
 
+Recorded 2026-09-25 to 2026-09-27 for the Flutter app (commit `359d920`); its ompanion code paths name files of that
+commit, its other paths files of the packages it names.
+
 Today's Flutter stable is 3.47.5 (2026-09-18, Dart 3.13.4); this project targets 3.47.1. Versions and dates come from the pub.dev API. Stars and activity come from the GitHub API. **[INFERENCE]** marks claims I did not verify. The Dart snippets are sketches; I did not run any of them.
 
 ---
@@ -461,7 +464,7 @@ Time from a click on a session in the sidebar to the first frame of its transcri
 (M-series), sessions against the fake provider: "Small" is 36 items (229 KB file), "Big" 1,836 items with
 thinking, `bash` and `read` calls with 16 KB results, markdown with code and tables (7.6 MB file, a recorded session
 repeated). Cold: no run holds the session, so the click launches omp. Attach: a run holds it, and the device replays
-its `out.jsonl`, which holds one earlier open. SSH: the `harness/sshd` target container.
+its `out.jsonl`, which holds one earlier open. SSH: an Ubuntu 24.04 Docker container on this Mac.
 
 | | Before | After |
 |---|---|---|

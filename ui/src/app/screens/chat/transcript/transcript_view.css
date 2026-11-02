@@ -1,0 +1,100 @@
+/*
+ * The chat transcript (transcript_view.dart). Its root carries the transcript's text theme (chatTextTheme): the app's
+ * sizes on phones, one step up where the window's shorter side is at least 600 px (tablets, desktop windows).
+ */
+.transcript {
+  --chat-body-size: 14px;
+  --chat-body-small-size: 12px;
+  --chat-label-small-size: 11px;
+  --chat-code-size: 12px;
+  --chat-cell-size: 13px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+@media (min-width: 600px) and (min-height: 600px) {
+  .transcript {
+    --chat-body-size: 15px;
+    --chat-body-small-size: 13px;
+    --chat-label-small-size: 12px;
+    --chat-code-size: 13px;
+    --chat-cell-size: 14px;
+  }
+}
+
+.transcript-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* The view keeps the row at the top edge in place itself; the browser's own anchoring would correct twice. */
+  overflow-anchor: none;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Rows measure their offsets against it (flow-root: no margin collapses through its top). The bottom gap is the one
+ * of the Flutter list's center sliver.
+ */
+.transcript-content {
+  position: relative;
+  display: flow-root;
+  padding-bottom: 16px;
+}
+
+.transcript-load-earlier {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/*
+ * A margin, not padding: the column's offsetTop is where its first row starts. flow-root: the top spacer's negative
+ * margin (transcript_view.tsx, `slack`) lifts the rows inside the column instead of collapsing through to the column.
+ */
+.transcript-column {
+  display: flow-root;
+  margin-top: 8px;
+}
+
+/* A row's margins stay inside it, so its measured height is the space it takes. */
+.transcript-row {
+  display: flow-root;
+}
+
+.transcript-jump {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/*
+ * FloatingActionButton.small: a flat 40 px disc in surfaceContainerHighest that scales in when the reader scrolls up
+ * (AnimatedScale: 150 ms, linearly).
+ */
+.transcript-jump-button.icon-button {
+  pointer-events: auto;
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+  transform: scale(0);
+  transition: transform 150ms linear;
+}
+
+.transcript-jump-shown .transcript-jump-button.icon-button {
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transcript-jump-button.icon-button {
+    transition-duration: 0s;
+  }
+}

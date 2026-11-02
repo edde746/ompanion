@@ -1,0 +1,207 @@
+/* lib/screens/chat/transcript/tool_card.dart; docs/design.md Components, Tool call. */
+
+.tool-card-transcript-card {
+  background: var(--surface-container);
+  border-radius: var(--card-radius);
+}
+
+/* codeSurface: the background of code, terminal output and diffs, one tone higher inside a TranscriptCard. */
+.tool-card-code-surface {
+  background: var(--surface-container);
+}
+
+.tool-card-transcript-card .tool-card-code-surface {
+  background: var(--surface-container-high);
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-card-line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  border-radius: 6px;
+  isolation: isolate;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tool-card-line-toggles {
+  cursor: pointer;
+}
+
+.tool-card-line-toggles::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .tool-card-line-toggles:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.tool-card-line-toggles:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-card-line-toggles::before {
+    transition-duration: 0s;
+  }
+}
+
+.tool-card-mark {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  /* toolBodyIndent − 14: the name starts at the body's edge. */
+  margin-right: 8px;
+  color: var(--running);
+}
+
+.tool-card-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.tool-card-dot-done {
+  background: var(--success);
+}
+
+.tool-card-dot-failed {
+  background: var(--error);
+}
+
+.tool-card-dot-interrupted {
+  background: var(--on-surface-variant);
+}
+
+.tool-card-line .tool-card-name {
+  flex: none;
+  max-width: 160px;
+  margin-right: 8px;
+  overflow: hidden;
+  font-size: var(--chat-body-small-size, 12px);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* One line cut with `…` at the character that no longer fits, a line break included, as Flutter's maxLines: 1. */
+.tool-card-text {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  font: 400 var(--chat-body-small-size, 12px) / 1.33 var(--font-sans);
+  letter-spacing: var(--body-small-tracking);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.tool-card-text .tool-card-subject {
+  font-size: inherit;
+  color: var(--on-surface-variant);
+}
+
+.tool-card-text .tool-card-subject.code-style {
+  letter-spacing: 0;
+}
+
+.tool-card-subject-opens {
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--on-surface-variant-rgb) / 0.5);
+  cursor: pointer;
+}
+
+.tool-card-intent {
+  color: rgb(var(--on-surface-variant-rgb) / 0.7);
+}
+
+.tool-card-fact {
+  flex: none;
+  margin-left: 8px;
+  font: 500 var(--chat-label-small-size, 11px) / 1.45 var(--font-sans);
+  letter-spacing: var(--label-small-tracking);
+  white-space: nowrap;
+  color: var(--on-surface-variant);
+}
+
+.tool-card-fact-failed {
+  color: var(--error);
+}
+
+.tool-card-chevron {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  width: 24px;
+  color: var(--on-surface-variant);
+}
+
+/* toolBodyIndent: the body starts under the tool's name. */
+.tool-card-body {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0 6px 22px;
+}
+
+.tool-card-section {
+  padding: 8px 0 4px;
+  font: 500 var(--chat-label-small-size, 11px) / 1.45 var(--font-sans);
+  letter-spacing: var(--label-small-tracking);
+  color: var(--on-surface-variant);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tool-card-capped {
+  display: flex;
+  flex-direction: column;
+}
+
+/* TextButton.icon at compact density. */
+.tool-card-capped .tool-card-toggle {
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 0 16px 0 12px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tool-card-toggle .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.tool-card-output {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+}
+
+.tool-card-output-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tool-card-output-text.tool-card-output-error {
+  color: var(--error);
+}

@@ -1,0 +1,26 @@
+/* A tonal button (button.css) with its label at the start and the chevron 4 px after it. */
+.button.app-select {
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 8px 0 12px;
+}
+
+.button.app-select-expand {
+  display: flex;
+  width: 100%;
+}
+
+.app-select-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-select-expand .app-select-label {
+  flex: 1;
+}
+
+.app-select-chevron {
+  color: var(--on-surface-variant);
+}

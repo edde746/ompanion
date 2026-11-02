@@ -5,7 +5,7 @@ The companion is a TypeScript extension (`companion/`) loaded into every rpc pro
 `goal`, `guided-goal` and `loop` (see "Slash commands: goal, guided-goal, loop"). Everything below rides on the
 ordinary omp RPC channel of that process (`docs/research/omp-surface.md`).
 
-Verified on omp 18.3.1 (spike, 2026-09-25): `ctx.ui.output` is a function that writes any object as a
+Verified on omp 18.3.1 (2026-09-25): `ctx.ui.output` is a function that writes any object as a
 frame; `ctx.ui.pendingRequests` is a `Map`; a companion request answered with `extension_ui_response`
 resolves with the whole response frame; the main session is
 `pi.pi.AgentRegistry.global().get(pi.pi.MAIN_AGENT_ID).session`; `agentPauseGate` imports from

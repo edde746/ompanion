@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- An app, not a document: no pinch or double-tap zoom, and iOS does not zoom into a focused field. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Agent HTML does not run under this policy: it loads frame.html, which carries its own (src/AgentFrame.tsx). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' %FIRST_FRAME_HASH%; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src %CONNECT_SRC%; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>ompanion</title>
+    <!-- No icon: a browser would otherwise ask for /favicon.ico, which nothing serves. The shells show none. -->
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- The last launch's first frame, until main.tsx renders the app (src/app/first_frame.ts; vite.config.ts puts
+         src/app/first_frame_restore.js here). -->
+    <script>%FIRST_FRAME_SCRIPT%</script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

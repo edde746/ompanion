@@ -1,0 +1,114 @@
+.plugins-page-loading {
+  display: flex;
+  justify-content: center;
+}
+
+.plugins-page-row {
+  margin: 2px 0;
+}
+
+.plugins-page-row-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.plugins-page-row-title {
+  flex: 1;
+  min-width: 0;
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  overflow-wrap: anywhere;
+}
+
+.plugins-page-row-lines {
+  display: flex;
+  flex-direction: column;
+  padding-right: 8px;
+}
+
+.plugins-page-mono {
+  margin: 0;
+  color: var(--on-surface-variant);
+  font: 400 11px / 16px var(--font-mono);
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+}
+
+.plugins-page-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.plugins-page-tip {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+/* Some engines dispatch no pointer events on a disabled button; letting them through to the wrapper shows its tooltip. */
+.plugins-page-tip .chip-body:disabled {
+  pointer-events: none;
+}
+
+.plugins-page-offer {
+  display: flex;
+  align-items: center;
+  padding-top: 6px;
+}
+
+.plugins-page-offer-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.plugins-page-offer-name {
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  overflow-wrap: anywhere;
+}
+
+/* From 520 px of list width the field, the scope and the button share a row; narrower, the field takes its own. */
+.plugins-page-install {
+  padding-top: var(--gap);
+  container-type: inline-size;
+}
+
+.plugins-page-install-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.plugins-page-install-field {
+  flex: 1 0 100%;
+}
+
+.plugins-page-install-button {
+  margin-left: auto;
+}
+
+@container (min-width: 520px) {
+  .plugins-page-install-row {
+    flex-wrap: nowrap;
+  }
+
+  .plugins-page-install-field {
+    flex: 1 1 0;
+  }
+}
+
+.plugins-page-source {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding-top: var(--gap);
+}
+
+.plugins-page-source-field {
+  flex: 1;
+}

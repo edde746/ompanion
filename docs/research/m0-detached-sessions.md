@@ -1,5 +1,8 @@
 # M0: detached sessions on POSIX hosts, Windows scripts
 
+Recorded 2026-09-25 to 2026-10-02 against the Flutter app (commit `359d920`); its code paths, tests, links and CI jobs
+name those of that commit. The detached-run scripts are in `ui/src/core/channel/` (`detached_run.ts`, `windows_run.ts`).
+
 The POSIX detached session works on macOS and Linux with omp 18.3.1. omp outlives the process and the SSH
 connection that launched it. Devices re-attach from a saved byte offset and get only newer lines. Concurrent
 appenders never interleave. Rotation is followed by BSD and GNU `tail`. A graceful stop exits 0 in about
@@ -15,9 +18,9 @@ model turn.
 | Ubuntu 24.04.4 container (aarch64, colima) | dash | GNU coreutils 9.4 | `SshLink` (dartssh2 4.1.0) to OpenSSH 9.6p1 |
 | Alpine container (probe, listing, `tail`) | BusyBox 1.37.0 | BusyBox | `docker run -i … sh -s` |
 
-Code: `packages/omp_core/lib/src/channel/`. Tests: `test/channel/detached_omp_test.dart`
-(`dart test -P integration -t omp`) and `test/channel/detached_docker_test.dart` (`-t docker`, after
-`harness/sshd/up.sh`).
+Code: `packages/omp_core/lib/src/channel/`. Tests: `packages/omp_core/test/channel/detached_omp_test.dart`
+(`dart test -P integration -t omp`) and `packages/omp_core/test/channel/detached_docker_test.dart` (`-t docker`, against
+the Ubuntu container above).
 
 ## Results
 
@@ -127,8 +130,9 @@ every MiB, so a follower that still reads across a rotation finds out (PLAN.md �
 
 ## Windows: run in CI
 
-CI's Windows host job (`packages/omp_core/test/windows/`) runs on `windows-latest` (Windows Server 2025, OpenSSH
-for Windows 9.5p2) over dartssh2 against the runner's own sshd, with cmd.exe and with PowerShell as the default
+CI's Windows host job (`ui/src/core/host/windows_host.e2e.test.ts`, `ui/src/core/session/windows_session.e2e.test.ts`;
+`packages/omp_core/test/windows/` over dartssh2 until commit `359d920`) runs on `windows-latest` (Windows Server 2025,
+OpenSSH for Windows 9.5p2) against the runner's own sshd, with cmd.exe and with PowerShell as the default
 shell: probe, exec, long scripts uploaded and run with `-File`, the download install, the file browser's SFTP
 operations, attachments in 4 MiB appends, image fetches with an ffmpeg preview, and detached runs with the fake provider (launch
 through WMI, reply, a second device, reattach, graceful stop with exit 0, 2 × 10 concurrent appends plus a
@@ -144,9 +148,9 @@ through WMI, reply, a second device, reattach, graceful stop with exit 0, 2 × 1
 - SFTP reads of `out.jsonl` and `in.jsonl` share with cmd.exe's `>>` and `feed.ps1`: `O_RDONLY` opens with
   `FILE_SHARE_READ | FILE_SHARE_WRITE`.
 
-Checked with PowerShell 7.6.4 on macOS (`test/channel/windows_scripts_test.dart`): `feed.ps1` byte for byte
-(non-ASCII, CRLF, a 200 KB line); the session listing script against the POSIX one; the probe under WOW64.
-Encoded command lengths with realistic paths (limit 8,191): probe 7,035, session listing 7,163, run listing
+Checked with PowerShell 7.6.4 on macOS (`packages/omp_core/test/channel/windows_scripts_test.dart`): `feed.ps1`
+byte for byte (non-ASCII, CRLF, a 200 KB line); the session listing script against the POSIX one; the probe under
+WOW64. Encoded command lengths with realistic paths (limit 8,191): probe 7,035, session listing 7,163, run listing
 6,247, launch 5,983, kill 1,743 characters.
 
 Not verified: a Windows machine whose OpenSSH default shell is Git Bash or another POSIX shell; ARM64

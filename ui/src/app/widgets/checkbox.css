@@ -1,0 +1,159 @@
+/* Material's geometry: an 18 px box or a 20 px ring centred in a 40 px target with a round state layer. */
+.checkbox,
+.radio {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--on-surface-variant);
+  isolation: isolate;
+}
+
+.checkbox-checked,
+.radio-selected {
+  color: var(--on-surface);
+}
+
+/*
+ * The radial reaction (toggleable.dart paintRadialReaction): the whole 40 px circle while hovered or focused; a press
+ * grows it from the centre.
+ */
+.checkbox::before,
+.radio::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  transform: scale(0);
+}
+
+@media (hover: hover) {
+  .checkbox:hover:not(:disabled)::before,
+  .radio:hover:not(:disabled)::before {
+    opacity: 0.08;
+    transform: none;
+  }
+}
+
+.checkbox:focus-visible::before,
+.radio:focus-visible::before,
+.checkbox:active:not(:disabled)::before,
+.radio:active:not(:disabled)::before {
+  opacity: 0.1;
+  transform: none;
+}
+
+/* The box as _CheckboxPainter draws it: fill, a 2 px border inside the edge, the check mark in the surface tone. */
+.checkbox-box {
+  display: block;
+  overflow: visible;
+}
+
+.checkbox-shape {
+  transform-origin: 9px 9px;
+}
+
+.checkbox-fill {
+  fill: var(--on-surface);
+  fill-opacity: 0;
+}
+
+.checkbox-frame {
+  fill: none;
+  stroke: var(--on-surface-variant);
+  stroke-width: 2;
+}
+
+.checkbox-check {
+  fill: none;
+  stroke: var(--surface);
+  stroke-width: 2;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.checkbox-checked .checkbox-fill {
+  fill-opacity: 1;
+}
+
+.checkbox-checked .checkbox-frame {
+  stroke-width: 0;
+  stroke-opacity: 0;
+}
+
+.checkbox-checked .checkbox-check {
+  stroke-dashoffset: 0;
+}
+
+.checkbox:disabled .checkbox-fill,
+.checkbox:disabled .checkbox-frame {
+  fill: rgb(var(--on-surface-rgb) / 0.38);
+  stroke: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+/* The radio's dot grows from the centre (_RadioPainter: innerRadius × position). */
+.radio-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.radio-ring::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  transform: scale(0);
+}
+
+.radio-selected .radio-ring::after {
+  transform: none;
+}
+
+.checkbox:disabled,
+.radio:disabled {
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Hover and focus fade over _kReactionFadeDuration; a press grows over kRadialReactionDuration. */
+  .checkbox::before,
+  .radio::before {
+    transition:
+      opacity 50ms var(--curve-fast-out-slow-in),
+      transform 100ms var(--curve-fast-out-slow-in);
+  }
+
+  .checkbox:hover::before,
+  .radio:hover::before,
+  .checkbox:focus-visible::before,
+  .radio:focus-visible::before {
+    transition-duration: 50ms, 0s;
+  }
+
+  .checkbox:active::before,
+  .radio:active::before {
+    transition-duration: 0s, 100ms;
+  }
+
+  /* _kToggleDuration along Curves.easeIn: the ring's colour and the dot. */
+  .radio {
+    transition: color 200ms var(--curve-ease-in);
+  }
+
+  .radio-ring::after {
+    transition: transform 200ms var(--curve-ease-in);
+  }
+}

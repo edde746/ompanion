@@ -18,11 +18,10 @@ from deploy import (
     DeployError,
     State,
     blocking_changes,
-    bump_pubspec_text,
     channel_notes_problem,
     check_release_env,
     parse_env_text,
-    parse_pubspec_version,
+    parse_version,
     previous_release_tag,
     release_files,
     resolve_msstore_pricing,
@@ -171,7 +170,7 @@ class AppleUploadTest(unittest.TestCase):
 
     def test_upload_uses_altool_with_api_key_and_key_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            ipa = Path(tmp) / "Runner.ipa"
+            ipa = Path(tmp) / "ompanion.ipa"
             ipa.write_bytes(b"ipa")
             with mock.patch.object(deploy, "run") as run_command:
                 deploy._upload_ipa(self._context(), ipa)
@@ -199,21 +198,20 @@ class AppleUploadTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         info = plistlib.dumps({"CFBundleShortVersionString": version, "CFBundleVersion": build})
         with zipfile.ZipFile(path, "w") as archive:
-            archive.writestr("Payload/Runner.app/Info.plist", info)
+            archive.writestr("Payload/ompanion.app/Info.plist", info)
 
     def _run_phase(self, export: tuple[str, str] | None, stale: bool = True):
-        """phase_ios with a build/ios/ipa holding an older export, where the build exports `export` or nothing."""
+        """phase_ios with a build/apple/ipa holding an older export, where the build exports `export` or nothing."""
         ctx = self._context()
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp)
-        ipa_dir = tmp / "build/ios/ipa"
+        ipa_dir = tmp / "build/apple/ipa"
         if stale:
             self._write_ipa(ipa_dir / "ompanion.ipa", "1.0.0", "1")
 
-        def build(_cmd):
-            # flutter build ipa exits 0 even when the export fails.
+        def build(cmd, cwd):
             self.assertFalse(ipa_dir.exists(), "the previous export is removed before the build")
-            if export is not None:
+            if cmd[0] == "shells/apple/build.sh" and export is not None:
                 self._write_ipa(ipa_dir / "ompanion.ipa", *export)
 
         with (
@@ -225,8 +223,13 @@ class AppleUploadTest(unittest.TestCase):
             try:
                 deploy.phase_ios(ctx)
             finally:
-                run_command.assert_called_once_with(
-                    ["flutter", "build", "ipa", "--release", "--dart-define=OMPANION_CHANNEL=appstore"]
+                self.assertEqual(
+                    run_command.call_args_list,
+                    [
+                        mock.call(["scripts/build_companion.sh"], cwd=deploy.ROOT),
+                        mock.call(["bun", "install", "--frozen-lockfile"], cwd=deploy.ROOT / "ui"),
+                        mock.call(["shells/apple/build.sh", "--ipa", "--core"], cwd=deploy.ROOT),
+                    ],
                 )
         return ctx, upload, ipa_dir / "ompanion.ipa"
 
@@ -254,62 +257,17 @@ class AppleUploadTest(unittest.TestCase):
         run_command.assert_not_called()
 
 
-class ParsePubspecVersionTest(unittest.TestCase):
-    def test_ignores_duplicate_nested_version_keys(self) -> None:
-        contents = """\
-name: example
-dependencies:
-  first:
-    version: 9.9.9+999
-version: 2.8.0+119
-metadata:
-  version: malformed
-"""
-        self.assertEqual(parse_pubspec_version(contents), ("2.8.0+119", "119"))
+class ParseVersionTest(unittest.TestCase):
+    def test_reads_version_and_build_number(self) -> None:
+        self.assertEqual(parse_version("2.8.0+119\n"), ("2.8.0", 119))
 
     def test_rejects_malformed_versions(self) -> None:
-        for value in ("2.8", "2.8.0", "02.8.0+1", "2.8.0+build.1"):
+        for value in ("2.8", "2.8.0", "02.8.0+1", "2.8.0+build.1", "2.8.0+1\n2.9.0+2", ""):
             with self.subTest(value=value), self.assertRaises(DeployError):
-                parse_pubspec_version(f"version: {value}\n")
+                parse_version(f"{value}\n")
 
-    def test_rejects_missing_top_level_version(self) -> None:
-        contents = """\
-name: example
-dependency:
-  version: 2.8.0+119
-"""
-        with self.assertRaisesRegex(DeployError, "found 0"):
-            parse_pubspec_version(contents)
-
-    def test_accepts_numeric_build_metadata(self) -> None:
-        self.assertEqual(
-            parse_pubspec_version("version: 10.20.30+0007 # release build\n"),
-            ("10.20.30+0007", "0007"),
-        )
-
-
-class BumpPubspecTextTest(unittest.TestCase):
-    PUBSPEC = """\
-name: ompanion
-description: A client for omp.
-version: 1.0.0+1
-environment:
-  sdk: ">=3.12.0 <4.0.0"
-dependencies:
-  some_package:
-    version: 9.9.9+999
-"""
-
-    def test_replaces_only_the_top_level_version(self) -> None:
-        result = bump_pubspec_text(self.PUBSPEC, "1.1.0", 2)
-        self.assertIn("version: 1.1.0+2\n", result)
-        self.assertIn("    version: 9.9.9+999\n", result)
-        self.assertNotIn("1.0.0+1", result)
-        self.assertEqual(result.count("\n"), self.PUBSPEC.count("\n"))
-
-    def test_rejects_pubspec_without_version(self) -> None:
-        with self.assertRaises(DeployError):
-            bump_pubspec_text("name: ompanion\n", "1.1.0", 2)
+    def test_accepts_a_build_number_with_leading_zeros(self) -> None:
+        self.assertEqual(parse_version("10.20.30+0007"), ("10.20.30", 7))
 
 
 class ResolvePhasesTest(unittest.TestCase):
@@ -364,8 +322,8 @@ class ReleaseFilesTest(unittest.TestCase):
             release_files("1.1.0", 2),
             {
                 "github": "store/release-notes/1.1.0.md",
-                "play": "android/fastlane/metadata/android/en-US/changelogs/2.txt",
-                "appstore": "ios/fastlane/metadata/en-US/release_notes.txt",
+                "play": "store/fastlane/android/metadata/android/en-US/changelogs/2.txt",
+                "appstore": "store/fastlane/ios/metadata/en-US/release_notes.txt",
                 "msstore": "store/microsoft/release_notes.txt",
             },
         )
@@ -499,20 +457,20 @@ class ChangelogPhaseTest(TempRootTest):
 class BlockingChangesTest(unittest.TestCase):
     def test_release_files_and_untracked_files_never_block(self) -> None:
         porcelain = (
-            " M ios/fastlane/metadata/en-US/release_notes.txt\n"
-            " M lib/main.dart\n"
+            " M store/fastlane/ios/metadata/en-US/release_notes.txt\n"
+            " M ui/src/main.tsx\n"
             "M  store/microsoft/release_notes.txt\n"
             "?? store/release-notes/\n"
-            " M pubspec.yaml\n"
+            " M VERSION\n"
         )
         self.assertEqual(
             blocking_changes(porcelain, set(release_files("1.1.0", 2).values())),
-            [" M lib/main.dart", " M pubspec.yaml"],
+            [" M ui/src/main.tsx", " M VERSION"],
         )
 
 
 class BumpPhaseTest(TempRootTest):
-    PATHS = ["pubspec.yaml", *release_files("1.1.0", 2).values()]
+    PATHS = ["VERSION", *release_files("1.1.0", 2).values()]
 
     def _run(self, staged: str):
         def fake_run(cmd, **_kwargs):
@@ -524,11 +482,11 @@ class BumpPhaseTest(TempRootTest):
 
         return fake_run
 
-    def test_commits_pubspec_with_the_notes_files_then_pushes(self) -> None:
-        self.write("pubspec.yaml", "name: ompanion\nversion: 1.0.0+1\n")
+    def test_commits_version_with_the_notes_files_then_pushes(self) -> None:
+        self.write("VERSION", "1.0.0+1\n")
         state = State(version="1.1.0", build_number=2)
         with (
-            mock.patch.object(deploy, "run", side_effect=self._run("pubspec.yaml\n")) as run_command,
+            mock.patch.object(deploy, "run", side_effect=self._run("VERSION\n")) as run_command,
             mock.patch.object(state, "save"),
         ):
             deploy.phase_bump(make_context(state, ["bump"]))
@@ -541,14 +499,11 @@ class BumpPhaseTest(TempRootTest):
             commands.index(["git", "add", "--", *self.PATHS]),
             commands.index(["git", "commit", "-m", "chore(release): 1.1.0", "--", *self.PATHS]),
         )
-        self.assertEqual(
-            (self.root / "pubspec.yaml").read_text(encoding="utf-8"),
-            "name: ompanion\nversion: 1.1.0+2\n",
-        )
+        self.assertEqual((self.root / "VERSION").read_text(encoding="utf-8"), "1.1.0+2\n")
         self.assertEqual(state.data["release_sha"], "abc123")
 
     def test_resume_after_the_commit_only_pushes(self) -> None:
-        self.write("pubspec.yaml", "version: 1.1.0+2\n")
+        self.write("VERSION", "1.1.0+2\n")
         state = State(version="1.1.0", build_number=2)
         with (
             mock.patch.object(deploy, "run", side_effect=self._run("")) as run_command,
@@ -784,7 +739,7 @@ class StateTest(TempRootTest):
 class InitializeStateTest(TempRootTest):
     def setUp(self) -> None:
         super().setUp()
-        self.write("pubspec.yaml", "version: 1.0.0+1\n")
+        self.write("VERSION", "1.0.0+1\n")
 
     @staticmethod
     def _args(*, dry_run: bool) -> SimpleNamespace:
@@ -854,7 +809,7 @@ class DeferredPhaseTest(TempRootTest):
 class AscPhaseTest(TempRootTest):
     def setUp(self) -> None:
         super().setUp()
-        self.write("ios/fastlane/metadata/en-US/release_notes.txt", "What's New\n")
+        self.write("store/fastlane/ios/metadata/en-US/release_notes.txt", "What's New\n")
         patches = {
             "AscClient": mock.patch.object(deploy, "AscClient"),
             "wait": mock.patch.object(deploy, "_asc_wait_for_build", return_value="build-2"),

@@ -1,0 +1,72 @@
+.exec-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.exec-panel-card {
+  margin: 2px 12px;
+  padding: 4px 4px 8px 12px;
+}
+
+.exec-panel-header {
+  display: flex;
+  align-items: center;
+}
+
+.exec-panel-mark {
+  flex: none;
+  margin-right: 8px;
+}
+
+.exec-panel-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: 600 12px / 1.4 var(--font-mono);
+}
+
+.exec-panel-title,
+.exec-panel-output {
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "calt" 0,
+    "liga" 0;
+  color: var(--on-surface);
+}
+
+.exec-panel-status,
+.exec-panel-truncated {
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+}
+
+.exec-panel-status {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.exec-panel-failed {
+  color: var(--error);
+}
+
+.exec-panel-truncated {
+  color: var(--on-surface);
+}
+
+/* Reversed, as the Dart's scroll view: it opens on the newest lines and stays there while more arrive. */
+.exec-panel-scroll {
+  display: flex;
+  flex-direction: column-reverse;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.exec-panel-output {
+  font: var(--code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}

@@ -2,9 +2,9 @@
 
 What environment omp gets when the app starts it, per host kind: the login-shell PATH the probe learns, the
 variables that turn on a run's idle exit, and the file that keeps a Mac awake while omp works. Code:
-`packages/omp_core/lib/src/host/probe.dart` (the probe), `lib/src/channel/detached_run.dart`,
-`lib/src/channel/windows_run.dart`, `lib/src/channel/attached_channel.dart` and `lib/config/omp_cli.dart` (the
-launches), `lib/src/host/keep_awake.dart` and `companion/src/keep-awake.ts` (keep awake).
+`ui/src/core/host/probe.ts` (the probe), `ui/src/core/channel/detached_run.ts`,
+`ui/src/core/channel/windows_run.ts`, `ui/src/core/channel/attached_channel.ts` and `ui/src/app/config/omp_cli.ts`
+(the launches), `ui/src/core/host/keep_awake.ts` and `companion/src/keep-awake.ts` (keep awake).
 
 ## Why this contract exists
 
@@ -18,7 +18,7 @@ session even though the same omp finds it in a terminal.
 The same holds for "this computer" on macOS: an app started from Finder or the Dock gets launchd's minimal
 PATH, not the one the user's terminal has.
 
-Measured (2026-09-26, macOS 25.6 and the `harness/sshd` Ubuntu container): exec-channel PATH
+Measured (2026-09-26, macOS 25.6 and an Ubuntu 24.04 Docker container over SSH): exec-channel PATH
 `/usr/bin:/bin:/usr/sbin:/sbin` and `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin`;
 `bash -lc 'echo $PATH'` on the container adds `/home/omp/.local/bin`, `zsh -lic 'echo $PATH'` on the Mac adds
 Homebrew and every directory `~/.zshrc` prepends.
@@ -26,7 +26,7 @@ Homebrew and every directory `~/.zshrc` prepends.
 ## The probe reads the login PATH (`HostProbe.loginPath`)
 
 - Part of the POSIX probe script, so one connection probe costs one extra login shell, not one extra round
-  trip: about 0.1 s (measured on the `harness/sshd` container, and on a Mac with Homebrew and a `.zshrc`).
+  trip: about 0.1 s (measured on that container, and on a Mac with Homebrew and a `.zshrc`).
   Windows probes do not do this (see below), and neither does the POSIX probe on a Windows POSIX shell
   (MSYS, Cygwin), which the Windows probe replaces.
 - **Shell**: `$SHELL` when it is executable, else the account's login shell from the passwd entry
@@ -70,10 +70,10 @@ Homebrew and every directory `~/.zshrc` prepends.
   `tail`, `ps`, `mkdir` and `kill`, and the pump that writes omp's output to `out.jsonl` (the probe's Bun,
   `HostProbe.bunPath`, with `BUN_BE_BUN=1` in front of it alone), keep the PATH sshd gave the wrapper, so a user PATH
   that shadows a system tool cannot break liveness, the log or the exit record.
-- **Attached POSIX run** (the control process): the statement from `HostProbe.loginPathExport` before omp's
+- **Attached POSIX run** (the control process): the statement from `hostProbeLoginPathExport` before omp's
   command line.
 - **One-shot `omp` CLI calls** (`runOmp`): the same statement.
-- **`omp update`** (`updateOmp`, `packages/omp_core/lib/src/host/install.dart`): the same statement, then the
+- **`omp update`** (`updateOmp`, `ui/src/core/host/install.ts`): the same statement, then the
   directory of the omp the app drives in front of it. omp's updater replaces the `omp` its PATH resolves to, which
   must be that one, not another omp earlier on the login PATH; the login PATH stays for what the updater runs
   (`brew`, `mise`, `bun`, `npm`, `gh` for a GitHub token). On Windows only that directory goes in front.
@@ -82,11 +82,11 @@ Homebrew and every directory `~/.zshrc` prepends.
 - **Windows**: nothing changes. An exec session's PATH comes from the registry (machine PATH plus user
   PATH), which is what a console on that machine sees too; there is no profile-file PATH a session misses.
 - **The terminal tab** already starts the user's login shell (`remoteShellLaunch`,
-  `lib/terminal/shell_launch.dart`: `exec "${SHELL:-/bin/sh}" -l`), so it needs no login PATH probe.
+  `ui/src/app/terminal/shell_launch.ts`: `exec "${SHELL:-/bin/sh}" -l`), so it needs no login PATH probe.
 
 ## Idle exit (`OMPANION_RUN`, `OMPANION_IDLE_EXIT_MS`)
 
-Every detached run's omp gets its run directory and the idle time the app chose (`MachineRuntime.idleExit`, 1 hour,
+Every detached run's omp gets its run directory and the idle time the app chose (`MachineRuntime.idleExitMs`, 1 hour,
 in milliseconds). The companion then ends that omp once the run sat idle that long (`ompx.md`, `run.idleExit`).
 
 - **Detached POSIX run** (`run.sh`): `OMPANION_RUN="$d" OMPANION_IDLE_EXIT_MS=<ms>` in front of the inner `sh -c`

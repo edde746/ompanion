@@ -1,12 +1,10 @@
 # session-writer: who else is writing a session file
 
 How the app tells that a session file belongs to another omp process, what it shows then, and when it may take the
-session over. Code: `packages/omp_core/lib/src/host/session_writer.dart` (the probe),
-`packages/omp_core/lib/src/store/external_writer.dart` (the writer and whether it is in a turn),
-`packages/omp_core/lib/src/session/external_session.dart` (the reader),
-`packages/omp_core/lib/src/session/machine_runtime.dart` (`open` refuses to launch into or attach to a held file),
-`packages/omp_core/lib/src/store/reducer.dart` and `packages/omp_core/lib/src/session/run_session.dart` (a run that
-omp moved to a new file).
+session over. Code: `ui/src/core/host/session_writer.ts` (the probe), `ui/src/core/store/external_writer.ts` (the
+writer and whether it is in a turn), `ui/src/core/session/external_session.ts` (the reader),
+`ui/src/core/session/machine_runtime.ts` (`open` refuses to launch into or attach to a held file),
+`ui/src/core/store/reducer.ts` and `ui/src/core/session/run_session.ts` (a run that omp moved to a new file).
 
 ## Why this contract exists
 
@@ -61,8 +59,8 @@ under its new file.
 
 ## The probe (`probeSessionWriter`)
 
-One POSIX shell round trip per session, returning `ExternalWriter?` (null: nobody). It answers two independent
-questions and either one names a writer:
+One POSIX shell round trip per session, returning an `ExternalWriter`, or `undefined` for nobody. It answers two
+independent questions and either one names a writer:
 
 1. **Write descriptors.** A process holding the session file open for writing. Where `/proc/self/fd` exists
    (Linux), a walk of `/proc/<pid>/fd` in shell builtins: `[ fd -ef file ]` compares device and inode, then
@@ -92,9 +90,9 @@ lock the app out of a session it could own. Only a crumb with a live omp on its 
 
 | writer | app run holds it | what the app does |
 |---|---|---|
-| non-null | anything | kill that run (below), read the file, launch nothing |
-| null | yes | attach to that run, unless its omp is behind the file (below) |
-| null | no | launch its own run (`--session <file>`) |
+| found | anything | kill that run (below), read the file, launch nothing |
+| none | yes | attach to that run, unless its omp is behind the file (below) |
+| none | no | launch its own run (`--session <file>`) |
 
 The app's own live run for the file (`~/.ompanion/run/*/meta.json`, `listRuns`) is looked up before the probe, and
 its omp (`omp.pid`) is left out of the holders (`runPid`): it holds the file after its first append, from this
@@ -146,7 +144,7 @@ its last message (the process was killed) reads as open until the writer is gone
 - after that, only the bytes after the last complete line read, when the 64 bytes before it are unchanged. A line
   omp is still writing waits for its newline. A file that shrank or whose earlier bytes changed (omp replaces the
   whole file through a temporary file for some changes, e.g. a workspace directory added, a repair) is read afresh;
-- chunks over 64 KiB are parsed on another isolate;
+- every chunk is parsed on the page's main thread (`sessionFileEntries`), whatever its size;
 - `SessionView.external` carries the writer, so the composer, the header and the sidebar read it from the view;
 - `rpc`, `companion` and `stop()` throw `UnsupportedError`: there is no process to command, and a prompt invented
   here would reach a model as a stranger's turn. The chat hides branch and reset for it, and the session menu's
@@ -170,7 +168,7 @@ the user types in either UI. Take-over therefore waits for the process to exit, 
 
 ## Limitations
 
-- **POSIX only.** `probeSessionWriter` returns null on Windows: there is no `/proc` and no `lsof`, and an omp
+- **POSIX only.** `probeSessionWriter` returns `undefined` on Windows: there is no `/proc` and no `lsof`, and an omp
   breadcrumb there names a Windows Terminal session (`wt-…`), not a device the process table shows. A Windows host
   therefore keeps the old behaviour — the app may start a second omp for a session another process holds. With omp
   18.4.9 or later in both processes, that omp moves to a new file at its first write instead of writing into the

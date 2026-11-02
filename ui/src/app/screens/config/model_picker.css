@@ -1,0 +1,111 @@
+.config-model-picker.dialog {
+  width: 560px;
+}
+
+.config-model-picker .dialog-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.config-model-picker-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 520px;
+}
+
+.config-model-picker-message {
+  margin: 0 0 16px;
+  color: var(--on-surface-variant);
+}
+
+.config-model-picker-controls {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.config-model-picker-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.config-model-picker-list {
+  min-height: 0;
+  margin-top: var(--gap);
+  overflow-y: auto;
+}
+
+/* Flutter's dense ListTile: a 20 px leading icon, 16 px to the text, two lines. */
+.config-model-picker-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 48px;
+  padding: 4px 16px;
+  border-radius: var(--radius);
+  isolation: isolate;
+  color: var(--on-surface-variant);
+  text-align: start;
+}
+
+.config-model-picker-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--on-surface);
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .config-model-picker-row:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.config-model-picker-row:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .config-model-picker-row::before {
+    transition-duration: 0s;
+  }
+}
+
+.config-model-picker-row-selected {
+  background: var(--surface-container-highest);
+}
+
+.config-model-picker-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.config-model-picker-row-title {
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.config-model-picker-row-subtitle {
+  overflow-wrap: anywhere;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.config-model-picker-empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--on-surface);
+}

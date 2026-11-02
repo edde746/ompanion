@@ -2,7 +2,7 @@
 
 A deterministic model backend for real omp processes: a fake OpenAI-compatible provider, isolated omp
 homes that point at it, and RPC fixtures recorded from omp 18.3.1. No test here reaches a paid
-provider. `sshd/` (SSH test containers) is documented separately.
+provider. SSH tests run against `studio-sshd.sh`'s two OpenSSH servers on this computer.
 
 | Path | Contents |
 |---|---|
@@ -13,6 +13,8 @@ provider. `sshd/` (SSH test containers) is documented separately.
 | `dev-machine.sh` | a local dev machine for the app: omp home, `<home>/.local/bin/omp`, demo project |
 | `record.ts` | records a scenario from a real omp into `fixtures/` |
 | `fixtures/` | `<scenario>.out.jsonl` (omp stdout) and `<scenario>.in.jsonl` (lines sent) |
+| `studio-sshd.sh` | SSH machines for e2e tests (`ui/src/test/studio_sshd.ts`): an OpenSSH bastion and target on 127.0.0.1 at free ports, key auth, run as the current user; its header lists the commands and the JSON line it prints |
+| `flutter-seed/` | an entrypoint for the Flutter app at commit `359d920` that writes a fixed data set, for testing the import of that app's data (`flutter-seed/README.md`) |
 
 Typecheck: `companion/node_modules/.bin/tsc -p harness` (borrows the companion's Bun types).
 
@@ -23,8 +25,7 @@ bun harness/fake-provider/server.ts --port 0           # first stdout line: list
 bun harness/fake-provider/server.ts --port 0 --demo    # unscripted requests get the demo rotation
 ```
 
-It listens on 127.0.0.1; `--host <address>` picks another address. The Docker session tests on Linux
-pass the host gateway's, where the SSH test machines reach this computer as `host.docker.internal`.
+It listens on 127.0.0.1; `--host <address>` picks another address, for an omp on another machine or in a container.
 
 | Route | Purpose |
 |---|---|
@@ -69,7 +70,8 @@ type Step =
   `stream_options.include_usage`, which omp does.
 - Tool ids default to `call_<request number>_<index>`.
 
-Bun tests:
+Bun tests (the app's e2e tests, `bun run test:e2e` in `ui/`, get these through `ui/src/test/omp.ts` and
+`ui/src/test/session.ts`; the companion's through `companion/test/driver.ts`):
 
 ```ts
 import { FakeProvider } from "../harness/fake-provider/client.ts";
@@ -133,15 +135,17 @@ pinned omp.
 ```sh
 bun harness/fake-provider/server.ts --port 18999 --demo    # keep it running
 harness/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
-flutter run -d macos --dart-define=OMPANION_LOCAL_HOME=/tmp/omp-dev-home \
-  --dart-define=OMPANION_DATA_DIR=/tmp/ompanion-data --dart-define=OMPANION_SECRET_PREFIX=dev
+(cd core && OMPANION_LOCAL_HOME=/tmp/omp-dev-home OMPCORE_DATA_DIR=/tmp/ompanion-data \
+  OMPCORE_CACHE_DIR=/tmp/ompanion-cache go run ./cmd/devbridge -static ../ui/dist)
 ```
 
-The app reads the three defines in `lib/app/dev_overrides.dart`: `OMPANION_LOCAL_HOME` is the `HOME` of
-"this computer", `OMPANION_DATA_DIR` holds the app's database and files instead of the platform's
-application support directory, and `OMPANION_SECRET_PREFIX` prefixes every keychain key. App instances
-running at the same time each need their own server port, home, data directory and prefix; one demo
-server shares its cycle among all its sessions.
+Then open `http://127.0.0.1:8787/?devbridge=ws://127.0.0.1:8787/bridge` (a built `ui/dist`), or run `bun run dev` in
+`ui/` and open the Vite URL with the same `?devbridge=`. The page reads `OMPANION_LOCAL_HOME` from the core's
+environment (`core.env`, `ui/src/app/dev_overrides.ts`): it is the `HOME` of "this computer". `OMPCORE_DATA_DIR` and
+`OMPCORE_CACHE_DIR` hold the app's documents and cache instead of the OS's directories (`core/paths.go`). The dev
+bridge keeps secrets in memory, so a restart forgets saved keys and passwords. App instances running at the same time
+each need their own server port, home, data and cache directories and dev bridge (`-listen 127.0.0.1:<port>`); one
+demo server shares its cycle among all its sessions.
 
 `dev-machine.sh <home> <port>` runs `omp-home.sh <home> <port>`, adds `modelRoles.default: fake/fake-1`
 so an omp started without `--model` uses the fake provider, links `<home>/.local/bin/omp` to
@@ -151,8 +155,8 @@ unless it exists. It prints `HOME=<home>` and `OMP=<home>/.local/bin/omp` as abs
 again, e.g. after changing the port. Open sessions in `<home>/demo-project`: demo scenario 3 edits the
 `README.md` of the session's directory.
 
-omp also reads provider API keys from the environment it inherits. Start the app without them: with a
-key set, picking a real model in the app makes a paid call.
+omp also reads provider API keys from the environment it inherits. Start the dev bridge without them: with a key
+set, picking a real model in the app makes a paid call.
 
 With `--demo`, a request that finds no eligible queued turn is answered by the demo (`demo.ts`); queued
 turns still come first. Each user prompt, steer or follow-up starts the next scenario of one cycle

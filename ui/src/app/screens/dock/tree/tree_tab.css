@@ -1,0 +1,146 @@
+.tree-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tree-tab-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 4px;
+}
+
+.tree-tab-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.icon-button.tree-tab-filter-on {
+  background: var(--surface-container-highest);
+}
+
+.tree-tab-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.tree-tab-notice {
+  flex: none;
+  margin: 4px 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container);
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+/* MaterialBanner in the theme: the pane's surface, the mark, the text, the action at the end. */
+.tree-tab-banner {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 8px 8px 16px;
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.tree-tab-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.tree-tab-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.tree-tab-centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.tree-tab-list {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.tree-tab-list-extent {
+  position: relative;
+}
+
+.tree-tab-list-window {
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-tab-selection {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: 8px 8px 8px 12px;
+  background: var(--surface-container);
+}
+
+.tree-tab-selection-text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--on-surface);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow-wrap: anywhere;
+}
+
+.tree-tab-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+}
+
+.tree-tab-dialog {
+  width: 400px;
+  max-width: 100%;
+}
+
+.tree-tab-label-dialog {
+  width: 360px;
+  max-width: 100%;
+}
+
+.tree-tab-dialog p {
+  margin-bottom: 12px;
+}
+
+/* The theme's filled field for several lines: two 24 px lines at first, six at most. */
+.tree-tab-instructions {
+  width: 100%;
+  min-height: 64px;
+  max-height: 160px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius);
+  outline: none;
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+  resize: vertical;
+}
+
+.tree-tab-instructions:focus {
+  background: var(--surface-container-highest);
+}

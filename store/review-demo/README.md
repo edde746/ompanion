@@ -62,20 +62,22 @@ store/review-demo/provision.sh root@217.160.119.181
 # Put root's home back between reviews (reviewers may have edited files or left sessions running).
 ssh root@217.160.119.181 ompanion-demo-reset
 
-# Smoke check through omp_core, the app's own SSH, probe, companion and session code. No model call.
-REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
-  dart run store/review-demo/verify/verify.dart --host 217.160.119.181
+# Smoke check through ui/src/core, the app's own SSH, probe, companion and session code, on the Go core (it runs
+# on studio: scripts/studio.sh builds nothing on this Mac). No model call.
+scripts/studio.sh <stage> -- env REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
+  bun store/review-demo/verify/verify.ts --host 217.160.119.181
 
 # The same, plus one prompt that makes the model run a command: a real model call on the demo's key.
-REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
-  dart run store/review-demo/verify/verify.dart --host 217.160.119.181 --prompt
+scripts/studio.sh <stage> -- env REVIEW_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
+  bun store/review-demo/verify/verify.ts --host 217.160.119.181 --prompt
 
-# The reviewer's path in the real app (macOS desktop): add machine, trust, connect, new session, one real
-# prompt, the reply. Writes PNGs of the app's widget tree, by default to /tmp/ompanion-store/ReviewDemo.
-REVIEW_DEMO_HOST=217.160.119.181 \
-REVIEW_DEMO_PASSWORD="$(sed -n 's/^REVIEW_PASSWORD=//p' store/review-demo/.env)" \
-  flutter drive --driver=integration_test/driver/report_driver.dart \
-    --target=store/review-demo/verify/capture_test.dart -d macos
+# The checks without the server: a stand-in on studio (its home template, no key, key sign-in).
+scripts/studio.sh <stage> -- sh store/review-demo/verify/stand-in.sh
+
+# The reviewer's path in the real page (Chrome, desktop size, the built ui/dist on the core): add machine,
+# trust, connect, new session; with --prompt one real prompt and the reply. PNGs in build/review-demo/shots.
+scripts/studio.sh <stage> --fetch build/review-demo -- sh -c 'cd ui && bun run build && cd .. &&
+  REVIEW_DEMO_PASSWORD=… bun store/review-demo/verify/capture.ts --host 217.160.119.181'
 ```
 
 `provision.sh` reads `.env`, streams `server.sh`, `restore-home.sh`, the home template,
@@ -96,7 +98,7 @@ The secrets travel inside that stream, never on a command line, and `server.sh` 
 `ompanion-demo-reset` stops the omp runs the app started, removes `/root/.omp`, `/root/work`,
 `/root/README.md` and `/root/.ompanion`, and copies the template home back into `/root`.
 
-`verify.dart` defaults to port 22, user `root` and `<home>/work/notes-api`; `--port`, `--user`, `--project`
+`verify.ts` defaults to port 22, user `root` and `<home>/work/notes-api`; `--port`, `--user`, `--project`, `--key`
 and `--companion` override them. Its header lists every step.
 
 ## What the reviewer does
@@ -236,21 +238,27 @@ credentials"), so the password goes in the page's **Credentials** table instead:
 | `server.sh` | runs on the server as root: packages, locale, swap, omp, root's password, the template home, the reset command |
 | `restore-home.sh` | installed as `/usr/local/sbin/ompanion-demo-reset`: stops omp runs and restores root's demo files |
 | `home-template/` | what the reset command puts in `/root`: `README.md`, `.gitconfig`, `.omp/agent/{models.yml,config.yml}` (the key is a placeholder here), `work/notes-api` |
-| `verify/verify.dart` | the omp_core smoke check; `--prompt` adds one real model call |
-| `verify/capture_test.dart` | the reviewer's path in the real macOS app, with screenshots; sends one real prompt |
+| `verify/verify.ts` | the core smoke check through `ui/src/core`; `--prompt` adds one real model call |
+| `verify/capture.ts` | the reviewer's path in the real page, with screenshots; `--prompt` sends one real prompt |
+| `verify/stand-in.sh` | `verify.ts` against a stand-in host on studio, for when the server or its password is not at hand |
 | `.env` | `REVIEW_PASSWORD` and `OPENROUTER_API_KEY`, written by hand, gitignored |
 
 ## Verified
 
-On 2026-09-27, after `provision.sh`, `verify.dart` passed every step against `217.160.119.181`: probe
+On 2026-09-27, after `provision.sh`, the Flutter app's `verify.dart` passed every step against `217.160.119.181`: probe
 linux/x64 glibc, home `/root`, omp `/usr/local/bin/omp` 18.3.1, companion uploaded and loaded, file browser
 read and write, SSH exec, companion `exec.bash`, session list, `get_available_models` listing only
 `demo/z-ai/glm-5.3-flash` "GLM 5.3 Flash", and the settings schema. With `--prompt` the model ran
 `git log --oneline` through the bash tool and answered "The project has 3 commits".
 
+On 2026-11-02 its port `verify.ts` passed every dry step on studio against the stand-in (`verify/stand-in.sh`:
+probe, companion upload, file browser list, read and write, session list, `get_available_models`, the settings
+schema and values, detach). It was not run against `217.160.119.181` (its password is not in this checkout), and
+`--prompt` was not run.
+
 ## Limits
 
-- `capture_test.dart` was not run against this server.
+- `capture.ts` (and before it `capture_test.dart`) was not run against this server.
 - The App Store, Google Play and Microsoft Store review flows were not run.
 - Only Ubuntu 26.04 on x86_64 was provisioned; Debian and arm64 were not.
 - The reset command restores only the demo's paths. Packages a reviewer installed, files elsewhere, a changed

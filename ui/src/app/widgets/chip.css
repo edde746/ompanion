@@ -1,0 +1,143 @@
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  max-width: 100%;
+  height: var(--control);
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+}
+
+.chip-selected {
+  background: var(--surface-container-highest);
+}
+
+.chip-disabled {
+  background: rgb(var(--field-rgb) / 0.5);
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+.chip-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 12px;
+  border-radius: inherit;
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+  isolation: isolate;
+}
+
+.chip-body:disabled {
+  cursor: default;
+}
+
+/* The state layer: hover 8 %, focus 10 %; ripple.ts draws the pressed one. */
+.chip-body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+}
+
+@media (hover: hover) {
+  .chip-body:hover:not(:disabled)::before {
+    opacity: 0.08;
+  }
+}
+
+.chip-body:focus-visible::before {
+  opacity: 0.1;
+}
+
+/* The FilterChip's check: its avatar slot opens to 18 px while selected, and the mark draws in it. */
+.chip-check {
+  flex: none;
+  width: 0;
+  margin-right: -8px;
+  overflow: hidden;
+}
+
+.chip-check path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+}
+
+.chip-selected .chip-check {
+  width: 18px;
+  margin-right: 0;
+}
+
+.chip-selected .chip-check path {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+
+.chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip:has(.chip-delete) .chip-body {
+  padding-right: 4px;
+}
+
+.chip-delete {
+  margin-right: 4px;
+}
+
+/*
+ * material/chip.dart's selection: the fill over _kSelectDuration (195 ms), the avatar slot over _kDrawerDuration
+ * (150 ms), the check mark over the select animation's last 150 ms (_kCheckmarkDuration), all along
+ * Curves.fastOutSlowIn. Deselecting plays them backwards: the curve flipped, the check fading over its first 50 ms
+ * (_kCheckmarkReverseDuration) and the slot closing over 100/195 of its 150 ms (_kReverseDrawerDuration).
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .chip {
+    transition: background-color 195ms cubic-bezier(0.8, 0, 0.6, 1);
+  }
+
+  .chip-selected {
+    transition: background-color 195ms var(--curve-fast-out-slow-in);
+  }
+
+  .chip-body::before {
+    transition: opacity 50ms linear;
+  }
+
+  .chip-check {
+    transition:
+      width 77ms cubic-bezier(0.8, 0, 0.6, 1),
+      margin-right 77ms cubic-bezier(0.8, 0, 0.6, 1);
+  }
+
+  .chip-selected .chip-check {
+    transition:
+      width 150ms var(--curve-fast-out-slow-in),
+      margin-right 150ms var(--curve-fast-out-slow-in);
+  }
+
+  .chip-check path {
+    transition:
+      opacity 50ms cubic-bezier(0.8, 0, 0.6, 1),
+      stroke-dashoffset 0s 50ms;
+  }
+
+  .chip-selected .chip-check path {
+    transition:
+      opacity 0s,
+      stroke-dashoffset 150ms var(--curve-fast-out-slow-in) 45ms;
+  }
+}

@@ -1,0 +1,74 @@
+/* Floating at the bottom centre of the safe area, above the home indicator and the keyboard; at most 600 px wide. A
+   touch drags it (snackbar.tsx), so the browser pans nothing under it. */
+.snackbar {
+  position: fixed;
+  left: calc(50% + (var(--inset-left) - var(--inset-right)) / 2);
+  bottom: calc(max(var(--inset-bottom), var(--inset-keyboard)) + 16px);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: min(600px, calc(100vw - 32px - var(--inset-left) - var(--inset-right)));
+  min-height: 48px;
+  padding: 4px 8px 4px 16px;
+  border-radius: var(--radius);
+  background: var(--inverse-surface);
+  color: var(--on-inverse-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  transform: translateX(-50%);
+  touch-action: none;
+}
+
+.snackbar-error,
+.snackbar-error .snackbar-action {
+  background: var(--error-surface);
+  color: var(--error);
+}
+
+.snackbar-text {
+  flex: 1;
+  padding: 10px 8px 10px 0;
+  overflow-wrap: anywhere;
+}
+
+.snackbar-action {
+  position: relative;
+  flex: none;
+  height: var(--control);
+  padding: 0 10px;
+  border-radius: var(--radius);
+  color: var(--on-inverse-surface);
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+  isolation: isolate;
+}
+
+/* The hover and focus tones fade in 50 ms (ink_well.dart's getFadeDurationForType); ripple.ts draws the pressed one. */
+.snackbar-action::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 50ms linear;
+}
+
+@media (hover: hover) {
+  .snackbar-action:hover::before {
+    opacity: 0.08;
+  }
+}
+
+.snackbar-action:focus-visible::before {
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snackbar-action::before {
+    transition-duration: 0s;
+  }
+}

@@ -1,0 +1,31 @@
+/* The transcript dev gallery (gallery.tsx): one transcript filling the window, as the chat pane holds it. */
+.gallery-pane {
+  position: fixed;
+  inset: var(--inset-top) auto var(--inset-bottom) var(--inset-left);
+  width: calc(100vw - var(--inset-left) - var(--inset-right));
+  background: var(--surface);
+  color: var(--on-surface);
+}
+
+.gallery-index {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  font: var(--body-medium);
+}
+
+.gallery-index a {
+  color: var(--on-surface);
+}
+
+.gallery-measure {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+  font: var(--label-small);
+}

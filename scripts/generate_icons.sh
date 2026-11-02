@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Regenerates every app icon and the README logo from assets/ompanion.svg (the full icon) and
-# assets/ompanion_glyph.svg (the π alone, same canvas and position). Output is byte-identical across
-# runs. The Apple icons are Icon Composer bundles in macos/ and ios/; their layer is the glyph SVG.
+# assets/ompanion_glyph.svg (the π alone, same canvas and position), into the shells that use them. Output is
+# byte-identical across runs. The Apple icon is the Icon Composer bundle shells/apple/Resources/ompanion.icon; its
+# layer is the glyph SVG.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -9,7 +10,7 @@ cd "$root"
 
 icon_svg=assets/ompanion.svg
 glyph_svg=assets/ompanion_glyph.svg
-android_res=android/app/src/main/res
+android_res=shells/android/app/src/main/res
 
 if ! command -v rsvg-convert >/dev/null 2>&1; then
   echo "error: rsvg-convert not found. Install librsvg: 'brew install librsvg' (macOS)," \
@@ -138,14 +139,14 @@ for size in 16 20 24 32 40 48 64 256; do
   ico_pngs+=("$tmp/ico-$size.png")
 done
 # Store the 256 px entry PNG-compressed, as Windows expects, instead of a 270 KB bitmap.
-"$im" "${ico_pngs[@]}" -strip -define icon:png-compression-size=256 windows/runner/resources/app_icon.ico
-echo "windows/runner/resources/app_icon.ico (16, 20, 24, 32, 40, 48, 64, 256)"
+"$im" "${ico_pngs[@]}" -strip -define icon:png-compression-size=256 shells/windows/resources/app_icon.ico
+echo "shells/windows/resources/app_icon.ico (16, 20, 24, 32, 40, 48, 64, 256)"
 
-# Microsoft Store (MSIX) assets, the names windows/build-msix.ps1's manifest and its resource index look
-# up. The tiles, the store logo and the plain target sizes are the full icon, full-bleed: the square is
-# its own plate, so the manifest's transparent BackgroundColor never shows. The wide tile and the splash
-# screen extend that square with its own corner colour.
-msix=windows/msix/assets
+# Microsoft Store (MSIX) assets, the names an MSIX manifest and its resource index look up. The tiles, the
+# store logo and the plain target sizes are the full icon, full-bleed: the square is its own plate, so the
+# manifest's transparent BackgroundColor never shows. The wide tile and the splash screen extend that square
+# with its own corner colour.
+msix=shells/windows/msix/assets
 rm -f "$msix"/*.png
 mkdir -p "$msix"
 # render_msix SIZE OUT [WIDTHxHEIGHT]
@@ -179,17 +180,17 @@ for size in 16 24 32 48 256; do
   done
 done
 
-# Linux window icon, installed into the bundle's data directory by linux/CMakeLists.txt.
-render_rounded 256 linux/ompanion.png
+# Linux app icon, which shells/linux/build.sh copies into the build's icons/.
+render_rounded 256 shells/linux/ompanion.png
 
-# README header logo: the π alone on a transparent background, trimmed to its bounds so it lines up
-# with the heading text. Rendered large, then scaled down, for smooth edges at the 24 px display size.
+# README header logo, and the About page's copy of it: the π alone on a transparent background, trimmed to its
+# bounds so it lines up with the heading text. Rendered large, then scaled down, for smooth edges at the 24 px
+# display size.
 rsvg-convert -w 2048 -h 2048 "$glyph_svg" -o "$tmp/glyph.png"
 "$im" "$tmp/glyph.png" -trim +repage -resize x256 -strip "PNG32:assets/ompanion.png"
-echo "assets/ompanion.png (glyph, 256 px tall)"
+cp assets/ompanion.png ui/src/app/screens/settings/ompanion.png
+echo "assets/ompanion.png, ui/src/app/screens/settings/ompanion.png (glyph, 256 px tall)"
 
-# The Icon Composer bundles' single layer (icon.json sets fill, glass and shadow).
-for bundle in macos/ompanion.icon ios/ompanion.icon; do
-  cp "$glyph_svg" "$bundle/Assets/ompanion_glyph.svg"
-  echo "$bundle/Assets/ompanion_glyph.svg"
-done
+# The Icon Composer bundle's single layer (icon.json sets fill, glass and shadow).
+cp "$glyph_svg" shells/apple/Resources/ompanion.icon/Assets/ompanion_glyph.svg
+echo "shells/apple/Resources/ompanion.icon/Assets/ompanion_glyph.svg"

@@ -2,9 +2,8 @@
 # Puts the demo content on an SSH machine: the isolated omp home the app drives, and the projects the
 # scripted turns work in.
 #
-#   store/screenshots/demo/seed-host.sh --host localhost --port 22221 --user omp \
-#     --key /Users/you/omp-app/.tools/ssh-test/id_ed25519 \
-#     --provider-url http://host.docker.internal:18991/v1
+#   store/screenshots/demo/seed-host.sh --host 127.0.0.1 --port <target port> --user "$(id -un)" \
+#     --key <host dir>/client_ed25519 --provider-url http://127.0.0.1:<provider port>/v1
 #
 # It writes, as the remote user:
 #   ~/.omp/agent/models.yml   provider `local`: models `Fast` and `Reasoning` (never a real vendor name)
@@ -14,8 +13,7 @@
 #   ~/work/pipeline           deploy glue; .omp/config.yml asks for tool approval (the approval screenshot)
 #
 # The machine needs git, node and npm (the seed runs `npm install` for typescript); without one, the seed stops
-# and names it. In the `harness/sshd` target container capture.sh installs them over docker exec; on any other
-# machine install them yourself.
+# and names it. demo/host.sh's target has Homebrew's on PATH; on any other machine install them yourself.
 set -eu
 
 host=localhost
@@ -112,9 +110,9 @@ mv "$STAGING/projects/pipeline" "$HOME/work/pipeline"
 echo "-- pipeline"
 sh "$STAGING/prepare-project.sh" "$HOME/work/pipeline" pipeline
 
-# Sessions of earlier runs keep asking the fake provider for turns, which would eat the queued plan, so the
-# demo user's own omp runs are stopped here (this host exists only for captures).
-pkill -f "omp --mode rpc-ui" 2>/dev/null || true
+# Sessions of earlier runs keep asking the fake provider for turns, which would eat the queued plan, so this home's
+# omp runs are stopped here. Only this home's: the host may be a machine others use (studio.local).
+pkill -f "$HOME/.local/bin/omp --mode rpc-ui" 2>/dev/null || true
 sleep 1
 rm -rf "$HOME/.ompanion/run"/* 2>/dev/null || true
 

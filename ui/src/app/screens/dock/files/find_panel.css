@@ -1,0 +1,41 @@
+.find-panel {
+  background: var(--surface-container);
+}
+
+/* A control-height field plus 4 px above and below. */
+.find-panel-row {
+  display: flex;
+  align-items: center;
+  height: calc(var(--control) + 8px);
+  padding: 4px;
+}
+
+.find-panel-lead {
+  flex: none;
+  width: 4px;
+}
+
+.find-panel-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.find-panel-count {
+  flex: none;
+  margin-left: var(--gap);
+  color: var(--on-surface-variant);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+  font-variant-numeric: tabular-nums;
+}
+
+.find-panel-on {
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+}
+
+/* Under the find field: past the replace toggle's 40 px. */
+.find-panel-replace {
+  gap: var(--gap);
+  padding-left: 44px;
+}

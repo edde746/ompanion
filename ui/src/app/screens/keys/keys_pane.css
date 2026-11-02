@@ -1,0 +1,78 @@
+.keys-pane {
+  height: 100%;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.keys-pane-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.keys-pane-empty {
+  margin: 0;
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.keys-pane-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ListTile: 16 px in, the leading icon 16 px from the text, the trailing buttons at the end. */
+.keys-pane-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 8px 8px 16px;
+}
+
+.keys-pane-icon {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.keys-pane-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.keys-pane-row > .icon-button + .icon-button {
+  margin-left: -16px;
+}
+
+.keys-pane-name {
+  overflow: hidden;
+  color: var(--on-surface);
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.keys-pane-type {
+  color: var(--on-surface-variant);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+}
+
+.keys-pane-fingerprint {
+  color: var(--on-surface-variant);
+  font: var(--code);
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.keys-pane-confirm {
+  margin: 0;
+  white-space: pre-line;
+}

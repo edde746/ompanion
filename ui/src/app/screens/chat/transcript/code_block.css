@@ -1,0 +1,46 @@
+/* The block spans its column whatever the width of its code; its tone comes from `.tool-card-code-surface`. */
+.code-block {
+  position: relative;
+  border-radius: var(--radius);
+}
+
+.side-scroll-view {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* The padding sits inside the scrolled content, so a line scrolled to its end keeps 12 px after it. */
+.code-block-body {
+  display: flex;
+  gap: 12px;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 100%;
+  padding: 12px;
+}
+
+.code-block-code,
+.code-block-gutter {
+  margin: 0;
+  white-space: pre;
+}
+
+.code-block-gutter {
+  text-align: right;
+  color: rgb(var(--on-surface-variant-rgb) / 0.7);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.code-block > .code-block-copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: none;
+  background: inherit;
+}
+
+.code-block:hover > .code-block-copy,
+.code-block > .code-block-copy-shown {
+  display: inline-flex;
+}

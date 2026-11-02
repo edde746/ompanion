@@ -1,0 +1,43 @@
+{
+  "name": "ompanion-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "bun scripts/i18n.ts --check && tsc --noEmit && vite build",
+    "typecheck": "bun scripts/i18n.ts --check && tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "i18n": "bun scripts/i18n.ts",
+    "test": "bun test --conditions=browser --path-ignore-patterns='**/*.e2e.test.ts' src",
+    "test:e2e": "bun test --conditions=browser --timeout=60000 e2e.test",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@material-symbols/svg-400": "^0.48.2",
+    "@shikijs/core": "^4.5.0",
+    "@shikijs/engine-javascript": "^4.5.0",
+    "@shikijs/langs": "^4.5.0",
+    "@shikijs/themes": "^4.5.0",
+    "@solidjs/web": "2.0.0-rc.20",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "katex": "^0.19.1",
+    "markdown-it": "^15.0.3",
+    "solid-js": "2.0.0-rc.20",
+    "yaml": "^2"
+  },
+  "devDependencies": {
+    "@solidjs/vite-plugin": "3.0.0-next.54",
+    "@types/bun": "1.4.2",
+    "@types/katex": "^0.16.8",
+    "@types/markdown-it": "^14.2.0",
+    "playwright-core": "^1.64.1",
+    "tm-grammars": "1.32.22",
+    "typescript": "^7.0.2",
+    "vite": "8"
+  }
+}

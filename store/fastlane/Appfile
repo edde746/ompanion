@@ -1,0 +1,10 @@
+# Credentials come from .env, not from here (store/README.md): an App Store Connect API key or FASTLANE_USER, which
+# the deploy_appstore lane checks for, and PLAY_JSON_KEY_PATH, the Play service-account JSON key the release lane
+# reads; keep the key itself out of the repository.
+for_platform :ios do
+  app_identifier("com.edde746.ompanion")
+end
+
+for_platform :android do
+  package_name("com.edde746.ompanion")
+end

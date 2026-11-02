@@ -1,0 +1,180 @@
+{
+  "store": {
+    "machines": [
+      {
+        "id": "fc401b40150b4adbcb99269dc6794527",
+        "name": "Studio",
+        "kind": "local",
+        "port": 22,
+        "tailscale": false,
+        "createdAt": 1762157525112,
+        "updatedAt": 1762157525112,
+        "jumps": []
+      },
+      {
+        "id": "baa0ce5c31af5f4d4750ed445071822a",
+        "name": "Büro – Zoë's 服务器",
+        "kind": "ssh",
+        "host": "build.example.org",
+        "port": 2222,
+        "user": "deploy",
+        "auth": "key",
+        "keyId": "b63ddd376055657744d822dcc9f968da",
+        "tailscale": false,
+        "createdAt": 1764583200000,
+        "updatedAt": 1784674033999,
+        "jumps": [
+          {
+            "id": "7114be72a9a5de5cf989d895a9b58574",
+            "host": "bastion.example.org",
+            "port": 22,
+            "user": "jump",
+            "auth": "password"
+          },
+          {
+            "id": "19a9c791e3f2193512334b68af76d453",
+            "host": "10.20.0.5",
+            "port": 2200,
+            "user": "ops",
+            "auth": "agent"
+          }
+        ]
+      },
+      {
+        "id": "24a14d1ef2f10a3ea4fe1a0ced45d76a",
+        "name": "raspberrypi",
+        "kind": "ssh",
+        "host": "raspberrypi.tail1a2b3c.ts.net",
+        "port": 22,
+        "user": "pi",
+        "auth": "none",
+        "tailscale": true,
+        "createdAt": 1781547631042,
+        "updatedAt": 1781547631042,
+        "jumps": []
+      }
+    ],
+    "keys": [
+      {
+        "id": "b63ddd376055657744d822dcc9f968da",
+        "name": "deploy RSA 4096",
+        "type": "ssh-rsa",
+        "publicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC3//haLzXuAdSUOfneySBMhco6iroBjHSydongCrWvPMw83oxbVXtKkllcbuxSe263g/lv0JfZVfLQgHDTIdLeF32wNBULeeoylh3XRyOHCXsn5rbkHShibrYZgjOOeglO3t9rhtIMiPwbW4zmHZpvG/PoUfFT/6qZ3b6lGSBD08ZiqheAN4cLGZkG1wVrwGNAjTm9ZJPDfZWPXs2G8+aO7w4E00eGBeBvfwmz9bv1Sfc5k6V7rYJhLvZZgwKBV5elOViprjI4LD8qnSJp/rPQBmlhniB40z+gqSaG5rS8CQP49Y2H8KzzMRfnO0aF051ia9oWzSyWaR9CcZ8cerazOBX86MsUQoDu5rC+zmUVR5PJQ4QrnJ62SECljupwhSyFKJuBET46QLXE49aeNgSzc0vThwyssVkNBWEcniC7FxbRqmzZDDvA5DJf8zp94znHP4SU17SJ/VdpcA2GVkDTAZcLrfsdDcFf8l7PnzhLraz86LtyMnyFAw/oWVMv5CRAz2OHJzEvVvlFKPRXbG1Q+OU4eIS1cwSb/FlLuxqWjfsc/CRruUnKFhTWn4AjtA26eLj1YbAKyJZKWvzA1Z51LyoTmS3isCiUJ2W3r87uudOd0X35udVVDbQkXQmJoQgWLNUBMHE1AIkqT3IXFyb1NZTAdFYq2RztGpxawqcLTw==",
+        "fingerprint": "SHA256:ZdNxDlrdF5p9T7uEjDFGWq647lQMg6T7MIoFL3ulDe4",
+        "createdAt": 1775112909770
+      }
+    ],
+    "known_hosts": [
+      {
+        "host": "raspberrypi.tail1a2b3c.ts.net",
+        "port": 22,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIDEkMInaSBpuvegtS7v56Ht+nLpoHm5q9i2IDPot/u6y",
+        "fingerprint": "SHA256:3XAXZrhMqDpHilc11uQagv8IeNRZ+JO+Pr3o9E77MRw",
+        "addedAt": 1781547631042
+      },
+      {
+        "host": "raspberrypi.tail1a2b3c.ts.net",
+        "port": 22,
+        "keyType": "ecdsa-sha2-nistp256",
+        "keyBlob": "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH440N0bIzckwilNLdiyJf0zYzNbHGo17GRrn06u91A/l/ErAEUqJsYsiMetUxGAk+vV3oqe8QlhU4OYdRkaB7Q=",
+        "fingerprint": "SHA256:3QgcoEMhUERr35/0mCNCMk8aJ5WOHKlrTlBx8OcVOx8",
+        "addedAt": 1781547631042
+      },
+      {
+        "host": "raspberrypi.tail1a2b3c.ts.net",
+        "port": 22,
+        "keyType": "ssh-rsa",
+        "keyBlob": "AAAAB3NzaC1yc2EAAAADAQABAAABgQDG32ziP0EA0+0nwQCJuXO5U4dxgc804PPfroyzBwBDPbloHjhzpC3SHpleqMKAH0CX1RMfLxBl2NqdRl5HGM/8QnRCG4qvnOrLQn4ZBjrI+5JfFhpEfbeQ6Z1BIjPfyG6lLda+HLQm1Y2zWuHqw04VeKyfERajHtiEMeKv0lMZKJC2GP28pay7h+DCJoawl7C+ameFGOYmtaCJus8d1FB+NF5M+eZpscKPBLYcTeq2ZktXLs7o/K5hulqRQ9ZraxNV2eAKO5mOsuUQrZI6qpR+9eYoUs+eZJ/sf8t7X14cx42iM7xPgdHlpqc/SxNcCXJZfyAcc+y25pN/19xrivCLUP9e4eHq7erXQAIOPOkyF1AXVtbac792sSAQ54xunTQ/ecSEZiTvt/TZHklRU7yg6dMYIJtzGYsmdoEo8BMlmuEGY5EuPG1B1UR2gOBX60jxT/vbSjRPUm3sfUcU+fvSOWdaZTXT/liDHpqtc3wN9bpWsH8GtikBEt283pu5EG0=",
+        "fingerprint": "SHA256:KKM6ungclzRWUTKl+mtNN9/rR48ViWpIm2xHurLIRWs",
+        "addedAt": 1781547631042
+      },
+      {
+        "host": "bastion.example.org",
+        "port": 22,
+        "keyType": "ecdsa-sha2-nistp256",
+        "keyBlob": "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBOy9fD9//kG3UJAA0ygU0MhV9QftgG0bYN5pnHC68GFM9ZWSoHs2nskFMjsSz6qnAV/WIoFQ4EvbmRn531tAOqk=",
+        "fingerprint": "SHA256:JhBJpHaIBeFBu3xIQYCW4ruvvLG4scZpgiI1M/ni7oo",
+        "addedAt": 1764583304004
+      },
+      {
+        "host": "10.20.0.5",
+        "port": 2200,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIMmi9dan+2Mq0gurJvpTDatQ/Tz+EmeYO9/UzjtJ4U/y",
+        "fingerprint": "SHA256:BSsdhySruia2OFDO4GjqCxmDVYNM6vkSHFkJGiEYYpk",
+        "addedAt": 1764583319900
+      },
+      {
+        "host": "build.example.org",
+        "port": 2222,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIOxN91g4VLassTG/sQVscnPcO+VFZrkvTiwHLdxBG6Kj",
+        "fingerprint": "SHA256:DdYc7lcLbeooQH561qPbc1TbFdgZta0sRfoQ6MDGBSU",
+        "addedAt": 1764583337250
+      },
+      {
+        "host": "bastion.example.org",
+        "port": 22,
+        "keyType": "ssh-ed25519",
+        "keyBlob": "AAAAC3NzaC1lZDI1NTE5AAAAIA7kywjCpPGDnx+JRt6XWeaTfpQUSCNc+fvPIXabH7bn",
+        "fingerprint": "SHA256:WbNwqB/z/BIFnSSm5IAA1aVGaPdnlJeYbXTfIOL5TJc",
+        "addedAt": 1777957505555
+      }
+    ],
+    "settings": [
+      {
+        "key": "local_machine_seeded",
+        "value": true
+      },
+      {
+        "key": "device_id",
+        "value": "8f9f009f2dc0f866da755c5a317b78ef"
+      },
+      {
+        "key": "language",
+        "value": "de"
+      },
+      {
+        "key": "theme_mode",
+        "value": "custom"
+      },
+      {
+        "key": "custom_theme",
+        "value": {
+          "base": "dark",
+          "colors": {
+            "background": "#0B1020",
+            "accent": "#FF8800",
+            "ansiBlue": "#5C9DFF"
+          }
+        }
+      },
+      {
+        "key": "sidebar_width",
+        "value": 312.5
+      },
+      {
+        "key": "project_collapsed:fc401b40150b4adbcb99269dc6794527:/Users/edde/Projects/ompanion",
+        "value": true
+      }
+    ],
+    "read_markers": [
+      {
+        "machineId": "fc401b40150b4adbcb99269dc6794527",
+        "path": "/Users/edde/.omp/agent/sessions/--Users-edde-Projects-ompanion--/2026-10-28T08-12-44-901Z_019a2a0b-3c4d-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
+        "seenModified": 1793353631000
+      },
+      {
+        "machineId": "baa0ce5c31af5f4d4750ed445071822a",
+        "path": "/home/deploy/.omp/agent/sessions/--home-deploy-Prüfstand--/2026-10-29T16-58-01-204Z_019a2f1c-55d0-7e41-9c3b-6a1f0e2d4b87.jsonl",
+        "seenModified": 1793293378000
+      },
+      {
+        "machineId": "24a14d1ef2f10a3ea4fe1a0ced45d76a",
+        "path": "/home/pi/.omp/agent/sessions/--home-pi-sensors--/2026-10-30T19-40-12-008Z_019a3a7e-0c11-7f02-a1b2-c3d4e5f60718.jsonl",
+        "seenModified": 1793491199000
+      }
+    ]
+  }
+}

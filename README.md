@@ -29,7 +29,9 @@ Google Play is in a closed test: [join the testers](https://ompanion.app/#google
 | --- | --- |
 | macOS | [DMG](https://github.com/edde746/ompanion/releases/latest/download/ompanion-macos.dmg), signed and notarized |
 | Windows x64 | [zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-windows-x64.zip) |
-| Linux x64 | [Flatpak](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.flatpak): `flatpak install --user ompanion-linux-x64.flatpak`; or the [zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.zip), which needs GTK 3 and libsecret |
+| Linux x64 | [Flatpak](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.flatpak): `flatpak install --user ompanion-linux-x64.flatpak`; or the [zip](https://github.com/edde746/ompanion/releases/latest/download/ompanion-linux-x64.zip), which needs GTK 4, WebKitGTK 6 and libsecret (Ubuntu 24.04 or newer) |
+
+Runs on macOS 13, iOS 16, Android 7 and Windows 10 1809 or newer. Windows needs the WebView2 Runtime, which Windows 11 includes.
 
 Or build it yourself: [Building from Source](#building-from-source).
 
@@ -109,60 +111,68 @@ Or build it yourself: [Building from Source](#building-from-source).
 - Refresh, or ask the providers again (`omp usage invalidate`)
 
 ### <img src="assets/readme_icons/platform.svg" height="20" alt="" align="center" /> Platform & design
-- One Flutter codebase for macOS, Windows, Linux, iOS and Android
+- One codebase for macOS, Windows, Linux, iOS and Android: a web UI in each platform's own webview, on a Go core
 - Wide windows show machines, chat and dock side by side; narrow ones show one screen at a time
 - On macOS the app draws the whole window: no title bar, the window buttons sit in the sidebar's header
 - Monochrome, flat design with an OLED-black dark theme and a light theme, or a custom theme with every color picked by you: surfaces, text, accent, status, diffs, syntax highlighting, the terminal's 16 colors
 - Keyboard shortcuts (Cmd on Apple platforms, Ctrl elsewhere)
-- English UI
+- English and German UI
 
 [^desktop]: Desktop only.
 [^agent]: Desktop only; reads `~/.ssh/config` through the `ssh` command (`ssh -G`). On Windows only identity files work: the OpenSSH agent's named pipe is not supported. Apple's Keychain passphrases (`UseKeychain`) are not read.
-[^windows]: Covered end to end in CI against the Windows runner's own Win32-OpenSSH server, with cmd.exe or PowerShell as the default shell. The app itself running on Windows is implemented but not covered by CI.
+[^windows]: Covered end to end in CI against the Windows runner's own Win32-OpenSSH server, with cmd.exe or PowerShell as the default shell. The app itself on Windows runs its smoke checks in CI on x64 and arm64 runners (on arm64 without the file drop).
 
 ## Building from Source
 
+The app is one web page (`ui/`) that each platform's shell (`shells/`) bundles and shows in the system webview, on a Go core (`core/`); [docs/app.md](docs/app.md) says how it is organised. Every build reads its version from the `VERSION` file (`<semver>+<build>`).
+
 ### Prerequisites
-- Flutter SDK 3.47.0+
-- [Bun](https://bun.sh), to build the companion extension
+- [Bun](https://bun.sh) and [Go](https://go.dev) (the version in `core/go.mod`)
+- macOS and iOS: Xcode 26 or newer (the app icon is an Icon Composer bundle), [XcodeGen](https://github.com/yonaskolb/XcodeGen), and gomobile: `(cd core && go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind)`
+- Android: JDK 21, the Android SDK (`$ANDROID_HOME`) with an NDK, and gomobile
+- Linux and Windows: Docker; both build in containers. The Flatpak needs a Linux machine with `flatpak` and `flatpak-builder`; the Windows packages need Windows with the Windows SDK and PowerShell 7
 - omp 18.3.1 or newer on each machine you connect to; the app can install omp 18.12.6 on a machine that lacks it
   and update omp with `omp update` from the machine's page
 
-### Setup
+### Build
 
 ```bash
-flutter pub get
-scripts/build_companion.sh
-flutter run
+scripts/build_companion.sh                       # companion/ → ui/companion/ompx.js, which the page bundles
+(cd ui && bun install && bun run build)          # the page: ui/dist
+shells/apple/build.sh                            # build/apple/macos/ompanion.app, build/apple/ios-simulator/ompanion.app
+shells/android/build.sh                          # build/android/app-debug.apk
+shells/linux/build.sh                            # build/linux-<arch>/
+shells/windows/build.sh x64                      # build/windows-x64/
 ```
 
-<details>
-<summary>The companion bundle</summary>
+Every shell bundles `ui/dist`, so the page is built first. The page imports the companion bundle the app uploads to every machine ([docs/contracts/ompx.md](docs/contracts/ompx.md)), a gitignored build artifact: without `ui/companion/ompx.js` the page's build fails, and a build whose bundle is empty reports every machine as failed with "This build has no companion". `bun run build` is the release page; `VITE_GALLERIES=1 bun run build` adds the dev galleries and the in-page mock core ([docs/app.md](docs/app.md), Shots). `VITE_OMPANION_CHANNEL` names where a build is distributed (`direct`, the default; `appstore`; `play`), and the shells' release options build the page for their channel themselves.
 
-The app bundles the companion extension it uploads to every machine ([docs/contracts/ompx.md](docs/contracts/ompx.md)). The bundle is a build artifact, so build it before any `flutter build`, `flutter run` or `flutter test`:
-
-```bash
-scripts/build_companion.sh      # companion/dist/ompx.js → assets/companion/ompx.js
-```
-
-Without it `pubspec.yaml` names a missing asset and the build fails; a build that still lacks the file reports every machine as failed with "This build has no companion".
-
-</details>
+| Part | Command | Output |
+|---|---|---|
+| Core for Apple, Android | `core/scripts/bind-apple.sh`, `core/scripts/bind-android.sh` (gomobile); the shells' `--core` runs them, and they run on their own when the binding is missing | `build/core/apple/Ompcore.xcframework`, `build/core/android/ompcore.aar` |
+| Core for Linux, Windows | the shells' `build.sh` builds `core/capi` in their container, next to the shell; `core/scripts/build-capi.sh` (Docker) builds it alone | `build-capi.sh`: `build/core/{linux-arm64,linux-amd64,windows-amd64}/` |
+| macOS, iOS | `shells/apple/build.sh [--core] [--debug] [--release] [--device [--team <id> [--for <udid>]]] [--ipa] [--channel <name>]`: by default macOS and the iOS simulator, arm64, ad-hoc signed; `--release` the universal macOS release app with Sparkle; `--device` iOS devices, unsigned, or with `--team` signed for that team's registered devices; `--ipa` the App Store archive and IPA. The script's header lists the details | `build/apple/{macos,ios-simulator,macos-release,ios-device}/ompanion.app`, `build/apple/ipa/ompanion.ipa` |
+| Android | `shells/android/build.sh [--core] [--release]`: a debug APK for every ABI; `--release` the R8-minified APKs (`direct`) and the Play bundle (`play`), signed with `shells/android/key.properties` when it is there, else with the debug key | `build/android/app-debug.apk`, `app-release-universal.apk`, `app-release-arm64.apk`, `app-release.aab` |
+| Linux | `shells/linux/build.sh [arm64] [amd64]` (Docker, Ubuntu 24.04) | `build/linux-<arch>/` |
+| Linux packages | `shells/linux/flatpak/build-flatpak.sh` on Linux, after `build.sh` for that machine's architecture | `build/ompanion-linux-<x64\|arm64>.flatpak`, `.zip` |
+| Windows | `shells/windows/build.sh [x64] [arm64]` (Docker, llvm-mingw) | `build/windows-<arch>/` |
+| Windows packages | `shells/windows/msix/build-msix.ps1` on Windows, after `build.sh x64 [arm64]` | `build/windows-package/ompanion-windows.msixbundle` (unsigned, for the Store), `ompanion-windows-x64.zip` |
 
 <details>
 <summary>Dev machine</summary>
 
-Run the app against an isolated omp home and the fake provider, never your real `~/.omp`. It needs the tested omp [release binary](https://github.com/can1357/oh-my-pi/releases) for your platform (the version in `harness/omp-version`, or `$OMP_VERSION`) in `.tools/omp/<version>/`; `scripts/fetch_omp.sh` downloads it there and checks it against the release's `SHA256SUMS.txt`.
+Run the page in a desktop browser against the real core and an isolated omp home with the fake provider, never your real `~/.omp`. It needs the tested omp [release binary](https://github.com/can1357/oh-my-pi/releases) for your platform (the version in `harness/omp-version`, or `$OMP_VERSION`) in `.tools/omp/<version>/`; `scripts/fetch_omp.sh` downloads it there and checks it against the release's `SHA256SUMS.txt`.
 
 ```bash
 scripts/fetch_omp.sh darwin-arm64                          # or linux-x64, linux-arm64
 bun harness/fake-provider/server.ts --port 18999 --demo    # keep it running
 harness/dev-machine.sh /tmp/omp-dev-home 18999             # prints HOME=… and OMP=…
-flutter run -d macos --dart-define=OMPANION_LOCAL_HOME=/tmp/omp-dev-home \
-  --dart-define=OMPANION_DATA_DIR=/tmp/ompanion-data --dart-define=OMPANION_SECRET_PREFIX=dev
+(cd core && OMPANION_LOCAL_HOME=/tmp/omp-dev-home OMPCORE_DATA_DIR=/tmp/ompanion-data \
+  OMPCORE_CACHE_DIR=/tmp/ompanion-cache go run ./cmd/devbridge -static ../ui/dist)
+open 'http://127.0.0.1:8787/?devbridge=ws://127.0.0.1:8787/bridge'
 ```
 
-The three defines are read in `lib/app/dev_overrides.dart`. Start the app without provider API keys in its environment: with a key set, picking a real model makes a paid call. [harness/README.md](harness/README.md), section "Dev machine", covers the demo scenarios and running several instances at once.
+The dev bridge (`core/cmd/devbridge`, [docs/contracts/bridge.md](docs/contracts/bridge.md), Dev bridge) serves the core over a WebSocket on loopback and plays the shell's part, with secrets in memory. `OMPANION_LOCAL_HOME` makes "this computer" run every command with that `HOME` (`ui/src/app/dev_overrides.ts`); `OMPCORE_DATA_DIR` and `OMPCORE_CACHE_DIR` keep the app's documents and cache away from an installed app's. With `bun run dev` in `ui/` instead of `-static`, open Vite's address with the same `?devbridge=`. Start the dev bridge without provider API keys in its environment: with a key set, picking a real model makes a paid call. [harness/README.md](harness/README.md), section "Dev machine", covers the demo scenarios.
 
 </details>
 
@@ -172,14 +182,14 @@ The three defines are read in `lib/app/dev_overrides.dart`. Start the app withou
 Phone push needs a Firebase project and the relay ([docs/contracts/push.md](docs/contracts/push.md), [relay/README.md](relay/README.md)). A build without the two config files below has no push; the settings switch says "not configured". Nothing about Firebase runs on a phone until the user turns push on.
 
 1. Firebase console: add a project (Google Analytics is not needed), then an Android app with package `com.edde746.ompanion` and an iOS app with bundle ID `com.edde746.ompanion` and team `G88U5B5783`. Take the values from the downloaded `google-services.json` and `GoogleService-Info.plist`; neither file goes into the repository.
-2. `android/firebase.properties` (a file missing a key fails the Gradle build):
+2. `shells/android/firebase.properties` (a file missing a key fails the Gradle build):
    ```properties
    projectId=<project ID>
    applicationId=<Android app ID, 1:<number>:android:<hex>>
    apiKey=<API key>
    senderId=<project number>
    ```
-3. `ios/Flutter/Firebase.xcconfig`, included optionally by `Debug.xcconfig` and `Release.xcconfig`:
+3. `shells/apple/Firebase.xcconfig`, included optionally by `shells/apple/iOS.xcconfig`:
    ```
    FIREBASE_GOOGLE_APP_ID = <GOOGLE_APP_ID, 1:<number>:ios:<hex>>
    FIREBASE_GCM_SENDER_ID = <GCM_SENDER_ID>
@@ -193,29 +203,15 @@ Phone push needs a Firebase project and the relay ([docs/contracts/push.md](docs
 </details>
 
 <details>
-<summary>Code generation</summary>
+<summary>Strings and icons</summary>
 
-After editing translations in `lib/i18n/en.i18n.json`:
-
-```bash
-dart run slang
-```
-
-A new language is `lib/i18n/<code>.i18n.json` next to it with the same keys, the same command, then a member in
-`AppLanguage` (`lib/app/language.dart`) with the generated `AppLocale` and the language's name for itself; the settings
-offer it. Material's own strings and number formatting follow the locale through `flutter_localizations` and `intl`.
-
-After changing the drift tables in `lib/database/`:
+The app's strings are `ui/src/app/i18n/en.i18n.json` and `de.i18n.json`, with the same keys. After changing the English file, regenerate the strings' types (`ui/src/app/i18n/strings.g.ts`; `bun run typecheck` and `bun run build` fail while it is stale):
 
 ```bash
-dart run build_runner build
+(cd ui && bun run i18n)
 ```
 
-After a schema change with a new `schemaVersion`, export the schema and regenerate the migration steps and tests:
-
-```bash
-dart run drift_dev make-migrations
-```
+A new language is `ui/src/app/i18n/<code>.i18n.json` next to them with the same keys, its code in `AppLocale`, `appLocales` and the loaders in `ui/src/app/i18n/i18n.ts`, and its name for itself in `languageEndonyms` (`ui/src/app/language.ts`); the settings offer it.
 
 After changing the app icon in `assets/ompanion.svg` or `assets/ompanion_glyph.svg` (needs `rsvg-convert` and ImageMagick):
 
@@ -226,47 +222,33 @@ scripts/generate_icons.sh
 </details>
 
 <details>
-<summary>Local checks</summary>
+<summary>Tests</summary>
 
 ```bash
-flutter analyze
-flutter test
-(cd packages/omp_core && dart pub get && dart analyze && dart test)
+(cd ui && bun run typecheck && bun run test)
+(cd core && go vet ./... && go test -race ./...)
 (cd companion && bun run typecheck && bun test)
 ```
 
-In `packages/omp_core`, tests that start omp, need Docker or run this computer's ffmpeg are tagged and skipped by default; `dart test -P integration` runs them. In `companion/`, `bun run test:e2e` runs the tests that start omp. These, and `flutter test`'s `test/sessions/sessions_provider_omp_test.dart`, need this computer's omp in `.tools/`; the Docker tests also need the SSH test machines with the Linux omp for Docker's architecture:
+The end-to-end tests start omp with the fake provider, the core's dev bridge, and two OpenSSH servers on loopback (`harness/studio-sshd.sh`); they need this computer's omp in `.tools/` and the companion bundle:
 
 ```bash
-scripts/fetch_omp.sh darwin-arm64 linux-arm64       # this Mac and colima; linux-x64 on an x64 Linux host
-harness/sshd/up.sh
-(cd packages/omp_core && dart test -P integration -j 1)
+scripts/fetch_omp.sh darwin-arm64                   # linux-x64 on an x64 Linux host
+scripts/build_companion.sh
+(cd ui && bun run test:e2e)
 (cd companion && bun run test:e2e)
-harness/sshd/down.sh
 ```
 
-`-j 1` runs one test file at a time: two Docker test files share the target's run directory. [.github/workflows/ci.yml](.github/workflows/ci.yml) runs all of these on Linux for every push and pull request to `main`; [build.yml](.github/workflows/build.yml) builds each platform on demand.
-
-</details>
-
-<details>
-<summary>Transcript benchmark</summary>
-
-The chat transcript has a streaming benchmark, a profile-mode target: a 2,000-item session with a 12 KB reply streamed at 50 updates per second. It prints frame build and raster percentiles and writes them to `build/integration_response_data.json`; results are in [docs/research/ui-libraries.md](docs/research/ui-libraries.md), section "Performance".
-
-```bash
-flutter drive --profile -d macos --driver=integration_test/driver/report_driver.dart \
-  --target=integration_test/transcript_benchmark_test.dart
-```
+Each shell's `smoke.sh` runs the app's smoke checks on a device ([docs/contracts/bridge.md](docs/contracts/bridge.md), Smoke runs). [AGENTS.md](AGENTS.md), "Tests", lists every suite. [.github/workflows/ci.yml](.github/workflows/ci.yml) runs them for every push and pull request to `main`; [build.yml](.github/workflows/build.yml) builds each platform on demand. The transcript benchmark is [bench/BENCH.md](bench/BENCH.md).
 
 </details>
 
 <details>
 <summary>Releasing</summary>
 
-A release is one command on a Mac: `uv run scripts/release/deploy.py release --version 1.1.0` (The stores, below). It bumps `pubspec.yaml`, pushes main and runs Actions → Build → Run workflow on main with every platform selected and the release tag set to that version, which can also be done by hand. Before building anything the run checks the branch, the tag (it must equal `pubspec.yaml`'s version and not exist yet), the platforms, and the macOS signing secrets, the update key and the Android signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip`, `ompanion-linux-x64.flatpak`, `ompanion-linux-x64.zip` and `appcast.xml` to a draft release. Publishing the draft creates the tag on the commit that was built, and offers the release to installed Mac apps.
+A release is one command on a Mac: `uv run scripts/release/deploy.py release --version 1.1.0` (The stores, below). It sets `VERSION`, pushes main and runs Actions → Build → Run workflow on main with every platform selected and the release tag set to that version, which can also be done by hand. Before building anything the run checks the branch, the tag (it must equal `VERSION`'s version and not exist yet), the platforms, and the macOS signing secrets, the update key and the Android signing secrets below. It then attaches `ompanion-android.apk`, `ompanion-ios.ipa`, `ompanion-macos.dmg`, `ompanion-windows-x64.zip`, `ompanion-linux-x64.flatpak`, `ompanion-linux-x64.zip` and `appcast.xml` to a draft release. Publishing the draft creates the tag on the commit that was built, and offers the release to installed Mac apps.
 
-[build.yml](.github/workflows/build.yml), run from Actions → Build → Run workflow, signs the macOS app, notarizes the app and the DMG, and staples the tickets so Gatekeeper accepts the DMG in the artifact named `ompanion-macos-<sha>`. It reads six repository secrets, the same names [Plezy](https://github.com/edde746/plezy) uses:
+[build.yml](.github/workflows/build.yml), run from Actions → Build → Run workflow, builds the universal macOS app (`shells/apple/build.sh --release`), signs it with `scripts/sign_app.sh` and `shells/apple/Entitlements/macOS.entitlements`, notarizes the app and the DMG, and staples the tickets so Gatekeeper accepts the DMG in the artifact named `ompanion-macos-<sha>`. It reads six repository secrets, the same names [Plezy](https://github.com/edde746/plezy) uses:
 
 | Secret | Value |
 |---|---|
@@ -287,7 +269,7 @@ The app-specific password comes from [appleid.apple.com](https://appleid.apple.c
 
 Without all six secrets the macOS job still builds and uploads an unsigned DMG, and the annotation says so; with only some of them it fails and names the missing ones. A fork's runs read the fork's own secrets.
 
-Installed Mac apps update themselves through [Sparkle](https://sparkle-project.org) 2.10.0, a Swift package of the Runner target started in `macos/Runner/AppDelegate.swift`. A release build reads `appcast.xml` from the latest published release (`SUFeedURL` in `macos/Runner/Info.plist`) at launch once a day has passed since its last check, and every day while it runs; "Check for Updates…" in the app menu checks at once. A draft is not the latest release, so a release reaches installed apps when its draft is published. Sparkle shows the release notes (the release's page as [gh-html.edde746.dev](https://gh-html.edde746.dev) renders it), downloads `ompanion-macos.dmg`, and replaces the app only if the DMG's EdDSA signature verifies against `SUPublicEDKey` in `Info.plist` and the new app's code signature is valid. Debug builds never start the updater.
+Installed Mac apps update themselves through [Sparkle](https://sparkle-project.org) 2.10.0, a Swift package of the macOS app started in `shells/apple/Sources/macOS/main.swift`. A release build reads `appcast.xml` from the latest published release (`SUFeedURL` in `shells/apple/project.yml`) at launch once a day has passed since its last check, and every day while it runs; "Check for Updates…" in the app menu checks at once. A draft is not the latest release, so a release reaches installed apps when its draft is published. Sparkle shows the release notes (the release's page as [gh-html.edde746.dev](https://gh-html.edde746.dev) renders it), downloads `ompanion-macos.dmg`, and replaces the app only if the DMG's EdDSA signature verifies against `SUPublicEDKey` (`shells/apple/project.yml`) and the new app's code signature is valid. Debug builds never start the updater.
 
 The macOS job signs the stapled DMG with the update key, checks that signature against the built app's `SUPublicEDKey`, and writes `appcast.xml` next to the DMG in `ompanion-macos-<sha>`: one item with the version, the build number Sparkle compares, the minimum macOS version, the release notes link, and the DMG's download URL, size and signature. The key is one more repository secret:
 
@@ -304,7 +286,7 @@ Without it the job skips the appcast and warns, and a release does not start. Gi
 
 `--account ompanion` keeps the key apart from another app's key under Sparkle's default account.
 
-The Android job signs the APK and the Play bundle with the upload key when four repository secrets are set, again the same names [Plezy](https://github.com/edde746/plezy) uses:
+The Android job signs the APKs and the Play bundle with the upload key when four repository secrets are set, again the same names [Plezy](https://github.com/edde746/plezy) uses:
 
 | Secret | Value |
 |---|---|
@@ -318,28 +300,32 @@ keytool -genkeypair -v -keystore upload-keystore.jks -alias ompanion -keyalg RSA
 base64 -i upload-keystore.jks | pbcopy      # ANDROID_KEYSTORE_BASE64
 ```
 
-Keep the keystore and its passwords: with [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756) Google holds the app signing key, and losing the upload key means asking Google to reset it. Locally the same four values live in `android/key.properties` (gitignored, `storeFile` relative to `android/app`). Without all four secrets the job builds a debug-signed APK and bundle and warns; with only some of them it fails and names the missing ones. The job also builds `flutter build appbundle --release --dart-define=OMPANION_CHANNEL=play` and uploads it as `ompanion-android-aab-<sha>`, which no release carries: the release pipeline (The stores, below) uploads that bundle to Google Play.
+Keep the keystore and its passwords: with [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756) Google holds the app signing key, and losing the upload key means asking Google to reset it. Locally the same four values live in `shells/android/key.properties` (gitignored, `storeFile` relative to `shells/android/app`). Without all four secrets the job builds a debug-signed APK and bundle and warns; with only some of them it fails and names the missing ones. The job runs `shells/android/build.sh --release`, which also builds the Play bundle (the `play` channel), and uploads that as `ompanion-android-aab-<sha>`, which no release carries: the release pipeline (The stores, below) uploads it to Google Play.
 
-The Linux job packs the bundle it zips into `ompanion-linux-x64.flatpak` with [linux/build-flatpak.sh](linux/build-flatpak.sh) and the manifest in [linux/flatpak/](linux/flatpak/) (the freedesktop 26.08 runtime from Flathub), installs it, and runs [linux/check-flatpak.sh](linux/check-flatpak.sh) in its sandbox: every library of the app resolves in the runtime, and `flatpak-spawn --host` reaches the host. The Flatpak is the `direct` build: "this computer" starts omp, its commands and the terminal's shell on the host through `flatpak-spawn --host` (the manifest's `org.freedesktop.Flatpak` permission, which lifts the sandbox), and reads the host's files at their own paths (`--filesystem=host`). Locally, on an x64 or arm64 Linux machine with `flatpak` and `flatpak-builder`:
+The iOS job builds the unsigned `direct` app (`shells/apple/build.sh --device --channel direct`) and zips it into `ompanion-ios.ipa`; whoever installs it signs it.
+
+The Linux job packs `shells/linux/build.sh amd64`'s build into `ompanion-linux-x64.flatpak` and `ompanion-linux-x64.zip` with [shells/linux/flatpak/build-flatpak.sh](shells/linux/flatpak/build-flatpak.sh) and the manifest next to it (the GNOME 51 runtime from Flathub), installs the Flatpak, and runs [shells/linux/flatpak/check-flatpak.sh](shells/linux/flatpak/check-flatpak.sh) in its sandbox: every library of the app resolves in the runtime, and `flatpak-spawn --host` reaches the host. The Flatpak is the `direct` build: "this computer" starts omp, its commands and the terminal's shell on the host through `flatpak-spawn --host` (the manifest's `org.freedesktop.Flatpak` permission, which lifts the sandbox), and reads the host's files at their own paths (`--filesystem=host`). Locally, on an x64 or arm64 Linux machine with Docker, `flatpak` and `flatpak-builder`:
 
 ```bash
 flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flutter build linux --release
-linux/build-flatpak.sh                  # build/linux/ompanion-linux-<x64|arm64>.flatpak
-flatpak install --user build/linux/ompanion-linux-x64.flatpak
-linux/check-flatpak.sh
+shells/linux/build.sh
+shells/linux/flatpak/build-flatpak.sh                  # build/ompanion-linux-<x64|arm64>.flatpak and .zip
+flatpak install --user build/ompanion-linux-x64.flatpak
+dbus-run-session -- shells/linux/flatpak/check-flatpak.sh
 ```
+
+The Windows job cross-builds x64 and arm64 in Docker, then packs them on a Windows runner with [shells/windows/msix/build-msix.ps1](shells/windows/msix/build-msix.ps1) into `ompanion-windows-x64.zip` and the unsigned `ompanion-windows.msixbundle`, uploaded as the artifact `ompanion-windows-msix-<sha>`, which no release carries. The pipeline's `msstore` phase submits it; without the pipeline it is uploaded by hand in Partner Center. The Store signs the bundle after certification. `build-msix.ps1 -EmitManifestOnly` writes only the manifests, on any system with PowerShell 7. The package identity must match the name reserved in Partner Center: [store/README.md](store/README.md), Microsoft Store.
 
 ### The stores
 
-[scripts/release/deploy.py](scripts/release/deploy.py), a port of [Plezy](https://github.com/edde746/plezy)'s pipeline, releases to the App Store, Google Play, the Microsoft Store and GitHub from a Mac. It needs [uv](https://docs.astral.sh/uv/), `gh` signed in to GitHub, Flutter, Xcode with the Apple Distribution certificate of an account that can reach `com.edde746.ompanion` (the Runner target signs automatically with team `G88U5B5783`), and Claude Code's `claude` CLI when a store's notes must be written:
+[scripts/release/deploy.py](scripts/release/deploy.py), a port of [Plezy](https://github.com/edde746/plezy)'s pipeline, releases to the App Store, Google Play, the Microsoft Store and GitHub from a Mac. It needs [uv](https://docs.astral.sh/uv/), `gh` signed in to GitHub, Bun, Go, XcodeGen, Xcode with the Apple Distribution certificate of an account that can reach `com.edde746.ompanion` (the app signs automatically with team `G88U5B5783`), and Claude Code's `claude` CLI when a store's notes must be written:
 
 ```bash
 uv run scripts/release/deploy.py release --version 1.1.0 --dry-run   # print every action, perform none
 uv run scripts/release/deploy.py release --version 1.1.0             # release; asks before publishing
 uv run scripts/release/deploy.py release                             # resume after a failure
 uv run scripts/release/deploy.py status
-python3 scripts/release/test_deploy.py                               # its tests; CI runs them in the App job
+python3 scripts/release/test_deploy.py                               # its tests; CI runs them
 ```
 
 The phases run in this order. `--only` and `--skip` pick some; `build/deploy/state.json` records the finished ones, so a failed run resumes where it stopped, and `--fresh` discards it.
@@ -348,9 +334,9 @@ The phases run in this order. `--only` and `--skip` pick some; `build/deploy/sta
 |---|---|
 | `preflight` | checks the branch (main), uncommitted changes (only the notes files below may have some), the version, the tag, and the tools and `.env` keys of the phases that will run |
 | `changelog` | writes the store notes files (below) |
-| `bump` | sets `pubspec.yaml` to `<version>+<build>`, the build number one above the current one unless `--build-number` is given; commits it with the four notes files as `chore(release): <version>`; pushes main |
+| `bump` | sets `VERSION` to `<version>+<build>`, the build number one above the current one unless `--build-number` is given; commits it with the four notes files as `chore(release): <version>`; pushes main |
 | `farm_start` | runs Actions → Build on main with the release tag |
-| `ios` | `flutter build ipa --release --dart-define=OMPANION_CHANNEL=appstore`, uploaded with `xcrun altool` |
+| `ios` | `scripts/build_companion.sh`, `bun install` in `ui/`, then `shells/apple/build.sh --ipa --core` (the `appstore` channel); uploads `build/apple/ipa/ompanion.ipa` with `xcrun altool` |
 | `asc` | waits for App Store Connect to process the build, creates the version, sets What's New, attaches the build; with `--submit` it asks whether the review demo server was reset and verified ([store/README.md](store/README.md), App Store step 11), then submits for review; without it the phase stays pending until `release --submit` |
 | `farm_wait` | waits for the run and downloads `ompanion-android-aab-<sha>` and `ompanion-windows-msix-<sha>`, only from a release run: that run does not start without the four Android signing secrets, so its bundle is signed with the upload key |
 | `play` | uploads that bundle through the Play Developer API and releases it on `PLAY_TRACK`, status completed, with the en-US notes |
@@ -363,8 +349,8 @@ The release notes are committed files. Write the GitHub notes; a store's file is
 | Notes | File | Limit (characters) |
 |---|---|---|
 | GitHub release (`--notes` names another source) | `store/release-notes/<version>.md` | none |
-| Google Play | `android/fastlane/metadata/android/en-US/changelogs/<build>.txt` | 500 |
-| App Store What's New | `ios/fastlane/metadata/en-US/release_notes.txt` | 4,000 |
+| Google Play | `store/fastlane/android/metadata/android/en-US/changelogs/<build>.txt` | 500 |
+| App Store What's New | `store/fastlane/ios/metadata/en-US/release_notes.txt` | 4,000 |
 | Microsoft Store What's new | `store/microsoft/release_notes.txt` | 1,500 |
 
 `.env` in the repository root (gitignored) holds the credentials of the pipeline and of the fastlane lanes:
@@ -379,41 +365,42 @@ The release notes are committed files. Write the GitHub notes; a store's file is
 | `MSSTORE_APP_ID` | `9P9DVTKZ3SB9`, ompanion's Store ID |
 | `MSSTORE_PRICE_ID` | `Tier1052`, the Partner Center price tier for US$4.99 ([store/README.md](store/README.md), Later releases) |
 
-The fastlane lanes stay for the whole listing (texts and screenshots) and for uploads by hand:
+The fastlane lanes in `store/fastlane/` stay for the whole listing (texts and screenshots) and for uploads by hand. fastlane finds them only from `store/`:
 
 ```bash
 gem install fastlane
-(cd ios && fastlane deploy_appstore)                          # flutter build ipa, metadata and screenshots
-(cd android && fastlane release)                              # internal testing track, draft release
-(cd android && fastlane release track:production release_status:completed)
+cd store
+fastlane ios deploy_appstore                                  # shells/apple/build.sh --ipa, metadata and screenshots
+fastlane android release                                      # internal testing track, draft release
+fastlane android release track:production release_status:completed
 ```
 
-`ios/fastlane/metadata` and `ios/fastlane/screenshots` are the App Store listing; `android/fastlane/metadata/android` is the Play listing. A new Play app only accepts a draft release, so the Android lane's default uploads to internal testing as a draft that is rolled out in Play Console, and it builds its own bundle, signed only with `android/key.properties` in place. The iOS lane never submits for review: it uploads the build, and the submission happens in App Store Connect with the notes and the demo machine from [store/README.md](store/README.md).
+`store/fastlane/ios/metadata` and `store/fastlane/ios/screenshots` are the App Store listing; `store/fastlane/android/metadata/android` is the Play listing. A new Play app only accepts a draft release, so the Android lane's default uploads to internal testing as a draft that is rolled out in Play Console, and it builds its own bundle (`shells/android/build.sh --release --core`), signed only with `shells/android/key.properties` in place. The iOS lane never submits for review: it uploads the build, and the submission happens in App Store Connect with the notes and the demo machine from [store/README.md](store/README.md).
 
-`deploy_appstore` signs like the pipeline's `ios` phase. fastlane rejects screenshots whose pixel size its own list does not know, so `fastlane deploy_appstore skip_screenshots:true` uploads everything else and leaves the screenshots to App Store Connect by hand.
-
-The Microsoft Store package comes from CI: the Windows job runs [windows/build-msix.ps1](windows/build-msix.ps1) on the Release folder it zips and uploads the unsigned `ompanion-windows.msixbundle` as the artifact `ompanion-windows-msix-<sha>`, which no release carries. The pipeline's `msstore` phase submits it; without the pipeline it is uploaded by hand in Partner Center. The Store signs the bundle after certification. Locally, `pwsh windows/build-msix.ps1` packs `build\windows\x64\runner\Release` (and `arm64` when it exists) into `build\windows\msix\` with the Windows SDK's `makeappx` and `makepri`; `-EmitManifestOnly` writes only the manifests, on any system with PowerShell 7. The package identity must match the name reserved in Partner Center: [store/README.md](store/README.md), Microsoft Store.
+`deploy_appstore` signs like the pipeline's `ios` phase. fastlane rejects screenshots whose pixel size its own list does not know, so `fastlane ios deploy_appstore skip_screenshots:true` uploads everything else and leaves the screenshots to App Store Connect by hand.
 
 </details>
 
 ## Contributing
 
-See [AGENTS.md](AGENTS.md) for the conventions (writing, code and tests) and [docs/PLAN.md](docs/PLAN.md) for the architecture and its decisions. [docs/parity.md](docs/parity.md) maps every omp feature to the route the app reaches it by.
+See [AGENTS.md](AGENTS.md) for the conventions (writing, code and tests), [docs/PLAN.md](docs/PLAN.md) for the architecture and its decisions, and [docs/app.md](docs/app.md) for how the app is organised. [docs/parity.md](docs/parity.md) maps every omp feature to the route the app reaches it by.
 
 ## License
 
 ompanion is licensed under [GPL-3.0](LICENSE).
 
-No third-party GPL or AGPL code ships in any build: [docs/research/licenses.md](docs/research/licenses.md) records
-the scan of every resolved package.
+No GPL, LGPL or AGPL third-party code and no code without a known licence ships in any build; the MPL-2.0 syntax
+grammars `hcl` and `terraform` ship as file-level copyleft, and on Linux the system's LGPL libraries (WebKitGTK, GTK,
+GLib, libsecret) are linked dynamically, not bundled. Settings > About > Open-source licenses lists everything a build
+bundles with its licence text: the interface's packages and grammars, the Go core's modules and the platform's native
+libraries. [docs/research/licenses.md](docs/research/licenses.md) records the scan of every build.
 
 ## Acknowledgments
 
-- Built with [Flutter](https://flutter.dev)
 - Drives [omp (oh-my-pi)](https://github.com/can1357/oh-my-pi)
-- SSH by [dartssh2](https://pub.dev/packages/dartssh2); terminal by [xterm2](https://pub.dev/packages/xterm2) (MIT) and [flutter_pty2](https://pub.dev/packages/flutter_pty2)
-- Markdown by [gpt_markdown](https://pub.dev/packages/gpt_markdown); code viewing, editing and highlighting by [re_editor](https://pub.dev/packages/re_editor) and [re_highlight](https://pub.dev/packages/re_highlight)
-- Storage by [drift](https://pub.dev/packages/drift) and [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage); translations by [slang](https://pub.dev/packages/slang); state by [provider](https://pub.dev/packages/provider); desktop windows by [window_manager](https://pub.dev/packages/window_manager)
-- Notifications by [flutter_local_notifications](https://pub.dev/packages/flutter_local_notifications) on desktops and [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging) on phones
-- App icons from [Material Symbols](https://fonts.google.com/icons) through [material_symbols_icons](https://pub.dev/packages/material_symbols_icons) (Apache-2.0)
+- UI by [Solid](https://www.solidjs.com) and [Vite](https://vite.dev), shown by each platform's own webview: WKWebView, Android System WebView, [WebKitGTK](https://webkitgtk.org) and [WebView2](https://developer.microsoft.com/microsoft-edge/webview2)
+- SSH and SFTP by Go's [x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh) and [pkg/sftp](https://github.com/pkg/sftp); terminals by [creack/pty](https://github.com/creack/pty), [charmbracelet/x/conpty](https://github.com/charmbracelet/x) and [xterm.js](https://xtermjs.org); the core reaches the phones through [gomobile](https://pkg.go.dev/golang.org/x/mobile/cmd/gomobile)
+- Markdown by [markdown-it](https://github.com/markdown-it/markdown-it) and [KaTeX](https://katex.org); code highlighting by [Shiki](https://shiki.style); code viewing and editing by [CodeMirror](https://codemirror.net)
+- Updates on macOS by [Sparkle](https://sparkle-project.org); push on phones by [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging)
+- App icons from [Material Symbols](https://fonts.google.com/icons) through [@material-symbols/svg-400](https://www.npmjs.com/package/@material-symbols/svg-400) (Apache-2.0); code font [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (OFL-1.1)
 - README section icons from [Material Icons](https://github.com/google/material-design-icons) (Apache-2.0)

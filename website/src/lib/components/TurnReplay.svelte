@@ -48,7 +48,7 @@
   ];
   const FILES_EDITED = STEPS.filter((step) => step.tool.name === 'write' || step.tool.name === 'edit').length;
 
-  // The app shows the seconds of a wait from the third one on (lib/screens/chat/transcript/message_rows.dart).
+  // The app shows the seconds of a wait from the third one on (ui/src/app/screens/chat/transcript/message_rows.tsx).
   const COUNT_FROM_S = 3;
   const WAIT_FROM = 300;
   const THINK_FROM = 4400;
