@@ -1,5 +1,5 @@
-// The contract parts of test/screens/usage/usage_pane_test.dart: every machine answers on its own, asking the providers
-// again drops omp's cache first, and hide mode masks every identity.
+// The contract parts of test/screens/usage/usage_pane_test.dart: every machine answers on its own, and asking the
+// providers again drops omp's cache first.
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -10,7 +10,7 @@ import { deferred } from "../../../deferred";
 import { usageSnapshotFromJson } from "../../config/cli_results";
 import { OmpCliException } from "../../config/omp_cli";
 import { mergeUsage, type MachineUsage } from "./usage_overview";
-import { fetchMachineUsage, type Fetch, MachineFetches, maskIdentity } from "./usage_pane_state";
+import { fetchMachineUsage, type Fetch, MachineFetches } from "./usage_pane_state";
 
 // omp 18.3.1's own output, kept by the Config port.
 const fixtures = join(import.meta.dir, "../../config/fixtures");
@@ -99,11 +99,4 @@ test("asking the providers again drops omp's cache first; the usage reaches the 
   const cached = fakeOmp(async () => fixture("usage-mac.json"));
   await fetchMachineUsage(cached, "This Mac", { fresh: false });
   expect(cached.commands).toEqual(["usage --json", "config get"]);
-});
-
-test("hide mode masks every identity with one fixed mask", () => {
-  expect(maskIdentity("dev@example.com", true)).toBe("••••••••");
-  expect(maskIdentity("Acme", true)).toBe(maskIdentity("a-much-longer-organization", true));
-  expect(maskIdentity("dev@example.com", false)).toBe("dev@example.com");
-  expect(maskIdentity(undefined, true)).toBeUndefined();
 });

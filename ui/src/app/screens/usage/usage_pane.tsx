@@ -53,7 +53,7 @@ import {
   usageOverviewFetchedAt,
 } from "./usage_overview";
 import "./usage_pane.css";
-import { type Fetch, fetchMachineUsage, headerParts, limitAmount, MachineFetches, maskIdentity, policyLine } from "./usage_pane_state";
+import { type Fetch, fetchMachineUsage, headerParts, limitAmount, MachineFetches, policyLine } from "./usage_pane_state";
 
 type Tab = "limits" | "stats";
 
@@ -581,9 +581,19 @@ function AccountBlock(props: {
         <Dot color={statusColor(aggregateUsageStatus(report().limits))} />
         <span class="usage-pane-account-title">
           <span class="usage-pane-account-label">
-            {maskIdentity(report().accountLabel, props.hide) ?? t.usage.accountN({ n: props.index + 1 })}
+            <Show when={report().accountLabel} fallback={t.usage.accountN({ n: props.index + 1 })}>
+              {(label) => <Identity value={label()} hide={props.hide} />}
+            </Show>
           </span>
-          <For each={headerParts(report(), maskIdentity(props.account.qualifier, props.hide), props.now)}>
+          <Show when={props.account.qualifier}>
+            {(qualifier) => (
+              <span class="usage-pane-small-muted">
+                {" · "}
+                <Identity value={qualifier()} hide={props.hide} />
+              </span>
+            )}
+          </Show>
+          <For each={headerParts(report(), props.now)}>
             {(part) => <span class="usage-pane-small-muted">{` · ${part}`}</span>}
           </For>
         </span>
@@ -817,10 +827,8 @@ function WithoutUsageRow(props: { readonly entry: MachineAccount; readonly now: 
   const base = () =>
     account().apiKey ? undefined : identityLabel(account().identity, account().enterpriseUrl);
   const label = () => {
-    const org = account().apiKey ? undefined : identityOrg(account().identity, base());
-    const first = account().apiKey ? t.usage.apiKey : (maskIdentity(base(), props.hide) ?? t.usage.oauthAccount);
-    const masked = maskIdentity(org, props.hide);
-    return masked === undefined ? first : `${first} · ${masked}`;
+    if (account().apiKey) return t.usage.apiKey;
+    return <IdentityLabel base={base()} org={identityOrg(account().identity, base())} hide={props.hide} />;
   };
   const relogin = () => reloginRemainingMs(account(), props.now);
   return (
@@ -847,9 +855,7 @@ function DisabledRow(props: { readonly entry: MachineDisabled; readonly now: num
   const credential = () => props.entry.credential;
   const label = () => {
     const base = identityLabel(credential().identity);
-    const org = maskIdentity(identityOrg(credential().identity, base), props.hide);
-    const first = maskIdentity(base, props.hide) ?? t.usage.oauthAccount;
-    return org === undefined ? first : `${first} · ${org}`;
+    return <IdentityLabel base={base} org={identityOrg(credential().identity, base)} hide={props.hide} />;
   };
   const text = () => {
     const cause = shortDisableCause(credential().cause);
@@ -873,7 +879,7 @@ function DisabledRow(props: { readonly entry: MachineDisabled; readonly now: num
 
 function OtherRow(props: {
   readonly icon: JSX.Element;
-  readonly label: string;
+  readonly label: JSX.Element;
   readonly text: string;
   readonly error?: boolean;
   readonly machine: string;
@@ -892,6 +898,33 @@ function OtherRow(props: {
       <MachineTags machines={[props.machine]} />
     </div>
   );
+}
+
+/** An OAuth account's label and organization, `dev@example.com · Acme`, or `OAuth account` without a label. */
+function IdentityLabel(props: { readonly base?: string; readonly org?: string; readonly hide: boolean }) {
+  return (
+    <>
+      <Show when={props.base} fallback={t.usage.oauthAccount}>
+        {(base) => <Identity value={base()} hide={props.hide} />}
+      </Show>
+      <Show when={props.org}>
+        {(org) => (
+          <>
+            {" · "}
+            <Identity value={org()} hide={props.hide} />
+          </>
+        )}
+      </Show>
+    </>
+  );
+}
+
+/**
+ * An email, account id, project id or organization. The hide toggle blurs it in place for screenshots: the layout and
+ * the value's length stay, the value cannot be read or selected.
+ */
+function Identity(props: { readonly value: string; readonly hide: boolean }) {
+  return <span class={{ "usage-pane-identity-hidden": props.hide }}>{props.value}</span>;
 }
 
 /** The machines an entry came from, as tone-lighter pills. */

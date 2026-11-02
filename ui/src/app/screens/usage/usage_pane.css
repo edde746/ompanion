@@ -156,6 +156,13 @@
   font-weight: 600;
 }
 
+/* Hide mode: blurred past reading at every text size the pane uses, and kept out of a selection. */
+.usage-pane-identity-hidden {
+  filter: blur(0.4em);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .usage-pane-bell {
   display: inline-flex;
   flex: none;

@@ -128,7 +128,7 @@ export const Prefs = {
   sidebarWidth: doublePref("sidebar_width", 300),
   dockWidth: doublePref("dock_width", 340),
 
-  /** The usage pane masks account emails, ids and organizations, for screenshots. */
+  /** The usage pane blurs account emails, ids and organizations, for screenshots. */
   usageHideIdentities: boolPref("usage_hide_identities", false),
 
   /** Whether the sidebar hides the sessions of the project folder `cwd` on machine `machineId`. */

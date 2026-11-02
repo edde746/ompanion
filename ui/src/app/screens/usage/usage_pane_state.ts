@@ -120,18 +120,9 @@ async function policySettings(
   return { policies, reservePct: number(await get("retry.usageReservePct"), "value") };
 }
 
-/**
- * What hide mode shows in place of an email, account id, project id or organization: one fixed mask, so neither the
- * value nor its length shows.
- */
-export function maskIdentity(value: string | undefined, hide: boolean): string | undefined {
-  return hide && value !== undefined ? "••••••••" : value;
-}
-
-/** `formatAccountHeader` after the label. */
-export function headerParts(report: UsageReport, qualifier: string | undefined, nowMs: number): string[] {
+/** `formatAccountHeader` after the label and the qualifier. */
+export function headerParts(report: UsageReport, nowMs: number): string[] {
   const parts: string[] = [];
-  if (qualifier !== undefined) parts.push(qualifier);
   const plan = report.planType;
   if (plan !== undefined && plan !== "") parts.push(t.usage.plan({ plan }));
   if (report.daybreak) parts.push(t.usage.daybreak);
