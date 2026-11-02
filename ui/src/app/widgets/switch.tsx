@@ -3,7 +3,7 @@
 // Material 3: a toggle carries the thumb along Curves.easeOutBack while it stretches to 34 × 22 and settles to the new
 // size; a press grows it to 28 px (the radial reaction); a horizontal drag carries it, and the release settles it on the
 // nearer side. The colours follow the toggle (switch.css); during a drag they stay until the release decides.
-import { createEffect } from "solid-js";
+import { createEffect, createMemo } from "solid-js";
 import { cubic, Curves, curveFrames, play, settled } from "../motion";
 import "./switch.css";
 
@@ -103,8 +103,11 @@ export function Switch(props: SwitchProps) {
     move((from) => toggleFrames(from, on), toggleMs);
   }
 
+  // An effect runs each time its compute does, equal value or not; a memo passes on only a change, so a switch whose
+  // value is read from shared state does not toggle again when something else in it changes.
+  const value = createMemo(() => props.value);
   createEffect(
-    () => props.value,
+    value,
     (on) => {
       if (heading !== on) toggle(on);
     },

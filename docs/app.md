@@ -43,7 +43,8 @@ writes `app/i18n/strings.g.ts`, the type of the app's strings, from `app/i18n/en
 ## App conventions
 
 - Solid 2.0 (`solid-js@2.0.0-rc.20`). `ui/node_modules/solid-js/CHEATSHEET.md` (its end lists the 2.0 corrections)
-  is the reference: it is not React and not Solid 1.
+  is the reference: it is not React and not Solid 1. An effect's callback runs every time its compute runs, with an
+  equal value too: a callback that must run only on a change (a toggle's motion) reads a `createMemo`, which compares.
 - State lives in providers (`app/providers/`, `app/sessions/sessions_provider.ts`): a class that
   owns its state in signals or a store and exposes accessors. The app creates one of each at boot (`app/app_state.ts`)
   and hands them down through Solid contexts (`useSettings()`, `useMachines()`, …).

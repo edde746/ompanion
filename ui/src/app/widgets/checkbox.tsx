@@ -2,7 +2,7 @@
 // surface colour. Both move as toggleable.dart's controls do: over _kToggleDuration along Curves.easeIn (easeOut
 // backwards, which plays as easeIn either way). The checkbox is drawn as material/checkbox.dart paints it, so its fill
 // and the strokes of its check mark can animate.
-import { createEffect } from "solid-js";
+import { createEffect, createMemo } from "solid-js";
 import { Curves, curveFrames, play, settled } from "../motion";
 import "./checkbox.css";
 
@@ -46,8 +46,11 @@ export function Checkbox(props: CheckboxProps) {
   let frame!: SVGRectElement;
   let check!: SVGPathElement;
   let motion: Animation[] = [];
+  // An effect runs each time its compute does, equal value or not, and the value is often read from a whole answer
+  // (`selected.includes(label)`): a memo passes on only a change, so only the box that turned animates.
+  const value = createMemo(() => props.value);
   createEffect(
-    () => props.value,
+    value,
     (checked) => {
       for (const animation of motion) animation.cancel();
       const frames = checkboxFrames(checked);
