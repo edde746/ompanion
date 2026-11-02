@@ -1,19 +1,18 @@
-// lib/screens/keys/keys_pane.dart.
+// The SSH keys section of the settings pane: the keys of this device, imported or generated here, with their public
+// half to copy and a delete that names the machines still using the key.
 import { For, Show } from "solid-js";
 import { useKeys, useMachines } from "../../app_state";
 import type { SshKeyRow } from "../../database/tables";
 import { t } from "../../i18n/i18n";
 import { machineHops } from "../../models/machine";
 import { FilledButton, IconButton, TextButton, TonalButton } from "../../widgets/button";
-import { Card } from "../../widgets/card";
 import { Dialog, showDialog } from "../../widgets/dialog";
-import { Icon } from "../../widgets/icon";
 import * as Symbols from "../../widgets/symbols";
+import { SettingsCard } from "../settings/settings_card";
 import { copyPublicKey, showGenerateKeyDialog, showImportKeyDialog } from "./key_dialogs";
-import "./keys_pane.css";
+import "./keys_section.css";
 
-/** SSH keys of this device: import, generate, copy the public half, delete. */
-export function KeysPane() {
+export function KeysSection() {
   const keys = useKeys();
   const machines = useMachines();
 
@@ -34,15 +33,37 @@ export function KeysPane() {
           </>
         }
       >
-        <p class="keys-pane-confirm">{body.join("\n\n")}</p>
+        <p class="keys-section-confirm">{body.join("\n\n")}</p>
       </Dialog>
     ));
     if (confirmed === true) await keys.delete(key);
   };
 
   return (
-    <div class="keys-pane">
-      <div class="keys-pane-actions">
+    <div class="keys-section">
+      <h2 class="settings-pane-heading settings-pane-section">{t.keys.title}</h2>
+      <SettingsCard>
+        <Show when={keys.keys().length > 0} fallback={<p class="keys-section-empty">{t.keys.empty}</p>}>
+          <For each={keys.keys()}>
+            {(key) => (
+              <div class="keys-section-key">
+                <span class="settings-row-text">
+                  <span class="settings-row-label">{key.name}</span>
+                  <span class="settings-row-detail">{key.type}</span>
+                  <span class="keys-section-fingerprint">{key.fingerprint}</span>
+                </span>
+                <IconButton
+                  icon={Symbols.content_copy}
+                  tooltip={t.keys.copyPublicKey}
+                  onClick={() => void copyPublicKey(key)}
+                />
+                <IconButton icon={Symbols.delete} tooltip={t.common.delete} onClick={() => void remove(key)} />
+              </div>
+            )}
+          </For>
+        </Show>
+      </SettingsCard>
+      <div class="keys-section-actions">
         <FilledButton icon={Symbols.download} onClick={() => void showImportKeyDialog()}>
           {t.keys.import}
         </FilledButton>
@@ -50,30 +71,6 @@ export function KeysPane() {
           {t.keys.generate}
         </TonalButton>
       </div>
-      <Show when={keys.keys().length > 0} fallback={<p class="keys-pane-empty">{t.keys.empty}</p>}>
-        <div class="keys-pane-list">
-          <For each={keys.keys()}>
-            {(key) => (
-              <Card class="keys-pane-key">
-                <div class="keys-pane-row">
-                  <Icon icon={Symbols.key} class="keys-pane-icon" />
-                  <div class="keys-pane-text">
-                    <span class="keys-pane-name">{key.name}</span>
-                    <span class="keys-pane-type">{key.type}</span>
-                    <span class="keys-pane-fingerprint">{key.fingerprint}</span>
-                  </div>
-                  <IconButton
-                    icon={Symbols.content_copy}
-                    tooltip={t.keys.copyPublicKey}
-                    onClick={() => void copyPublicKey(key)}
-                  />
-                  <IconButton icon={Symbols.delete} tooltip={t.common.delete} onClick={() => void remove(key)} />
-                </div>
-              </Card>
-            )}
-          </For>
-        </div>
-      </Show>
     </div>
   );
 }

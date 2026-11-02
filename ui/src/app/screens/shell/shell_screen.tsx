@@ -31,12 +31,11 @@ const ChatScreen = lazy(() => import("../chat/chat_screen").then((module) => ({ 
 const MachineDetailPane = lazy(() =>
   import("../machines/machine_detail_pane").then((module) => ({ default: module.MachineDetailPane })),
 );
-const KeysPane = lazy(() => import("../keys/keys_pane").then((module) => ({ default: module.KeysPane })));
 const SettingsPane = lazy(() => import("../settings/settings_pane").then((module) => ({ default: module.SettingsPane })));
 const UsagePane = lazy(() => import("../usage/usage_pane").then((module) => ({ default: module.UsagePane })));
 const chatHeader = lazyModule(() => import("../chat/chat_header"));
 const machineEditor = lazyModule(() => import("../machines/machine_editor"));
-preloadAfterBoot(ChatScreen.preload, MachineDetailPane.preload, KeysPane.preload, chatHeader, machineEditor);
+preloadAfterBoot(ChatScreen.preload, MachineDetailPane.preload, chatHeader, machineEditor);
 
 export function ShellScreen() {
   const [width, setWidth] = createSignal(window.innerWidth);
@@ -499,8 +498,6 @@ export function selectionTitle(selection: ShellSelection, machine: Machine | und
       return t.app.title;
     case "MachineSelection":
       return machine?.name ?? t.app.title;
-    case "KeysSelection":
-      return t.shell.keysTitle;
     case "UsageSelection":
       return t.shell.usageTitle;
     case "SettingsSelection":
@@ -522,12 +519,6 @@ export function selectionBody(selection: ShellSelection, machine: Machine | unde
     case "HomeSelection":
     case "SessionSelection":
       return <HomePane />;
-    case "KeysSelection":
-      return (
-        <Loading fallback={null}>
-          <KeysPane />
-        </Loading>
-      );
     case "UsageSelection":
       return (
         <Loading fallback={null}>

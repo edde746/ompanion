@@ -29,7 +29,6 @@ export type Translations = {
     readonly panels: string;
     readonly homeTitle: string;
     readonly homeBody: string;
-    readonly keysTitle: string;
     readonly usageTitle: string;
     readonly settingsTitle: string;
   };
@@ -393,7 +392,6 @@ export type Translations = {
     readonly more: string;
     readonly importMachines: string;
     readonly exportMachines: string;
-    readonly keys: string;
     readonly usage: string;
     readonly settings: string;
     readonly noMachines: string;
@@ -482,6 +480,7 @@ export type Translations = {
     readonly agentHelp: string;
   };
   readonly keys: {
+    readonly title: string;
     readonly empty: string;
     readonly import: string;
     readonly generate: string;

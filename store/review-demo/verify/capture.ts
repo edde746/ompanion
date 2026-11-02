@@ -59,8 +59,8 @@ async function shoot(page: Page, name: string): Promise<void> {
 async function reviewerPath(page: Page): Promise<void> {
   const machineName = "Review demo host";
   if (key !== undefined) {
-    // A stand-in host takes no password: its key is imported first, and chosen below.
-    await page.getByRole("button", { name: "SSH keys" }).first().click();
+    // A stand-in host takes no password: its key is imported first (Settings, SSH keys), and chosen below.
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Import key" }).first().click();
     const dialog = page.locator(".key-dialogs-import");
     await field(dialog, "Name").locator("input").fill("stand-in");

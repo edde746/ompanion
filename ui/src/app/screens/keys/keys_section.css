@@ -1,0 +1,47 @@
+.keys-section {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+/* A settings row (settings_card.css): 16 px of text inset, the two buttons 8 px from the card's right edge. */
+.keys-section-key {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  min-height: calc(var(--control) + 8px);
+  padding: 8px 8px 8px 16px;
+}
+
+.keys-section-key > .icon-button + .icon-button {
+  margin-left: calc(-1 * var(--gap));
+}
+
+.keys-section-fingerprint {
+  color: var(--on-surface-variant);
+  font: var(--code);
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.keys-section-empty {
+  margin: 0;
+  padding: 10px 16px;
+  color: var(--on-surface-variant);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
+
+.keys-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+  margin-top: var(--gap);
+}
+
+.keys-section-confirm {
+  margin: 0;
+  white-space: pre-line;
+}

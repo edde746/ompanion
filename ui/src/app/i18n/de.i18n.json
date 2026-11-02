@@ -24,7 +24,6 @@
     "panels": "Panels",
     "homeTitle": "Kein Rechner ausgewählt",
     "homeBody": "Wähle in der Seitenleiste einen Rechner aus oder füge einen hinzu.",
-    "keysTitle": "SSH-Schlüssel",
     "usageTitle": "Nutzung",
     "settingsTitle": "Einstellungen"
   },
@@ -448,7 +447,6 @@
     "more": "Mehr",
     "importMachines": "Rechner importieren…",
     "exportMachines": "Rechner exportieren…",
-    "keys": "SSH-Schlüssel",
     "usage": "Nutzung",
     "settings": "Einstellungen",
     "noMachines": "Noch keine Rechner.",
@@ -537,6 +535,7 @@
     "agentHelp": "Wie der Befehl ssh: zuerst die Schlüssel des ssh-agent (IdentityAgent, sonst SSH_AUTH_SOCK), dann die IdentityFile-Schlüssel, die ~/.ssh/config für diesen Host setzt, sonst ~/.ssh/id_ed25519, id_ecdsa und id_rsa. Verschlüsselte Schlüssel fragen nach ihrer Passphrase. Lehnt der Host jeden Schlüssel ab, folgt seine Passwortabfrage."
   },
   "keys": {
+    "title": "SSH-Schlüssel",
     "empty": "Noch keine Schlüssel. Importiere einen vorhandenen Schlüssel oder erzeuge einen neuen.",
     "import": "Schlüssel importieren",
     "generate": "Schlüssel erzeugen",

@@ -5,7 +5,6 @@ import { type Accessor, createSignal } from "solid-js";
 export type ShellSelection =
   | { readonly kind: "HomeSelection" }
   | { readonly kind: "MachineSelection"; readonly machineId: string }
-  | { readonly kind: "KeysSelection" }
   /** Provider usage of every machine's accounts. */
   | { readonly kind: "UsageSelection" }
   | { readonly kind: "SettingsSelection" }

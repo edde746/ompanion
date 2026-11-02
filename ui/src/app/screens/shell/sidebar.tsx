@@ -1,5 +1,5 @@
 // lib/screens/shell/sidebar.dart: the header (search and machine actions), then the pinned sessions and per machine
-// its projects and sessions as one flat list of rows (`sidebarRows`); SSH keys, usage and settings at the bottom.
+// its projects and sessions as one flat list of rows (`sidebarRows`); usage and settings at the bottom.
 import type { JSX } from "@solidjs/web";
 import {
   type Accessor,
@@ -515,7 +515,6 @@ export function Sidebar(props: SidebarProps) {
         </Show>
       </div>
       <nav class="sidebar-nav">
-        {nav({ kind: "KeysSelection" }, Symbols.key, () => t.sidebar.keys)}
         {nav({ kind: "UsageSelection" }, Symbols.speed, () => t.sidebar.usage)}
         {nav({ kind: "SettingsSelection" }, Symbols.settings, () => t.sidebar.settings)}
       </nav>

@@ -9,6 +9,7 @@ import { isApple } from "../../platform";
 import { Prefs } from "../../providers/settings_provider";
 import { AppSegmented } from "../../widgets/app_segmented";
 import * as Symbols from "../../widgets/symbols";
+import { KeysSection } from "../keys/keys_section";
 import { appShortcuts } from "../shell/shortcuts";
 import { AboutSection } from "./about_section";
 import { NotificationsSection } from "./notifications_section";
@@ -70,6 +71,7 @@ export function SettingsPane() {
           applyLanguage(language);
         }}
       />
+      <KeysSection />
       <div class="settings-pane-section" />
       <NotificationsSection />
       <h2 class="settings-pane-section settings-pane-channel">{t.settings.buildChannel}</h2>

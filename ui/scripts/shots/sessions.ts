@@ -4,7 +4,7 @@
 // scenarios.
 //
 // The `ssh-*` screens add an SSH machine through the editor: harness/studio-sshd.sh's target behind its
-// bastion (a jump host), key auth with the harness's client key imported in the Keys pane, the host-key prompts
+// bastion (a jump host), key auth with the harness's client key imported in Settings' SSH keys, the host-key prompts
 // answered in the app. The target's sessions run in the harness's isolated HOME, where the tested omp is installed.
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -171,14 +171,20 @@ export async function stop(): Promise<string[]> {
 const sshMachineName = "build-host";
 const sshKeyName = "studio";
 
-/** Imports the harness's client key in the Keys pane and adds the SSH machine through the editor, unless done. */
+/** Opens Settings, where the SSH keys section lists this device's keys. */
+async function openKeys(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.locator(".keys-section").waitFor();
+}
+
+/** Imports the harness's client key in Settings' SSH keys and adds the SSH machine through the editor, unless done. */
 async function addSshMachine(context: ShotContext, server: Sshd): Promise<void> {
   const { page } = context;
   // The machines load after the first frame.
   await machineRow(page).waitFor({ timeout: 60_000 });
   if ((await machineRow(page, sshMachineName).count()) > 0) return;
-  await page.getByRole("button", { name: "SSH keys" }).first().click();
-  if ((await page.locator(".keys-pane").getByText(sshKeyName, { exact: true }).count()) === 0) {
+  await openKeys(page);
+  if ((await page.locator(".keys-section").getByText(sshKeyName, { exact: true }).count()) === 0) {
     await page.getByRole("button", { name: "Import key" }).first().click();
     const dialog = page.locator(".key-dialogs-import");
     await field(dialog, "Name").locator("input").fill(sshKeyName);
@@ -300,8 +306,8 @@ export const screens: Screen[] = [
   {
     name: "keys",
     reach: async ({ page }) => {
-      await page.getByRole("button", { name: "SSH keys" }).first().click();
-      if ((await page.locator(".keys-pane").getByText("SHA256:").count()) === 0) {
+      await openKeys(page);
+      if ((await page.locator(".keys-section").getByText("SHA256:").count()) === 0) {
         await page.getByRole("button", { name: "Generate key" }).first().click();
         const dialog = page.getByRole("dialog");
         await dialog.getByRole("textbox").first().fill("studio laptop");
@@ -309,7 +315,8 @@ export const screens: Screen[] = [
         // The generated key's dialog follows, with its public key to copy.
         await page.getByRole("dialog", { name: "studio laptop" }).getByRole("button", { name: "Close", exact: true }).click();
       }
-      await page.locator(".keys-pane").getByText("SHA256:").first().waitFor();
+      await page.locator(".keys-section").getByText("SHA256:").first().waitFor();
+      await page.locator(".keys-section").evaluate((element) => element.scrollIntoView());
     },
   },
   {

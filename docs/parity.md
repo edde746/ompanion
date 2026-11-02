@@ -170,7 +170,8 @@ what stock lacks.
 
 | Feature | Route | Surface | M |
 |---|---|---|---|
-| Machines, keys, known hosts, jump chains, import/export | APP | machines | M1 |
+| Machines, known hosts, jump chains, import/export | APP | machines | M1 |
+| SSH keys: import, generate, copy the public key, delete | APP | settings, SSH keys; machine editor (import, generate) | M1 |
 | SSH auth: key, password, keyboard-interactive, SSH config and agent, Tailscale SSH | APP (`ssh -G` for `IdentityAgent`, `IdentityFile`, `IdentitiesOnly`; server prompts after refused keys, like `ssh`) | machine editor, connect prompts | M1 |
 | Install and upgrade omp | APP + installer | machines | M1 |
 | Keep a Mac awake while omp works | FS (`~/.ompanion/keep-awake`) + CE (power assertion while omp works) | machine page, macOS only | M2 |
