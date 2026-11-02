@@ -39,6 +39,7 @@
     "notFetched": "Noch nicht abgerufen",
     "hideIdentities": "E-Mails und Organisationen ausblenden",
     "showIdentities": "E-Mails und Organisationen anzeigen",
+    "hiddenIdentity": "Ausgeblendet",
     "none": "Keine Nutzungsdaten. Konten von Anbietern mit Nutzungs-Endpunkt (zum Beispiel Claude- und ChatGPT-Abos) zeigen hier ihre Limits.",
     "noMachines": "Noch keine Rechner. Füge einen in der Seitenleiste hinzu.",
     "machines": "Rechner",

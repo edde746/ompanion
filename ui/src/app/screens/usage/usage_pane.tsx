@@ -53,7 +53,17 @@ import {
   usageOverviewFetchedAt,
 } from "./usage_overview";
 import "./usage_pane.css";
-import { type Fetch, fetchMachineUsage, headerParts, limitAmount, MachineFetches, policyLine } from "./usage_pane_state";
+import {
+  type Fetch,
+  fetchMachineUsage,
+  headerParts,
+  identityMosaic,
+  limitAmount,
+  MachineFetches,
+  mosaicRows,
+  mosaicTileEm,
+  policyLine,
+} from "./usage_pane_state";
 
 type Tab = "limits" | "stats";
 
@@ -920,11 +930,31 @@ function IdentityLabel(props: { readonly base?: string; readonly org?: string; r
 }
 
 /**
- * An email, account id, project id or organization. The hide toggle blurs it in place for screenshots: the layout and
- * the value's length stay, the value cannot be read or selected.
+ * An email, account id, project id or organization. The hide toggle puts a mosaic in its place for screenshots: the
+ * value never reaches the page, and the mosaic is drawn anew each time it shows (`identityMosaic`).
  */
 function Identity(props: { readonly value: string; readonly hide: boolean }) {
-  return <span class={{ "usage-pane-identity-hidden": props.hide }}>{props.value}</span>;
+  return (
+    <Show when={props.hide} fallback={props.value}>
+      <IdentityMosaic length={props.value.length} />
+    </Show>
+  );
+}
+
+function IdentityMosaic(props: { readonly length: number }) {
+  const mosaic = createMemo(() => identityMosaic(props.length, Math.random));
+  return (
+    <svg
+      class="usage-pane-identity-hidden"
+      role="img"
+      aria-label={t.usage.hiddenIdentity}
+      viewBox={`0 0 ${mosaic().columns} ${mosaicRows}`}
+      style={{ width: `${mosaic().columns * mosaicTileEm}em`, height: `${mosaicRows * mosaicTileEm}em` }}
+      shape-rendering="crispEdges"
+    >
+      <For each={mosaic().tones}>{(tone) => <path d={tone.d} fill-opacity={tone.opacity} />}</For>
+    </svg>
+  );
 }
 
 /** The machines an entry came from, as tone-lighter pills. */

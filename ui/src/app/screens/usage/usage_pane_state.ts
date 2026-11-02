@@ -151,6 +151,32 @@ export function headerParts(report: UsageReport, nowMs: number): string[] {
   return parts;
 }
 
+/** Hide mode's mosaic: rows of square tiles, each `mosaicTileEm` on a side. */
+export const mosaicRows = 3;
+export const mosaicTileEm = 0.3;
+
+/**
+ * Hide mode's stand-in for an identity, drawn from `random` alone: about as wide as `length` characters of the UI font
+ * (some 0.55 em, two tiles, each), stretched or shrunk by up to a quarter, each tile a random tone of the text colour
+ * and the middle row (where lowercase letters sit) the strongest. Neither the characters nor the exact length can be
+ * read back from it. One path per tone, in a viewBox `columns` × `mosaicRows` tiles.
+ */
+export function identityMosaic(
+  length: number,
+  random: () => number,
+): { columns: number; tones: { opacity: number; d: string }[] } {
+  const columns = Math.max(4, Math.round(((length * 0.55) / mosaicTileEm) * (0.75 + random() * 0.5)));
+  const tones = new Map<number, string>();
+  for (let row = 0; row < mosaicRows; row++) {
+    const strength = row === 1 ? 1 : 0.55;
+    for (let column = 0; column < columns; column++) {
+      const opacity = Math.round((0.1 + random() * 0.6) * strength * 20) / 20;
+      tones.set(opacity, `${tones.get(opacity) ?? ""}M${column} ${row}h1v1h-1z`);
+    }
+  }
+  return { columns, tones: [...tones].map(([opacity, d]) => ({ opacity, d })) };
+}
+
 function resetReason(reason: ResetUnavailable): string {
   switch (reason.kind) {
     case "ResetReason":

@@ -156,11 +156,11 @@
   font-weight: 600;
 }
 
-/* Hide mode: blurred past reading at every text size the pane uses, and kept out of a selection. */
+/* Hide mode's mosaic in an identity's place, in the text colour, from below the baseline to about cap height. */
 .usage-pane-identity-hidden {
-  filter: blur(0.4em);
-  -webkit-user-select: none;
-  user-select: none;
+  display: inline-block;
+  vertical-align: -0.15em;
+  fill: currentColor;
 }
 
 .usage-pane-bell {

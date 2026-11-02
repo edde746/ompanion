@@ -44,6 +44,7 @@ export type Translations = {
     readonly notFetched: string;
     readonly hideIdentities: string;
     readonly showIdentities: string;
+    readonly hiddenIdentity: string;
     readonly none: string;
     readonly noMachines: string;
     readonly machines: string;
