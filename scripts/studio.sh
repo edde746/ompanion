@@ -6,9 +6,10 @@
 #
 # <stage> names the staging folder, ~/ompanion-web/<stage>/repo on studio; use your agent name so parallel runs do
 # not share one. The copy holds ui/ (with the app's strings and the companion bundle, ui/companion/ompx.js), core/,
-# shells/, harness/, bench/, assets/, scripts/, store/screenshots/, store/review-demo/ (without its .env) and VERSION,
-# without build outputs, node_modules and Gradle caches, plus the tested omp's darwin-arm64 binary
-# (.tools/omp/<harness/omp-version>/), at the same paths as in this checkout; rsync updates it on
+# companion/ (its e2e tests: `cd companion && bun install && bun run test:e2e`), shells/, harness/, bench/, assets/,
+# scripts/, store/screenshots/, store/review-demo/ (without its .env) and VERSION, without build outputs,
+# node_modules and Gradle caches, plus the darwin-arm64 binary of the tested omp, or of $OMP_VERSION
+# (.tools/omp/<version>/), at the same paths as in this checkout; rsync updates it on
 # every run. <command> runs from the copy's root, after `bun install` in ui/, with bun (~/ompanion-web/tools), go and
 # Homebrew on PATH. Without --need the lease is `host:studio`. Each --fetch <path> (relative to the root, e.g.
 # build/shots/) is copied back into this checkout after the command, whether it passed or not. Exits with the
@@ -57,6 +58,7 @@ rsync -a --delete \
   --exclude '/shells/android/**/build/' --exclude /shells/apple/DerivedData/ --exclude '/shells/apple/*.xcodeproj/' \
   --exclude /store/review-demo/.env \
   --include /ui/ --include /core/ --include /shells/ --include /harness/ --include /bench/ --include /assets/ \
+  --include /companion/ \
   --include /scripts/ \
   --include /VERSION --include /store/ --include '/store/screenshots/***' --include '/store/review-demo/***' \
   --exclude '/store/*' --exclude '/*' \
