@@ -903,6 +903,7 @@ export type Translations = {
     readonly noModel: string;
     readonly searchModels: string;
     readonly refreshModels: string;
+    readonly recentModels: string;
     readonly noModels: string;
     readonly modelsFailed: (args: { error: Param }) => string;
     readonly modelFailed: (args: { error: Param }) => string;

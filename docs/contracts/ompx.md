@@ -246,6 +246,15 @@ extensions), batched per microtask.
 
 Event `roles.changed` with `Roles` whenever the `modelRoles` setting changes.
 
+### models.recent
+
+`args: {}` → `result: {models: string[]}`: the machine's most recently used models, newest first, as `provider/id`.
+
+- omp's `model_usage` table in its `agent.db`, which its own model picker and `^` list order by: every model switch
+  (RPC `set_model`, cycling, a fallback, the TUI's picker) moves its model to the front, in any session of that omp
+  profile. omp keeps whole seconds, so switches within one second come back in either order.
+- Empty when omp has no storage (its `agent.db` did not open).
+
 ### request.settled
 
 Event `{id: string}`, once per companion request, when it is answered, cancelled, times out or is

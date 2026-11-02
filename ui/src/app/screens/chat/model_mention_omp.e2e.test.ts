@@ -14,7 +14,7 @@ import { DevMachine, idle, prompts, viewWhere } from "../../../test/session";
 import { collapsedAt, ComposerDraft } from "../../sessions/composer_draft";
 import { buildRoster } from "../dock/agents/agent_roster";
 import { composerIntent } from "./composer_intent";
-import { filterModels, mentionQuery, modelDisplayName, modelSelector } from "./composer_palettes";
+import { filterModels, mentionQuery, modelDisplayName, modelSelector, recentModels } from "./composer_palettes";
 import { sendPrompt } from "./composer_send";
 
 let fake: FakeProvider;
@@ -62,7 +62,7 @@ test("a model picked after ^ becomes m1 in omp, and task runs agent m1 on it", a
   const draft = new ComposerDraft();
   draft.text.value = { text: "Have ^thi", selection: collapsedAt("Have ^thi".length) };
   const mention = mentionQuery(draft.text.value)!;
-  const picked = filterModels(await session.rpc.getAvailableModels(), mention.query).find(
+  const picked = filterModels(await session.rpc.getAvailableModels(), mention.query, await recentModels(session)).find(
     (model) => modelDisplayName(model) === "Fake Think",
   )!;
   draft.text.insertChip(mention.start, "Have ^thi".length, {

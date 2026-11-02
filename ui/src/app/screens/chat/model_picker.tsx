@@ -15,7 +15,7 @@ import { IconButton } from "../../widgets/button";
 import { Icon } from "../../widgets/icon";
 import { showSnackBar } from "../../widgets/snackbar";
 import * as Symbols from "../../widgets/symbols";
-import { filterModels } from "./composer_palettes";
+import { filterModels, modelSelector, recentModels } from "./composer_palettes";
 import { ComposerMenu, ToolbarButton } from "./composer_toolbar";
 import "./model_picker.css";
 
@@ -63,7 +63,13 @@ export function ModelPicker(props: {
         label={t.chat.searchModels}
       >
         <ModelList
-          load={(refresh) => sessions.models(props.machine!, props.session.rpc, { refresh })}
+          load={async (refresh) => {
+            const [models, recent] = await Promise.all([
+              sessions.models(props.machine!, props.session.rpc, { refresh }),
+              recentModels(props.session),
+            ]);
+            return { models, recent };
+          }}
           current={props.model}
           onPick={(picked) => void pick(picked)}
         />
@@ -74,15 +80,16 @@ export function ModelPicker(props: {
 
 type Loaded =
   | { readonly kind: "loading" }
-  | { readonly kind: "loaded"; readonly models: readonly RpcModel[] }
+  | { readonly kind: "loaded"; readonly models: readonly RpcModel[]; readonly recent: readonly string[] }
   | { readonly kind: "failed"; readonly error: unknown };
 
 /**
- * The searchable list of models: a search row (field and refresh) over the models grouped by provider, as tall as
- * they are up to the menu's height; a longer list scrolls and the search row stays.
+ * The searchable list of models: a search row (field and refresh) over the models, the machine's recently used ones
+ * first under Recent and the rest grouped by provider (filterModels), as tall as they are up to the menu's height; a
+ * longer list scrolls and the search row stays.
  */
 function ModelList(props: {
-  readonly load: (refresh: boolean) => Promise<RpcModel[]>;
+  readonly load: (refresh: boolean) => Promise<{ models: RpcModel[]; recent: string[] }>;
   readonly current: ModelRef | undefined;
   readonly onPick: (model: RpcModel) => void;
 }) {
@@ -95,8 +102,8 @@ function ModelList(props: {
     // The first load starts in the body, where the list already reads as loading.
     if (refresh) setLoaded({ kind: "loading" });
     props.load(refresh).then(
-      (models) => {
-        if (mine === request) setLoaded({ kind: "loaded", models });
+      ({ models, recent }) => {
+        if (mine === request) setLoaded({ kind: "loaded", models, recent });
       },
       (error: unknown) => {
         if (mine === request) setLoaded({ kind: "failed", error });
@@ -107,8 +114,14 @@ function ModelList(props: {
 
   const shown = createMemo(() => {
     const current = loaded();
-    return current.kind === "loaded" ? filterModels(current.models, query()) : [];
+    return current.kind === "loaded" ? filterModels(current.models, query(), current.recent) : [];
   });
+  const recent = createMemo(() => {
+    const current = loaded();
+    return new Set(current.kind === "loaded" ? current.recent : []);
+  });
+  /** The heading a model's row goes under: Recent, which names each model's provider, or its provider. */
+  const group = (model: RpcModel) => (recent().has(modelSelector(model)) ? t.chat.recentModels : model.provider);
   const message = () => {
     const current = loaded();
     if (current.kind === "failed") return t.chat.modelsFailed({ error: String(current.error) });
@@ -137,8 +150,8 @@ function ModelList(props: {
             <For each={shown()}>
               {(model, index) => (
                 <>
-                  <Show when={index() === 0 || shown()[index() - 1]?.provider !== model.provider}>
-                    <div class="model-picker-provider">{model.provider}</div>
+                  <Show when={index() === 0 || group(shown()[index() - 1]!) !== group(model)}>
+                    <div class="model-picker-group">{group(model)}</div>
                   </Show>
                   <button
                     type="button"
@@ -152,7 +165,7 @@ function ModelList(props: {
                       <span class="model-picker-row-name">{model.name}</span>
                       <span class="model-picker-row-detail">
                         {[
-                          model.id,
+                          recent().has(modelSelector(model)) ? modelSelector(model) : model.id,
                           ...(model.contextWindow === undefined
                             ? []
                             : [t.chat.contextWindow({ tokens: formatTokens(model.contextWindow) })]),

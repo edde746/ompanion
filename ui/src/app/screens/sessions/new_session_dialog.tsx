@@ -18,6 +18,7 @@ import { ListRow } from "../../widgets/list_row";
 import * as Symbols from "../../widgets/symbols";
 import { TextField } from "../../widgets/text_field";
 import { tooltip } from "../../widgets/tooltip";
+import { recentModels } from "../chat/composer_palettes";
 import { pickModel } from "../config/model_picker";
 import { describeConnectError } from "../machines/connect_dialogs";
 import { shortPath } from "../shell/sidebar_tree";
@@ -174,9 +175,10 @@ function NewSessionDialog(props: {
     setLoadingModels(true);
     setError(undefined);
     let models: RpcModel[];
+    let recent: string[];
     try {
       const control = await sessions.control(props.machine);
-      models = await sessions.models(props.machine, control.rpc);
+      [models, recent] = await Promise.all([sessions.models(props.machine, control.rpc), recentModels(control)]);
     } catch (failure) {
       setLoadingModels(false);
       setError(t.chat.modelsFailed({ error: describeConnectError(failure) }));
@@ -186,7 +188,7 @@ function NewSessionDialog(props: {
     // Start was pressed while the list loaded: the session opens on omp's default, and a picker now would sit over
     // the dialog when the session closes it.
     if (!open || props.creating) return;
-    const selector = await pickModel({ models, title: t.sessions.modelPick, current: model()?.selector });
+    const selector = await pickModel({ models, recent, title: t.sessions.modelPick, current: model()?.selector });
     if (!open || selector === undefined) return;
     setModel({ selector, name: modelName(models, selector) });
   };

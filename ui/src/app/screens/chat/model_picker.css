@@ -46,7 +46,7 @@
   overflow-y: auto;
 }
 
-.model-picker-provider {
+.model-picker-group {
   padding: 8px 12px 4px;
   color: var(--on-surface-variant);
   font: var(--label-medium);

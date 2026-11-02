@@ -961,6 +961,7 @@
     "noModel": "Kein Modell",
     "searchModels": "Modelle suchen",
     "refreshModels": "Modellliste neu laden",
+    "recentModels": "Zuletzt verwendet",
     "noModels": "Keine Modelle passen.",
     "modelsFailed": "Modelle konnten nicht geladen werden: $error",
     "modelFailed": "Modell konnte nicht gewechselt werden: $error",

@@ -11,14 +11,17 @@ import { TextButton } from "../../widgets/button";
 import { Dialog, showDialog } from "../../widgets/dialog";
 import { Icon } from "../../widgets/icon";
 import * as Symbols from "../../widgets/symbols";
+import { filterModels, recentModels } from "../chat/composer_palettes";
 import "./model_picker.css";
 
 /**
- * Picks a model selector (`provider/id[:thinking]`) from omp's available models, or a typed one. Resolves undefined
- * when dismissed. [message] explains the choice above the list.
+ * Picks a model selector (`provider/id[:thinking]`) from omp's available models, the machine's recently used ones
+ * ([recent], `recentModels`) first, or a typed one. Resolves undefined when dismissed. [message] explains the choice
+ * above the list.
  */
 export function pickModel(options: {
   models: readonly RpcModel[];
+  recent: readonly string[];
   title: string;
   message?: string;
   current?: string;
@@ -33,9 +36,10 @@ export function pickModel(options: {
 export function resumeModelChooser(sessions: SessionsProvider): ModelChooser {
   return async (machine, missing) => {
     const control = await sessions.control(machine);
-    const models = await sessions.models(machine, control.rpc);
+    const [models, recent] = await Promise.all([sessions.models(machine, control.rpc), recentModels(control)]);
     return pickModel({
       models,
+      recent,
       title: t.sessions.resumeModelTitle,
       message: t.sessions.resumeModelBody({ model: missing, machine: machine.name }),
     });
@@ -44,6 +48,7 @@ export function resumeModelChooser(sessions: SessionsProvider): ModelChooser {
 
 function ModelPicker(props: {
   readonly models: readonly RpcModel[];
+  readonly recent: readonly string[];
   readonly title: string;
   readonly message?: string;
   readonly current?: string;
@@ -57,22 +62,7 @@ function ModelPicker(props: {
     const level = thinking();
     props.close(level === undefined ? model : `${model}:${level}`);
   };
-  const matchesOf = (text: string) => {
-    const words = text
-      .toLowerCase()
-      .split(/\s+/)
-      .filter((word) => word !== "");
-    return props.models
-      .filter((model) => {
-        const haystack = `${model.provider}/${model.id} ${model.name}`.toLowerCase();
-        return words.every((word) => haystack.includes(word));
-      })
-      .sort((a, b) => {
-        const left = `${a.provider}/${a.id}`;
-        const right = `${b.provider}/${b.id}`;
-        return left < right ? -1 : left > right ? 1 : 0;
-      });
-  };
+  const matchesOf = (text: string) => filterModels(props.models, text, props.recent);
   const matches = createMemo(() => matchesOf(query()));
   const typed = () => query().trim();
   const current = () => (props.current === undefined ? undefined : splitSelector(props.current).model);

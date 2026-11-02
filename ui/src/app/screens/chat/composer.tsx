@@ -35,6 +35,7 @@ import {
   modelDisplayName,
   modelSelector,
   paletteQuery,
+  recentModels,
 } from "./composer_palettes";
 import { sendPrompt } from "./composer_send";
 import { ComposerBlock, ComposerMenu, ComposerMenuItem, ContextMeter, ThinkingPicker } from "./composer_toolbar";
@@ -95,8 +96,8 @@ function SessionComposer(props: {
   const [dismissedQuery, setDismissedQuery] = createSignal<string>();
   /** The `^` token the user dismissed with Esc; its list reopens once the token changes. */
   const [dismissedMention, setDismissedMention] = createSignal<MentionQuery>();
-  /** The machine's models for the `^` list, loaded when a `^` is typed first; `modelsError` when that failed. */
-  const [models, setModels] = createSignal<readonly RpcModel[]>();
+  /** The machine's models and its recent ones for the `^` list, loaded for each `^`; `modelsError` when that failed. */
+  const [models, setModels] = createSignal<{ readonly models: readonly RpcModel[]; readonly recent: readonly string[] }>();
   const [modelsError, setModelsError] = createSignal<{ readonly error: unknown }>();
   const [modelsLoading, setModelsLoading] = createSignal(false);
   const [sending, setSending] = createSignal(false);
@@ -104,7 +105,9 @@ function SessionComposer(props: {
   const [upload, setUpload] = createSignal<{ readonly sent: number; readonly total: number }>();
   const [attachMenu, setAttachMenu] = createSignal(false);
   const [attachButton, setAttachButton] = createSignal<HTMLButtonElement | undefined>(undefined, { ownedWrite: true });
-  let modelsRequested = false;
+  /** The `^` (its offset) the list was last loaded for, and the load that may still answer. */
+  let modelsFor: number | undefined;
+  let modelsRequest = 0;
 
   const text = createMemo(() => {
     draft.text.changed();
@@ -142,7 +145,7 @@ function SessionComposer(props: {
     if (failure !== undefined) return { models: undefined, error: failure.error };
     const loaded = models();
     if (loaded === undefined) return modelsLoading() ? { models: undefined, error: undefined } : undefined;
-    const matching = filterModels(loaded, live.query);
+    const matching = filterModels(loaded.models, live.query, loaded.recent);
     return matching.length === 0 ? undefined : { models: matching, error: undefined };
   });
 
@@ -150,14 +153,17 @@ function SessionComposer(props: {
   createEffect(
     () => ({ query: paletteQuery(text()), mention: mentionAtCursor() }),
     ({ query, mention: live }) => {
-      if (live !== undefined) loadModels();
+      if (live !== undefined) loadModels(live.start);
       setPaletteIndex(0);
       setDismissedQuery((dismissed) => (dismissed === query ? dismissed : undefined));
       setDismissedMention((dismissed) =>
         dismissed?.start === live?.start && dismissed?.query === live?.query ? dismissed : undefined,
       );
-      // A list that failed loads again for the next `^`.
-      if (live === undefined) setModelsError(undefined);
+      // A list that failed loads again for the next `^`, and every `^` gets the recent models as they are then.
+      if (live === undefined) {
+        setModelsError(undefined);
+        modelsFor = undefined;
+      }
     },
   );
 
@@ -177,19 +183,26 @@ function SessionComposer(props: {
     return () => observer.disconnect();
   });
 
-  /** Loads the machine's model list for the `^` list, once per composer; again after a failure. */
-  function loadModels() {
+  /**
+   * Loads the machine's models (cached per machine, `sessions.models`) and its recent ones for the `^` at `start`, once
+   * per `^`; again after a failure. The list of the `^` before stays up meanwhile.
+   */
+  function loadModels(start: number) {
     const machine = untrack(() => props.machine);
-    if (modelsRequested || machine === undefined) return;
-    modelsRequested = true;
+    if (modelsFor === start || machine === undefined) return;
+    modelsFor = start;
+    const mine = ++modelsRequest;
     setModelsLoading(true);
-    sessions.models(machine, untrack(() => props.session).rpc).then(
-      (loaded) => {
-        setModels(loaded);
+    const session = untrack(() => props.session);
+    Promise.all([sessions.models(machine, session.rpc), recentModels(session)]).then(
+      ([loaded, recent]) => {
+        if (mine !== modelsRequest) return;
+        setModels({ models: loaded, recent });
         setModelsLoading(false);
       },
       (error: unknown) => {
-        modelsRequested = false;
+        if (mine !== modelsRequest) return;
+        modelsFor = undefined;
         setModelsError({ error });
         setModelsLoading(false);
       },

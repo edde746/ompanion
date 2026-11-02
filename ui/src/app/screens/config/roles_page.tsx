@@ -30,9 +30,14 @@ export function RolesPage(props: { readonly target: ConfigTarget }) {
 
   const assign = async (role: ModelRole, options: { project: boolean }) => {
     let models: RpcModel[] = [];
-    if (!(await runReporting(async () => (models = await state.models())))) return;
+    let recent: string[] = [];
+    const loaded = await runReporting(async () => {
+      [models, recent] = await Promise.all([state.models(), state.recent()]);
+    });
+    if (!loaded) return;
     const selector = await pickModel({
       models,
+      recent,
       title: t.config.roles.pickTitle({ role: role.name }),
       current: options.project ? role.project : role.global,
     });

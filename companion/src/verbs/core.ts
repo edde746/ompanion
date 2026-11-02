@@ -370,6 +370,13 @@ export const coreVerbs: VerbTable = {
 		}
 		return rolesState(settings);
 	},
+
+	"models.recent": async (args, { session }) => {
+		expectKeys(args, []);
+		// omp's `model_usage` table in agent.db, newest first: every switch moves its model to the front, and omp's own
+		// picker and `^` list order by it. No storage (agent.db did not open): none.
+		return { models: session.settings.getStorage()?.getModelUsageOrder() ?? [] };
+	},
 };
 
 /**

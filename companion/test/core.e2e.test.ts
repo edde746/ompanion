@@ -53,6 +53,7 @@ describe("calls", () => {
 				"settings.unset",
 				"roles.get",
 				"roles.set",
+				"models.recent",
 				"goal.set",
 				"goal.pause",
 				"goal.resume",
@@ -313,5 +314,24 @@ describe("model roles", () => {
 
 	test("a missing model is refused rather than read as a clear", async () => {
 		expect((await omp.callError("roles.set", { role: "smol", scope: "global" })).code).toBe("bad_request");
+	});
+});
+
+describe("recent models", () => {
+	test("models.recent lists the models RPC set_model switched to, newest first", async () => {
+		await omp.command({ type: "set_model", provider: "fake", modelId: "fake-think" });
+		// omp stamps a switch in whole seconds with SQLite's clock in its own process, which no fake timer here moves:
+		// switches within one second would come back in either order.
+		await Bun.sleep(1_100);
+		await omp.command({ type: "set_model", provider: "fake", modelId: "fake-1" });
+		const { models } = (await omp.call("models.recent")) as { models: string[] };
+		expect(models.slice(0, 2)).toEqual(["fake/fake-1", "fake/fake-think"]);
+
+		await Bun.sleep(1_100);
+		await omp.command({ type: "set_model", provider: "fake", modelId: "fake-think" });
+		expect(((await omp.call("models.recent")) as { models: string[] }).models.slice(0, 2)).toEqual([
+			"fake/fake-think",
+			"fake/fake-1",
+		]);
 	});
 });

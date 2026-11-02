@@ -940,6 +940,7 @@
     "noModel": "No model",
     "searchModels": "Search models",
     "refreshModels": "Reload the model list",
+    "recentModels": "Recent",
     "noModels": "No models match.",
     "modelsFailed": "Could not load models: $error",
     "modelFailed": "Could not switch the model: $error",

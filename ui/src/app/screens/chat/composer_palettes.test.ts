@@ -112,10 +112,40 @@ test("the list keeps models holding the query in their selector or name, by prov
     model("fake", "fake-1", "Fake One"),
     model("anthropic", "claude-opus", "Opus"),
   ];
-  const selectors = (text: string) => filterModels(models, text).map(modelSelector);
+  const selectors = (text: string) => filterModels(models, text, []).map(modelSelector);
   expect(selectors("")).toEqual(["anthropic/claude-opus", "fake/fake-1", "fake/fake-think", "zeta/z-think"]);
   expect(selectors("THINK")).toEqual(["fake/fake-think", "zeta/z-think"]);
   expect(selectors("fake/fake-t")).toEqual(["fake/fake-think"]);
   expect(selectors("opus")).toEqual(["anthropic/claude-opus"]);
   expect(selectors("nothing")).toEqual([]);
+});
+
+test("recently used models lead in their order, then the providers they come from, then the rest", () => {
+  const models = [
+    model("anthropic", "claude-opus-4-5", "Claude Opus 4.5"),
+    model("bedrock", "claude-opus-4-5", "Claude Opus 4.5"),
+    model("openrouter", "anthropic/claude-opus-4-5", "Claude Opus 4.5"),
+    model("openrouter", "openai/gpt-5", "GPT-5"),
+    model("openai", "gpt-5", "GPT-5"),
+    model("azure", "gpt-5", "GPT-5"),
+  ];
+  // omp's newest first; a model no longer offered and a key without a provider change nothing.
+  const recent = ["openai/gpt-5", "gone/model", "openrouter/anthropic/claude-opus-4-5", "no-provider"];
+  const selectors = (text: string) => filterModels(models, text, recent).map(modelSelector);
+  expect(selectors("")).toEqual([
+    "openai/gpt-5",
+    "openrouter/anthropic/claude-opus-4-5",
+    "openrouter/openai/gpt-5",
+    "anthropic/claude-opus-4-5",
+    "azure/gpt-5",
+    "bedrock/claude-opus-4-5",
+  ]);
+  // The same model from several providers: the copy used comes first.
+  expect(selectors("opus")).toEqual([
+    "openrouter/anthropic/claude-opus-4-5",
+    "anthropic/claude-opus-4-5",
+    "bedrock/claude-opus-4-5",
+  ]);
+  // A provider in use leads one that is not, though it sorts after it.
+  expect(selectors("gpt")).toEqual(["openai/gpt-5", "openrouter/openai/gpt-5", "azure/gpt-5"]);
 });

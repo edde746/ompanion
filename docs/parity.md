@@ -62,7 +62,7 @@ what stock lacks.
 | Magic keywords | typed | passed through | composer highlight | M2 |
 | User bash `!`, `!!` | `!` | CE `executeBash` (streamed, `excludeFromContext`), `abortBash` | composer | M2 |
 | User Python `$`, `$$` | `$` | CE `executePython` | composer | M2 |
-| Model mention `^` (tag a model for delegation) | `^` | RPC `prompt` carries `^provider/id`; omp expands it (pseudonym `m<N>`, `<model agent name/>` tag, `model_mention` entry, session agent for `task`). APP: the `^` list from `get_available_models`, filtered like the model picker; none in `!`/`$` drafts | composer chip, transcript and queue chips | M2 |
+| Model mention `^` (tag a model for delegation) | `^` | RPC `prompt` carries `^provider/id`; omp expands it (pseudonym `m<N>`, `<model agent name/>` tag, `model_mention` entry, session agent for `task`). APP: the `^` list from `get_available_models`, filtered and ordered like the model picker; none in `!`/`$` drafts | composer chip, transcript and queue chips | M2 |
 | Side question | `/btw` | CE `runEphemeralTurn` | side panel | M6 |
 | `/omfg` | slash | CE-R (`runEphemeralTurn` + TTSR rule) | dialog | M6 |
 | `/tan` | slash | CE-R | dialog | M6 |
@@ -87,7 +87,7 @@ what stock lacks.
 
 | Feature | TUI entry | Route | Surface | M |
 |---|---|---|---|---|
-| Model for this session | Alt+P, `/switch` | RPC `set_model`, `cycle_model`, `get_available_models` (v2) | model picker | M2 |
+| Model for this session | Alt+P, `/switch` | RPC `set_model`, `cycle_model`, `get_available_models` (v2); companion `models.recent` (omp's most recently used models, which every switch updates): those lead the list under Recent, then the rest by provider, the providers in use first | model picker | M2 |
 | Persistent model roles | Alt+M, `/model` | CE `setModelRole`, `setProjectModelRole`, provenance | roles page | M5 |
 | Thinking level | Shift+Tab | RPC `set_thinking_level`, `get_available_thinking_levels` | picker | M2 |
 | Model catalog, refresh | `omp models` | CLI `models --json` | models page | M5 |

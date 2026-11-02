@@ -7,6 +7,7 @@ import type { LiveSession } from "../../../core/session/live_session";
 import type { Subscription } from "../../../core/util/stream";
 import { type ModelRole, type RolesState, rolesStateFromJson } from "../../config/accounts";
 import type { ConfigTarget } from "../../config/config_target";
+import { recentModels } from "../chat/composer_palettes";
 
 /**
  * omp's model roles: the effective model per role with its layer, and the global and project assignments. Global
@@ -61,6 +62,11 @@ export class RolesPageState {
   async models(options: { refresh?: boolean } = {}): Promise<RpcModel[]> {
     const control = await this.target.control();
     return this.target.sessions.models(this.target.machine, control.rpc, options);
+  }
+
+  /** The machine's recently used models, newest first (`recentModels`): the picker lists them first. */
+  async recent(): Promise<string[]> {
+    return recentModels(await this.target.control());
   }
 
   /** Assigns [model] (undefined: auto) to [role]; a failure reaches the caller, which reports it. */

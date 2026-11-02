@@ -1,8 +1,11 @@
 // What the composer's lists above it show: the slash palette's query and ranking (lib/screens/chat/slash_palette.dart),
-// the `^` model mention (model_mention_palette.dart) and the model filter both model lists share (model_picker.dart).
+// the `^` model mention (model_mention_palette.dart) and the model filter every model list shares (model_picker.dart).
+import { asJsonObject, strings } from "../../../core/rpc/json_fields";
 import type { RpcModel } from "../../../core/rpc/results";
+import type { LiveSession } from "../../../core/session/live_session";
 import type { SlashCommand } from "../../../core/store/session_view";
 import type { TextValue } from "../../sessions/composer_draft";
+import { offersVerb } from "./mode_verbs";
 
 /**
  * The command name typed so far when the composer holds only `/` plus a name being typed, else undefined. The palette
@@ -92,10 +95,12 @@ export function modelDisplayName(model: RpcModel): string {
 }
 
 /**
- * `models` holding every whitespace-separated word of `query` in `provider/id` or their name (case-insensitive), by
- * provider, then name: the model list and the `^` mention list.
+ * `models` holding every whitespace-separated word of `query` in `provider/id` or their name (case-insensitive): first
+ * the ones in `recent` (omp's most recently used, newest first, {@link recentModels}) in its order, then the rest by
+ * provider, the providers of recent models first, then name. So the copy of a model from the provider in use leads
+ * the same model from other providers, as in omp's picker. The model list, the `^` list and the config pickers.
  */
-export function filterModels(models: readonly RpcModel[], query: string): RpcModel[] {
+export function filterModels(models: readonly RpcModel[], query: string, recent: readonly string[]): RpcModel[] {
   const words = query
     .toLowerCase()
     .split(/\s+/)
@@ -104,7 +109,31 @@ export function filterModels(models: readonly RpcModel[], query: string): RpcMod
     const haystack = `${model.provider}/${model.id} ${model.name}`.toLowerCase();
     return words.every((word) => haystack.includes(word));
   });
-  return matching.sort((a, b) => compare(a.provider, b.provider) || compare(a.name, b.name));
+  const used = new Map(recent.map((selector, index) => [selector, index]));
+  const providers = new Map<string, number>();
+  for (const selector of recent) {
+    const provider = selector.slice(0, Math.max(0, selector.indexOf("/")));
+    if (provider !== "" && !providers.has(provider)) providers.set(provider, providers.size);
+  }
+  const last = Number.MAX_SAFE_INTEGER;
+  const usedRank = (model: RpcModel) => used.get(modelSelector(model)) ?? last;
+  const providerRank = (model: RpcModel) => providers.get(model.provider) ?? last;
+  return matching.sort(
+    (a, b) =>
+      usedRank(a) - usedRank(b) ||
+      providerRank(a) - providerRank(b) ||
+      compare(a.provider, b.provider) ||
+      compare(a.name, b.name),
+  );
+}
+
+/**
+ * omp's most recently used models on `session`'s machine, newest first (`provider/id`): the companion's
+ * `models.recent`, which every model switch there updates, the TUI's too. None without a companion that has it.
+ */
+export async function recentModels(session: Pick<LiveSession, "companion" | "companionHello">): Promise<string[]> {
+  if (!offersVerb(session, "models.recent")) return [];
+  return strings(asJsonObject(await session.companion.call("models.recent"), "models.recent"), "models");
 }
 
 /** Dart's String.compareTo: by UTF-16 code units, not by locale. */
