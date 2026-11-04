@@ -197,7 +197,7 @@ jobs:
           cp build/android/app-release.aab ompanion-android.aab
 
       - name: Upload APK
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ env.ARTIFACT }}
           path: ompanion-android.apk
@@ -206,7 +206,7 @@ jobs:
 
       # A store artifact, not a release asset: the release job drops it before it counts the release's files.
       - name: Upload the bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ompanion-android-aab-${{ needs.name.outputs.sha }}
           path: ompanion-android.aab
@@ -265,7 +265,7 @@ jobs:
           ditto -c -k --keepParent "$RUNNER_TEMP/ipa/Payload" ompanion-ios.ipa
 
       - name: Upload the IPA
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ env.ARTIFACT }}
           path: ompanion-ios.ipa
@@ -539,7 +539,7 @@ jobs:
           cat appcast.xml
 
       - name: Upload the DMG and the appcast
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ env.ARTIFACT }}
           path: |
@@ -580,7 +580,7 @@ jobs:
 
       # For the package job; not named ompanion-*, so the release job never downloads it.
       - name: Upload the builds
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-builds-${{ needs.name.outputs.sha }}
           path: |
@@ -616,7 +616,7 @@ jobs:
         run: shells/windows/msix/build-msix.ps1
 
       - name: Upload the zip
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ env.ARTIFACT }}
           path: build/windows-package/ompanion-windows-x64.zip
@@ -626,7 +626,7 @@ jobs:
       # A store artifact, not a release asset: without the Store's signature the package does not install, so the
       # release job drops it before it counts the release's files.
       - name: Upload the Store package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ompanion-windows-msix-${{ needs.name.outputs.sha }}
           path: build/windows-package/ompanion-windows.msixbundle
@@ -685,7 +685,7 @@ jobs:
           dbus-run-session -- shells/linux/flatpak/check-flatpak.sh
 
       - name: Upload the zip and the Flatpak
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ env.ARTIFACT }}
           path: |

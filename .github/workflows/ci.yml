@@ -510,7 +510,7 @@ jobs:
 
       - name: Upload the smoke logs
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux-smoke
           path: ${{ runner.temp }}/smoke/
@@ -551,7 +551,7 @@ jobs:
         run: shells/windows/build.sh x64 arm64
 
       - name: Upload the builds
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-build
           path: |
@@ -637,7 +637,7 @@ jobs:
 
       - name: Upload the smoke logs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-x64-logs
           path: build/windows-ci/
@@ -645,7 +645,7 @@ jobs:
 
       # For the arm64 job.
       - name: Upload the package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-package
           path: build/windows-package/
@@ -653,7 +653,7 @@ jobs:
           retention-days: 1
 
       - name: Upload the Flutter seed
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: flutter-seed-windows
           path: ${{ runner.temp }}/seed/
@@ -721,7 +721,7 @@ jobs:
 
       - name: Upload the smoke logs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-arm64-logs
           path: build/windows-ci/
