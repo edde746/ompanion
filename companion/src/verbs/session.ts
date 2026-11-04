@@ -12,11 +12,8 @@ import {
 	computeSessionContextBreakdown,
 	getSessionCompactionBoundaries,
 } from "@oh-my-pi/pi-coding-agent/session/context-usage-runtime";
-import {
-	filterSessionsForPicker,
-	listAllSessions,
-	listSessions,
-} from "@oh-my-pi/pi-coding-agent/session/session-listing";
+// omp 18.16 made filterSessionsForPicker private; isEmptySession, its test, is exported from 18.3.1 on.
+import { isEmptySession, listAllSessions, listSessions } from "@oh-my-pi/pi-coding-agent/session/session-listing";
 import { loadPinnedSessionIds, sortPinnedFirst } from "@oh-my-pi/pi-coding-agent/session/session-pins";
 import { getSessionsDir, isEnoent } from "@oh-my-pi/pi-utils";
 import {
@@ -127,7 +124,8 @@ const lifecycleVerbs: VerbTable = {
 					: SessionManager.getDefaultSessionDir(target);
 			scanned = await listSessions(dir, new FileSessionStorage());
 		}
-		const sessions = sortPinnedFirst(filterSessionsForPicker(scanned, pinned), pinned);
+		const shown = scanned.filter(info => pinned.has(info.id) || !isEmptySession(info));
+		const sessions = sortPinnedFirst(shown, pinned);
 		return {
 			total: sessions.length,
 			offset,
