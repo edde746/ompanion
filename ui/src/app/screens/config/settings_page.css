@@ -124,7 +124,9 @@
   letter-spacing: var(--title-small-tracking);
 }
 
+/* A long description reads as lines, not one band across a wide window. */
 .settings-page-tile-text p {
+  max-width: 80ch;
   margin: 0;
 }
 

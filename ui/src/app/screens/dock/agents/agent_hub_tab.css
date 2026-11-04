@@ -118,13 +118,22 @@
   letter-spacing: var(--label-small-tracking);
 }
 
+/* What the agent does: two lines, so the dock's narrow column still says it. */
 .agent-hub-tile-subtitle {
+  display: -webkit-box;
   overflow: hidden;
   color: var(--on-surface-variant);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   font: var(--body-small);
   letter-spacing: var(--body-small-tracking);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.agent-hub-tile-open {
+  flex: none;
+  align-self: center;
+  color: var(--on-surface-variant);
 }
 
 .agent-hub-usage {

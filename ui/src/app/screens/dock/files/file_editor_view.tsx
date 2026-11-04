@@ -14,12 +14,14 @@ import {
 import { createEffect, createMemo, createSignal, flush, Match, onSettled, Show, Switch, untrack } from "solid-js";
 import { call } from "../../../../bridge";
 import { hostPath } from "../../../../core/host/scripts";
+import { useSettings } from "../../../app_state";
 import { FileChangedOnDisk, type FileDocument, maxEditableBytes } from "../../../files/file_document";
 import { languageFor } from "../../../files/file_language";
 import { baseName } from "../../../files/file_paths";
 import type { FileWorkspace } from "../../../files/file_workspace";
 import { gitStatusChangeOf } from "../../../files/git_status";
 import { t } from "../../../i18n/i18n";
+import { Prefs } from "../../../providers/settings_provider";
 import { ActivityMark } from "../../../widgets/activity_mark";
 import { FilledButton, IconButton, TextButton } from "../../../widgets/button";
 import { Dialog, showDialog } from "../../../widgets/dialog";
@@ -42,7 +44,7 @@ type GitDiffState =
   | { readonly kind: "loaded"; readonly lines: readonly DiffLine[] }
   | { readonly kind: "failed"; readonly error: unknown };
 
-type EditorAction = "find" | "reload" | "copyPath" | "close";
+type EditorAction = "find" | "wrap" | "reload" | "copyPath" | "close";
 
 /**
  * One open document: the editor (read-only for large, binary or non-UTF-8 files), save with a conflict check, and the
@@ -50,6 +52,7 @@ type EditorAction = "find" | "reload" | "copyPath" | "close";
  */
 export function FileEditorView(props: { readonly workspace: FileWorkspace; readonly document: FileDocument }) {
   const strings = () => t.dock.fileBrowser;
+  const settings = useSettings();
   const [showDiff, setShowDiff] = createSignal(false);
   const [diff, setDiff] = createSignal<GitDiffState>({ kind: "loading" });
   const [editor, setEditor] = createSignal<EditorView>();
@@ -106,7 +109,7 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
       }
       const choice = await showDialog<"overwrite" | "reload">((close) => (
         <Dialog
-          title={strings().conflictTitle}
+          title={strings().conflictTitle({ name: baseName(document.path()) })}
           actions={
             <>
               <TextButton onClick={() => close()}>{t.common.cancel}</TextButton>
@@ -151,6 +154,7 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
       anchor: moreButton,
       items: [
         { value: "find", label: strings().find },
+        { value: "wrap", label: strings().wrapLines, checked: settings.get(Prefs.editorWrapLines) },
         { value: "reload", label: strings().reload },
         { value: "copyPath", label: strings().copyPath },
         { value: "close", label: t.common.close },
@@ -165,6 +169,9 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
         if (view !== undefined) openSearchPanel(view);
         break;
       }
+      case "wrap":
+        void settings.set(Prefs.editorWrapLines, !settings.get(Prefs.editorWrapLines));
+        break;
       case "reload":
         await reload();
         break;
@@ -320,6 +327,9 @@ function Editor(props: {
   let host!: HTMLDivElement;
   const [view, setView] = createSignal<EditorView>();
   const readOnly = new Compartment();
+  const wrap = new Compartment();
+  const settings = useSettings();
+  const wrapping = (on: boolean): Extension => (on ? EditorView.lineWrapping : []);
   const document = untrack(() => props.document);
   const language = languageFor(baseName(untrack(() => document.path())));
   const extensions = (): Extension[] => [
@@ -331,6 +341,7 @@ function Editor(props: {
     search({ top: true, createPanel: findPanel(() => document.readOnly()) }),
     keymap.of([...searchKeymap, ...historyKeymap, ...defaultKeymap, indentWithTab]),
     readOnly.of(EditorState.readOnly.of(untrack(() => document.readOnly()))),
+    wrap.of(wrapping(untrack(() => settings.get(Prefs.editorWrapLines)))),
     editorTheme,
     EditorView.updateListener.of((update) => document.edited(update.state)),
     language === undefined ? [] : syntaxHighlighting(language),
@@ -369,6 +380,11 @@ function Editor(props: {
   createEffect(
     () => [view(), document.readOnly()] as const,
     ([editor, readOnlyNow]) => editor?.dispatch({ effects: readOnly.reconfigure(EditorState.readOnly.of(readOnlyNow)) }),
+  );
+
+  createEffect(
+    () => [view(), settings.get(Prefs.editorWrapLines)] as const,
+    ([editor, on]) => editor?.dispatch({ effects: wrap.reconfigure(wrapping(on)) }),
   );
 
   // A line asked for with the file, now or when the open document is opened again.

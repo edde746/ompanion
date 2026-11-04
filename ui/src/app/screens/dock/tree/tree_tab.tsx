@@ -4,6 +4,7 @@ import { call } from "../../../../bridge";
 import type { LiveSession } from "../../../../core/session/live_session";
 import { t } from "../../../i18n/i18n";
 import { useSessions } from "../../../app_state";
+import { isTouch } from "../../../platform";
 import { ActivityMark } from "../../../widgets/activity_mark";
 import { AppSearchField } from "../../../widgets/app_search_field";
 import { FilledButton, IconButton, TextButton, TonalButton } from "../../../widgets/button";
@@ -19,8 +20,11 @@ import { SessionTreeRow, treeRowText } from "./session_tree_view";
 import { canRunTreeAction, type TreeAction, TreeTabState } from "./tree_tab_state";
 import "./tree_tab.css";
 
-/** AppSizes.rowHeight: every row of the tree is this tall, so the list renders only the rows in view. */
-const rowHeight = 32;
+/**
+ * AppSizes.rowHeight, rowHeightTouch on touch screens (`--list-row-height`): every row of the tree is this tall, so the
+ * list renders only the rows in view.
+ */
+const rowHeight = () => (isTouch() ? 44 : 32);
 /** Rows rendered beyond each edge of the view, so a fast scroll does not show blank rows. */
 const overscan = 10;
 
@@ -174,17 +178,31 @@ function TreeRows(props: {
   const [height, setHeight] = createSignal(0);
   let list!: HTMLDivElement;
   onSettled(() => {
-    const observer = new ResizeObserver(() => setHeight(list.clientHeight));
+    // The list opens on the current position, as omp's `/tree` selector does: in a long session it is far down, and
+    // the list starts where the session does. Once, at the first height: the tab may mount hidden.
+    let revealed = false;
+    const observer = new ResizeObserver(() => {
+      setHeight(list.clientHeight);
+      if (revealed || list.clientHeight === 0) return;
+      revealed = true;
+      const leaf = props.rows.findIndex((row) => row.isLeaf);
+      if (leaf < 0) return;
+      list.scrollTop = Math.max(0, (leaf + 1) * rowHeight() - list.clientHeight / 2);
+      setScrollTop(list.scrollTop);
+    });
     observer.observe(list);
     return () => observer.disconnect();
   });
-  const first = () => Math.max(0, Math.floor(scrollTop() / rowHeight) - overscan);
+  const first = () => Math.max(0, Math.floor(scrollTop() / rowHeight()) - overscan);
   const shown = () =>
-    props.rows.slice(first(), Math.min(props.rows.length, Math.ceil((scrollTop() + height()) / rowHeight) + overscan));
+    props.rows.slice(
+      first(),
+      Math.min(props.rows.length, Math.ceil((scrollTop() + height()) / rowHeight()) + overscan),
+    );
   return (
     <div class="tree-tab-list" ref={list} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
-      <div class="tree-tab-list-extent" style={{ height: `${props.rows.length * rowHeight}px` }}>
-        <div class="tree-tab-list-window" style={{ transform: `translateY(${first() * rowHeight}px)` }}>
+      <div class="tree-tab-list-extent" style={{ height: `${props.rows.length * rowHeight()}px` }}>
+        <div class="tree-tab-list-window" style={{ transform: `translateY(${first() * rowHeight()}px)` }}>
           <For each={shown()} keyed={(row) => row.entry.id}>
             {(row) => (
               <SessionTreeRow

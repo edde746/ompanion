@@ -18,6 +18,7 @@ import { Icon } from "../../widgets/icon";
 import { showMenu } from "../../widgets/popup_menu";
 import { showSnackBar } from "../../widgets/snackbar";
 import * as Symbols from "../../widgets/symbols";
+import { tooltip } from "../../widgets/tooltip";
 import { windowDragArea } from "../../window_chrome";
 import { pinOf, shortPath } from "../shell/sidebar_tree";
 import "./chat_header.css";
@@ -55,6 +56,8 @@ export function ChatHeader(props: ChatHeaderProps) {
       titled: (view.config.sessionName?.trim() ?? "") !== "",
       paused: view.run.paused,
       running: view.run.running,
+      // As the sidebar's mark says (liveSessionStatus): the composer's text request asks nothing of the user.
+      needsInput: view.requests.some((request) => request.kind !== "EditorTextRequest"),
       external: view.external,
     }),
     (a, b) =>
@@ -62,6 +65,7 @@ export function ChatHeader(props: ChatHeaderProps) {
       a.titled === b.titled &&
       a.paused === b.paused &&
       a.running === b.running &&
+      a.needsInput === b.needsInput &&
       (a.external === b.external ||
         (a.external !== undefined && b.external !== undefined && externalWriterEquals(a.external, b.external))),
   );
@@ -87,14 +91,27 @@ export function ChatHeader(props: ChatHeaderProps) {
         fallback={
           <>
             <Show when={link().kind === "LinkConnecting" || (data().running && !data().paused)}>
-              <span class="chat-header-state chat-header-run">
-                <ActivityMark />
-                <Show when={!props.compact}>
-                  <span class="chat-header-muted">
-                    {link().kind === "LinkConnecting" ? t.sessions.connecting : t.sessions.working}
+              <Show
+                when={link().kind !== "LinkConnecting" && data().needsInput}
+                fallback={
+                  <span class="chat-header-state chat-header-run">
+                    <ActivityMark />
+                    <Show when={!props.compact}>
+                      <span class="chat-header-muted">
+                        {link().kind === "LinkConnecting" ? t.sessions.connecting : t.sessions.working}
+                      </span>
+                    </Show>
                   </span>
-                </Show>
-              </span>
+                }
+              >
+                {/* The run waits on an answer in the chat: the mark says so rather than that it works. */}
+                <span class="chat-header-state chat-header-run" ref={tooltip(() => t.sessions.needsInput)}>
+                  <Icon icon={Symbols.help_fill} size={16} class="chat-header-warning" />
+                  <Show when={!props.compact}>
+                    <span class="chat-header-muted">{t.sessions.needsInput}</span>
+                  </Show>
+                </span>
+              </Show>
             </Show>
             <Show when={data().running || data().paused}>
               <PauseButton session={props.session} paused={data().paused} iconOnly={props.compact} />

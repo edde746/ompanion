@@ -18,6 +18,7 @@ import { AppSegmented } from "../../widgets/app_segmented";
 import { IconButton } from "../../widgets/button";
 import * as Symbols from "../../widgets/symbols";
 import { tooltip } from "../../widgets/tooltip";
+import { shortPath } from "../shell/sidebar_tree";
 import {
   ConfigBanner,
   ConfigError,
@@ -54,7 +55,13 @@ export function SettingsPage(props: { readonly target: ConfigTarget }) {
     if (project() === undefined) return t.config.scope.projectNone;
     return state.scope() === "global" ? t.config.scope.global : t.config.scope.project;
   };
-  const path = () => (state.scope() === "global" ? state.globalPath() : state.projectPath());
+  /** The edited file, with the machine's home as `~` as the sidebar and chat header write paths. */
+  const path = () => {
+    const full = state.scope() === "global" ? state.globalPath() : state.projectPath();
+    const status = props.target.runtime.status;
+    if (full === undefined || (status.kind !== "MachineOnline" && status.kind !== "MachineNeedsOmp")) return full;
+    return shortPath(full, status.probe.home);
+  };
 
   return (
     <Show
@@ -200,7 +207,8 @@ function SettingTile(props: { readonly state: SettingsPageState; readonly settin
       <div class="settings-page-tile-text">
         <div class="settings-page-tile-title">
           <span class="settings-page-tile-label">{settingSchemaLabel(props.setting)}</span>
-          <Show when={effective()}>
+          {/* Only a value someone set gets its source: a "default" on every untouched row hid the changed ones. */}
+          <Show when={effective()?.provenance === "default" ? undefined : effective()}>
             {(value) => <ProvenanceBadge provenance={value().provenance} envName={props.setting.env?.name} />}
           </Show>
           <Show when={busy()}>

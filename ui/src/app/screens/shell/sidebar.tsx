@@ -464,8 +464,8 @@ export function Sidebar(props: SidebarProps) {
                     )}
                   </Match>
                   <Match when={rowOf(row(), "NoticeRowData")}>{noticeRow}</Match>
-                  <Match when={row().kind === "EmptyRowData"}>
-                    <EmptyRow />
+                  <Match when={rowOf(row(), "EmptyRowData")}>
+                    {(data) => <EmptyRow machine={data().machine.machine} />}
                   </Match>
                   <Match when={rowOf(row(), "ProjectRowData")}>
                     {(data) => (

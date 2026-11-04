@@ -176,7 +176,7 @@ async function conflict(context: ShotContext) {
   const changed = await exec(`printf '${outside.replace("\n", "\\n")}' > "$HOME/api-server/src/routes/upload.ts"`);
   if (changed.code !== 0) throw new Error(`changing upload.ts: ${changed.stderr}`);
   await page.keyboard.press("ControlOrMeta+s");
-  const dialog = page.getByRole("dialog", { name: "File changed on the machine" });
+  const dialog = page.getByRole("dialog", { name: "upload.ts changed on the machine" });
   await dialog.waitFor();
   return dialog;
 }
@@ -335,7 +335,7 @@ export const screens: Screen[] = [
     omp: true,
     reach: async (context) => {
       const dialog = await conflict(context);
-      await dialog.getByRole("button", { name: "Discard and reload", exact: true }).waitFor();
+      await dialog.getByRole("button", { name: "Discard my edits", exact: true }).waitFor();
     },
   },
   {
@@ -359,11 +359,11 @@ export const screens: Screen[] = [
     reach: async (context) => {
       const { page } = context;
       const dialog = await conflict(context);
-      await dialog.getByRole("button", { name: "Discard and reload", exact: true }).click();
+      await dialog.getByRole("button", { name: "Discard my edits", exact: true }).click();
       await page.locator(".cm-content", { hasText: outside.trim() }).waitFor();
       await page.locator(".file-editor-dirty").waitFor({ state: "detached" });
       const kept = await context.exec('cat "$HOME/api-server/src/routes/upload.ts"');
-      if (kept.stdout !== outside) throw new Error(`upload.ts after Discard and reload: ${JSON.stringify(kept.stdout)}`);
+      if (kept.stdout !== outside) throw new Error(`upload.ts after Discard my edits: ${JSON.stringify(kept.stdout)}`);
     },
   },
 ];

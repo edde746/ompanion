@@ -463,7 +463,10 @@ function advisorNotes(details: unknown): { tags: string; notes: string } {
   return { tags: [...advisors, ...severities].join(", "), notes: notes.join(" ") };
 }
 
-/** A tool call as the `/tree` selector abbreviates it (`#formatToolCall`), without the brackets. */
+/**
+ * A tool call as the `/tree` selector abbreviates it (`#formatToolCall`), without the brackets; a tool the selector
+ * dumps the arguments of reads as its harness intent where the call has one.
+ */
 function describeToolCall(call: ToolCall): string {
   const args = call.arguments;
   const str = (key: string): string => stringOr(args[key], "");
@@ -493,7 +496,8 @@ function describeToolCall(call: ToolCall): string {
     case "ls":
       return `ls ${str("path").length > 0 ? str("path") : "."}`;
     default:
-      return `${call.name} ${compactJson(args)}`;
+      // omp's harness intent (`i`) says what the call is for in a line; the arguments' dump is all but unreadable.
+      return str("i").trim().length > 0 ? `${call.name} ${str("i").trim()}` : `${call.name} ${compactJson(args)}`;
   }
 }
 

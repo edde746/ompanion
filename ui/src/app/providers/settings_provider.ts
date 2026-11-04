@@ -128,6 +128,9 @@ export const Prefs = {
   sidebarWidth: doublePref("sidebar_width", 300),
   dockWidth: doublePref("dock_width", 340),
 
+  /** The file editor wraps long lines, so the dock's narrow pane and a phone show a whole line without scrolling. */
+  editorWrapLines: boolPref("editor_wrap_lines", true),
+
   /** The usage pane covers account emails, ids and organizations with a random mosaic, for screenshots. */
   usageHideIdentities: boolPref("usage_hide_identities", false),
 

@@ -183,6 +183,8 @@ function RosterTile(props: { readonly row: RosterRow; readonly onSelect: (id: st
         </Show>
         <Show when={usage()}>{(line) => <span class="agent-hub-usage">{line()}</span>}</Show>
       </div>
+      {/* The row opens the agent's page in the dock, as a settings link row opens a page inside the app. */}
+      <Icon icon={Symbols.chevron_right} size={16} class="agent-hub-tile-open" />
     </div>
   );
 }

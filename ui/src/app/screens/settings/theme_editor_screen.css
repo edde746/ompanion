@@ -33,11 +33,16 @@
   padding: 8px 16px 0;
 }
 
-/* The preview, in the custom theme: every token at work. */
+/*
+ * The preview, in the custom theme: every token at work. On a narrow page its strip scrolls to the examples under
+ * it.
+ */
 .theme-editor-preview {
   flex: none;
   height: 240px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: var(--card-radius);
   background: var(--surface);
   color: var(--on-surface);

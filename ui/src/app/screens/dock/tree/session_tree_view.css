@@ -1,6 +1,6 @@
 /* A full-width row, square, as the Flutter tree's InkWell rows: the active path's bar sits on the pane's edge. */
 .list-row.session-tree-row {
-  height: var(--row-height);
+  height: var(--list-row-height);
   margin: 0;
   padding: 0 8px 0 0;
   border-radius: 0;

@@ -29,6 +29,8 @@ export type Translations = {
     readonly panels: string;
     readonly homeTitle: string;
     readonly homeBody: string;
+    readonly homeSessionTitle: string;
+    readonly homeSessionBody: (args: { machine: Param }) => string;
     readonly usageTitle: string;
     readonly settingsTitle: string;
   };
@@ -339,9 +341,10 @@ export type Translations = {
       readonly more: string;
       readonly find: string;
       readonly reload: string;
+      readonly wrapLines: string;
       readonly showDiff: string;
       readonly showFile: string;
-      readonly conflictTitle: string;
+      readonly conflictTitle: (args: { name: Param }) => string;
       readonly conflictChanged: string;
       readonly conflictDeleted: string;
       readonly overwrite: string;
@@ -912,6 +915,14 @@ export type Translations = {
     readonly contextWindow: (args: { tokens: Param }) => string;
     readonly reasoning: string;
     readonly thinking: (args: { level: Param }) => string;
+    readonly thinkingLevels: {
+      readonly off: string;
+      readonly minimal: string;
+      readonly low: string;
+      readonly medium: string;
+      readonly high: string;
+      readonly xhigh: string;
+    };
     readonly noThinking: string;
     readonly thinkingFailed: (args: { error: Param }) => string;
     readonly contextTooltip: (args: { tokens: Param; window: Param; percent: Param; cost: Param }) => string;

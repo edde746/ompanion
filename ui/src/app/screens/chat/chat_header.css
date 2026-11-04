@@ -64,6 +64,11 @@
   margin-right: 12px;
 }
 
+.chat-header-warning {
+  flex: none;
+  color: var(--warning);
+}
+
 .chat-header-muted {
   font: var(--body-small);
   letter-spacing: var(--body-small-tracking);

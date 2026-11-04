@@ -99,24 +99,42 @@ describe("decode", () => {
                   arguments: { path: "src/main.dart", offset: 10, limit: 5 },
                 },
                 { type: "toolCall", id: "call-2", name: "bash", arguments: { command: "ls\n-la" } },
+                {
+                  type: "toolCall",
+                  id: "call-3",
+                  name: "todo",
+                  arguments: { i: "Planning the rollout", op: "init", list: [{ phase: "Staging" }] },
+                },
+                { type: "toolCall", id: "call-4", name: "lsp", arguments: { action: "hover", line: 3 } },
               ],
               "toolUse",
             ),
             [
               node(result("r1", "call-1", "read"), [
-                node(result("r2", "call-2", "bash"), [node(result("r3", "gone", "grep"))]),
+                node(result("r2", "call-2", "bash"), [
+                  node(result("r3", "gone", "grep"), [
+                    node(result("r4", "call-3", "todo"), [node(result("r5", "call-4", "lsp"))]),
+                  ]),
+                ]),
               ]),
             ],
           ),
         ]),
       ],
-      "r3",
+      "r5",
     );
 
     const rows = sessionTreeRows(tree);
     // The assistant turn that only called tools is not a row of its own.
-    expect(ids(rows)).toEqual(["u", "r1", "r2", "r3"]);
-    expect(rows.slice(1).map((row) => row.entry.text)).toEqual(["read src/main.dart:10-14", "bash ls -la", "grep"]);
+    expect(ids(rows)).toEqual(["u", "r1", "r2", "r3", "r4", "r5"]);
+    // A tool without an abbreviation of its own reads as its intent, else as its arguments.
+    expect(rows.slice(1).map((row) => row.entry.text)).toEqual([
+      "read src/main.dart:10-14",
+      "bash ls -la",
+      "grep",
+      "todo Planning the rollout",
+      "lsp action: hover, line: 3",
+    ]);
     expect(ids(sessionTreeRows(tree, { filter: "noTools" }))).toEqual(["u"]);
   });
 

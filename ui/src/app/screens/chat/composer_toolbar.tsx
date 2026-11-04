@@ -207,6 +207,12 @@ export function ToolbarButton(props: ToolbarButtonProps) {
 /** The level omp reports for a model without thinking. */
 const off = "off";
 
+/** A level in the app's language; omp's ids for levels it adds later stay as they are. */
+function thinkingLevelLabel(level: string): string {
+  const labels = t.chat.thinkingLevels;
+  return Object.hasOwn(labels, level) ? labels[level as keyof typeof labels] : level;
+}
+
 /** The thinking level button: loads the model's levels when opened and marks the current one. */
 export function ThinkingPicker(props: {
   readonly session: LiveSession;
@@ -253,15 +259,21 @@ export function ThinkingPicker(props: {
     <>
       <ToolbarButton
         icon={Symbols.neurology}
-        label={current()}
-        tooltip={t.chat.thinking({ level: current() })}
+        label={thinkingLevelLabel(current())}
+        tooltip={t.chat.thinking({ level: thinkingLevelLabel(current()) })}
         busy={loading()}
         ref={setButton}
         onClick={() => (open() ? setOpen(false) : loading() ? undefined : void show())}
       />
       <ComposerMenu open={open()} onClose={() => setOpen(false)} button={button()}>
         <For each={levels()}>
-          {(level) => <ComposerMenuItem label={level} checked={level === current()} onClick={() => void set(level)} />}
+          {(level) => (
+            <ComposerMenuItem
+              label={thinkingLevelLabel(level)}
+              checked={level === current()}
+              onClick={() => void set(level)}
+            />
+          )}
         </For>
       </ComposerMenu>
     </>

@@ -268,28 +268,30 @@ function LimitsTab(props: {
   return (
     <>
       <div class="usage-pane-toolbar">
-        <span class="usage-pane-muted usage-pane-fetched">
-          {fetchedAt() === undefined
-            ? t.usage.notFetched
-            : t.usage.fetched({ ago: formatUsageDuration(props.now - fetchedAt()!) })}
+        {/* A machine that answered with no accounts leaves nothing to date: the note under the machines says why. */}
+        <Show
+          when={
+            fetchedAt() !== undefined
+              ? t.usage.fetched({ ago: formatUsageDuration(props.now - fetchedAt()!) })
+              : loaded().length === 0
+                ? t.usage.notFetched
+                : undefined
+          }
+        >
+          {(text) => <span class="usage-pane-muted usage-pane-fetched">{text()}</span>}
+        </Show>
+        <span class="usage-pane-actions">
+          <IconButton
+            icon={props.hide ? Symbols.visibility_off : Symbols.visibility}
+            tooltip={props.hide ? t.usage.showIdentities : t.usage.hideIdentities}
+            onClick={() => props.onHide(!props.hide)}
+          />
+          {/* Both stay enabled while a machine is still answering: a stalled machine must not hold up the others. */}
+          <TextButton icon={Symbols.cloud_sync} onClick={() => props.onFetchAll(true)}>
+            {t.usage.fetchAgain}
+          </TextButton>
+          <IconButton icon={Symbols.refresh} tooltip={t.config.refresh} onClick={() => props.onFetchAll(false)} />
         </span>
-        <IconButton
-          icon={props.hide ? Symbols.visibility_off : Symbols.visibility}
-          tooltip={props.hide ? t.usage.showIdentities : t.usage.hideIdentities}
-          onClick={() => props.onHide(!props.hide)}
-        />
-        {/* Both stay enabled while a machine is still answering: a stalled machine must not hold up the others. On a
-            phone the label would leave no room for the fetch time. */}
-        <TextButton class="usage-pane-wide" icon={Symbols.cloud_sync} onClick={() => props.onFetchAll(true)}>
-          {t.usage.fetchAgain}
-        </TextButton>
-        <IconButton
-          class="usage-pane-compact"
-          icon={Symbols.cloud_sync}
-          tooltip={t.usage.fetchAgain}
-          onClick={() => props.onFetchAll(true)}
-        />
-        <IconButton icon={Symbols.refresh} tooltip={t.config.refresh} onClick={() => props.onFetchAll(false)} />
       </div>
       <Show
         when={props.machines.length > 0}

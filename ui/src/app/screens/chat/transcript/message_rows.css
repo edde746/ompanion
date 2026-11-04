@@ -144,6 +144,17 @@
   opacity: 1;
 }
 
+/*
+ * On touch screens the actions always show: where they would narrow the bubble below its 90 %, they take a line of
+ * their own under it (wrap-reverse puts the first item, the actions, on the bottom line) and the text keeps its width.
+ * wrap-reverse swaps the cross axis too, so flex-end keeps a line's items at its top.
+ */
+.message-rows-user-touch {
+  flex-wrap: wrap-reverse;
+  align-items: flex-end;
+  row-gap: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .message-rows-user > .message-rows-actions {
     transition-duration: 0s;

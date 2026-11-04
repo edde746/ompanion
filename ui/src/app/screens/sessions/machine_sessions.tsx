@@ -232,9 +232,26 @@ export function NoticeRow(props: {
   );
 }
 
-/** "No sessions yet." under an online machine without any. */
-export function EmptyRow() {
-  return <div class="machine-sessions-empty">{t.sessions.none}</div>;
+/**
+ * "No sessions yet." under an online machine without any. Touch screens, whose machine rows have no new session button,
+ * get one here, so a first session does not hide in the row's menu.
+ */
+export function EmptyRow(props: { readonly machine: Machine }) {
+  return (
+    <div class="machine-sessions-empty">
+      <span class="machine-sessions-empty-text">{t.sessions.none}</span>
+      <Show when={isTouch()}>
+        <TextButton
+          icon={Symbols.add}
+          onClick={() =>
+            void newSessionDialog().then((module) => module.showNewSessionDialog(props.machine, { noFolder: true }))
+          }
+        >
+          {t.sessions.newSession}
+        </TextButton>
+      </Show>
+    </div>
+  );
 }
 
 /** "Pinned" above the pinned sessions, in the machine rows' icon and name columns. */

@@ -49,11 +49,16 @@
   margin-bottom: var(--gap);
 }
 
+/*
+ * The fetch time, then the actions at the end; on a phone the time takes a line above them, so the fetch keeps its
+ * words.
+ */
 .usage-pane-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--gap);
-  height: var(--control);
+  min-height: var(--control);
 }
 
 .usage-pane-fetched {
@@ -64,17 +69,16 @@
   white-space: nowrap;
 }
 
-.usage-pane-compact {
-  display: none;
+.usage-pane-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  margin-left: auto;
 }
 
 @media (max-width: 599px) {
-  .usage-pane-wide {
-    display: none;
-  }
-
-  .usage-pane-compact {
-    display: inline-flex;
+  .usage-pane-fetched {
+    flex-basis: 100%;
   }
 }
 

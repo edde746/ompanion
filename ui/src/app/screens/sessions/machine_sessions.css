@@ -103,12 +103,21 @@
 .machine-sessions-empty {
   display: flex;
   flex: none;
+  gap: 8px;
   align-items: center;
   height: var(--list-row-height);
-  padding: 0 16px 0 54px;
+  padding: 0 8px 0 54px;
   color: var(--on-surface-variant);
   font: var(--body-small);
   letter-spacing: var(--body-small-tracking);
+}
+
+.machine-sessions-empty-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* "Pinned": a row's size and insets without its tap target. */
