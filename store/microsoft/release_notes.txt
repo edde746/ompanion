@@ -1,5 +1,7 @@
-Works with omp 18.12, and installs omp 18.12.6 on a machine that lacks it.
+ompanion 2.0 is the same app rebuilt on WebView2, in place of Flutter. It works with omp 18.3.1 and later, 18.16 included, and installs omp 18.16.0 on a machine that lacks it.
 
-Changed: with omp 18.11.3 and later, a tool approval's notification says "Allow bash?" again, and the "Always approve" choices of omp 18.12.3 look like approvals.
+Moving to 2.0: your machines, keys, trusted host keys, passwords, settings, pinned sessions and read markers come with you; the app imports them on its first launch.
 
-Fixed: omp installed with bun install -g can be attached to; before, opening a session on it failed with "unknown flag: -1". A session whose tools report large progress, such as an eval running many subagents, no longer keeps reconnecting. Linux machines: sending to a session at the same moment as another device no longer fails.
+New: agent pages, an HTML page the agent shows in the chat (a chart, a table, a small tool), sandboxed, full screen or saved as HTML, its links asking before they open. German, and a language setting. Usage reminders: a notification when a limit resets or an account is usable again, even with the app closed. The model pickers list your recently used models first. Hiding account details on the usage page covers them with a random mosaic. SSH keys moved into Settings.
+
+Fixed: with omp 18.16 the companion loads again, so goals, loops, pause, queue edits, settings and the idle exit of detached runs work. Ubuntu 26.04 machines: two devices sending to a session at once no longer both take its lock. Stopping a command on this computer also stops what it started.
