@@ -433,9 +433,9 @@ logic in the app would stop with it.
   refreshed in other sessions.
 
 Version policy: the app drives omp 18.3.1 and later (`minimumOmpVersion`, `ui/src/core/host/probe.ts`) and installs
-the newest release it has digests for (`ompReleases`, `ui/src/core/host/install.ts`: 18.12.6). One companion build
+the newest release it has digests for (`ompReleases`, `ui/src/core/host/install.ts`: 18.16.0). One companion build
 serves every such release and feature-checks what it uses (`ui/src/app/sessions/companion_asset.ts`); an omp release
-that breaks it needs a build of its own. The tests run the omp named in `harness/omp-version` (18.12.6), and CI's
+that breaks it needs a build of its own. The tests run the omp named in `harness/omp-version` (18.16.0), and CI's
 integration job runs the UI's end-to-end tests (omp, the Go core, OpenSSH) against both that omp and the minimum. A
 machine whose omp is older gets the install offer; a newer omp gets the same build and no warning.
 

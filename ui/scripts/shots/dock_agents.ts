@@ -25,10 +25,10 @@ function assignment(task: string): string {
 }
 
 /**
- * The fake model's turns for `subagentPrompt` on omp 18.12.6: the session's title (first, as its request holds the
- * prompt too), then the main agent starts the task subagents `contract` (one `bash` call, then its report) and `docs`
- * (its summary), says they work, and takes in each result as it is delivered. Both subagents complete and the session
- * settles.
+ * The fake model's turns for `subagentPrompt` on omp 18.12.6 and 18.16.0: the session's title (first, as its request
+ * holds the prompt too), then the main agent starts the task subagents `contract` (one `bash` call, then its report)
+ * and `docs` (its summary), says they work, and takes in each result as it is delivered. Both subagents complete and
+ * the session settles.
  */
 export const subagentTurns: Turn[] = [
   { match: TITLE_REQUEST, steps: [{ text: "Rate limiter check" }] },

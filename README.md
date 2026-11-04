@@ -132,7 +132,7 @@ The app is one web page (`ui/`) that each platform's shell (`shells/`) bundles a
 - macOS and iOS: Xcode 26 or newer (the app icon is an Icon Composer bundle), [XcodeGen](https://github.com/yonaskolb/XcodeGen), and gomobile: `(cd core && go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind)`
 - Android: JDK 21, the Android SDK (`$ANDROID_HOME`) with an NDK, and gomobile
 - Linux and Windows: Docker; both build in containers. The Flatpak needs a Linux machine with `flatpak` and `flatpak-builder`; the Windows packages need Windows with the Windows SDK and PowerShell 7
-- omp 18.3.1 or newer on each machine you connect to; the app can install omp 18.12.6 on a machine that lacks it
+- omp 18.3.1 or newer on each machine you connect to; the app can install omp 18.16.0 on a machine that lacks it
   and update omp with `omp update` from the machine's page
 
 ### Build

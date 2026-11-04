@@ -418,7 +418,7 @@ Caveats to keep honest in the listings: the demo server has omp **preinstalled**
 for, so a reviewer sees a real provider on our key. The app itself comes with no model and no subscription:
 users bring their own providers, and the listings must not imply otherwise. The omp install the listings
 claim is real (`ui/src/core/host/install.ts` and `ui/src/app/screens/sessions/install_omp_dialog.tsx`: the newest
-release the app pins, omp 18.12.6 at this revision, from its GitHub release, SHA-256 checked on the
+release the app pins, omp 18.16.0 at this revision, from its GitHub release, SHA-256 checked on the
 machine) but is not what the demo shows.
 
 ## Screenshots and graphics
