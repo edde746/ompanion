@@ -329,7 +329,7 @@ uv run scripts/release/deploy.py status
 python3 scripts/release/test_deploy.py                               # its tests; CI runs them
 ```
 
-The phases run in this order. `--only` and `--skip` pick some; `build/deploy/state.json` records the finished ones, so a failed run resumes where it stopped, and `--fresh` discards it.
+The phases run in this order. `--only` and `--skip` pick some; `build/deploy/state.json` records the finished ones, so a failed run resumes where it stopped, and `--fresh` discards it. A bare `release` repeats the saved selection; `--only` or `--skip` replaces it.
 
 | Phase | What it does |
 |---|---|

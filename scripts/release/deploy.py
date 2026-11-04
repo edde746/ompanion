@@ -1658,10 +1658,11 @@ def cmd_release(args: argparse.Namespace) -> int:
     state = initialize_state(args)
     # The release plan (phase selection + notes source) persists in state so a
     # bare `release` resume repeats the original invocation instead of widening.
-    if args.only is None and state.data.get("only") is not None:
-        args.only = state.data["only"]
-    if args.skip is None and state.data.get("skip") is not None:
-        args.skip = state.data["skip"]
+    # An explicit --only or --skip replaces the saved selection as a whole: a saved
+    # `skip: [publish]` must not cancel a later `--only publish`.
+    if args.only is None and args.skip is None:
+        args.only = state.data.get("only")
+        args.skip = state.data.get("skip")
     if args.notes is None:
         args.notes = state.data.get("notes") or str(
             ROOT / release_files(state.version, state.build_number)["github"]

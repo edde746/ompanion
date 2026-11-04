@@ -788,6 +788,33 @@ class DeferredPhaseTest(TempRootTest):
         self.assertNotIn("publish", loaded.done)
         self.assertEqual(loaded.data["notes"], str(self.root / "store/release-notes/1.1.0.md"))
 
+    def _run_release(self, state: State, only: list[str] | None) -> list[str]:
+        ran: list[str] = []
+        args = SimpleNamespace(only=only, skip=None, notes=None, dry_run=False)
+        phases = {name: (lambda _ctx, name=name: ran.append(name)) for name in deploy.PHASES}
+        with (
+            mock.patch.object(deploy, "load_env_file", return_value={}),
+            mock.patch.object(deploy, "initialize_state", return_value=state),
+            mock.patch.dict(deploy.PHASE_FUNCTIONS, phases),
+            mock.patch.object(deploy, "print_summary"),
+        ):
+            self.assertEqual(deploy.cmd_release(args), 0)
+        return ran
+
+    def test_explicit_only_replaces_a_saved_skip(self) -> None:
+        state = State(version="1.1.0", build_number=2)
+        state.data["skip"] = ["publish"]
+
+        self.assertEqual(self._run_release(state, ["publish"]), ["preflight", "publish"])
+        self.assertIsNone(State.load().data["skip"])
+
+    def test_bare_resume_repeats_the_saved_selection(self) -> None:
+        state = State(version="1.1.0", build_number=2)
+        state.data["only"] = ["release", "publish"]
+        state.data["skip"] = ["publish"]
+
+        self.assertEqual(self._run_release(state, None), ["preflight", "release"])
+
     def test_publish_decline_defers_phase(self) -> None:
         ctx = make_context(State(version="1.1.0", build_number=2), ["publish"], yes=False)
 
