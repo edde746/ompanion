@@ -96,10 +96,14 @@ export function UsagePane() {
   const online = (id: string) => tracked.get(id)?.runtime.status.kind === "MachineOnline";
 
   function setStatus(id: string, status: MachineStatus | undefined): void {
-    const next = new Map(untrack(statuses));
-    if (status === undefined) next.delete(id);
-    else next.set(id, status);
-    setStatuses(next);
+    // The updater sees the writes still pending this tick; `untrack(statuses)` reads the last flushed map, so a second
+    // machine's status written in the same tick would drop the first's.
+    setStatuses((current) => {
+      const next = new Map(current);
+      if (status === undefined) next.delete(id);
+      else next.set(id, status);
+      return next;
+    });
   }
 
   function forget(id: string): void {
