@@ -253,8 +253,12 @@ read and write, SSH exec, companion `exec.bash`, session list, `get_available_mo
 
 On 2026-11-02 its port `verify.ts` passed every dry step on studio against the stand-in (`verify/stand-in.sh`:
 probe, companion upload, file browser list, read and write, session list, `get_available_models`, the settings
-schema and values, detach). It was not run against `217.160.119.181` (its password is not in this checkout), and
-`--prompt` was not run.
+schema and values, detach).
+
+On 2026-11-04, after `ompanion-demo-reset`, `verify.ts --prompt` from 2.0.0 passed every step on studio against
+`217.160.119.181` (host key as above, omp 18.3.1, companion 0.1.0): the model ran `git log` through the bash tool and
+answered "The project has **3 commits**". The key had $9.99 of its $10 limit left; the server was reset again after
+the run.
 
 ## Limits
 
