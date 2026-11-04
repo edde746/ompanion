@@ -561,6 +561,7 @@
   "links": {
     "confirmTitle": "Open this link?",
     "confirmBody": "This is a $scheme: link, not a web page. It opens whichever app handles $scheme: links on this device.",
+    "pageBody": "A page in the chat wants to open this link.",
     "open": "Open"
   },
   "prompt": {
@@ -1236,6 +1237,15 @@
       "goalNone": "no active goal",
       "goalElapsed": "$time elapsed",
       "report": "Report"
+    },
+    "page": {
+      "writing": "Writing page · $size",
+      "fullScreen": "Full screen",
+      "save": "Save as HTML",
+      "saveFailed": "Could not save the page: $error",
+      "fileName": "page",
+      "stopped": "This page stopped the app the last time it ran.",
+      "run": "Run page"
     },
     "execution": {
       "notSent": "Not sent to the model",

@@ -15,6 +15,8 @@ import {
   bashCall,
   evalCall,
   imageType,
+  pageCall,
+  pageWriting,
   readCall,
   type ToolData,
   toolData,
@@ -180,5 +182,22 @@ describe("tool cards", () => {
     expect(imageType(data.images[0]?.mimeType ?? "")).toBe("PNG");
     expect(readCall(data).pixels).toBeUndefined();
     expect(readCall(data).fromMachine).toBe(false);
+  });
+});
+
+describe("a page call (html_render)", () => {
+  test("while it streams, its title so far and how much of the page has arrived", () => {
+    const writing = called("html_render", { title: " Revenue by quarter", html: "x".repeat(12 * 1024) }, {}, "stop");
+    expect(writing.status).toBe("pending");
+    expect(pageCall(writing).title).toBe("Revenue by quarter");
+    expect(pageWriting(writing)).toBe("Writing page · 12 KB");
+    expect(pageWriting(called("html_render", { title: "Rev" }, {}, "stop"))).toBe("Writing page · 0 B");
+  });
+
+  test("it shows the page as the tool changed it, else the call's own", () => {
+    const args = { title: "Chart", html: '<img src="/tmp/chart.png">' };
+    expect(pageCall(called("html_render", args, { state: "done", details: { title: "Chart" } })).html).toBe(args.html);
+    const inlined = { title: "Chart", html: '<img src="data:image/png;base64,AA==">' };
+    expect(pageCall(called("html_render", args, { state: "done", details: inlined })).html).toBe(inlined.html);
   });
 });

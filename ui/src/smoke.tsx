@@ -4,14 +4,14 @@
 import "./styles.css";
 import { render } from "@solidjs/web";
 import { createSignal, onSettled } from "solid-js";
-import { AgentFrame } from "./AgentFrame";
 import { coreInfoMs, firstPaintMs } from "./app/boot_timing";
 import { AppDatabase } from "./app/database/app_database";
 import { flutterData, hasFlutterData } from "./app/database/flutter_data";
 import { importFlutterData, sameJson } from "./app/database/flutter_import";
+import { PageFrame } from "./app/screens/page_frame/page_frame";
 import { measureEcho, measureFlood } from "./bridge_measure";
 import { call, type CoreInfo, onEvent, openStream, type Stream, transportName } from "./bridge";
-import { asJsonObject, object, optObject } from "./core/rpc/json_fields";
+import { asJsonObject, isJsonObject, type JsonObject, object, optObject } from "./core/rpc/json_fields";
 import { toSftpPath } from "./core/host/scripts";
 import { base64Decode } from "./core/util/base64";
 import { deferred } from "./deferred";
@@ -56,35 +56,106 @@ const markdownSample = [
   "",
 ].join("\n");
 
-const probeUrl = "https://example.com/ompanion-smoke-probe";
+/** A host that never resolves (RFC 6761), so the html check needs no network. */
+const nowhere = "ompanion-smoke.invalid";
 
-/** Proves, from inside the frame, that inline script runs and that fetch and an image load of an outside URL fail. */
-const htmlProbeSample = `<!doctype html>
-<html><body style="margin:0;font-family:sans-serif">
-<h1 style="margin:8px">Agent HTML probe</h1>
-<p id="status" style="margin:8px">inline script did not run</p>
-<div style="height:120px;margin:8px;background:linear-gradient(90deg,#4a8,#48a)"></div>
+/** The ids of the core requests the html check's page posts; the page's own count up from 1. */
+const frameRequestIds = [1_900_000_001, 1_900_000_002];
+
+/**
+ * The html check's page. While it loads, its inline script reads a theme variable, requests an http: and an https:
+ * URL by fetch and by image, clicks a link from script, and posts a store.write and a shell.secretSet under `key` to
+ * every native handler a shell exposes, listening for answers the way each shell answers. Then it posts what it saw.
+ */
+function htmlProbePage(key: string): string {
+  const requests = [
+    { id: frameRequestIds[0], method: "store.write", params: { name: key, text: "{}" } },
+    { id: frameRequestIds[1], method: "shell.secretSet", params: { key, value: "from the frame" } },
+  ];
+  return `<!doctype html>
+<html><body>
+<h1>Agent page probe</h1>
+<p id="status">inline script did not run</p>
+<div style="height:120px;background:var(--card);border-radius:var(--radius)"></div>
+<a id="link" href="https://${nowhere}/link">a link</a>
 <script>
   document.getElementById("status").textContent = "inline script ran";
+  var theme = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
   var violations = [];
   document.addEventListener("securitypolicyviolation", function (event) {
     violations.push({ directive: event.effectiveDirective, blocked: event.blockedURI });
   });
-  var fetched = fetch("${probeUrl}.json").then(function () { return "loaded"; }, function () { return "blocked"; });
-  var image = new Promise(function (resolve) {
-    var img = new Image();
-    img.onload = function () { resolve("loaded"); };
-    img.onerror = function () { resolve("blocked"); };
-    img.src = "${probeUrl}.png";
-  });
-  Promise.all([fetched, image]).then(function (results) {
-    // Violation events are queued as tasks; let them arrive first.
+  function load(url) {
+    return fetch(url).then(function () { return "loaded"; }, function () { return "failed"; });
+  }
+  // Through srcset: on an https: page Chromium turns an <img src> of an http: URL into https: before the policy sees
+  // it (mixed content upgrade), so the request never goes out as http: but img-src never decides either. An srcset
+  // image is not upgraded anywhere, so img-src decides.
+  function image(url) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () { resolve("loaded"); };
+      img.onerror = function () { resolve("failed"); };
+      img.srcset = url;
+    });
+  }
+  var http = Promise.all([load("http://${nowhere}/probe.json"), image("http://${nowhere}/probe.png")]);
+  // Nothing waits for these: the policy decides before any network, and its violations are what counts.
+  var https = { fetch: "pending", image: "pending" };
+  load("https://${nowhere}/probe.json").then(function (result) { https.fetch = result; });
+  image("https://${nowhere}/probe.png").then(function (result) { https.image = result; });
+  document.getElementById("link").click();
+
+  var requests = ${JSON.stringify(requests)};
+  var handlers = [];
+  var answers = [];
+  var errors = [];
+  function send(name, post) {
+    handlers.push(name);
+    requests.forEach(function (request) {
+      try {
+        post(JSON.stringify(request));
+      } catch (error) {
+        errors.push(name + ": " + error);
+      }
+    });
+  }
+  function answered(message) {
+    answers.push(typeof message === "string" ? message : JSON.stringify(message));
+  }
+  window.ompCore = { receive: answered };
+  var webkit = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.core;
+  if (webkit) send("webkit", function (text) { webkit.postMessage(text); });
+  var webview = window.chrome && window.chrome.webview;
+  if (webview) {
+    webview.addEventListener("message", function (event) { answered(event.data); });
+    send("webview2", function (text) { webview.postMessage(text); });
+  }
+  var android = window.ompCoreNative;
+  if (android) {
+    android.onmessage = function (event) { answered(event.data); };
+    send("android", function (text) { android.postMessage(text); });
+  }
+
+  http.then(function (results) {
+    // Violation events and answers arrive as tasks of their own: give them time.
     setTimeout(function () {
-      parent.postMessage({ type: "probe", inlineScript: true, fetch: results[0], image: results[1], violations: violations }, "*");
-    }, 100);
+      parent.postMessage({
+        type: "probe",
+        inlineScript: true,
+        theme: theme,
+        http: { fetch: results[0], image: results[1] },
+        https: https,
+        violations: violations,
+        handlers: handlers,
+        answers: answers,
+        errors: errors,
+      }, "*");
+    }, 500);
   });
 </script>
 </body></html>`;
+}
 
 function timeout(ms: number, name: string): Promise<never> {
   const { promise, reject } = deferred<never>();
@@ -162,42 +233,80 @@ const checks: Check[] = [
     name: "html",
     timeoutMs: 10000,
     async run(context) {
+      // A document and a secret that only a request from the frame that got through would leave.
+      const key = `smoke-frame-${Date.now()}`;
+      // Smoke-only hook: the Apple and Linux shells hand the page every answer through window.ompCore.receive, so an
+      // answer to one of the frame's requests shows here.
+      const appAnswers: string[] = [];
+      const core = window.ompCore!;
+      window.ompCore = {
+        receive(message) {
+          if (isJsonObject(message) && typeof message.id === "number" && frameRequestIds.includes(message.id)) {
+            appAnswers.push(JSON.stringify(message));
+          } else {
+            core.receive(message);
+          }
+        },
+      };
+      context.defer(() => (window.ompCore = core));
+
       const host = context.stage.appendChild(document.createElement("div"));
-      const probe = deferred<Record<string, unknown>>();
+      const probe = deferred<JsonObject>();
       const height = deferred<number>();
       context.defer(
         render(
-          () => (
-            <AgentFrame
-              html={htmlProbeSample}
-              onHeight={(h) => h > 0 && height.resolve(h)}
-              onMessage={(data) => {
-                if (typeof data === "object" && data !== null && "type" in data && data.type === "probe") {
-                  probe.resolve(data as Record<string, unknown>);
-                }
-              }}
-            />
-          ),
+          () => <PageFrame html={htmlProbePage(key)} title="Smoke page" onHeight={(h) => h > 0 && height.resolve(h)} />,
           host,
         ),
       );
-      const [result, heightPx] = await Promise.all([probe.promise, height.promise]);
-      const violations = Array.isArray(result.violations) ? (result.violations as { directive: string }[]) : [];
-      const directives = violations.map((violation) => violation.directive);
-      const measured = {
-        inlineScript: result.inlineScript === true,
-        heightPx,
-        fetch: result.fetch,
-        image: result.image,
-        violations: directives,
+      const frame = host.querySelector("iframe");
+      if (frame === null) throw new Error("PageFrame rendered no iframe");
+      // The frame's messages as the page receives them, PageFrame's listener aside.
+      let linkMessages = 0;
+      const onMessage = (event: MessageEvent<unknown>) => {
+        if (event.source === null || event.source !== frame.contentWindow || !isJsonObject(event.data)) return;
+        if (event.data.type === "ompanion-frame-link") linkMessages++;
+        if (event.data.type === "probe") probe.resolve(event.data);
       };
-      if (!measured.inlineScript) throw new Error("the inline script did not run");
-      if (result.fetch !== "blocked" || !directives.includes("connect-src")) {
-        throw new Error(`fetch was not blocked by the frame's policy: ${JSON.stringify(measured)}`);
-      }
-      if (result.image !== "blocked" || !directives.includes("img-src")) {
-        throw new Error(`the image was not blocked by the frame's policy: ${JSON.stringify(measured)}`);
-      }
+      window.addEventListener("message", onMessage);
+      context.defer(() => window.removeEventListener("message", onMessage));
+
+      const [result, heightPx] = await Promise.all([probe.promise, height.promise]);
+      const stored = await call<{ text: string | null }>("store.read", { name: key });
+      const secret = await call<{ value: string | null }>("shell.secretGet", { key });
+      if (stored.text !== null) context.defer(() => void call("store.delete", { name: key }));
+      if (secret.value !== null) context.defer(() => void call("shell.secretDelete", { key }));
+      const violations = (Array.isArray(result.violations) ? result.violations : [])
+        .filter(isJsonObject)
+        .map((violation) => `${String(violation.directive)} ${String(violation.blocked)}`);
+      const http = isJsonObject(result.http) ? result.http : {};
+      const frameAnswers = Array.isArray(result.answers) ? result.answers : [];
+      const measured = {
+        heightPx,
+        theme: result.theme,
+        http,
+        https: result.https,
+        violations,
+        linkMessages,
+        handlers: result.handlers,
+        frameAnswers,
+        appAnswers,
+        errors: result.errors,
+        stored: stored.text !== null,
+        secret: secret.value !== null,
+      };
+      const blocked = (directive: string) => violations.some((v) => v.startsWith(`${directive} http://${nowhere}`));
+      const failures = [
+        result.inlineScript !== true && "the inline script did not run",
+        (typeof result.theme !== "string" || result.theme === "") && "no --background while the page loaded",
+        (http.fetch !== "failed" || !blocked("connect-src")) && "the http: fetch was not blocked by connect-src",
+        (http.image !== "failed" || !blocked("img-src")) && "the http: image was not blocked by img-src",
+        violations.some((v) => v.includes(" https:")) && "an https: request raised a policy violation",
+        linkMessages > 0 && "a script's click on a link reached the app",
+        (frameAnswers.length > 0 || appAnswers.length > 0) && "a core request from the frame was answered",
+        (measured.stored || measured.secret) && "a core request from the frame took effect",
+      ].filter((failure) => failure !== false);
+      if (failures.length > 0) throw new Error(`${failures.join("; ")}: ${JSON.stringify(measured)}`);
       return measured;
     },
   },

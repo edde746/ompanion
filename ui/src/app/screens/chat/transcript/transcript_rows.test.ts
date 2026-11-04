@@ -356,6 +356,35 @@ describe("turns fold", () => {
     expect(shown(folded(new Set(), transcript))).toEqual(["user a", "text hi", "footer stop"]);
   });
 
+  test("a page the reader was shown stays above the reply; a failed or interrupted one folds as work", () => {
+    const page = call("p1", { name: "html_render", arguments: { title: "Chart", html: "<svg></svg>" } });
+    const turn = (pageResult: ToolResultItem) =>
+      folded(new Set(), [
+        q1,
+        assistant(2000, [text("Charting."), call("c1"), page], { stopReason: "toolUse" }),
+        r1,
+        pageResult,
+        assistant(3000, [text("Done.")], { usage }),
+      ]);
+    const shownPage = turn(result("p1", { name: "html_render" }));
+    expect(shown(shownPage)).toEqual(["user a", "summary", "tool p1", "text Done.", "footer stop"]);
+    const failedPage = turn(result("p1", { name: "html_render", isError: true }));
+    expect(shown(failedPage)).toEqual(["user a", "summary", "text Done.", "footer stop"]);
+    const interrupted = turn(result("p1", { name: "html_render", state: "interrupted" }));
+    expect(shown(interrupted)).toEqual(["user a", "summary", "text Done.", "footer stop"]);
+  });
+
+  test("a turn whose only work is a page it showed has no summary row", () => {
+    const page = call("p1", { name: "html_render", arguments: { title: "Chart", html: "<svg></svg>" } });
+    const transcript = [
+      q1,
+      assistant(2000, [page], { stopReason: "toolUse" }),
+      result("p1", { name: "html_render" }),
+      assistant(3000, [text("Done.")], { usage }),
+    ];
+    expect(shown(folded(new Set(), transcript))).toEqual(["user a", "tool p1", "text Done.", "footer stop"]);
+  });
+
   test("a prompt omp sent itself starts a turn, so the answer before it stays its own turn's last message", () => {
     // The guided goal's interview kickoff: a synthetic developer message the chat does not show.
     const kickoff = hiddenPromptItem({ timestamp: 7000, content: [text("Interview the user.")] });
@@ -527,6 +556,10 @@ describe("toolKindFor", () => {
     expect(toolKindFor("read", { args: { path: "https://dart.dev/" } })).toBe("fetch");
     expect(toolKindFor("read", { args: { path: "x" }, details: { kind: "url" } })).toBe("fetch");
     expect(toolKindFor("read", { args: { path: "lib/main.dart:1-20" } })).toBe("read");
+  });
+
+  test("the companion's html_render is a page", () => {
+    expect(toolKindFor("html_render", { args: { title: "Chart", html: "<svg></svg>" } })).toBe("page");
   });
 
   test("a write to an xd:// device and unknown tools are generic", () => {

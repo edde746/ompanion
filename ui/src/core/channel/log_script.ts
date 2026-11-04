@@ -10,9 +10,10 @@ export const attachWindow = 8 << 20;
 
 /**
  * How the pump writes a run's `out.jsonl`: it starts the next generation once the log reaches [rotateAt] bytes,
- * carrying the last [carry] bytes; it holds progress frames for [holdMs], or for as long as the last frame of the same
- * tool call or subagent takes at [progressRate] bytes a second, and keeps the newest per tool call or subagent; it
- * writes a generation mark every [markEvery] bytes.
+ * carrying the last [carry] bytes; it holds progress and message frames and keeps the newest per tool call, subagent or
+ * message, writing it [holdMs] after the first one held (a message frame under 64 KiB without that hold) and not
+ * before the last one written for the same key takes to send at [progressRate] bytes a second; it writes a generation
+ * mark every [markEvery] bytes.
  */
 export interface LogLimits {
   readonly rotateAt: number;
@@ -29,7 +30,10 @@ export interface LogLimits {
  * at 4. A live `eval` cell running 40 subagents sent a 13.5 MB `tool_execution_update` (an `rpc_chunk` sequence) for
  * each of their status changes: written whole, they rotated the log about once a second while omp emptied its output
  * backlog (84 generations in under 6 minutes), faster than a follower read it, so every reconnect ended in a gap. At
- * [progressRate] such a frame goes out about every 13 s; a frame up to 256 KiB keeps the 250 ms hold.
+ * [progressRate] such a frame goes out about every 13 s; a frame up to 256 KiB keeps the 250 ms hold. A streamed
+ * `message_update` carries the whole message twice: a 100 KB `html_render` page streamed at 1000 characters a second
+ * wrote 504 MB of frames, held per message 96 MB (547 frames, 5 a second); a 20 KB text reply at 50 deltas a second
+ * went from 512 frames (11.1 MB) to 410 (7.9 MB), 40 a second, its longest gap 46 ms.
  */
 export const logLimits: LogLimits = {
   rotateAt: 64 << 20,
@@ -59,12 +63,14 @@ export const logMarkWidth = 64;
  * `pump <run dir> <rotateAt> <carry> <hold ms> <markEvery> <progressRate>` is the only writer of `<run dir>/out.jsonl`
  * while omp runs: it copies omp's stdout there frame by frame ([LogLimits]); a frame is a line or a whole `rpc_chunk`
  * sequence.
- * - It holds each `tool_execution_update` and `subagent_progress` and writes only the newest per tool call or subagent:
- *   `hold` ms after the first one held, and not before the last one written for the same tool call or subagent would
- *   take to send at `progressRate` bytes a second. `subagent_lifecycle`, `subagent_event`, `ompx`,
- *   `extension_ui_request` and `response` lines go out ahead of held progress whose id they do not hold: they change
- *   the state of nothing but what they name. Every other frame first writes what is held, so the log is omp's output
- *   minus superseded progress, in order wherever the order could change a state.
+ * - It holds each `tool_execution_update`, `subagent_progress` and `message_update` and writes only the newest per tool
+ *   call, subagent or message: not before the last one written for the same key would take to send at `progressRate`
+ *   bytes a second, and `hold` ms after the first one held, except a message frame under 64 KiB, which waits for the
+ *   rate alone, so streamed text goes out as it comes. A `message_update` is keyed by the `messageId` omp stamps as its
+ *   last field (from 18.3.1 on); one without it goes out at once. `subagent_lifecycle`, `subagent_event`, `ompx`,
+ *   `extension_ui_request` and `response` lines go out ahead of held frames whose id they do not hold: they change
+ *   the state of nothing but what they name. Every other frame (`message_end` among them) first writes what is held, so
+ *   the log is omp's output minus superseded frames, in order wherever the order could change a state.
  * - Every `markEvery` bytes it writes `{"type":"ompanion_mark","generation":<n>}`, padded to [logMarkWidth] bytes. A
  *   reader that finds another generation's mark read past a rotation it did not see.
  * - It writes nothing of its own inside an `rpc_chunk` sequence: a mark or a rotation due there waits for the
@@ -255,9 +261,15 @@ function replay([path, sizeText, windowText]) {
   writeFileSync(1, \`\${out.join("\n")}\n\`);
 }
 
-// Progress frames the pump holds, keyed by tool call or subagent: each carries the whole state.
+// Frames the pump holds, keyed by tool call, subagent or message: each carries the whole state.
 const updatePrefix = Buffer.from('{"type":"tool_execution_update","toolCallId":"');
 const progressPrefix = Buffer.from('{"type":"subagent_progress"');
+const messagePrefix = Buffer.from('{"type":"message_update"');
+// omp stamps a message frame's id as its last field, after the whole message.
+const messageIdAtEnd = /,"messageId":"([^"\\]+)"}$/;
+// A message frame this large waits \`hold\` ms after the first one held; a smaller one, such as streamed text, only for
+// the rate.
+const messageHoldBytes = 64 << 10;
 const chunkPrefix = Buffer.from('{"type":"rpc_chunk",');
 const dataKey = Buffer.from('"data":"');
 
@@ -275,6 +287,23 @@ function chunkedFrame(lines, head) {
     const part = Buffer.from(line.toString("latin1", from, head ? Math.min(end, from + 400) : end), "base64");
     parts.push(part);
     size += part.length;
+  }
+  return Buffer.concat(parts);
+}
+
+// The last 300 bytes or more (fewer only in a shorter frame) of the frame the rpc_chunk sequence \`lines\` carries:
+// each chunk's \`data\` is the base64 of its slice on its own, so its last 400 characters are that slice's last bytes.
+// Null when a chunk has no data.
+function chunkTail(lines) {
+  const parts = [];
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    const from = line.indexOf(dataKey) + dataKey.length;
+    const end = line.indexOf(34, from);
+    if (from < dataKey.length || end < 0) return null;
+    parts.unshift(Buffer.from(line.toString("latin1", Math.max(from, end - 400), end), "base64"));
+    // A slice taken whole may be shorter than the id: the one before it holds the rest.
+    if (end - from > 400) break;
   }
   return Buffer.concat(parts);
 }
@@ -297,6 +326,11 @@ function heldKey(lines) {
     } catch {
       return null;
     }
+  }
+  if (startsWith(head, messagePrefix)) {
+    const tail = chunked ? chunkTail(lines) : lines[0].subarray(Math.max(0, lines[0].length - 300));
+    const id = tail === null ? undefined : messageIdAtEnd.exec(tail.toString("utf8"))?.[1];
+    return id === undefined ? null : \`m:\${id}\`;
   }
   return null;
 }
@@ -328,9 +362,11 @@ async function pump([dir, ...limits]) {
   // The history as of the generation's own lines, and its kept lines since, by position.
   let base = history();
   let events = [];
-  // Held progress by key: the newest frame's lines, the bytes of its id, and when it is due (performance.now()).
+  // Held frames by key: the newest frame's lines, the bytes of its id, when the first one held came and when the
+  // newest is due (performance.now()).
   const held = new Map();
-  // When the next frame of a key may go out, for a key whose last frame takes longer than \`hold\` at \`progressRate\`.
+  // When the next frame of a key may go out: for a message always, for a tool call or subagent when its last frame
+  // takes longer than \`hold\` at \`progressRate\`.
   const quiet = new Map();
   let timer = null;
   // The rpc_chunk sequence being read: taken as one frame once its last chunk is in.
@@ -393,7 +429,7 @@ async function pump([dir, ...limits]) {
         bytes += line.length + 1;
       }
       const wait = (bytes * 1000) / progressRate;
-      if (wait > hold) quiet.set(key, now + wait);
+      if (wait > hold || key[0] === "m") quiet.set(key, now + wait);
       else quiet.delete(key);
     }
     if (timer !== null) clearTimeout(timer);
@@ -407,14 +443,15 @@ async function pump([dir, ...limits]) {
 
   function keep(key, lines) {
     const now = performance.now();
-    let at = held.get(key)?.due;
-    if (at === undefined) {
-      const until = quiet.get(key) ?? 0;
-      if (until <= now) quiet.delete(key);
-      at = Math.max(now + hold, until);
-    }
+    const first = held.get(key)?.first ?? now;
+    const until = quiet.get(key) ?? 0;
+    if (until <= now) quiet.delete(key);
+    let size = 0;
+    for (const line of lines) size += line.length + 1;
+    // A message frame under messageHoldBytes (streamed text) waits for the rate alone.
+    const fixed = key[0] === "m" && size < messageHoldBytes ? first : first + hold;
     held.delete(key);
-    held.set(key, { lines, id: Buffer.from(key.slice(2)), due: at });
+    held.set(key, { lines, id: Buffer.from(key.slice(2)), first, due: Math.max(fixed, until) });
     release(due);
   }
 
@@ -429,6 +466,9 @@ async function pump([dir, ...limits]) {
       const line = lines.length === 1 && passing.some((prefix) => startsWith(lines[0], prefix)) ? lines[0] : null;
       release(line === null ? all : (frame) => line.indexOf(frame.id) >= 0);
     }
+    // Waits that are over go, so the keys of ended messages do not pile up over a long run.
+    const now = performance.now();
+    for (const [key, until] of quiet) if (until <= now) quiet.delete(key);
     for (const line of lines) writeLine(line);
   }
 

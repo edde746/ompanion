@@ -16,12 +16,14 @@ README.md, "Building from Source". How to run the tests: AGENTS.md, "Tests".
 |`app/`|The app: `screens/` (one folder per area: `chat/`, `config/`, `dock/`, `keys/`, `machines/`, `sessions/`, `settings/`, `shell/`, `usage/`, …), `widgets/` (shared controls), `providers/`, `sessions/`, `config/`, `files/`, `terminal/`, `notifications/`, `models/`, `services/`, `database/` (the tables as `store.*` documents), `i18n/`, `utils/`, plus the app's frame: `app_state.ts`, `boot.ts`, `theme.css`, `base.css`, `platform.ts`, `preload.ts`, `first_frame.ts`.|
 |`markdown/`|The transcript's markdown: markdown-it blocks and KaTeX math. Code highlighting (Shiki) is in `app/screens/chat/transcript/highlighter.ts`.|
 |`test/`|Test helpers: fakes of the core and of hosts, recorded fixtures, the tested omp and the harness's SSH servers.|
-|`smoke.tsx`, `bridge_measure.ts`, `term.ts`, `AgentFrame.tsx` with `public/frame.html`, `Markdown.tsx`, `styles.css`|Smoke mode (`docs/contracts/bridge.md`, Smoke runs): its page and checks. `AgentFrame` is the sandboxed frame the `html` check proves.|
+|`smoke.tsx`, `bridge_measure.ts`, `term.ts`, `Markdown.tsx`, `styles.css`|Smoke mode (`docs/contracts/bridge.md`, Smoke runs): its page and checks. The `html` check uses the agent page's `app/screens/page_frame/` and `public/frame.html`.|
 |`transcript_bench.tsx`|Bench mode (`bench/BENCH.md`): the app's `TranscriptView` running the scripted workload.|
+|`app/screens/page_frame/`, `app/screens/chat/transcript/page_view.tsx`, `page_runs.ts`|The agent page's sandbox and protocol, transcript row and freeze guard (`docs/contracts/html-render.md`).|
 
 `ui/scripts/` holds the shot runner (`shots.ts`, one scenario file per area under `shots/`) and `i18n.ts`, which
 writes `app/i18n/strings.g.ts`, the type of the app's strings, from `app/i18n/en.i18n.json` (`--check`, part of
-`bun run typecheck` and `bun run build`, fails when it is stale).
+`bun run typecheck` and `bun run build`, fails when it is stale). `shots/pages.ts` covers the page gallery and the
+real-omp page scenario; `?gallery=transcript&fixture=pages` and `fixture=busy` supply page fixtures.
 
 ## Code conventions
 
@@ -72,8 +74,10 @@ writes `app/i18n/strings.g.ts`, the type of the app's strings, from `app/i18n/en
   providers (`docs/research/web-ui/startup.md`). A screen, pane or dialog the first frame does not show is imported
   with `lazy()` (a component, under `<Loading>`) or `lazyModule()` (functions), never statically from the shell's
   files, and registered with `preloadAfterBoot` (`app/preload.ts`) so it loads once the app has booted. Another
-  language's strings load before they show (`applyLanguage`). `vite build`'s entry (`dist/assets/index-*.js`) was
-  584 KB, 196 KB gzipped, on 2026-11-02; a change that grows it says why.
+  language's strings load before they show (`applyLanguage`). A sourcemap build on 2026-11-02 put the entry
+  (`dist/assets/index-*.js`) at 595.41 KB, 200.90 KB gzipped. The entry includes the pump script
+  (`core/channel/log_script.ts`) and English page strings (`app/i18n/en.i18n.json`); the page frame and transcript page
+  UI are in lazy chunks. A change that grows the entry says why.
 - Motion is Material motion with the Flutter SDK's durations and curves, named where they are used: `app/motion.ts`
   holds the curves (`Curves.*`) and plays script-driven motion as Web Animations on transform, opacity and clip-path
   (`curveFrames`, `play`, `settled`), so the compositor runs it even while a page mounts; stylesheets use the Bézier

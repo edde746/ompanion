@@ -1,15 +1,31 @@
 # ompx: app ↔ companion protocol
 
 The companion is a TypeScript extension (`companion/`) loaded into every rpc process with
-`omp --mode rpc-ui -e <companion.js>`. It registers the slash command `ompx`, which carries the calls below, and
-`goal`, `guided-goal` and `loop` (see "Slash commands: goal, guided-goal, loop"). Everything below rides on the
-ordinary omp RPC channel of that process (`docs/research/omp-surface.md`).
+`omp --mode rpc-ui -e <companion.js>`. It registers the slash command `ompx`, which carries the calls below,
+`goal`, `guided-goal` and `loop` (see "Slash commands: goal, guided-goal, loop"), and the `html_render` tool
+(below). The commands and tool use the ordinary omp RPC channel of that process (`docs/research/omp-surface.md`).
 
 Verified on omp 18.3.1 (2026-09-25): `ctx.ui.output` is a function that writes any object as a
 frame; `ctx.ui.pendingRequests` is a `Map`; a companion request answered with `extension_ui_response`
 resolves with the whole response frame; the main session is
 `pi.pi.AgentRegistry.global().get(pi.pi.MAIN_AGENT_ID).session`; `agentPauseGate` imports from
 `@oh-my-pi/pi-agent-core`; `ompx` is listed by `get_available_commands` with `source: "extension"`.
+
+## Agent pages: html_render
+
+The companion registers the tool `html_render` with label `Page`, `loadMode: "essential"` and `approval: "read"`;
+it is not an `ompx` verb. Its parameters are `title` (1–200 characters) and `html` (1–100,000 characters), in that
+order. The tool trims the title and rejects one that is blank.
+
+The tool rejects viewport-height units (`vh`, `svh`, `lvh`, `dvh`) in CSS style elements and attributes. It inlines
+absolute local image paths in quoted attributes and CSS `url(...)` as data URLs; relative and remote URLs are left
+alone. Supported image extensions are PNG, JPEG, GIF, WebP, AVIF, SVG, BMP and ICO; the file's bytes must match the
+type. Each image is limited to 5 MiB and a page with inlined images to 10 MiB. Invalid or unreadable images, pages
+over the limit and viewport-height units fail the tool call with an error.
+
+On success, the result's `details` is `{title, html?}`; `html` is present only when an image was inlined. The app
+shows `details.html ?? args.html` in the transcript's sandboxed page frame. The result text tells the model that the
+page is shown above its reply and not to describe what the page already says. Code: `companion/src/html-render.ts`.
 
 ## Calls (app → companion)
 

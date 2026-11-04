@@ -527,6 +527,7 @@ export type Translations = {
   readonly links: {
     readonly confirmTitle: string;
     readonly confirmBody: (args: { scheme: Param }) => string;
+    readonly pageBody: string;
     readonly open: string;
   };
   readonly prompt: {
@@ -1178,6 +1179,15 @@ export type Translations = {
       readonly goalNone: string;
       readonly goalElapsed: (args: { time: Param }) => string;
       readonly report: string;
+    };
+    readonly page: {
+      readonly writing: (args: { size: Param }) => string;
+      readonly fullScreen: string;
+      readonly save: string;
+      readonly saveFailed: (args: { error: Param }) => string;
+      readonly fileName: string;
+      readonly stopped: string;
+      readonly run: string;
     };
     readonly execution: {
       readonly notSent: string;

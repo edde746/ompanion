@@ -28,6 +28,21 @@ Shell shell;
 namespace {
 
 constexpr std::string_view kReceive = "window.ompCore.receive(";
+// The script world of the shell's message handlers. WebKit offers a world's handlers to every frame, so in the page's
+// own world the agent-HTML iframe could post to the core too. In this one only the shell's scripts run, and the one
+// that posts to the core runs in the top frame, on the app's page only (kCoreScript).
+constexpr const char *kWorld = "ompanion";
+// The page's world, top frame: window.webkit.messageHandlers.core.postMessage(text), as on Apple
+// (docs/contracts/bridge.md, Shells), hands the text to kCoreScript as an event on the document, which no other frame
+// can reach. That world has no handlers, so WebKit leaves window.webkit to the page.
+constexpr const char *kPageScript = R"js(window.webkit = {messageHandlers: {core: {postMessage(text) {
+  document.dispatchEvent(new CustomEvent("ompanion-core", {detail: String(text)}));
+}}}};)js";
+// kWorld, top frame.
+constexpr const char *kCoreScript = R"js(if (location.protocol === "app:" && location.host === "ompanion") {
+  const core = window.webkit.messageHandlers.core;
+  document.addEventListener("ompanion-core", (event) => core.postMessage(event.detail));
+})js";
 constexpr std::string_view kCachePrefix = "/cache/";
 constexpr const char *kPortal = "org.freedesktop.portal.Desktop";
 constexpr const char *kPortalPath = "/org/freedesktop/portal/desktop";
@@ -267,27 +282,26 @@ void onScriptMessage(WebKitUserContentManager *, JSCValue *value, gpointer) {
     }
 }
 
-void onLaunched(GObject *launcher, GAsyncResult *result, gpointer) {
-    g_autoptr(GError) error = nullptr;
-    if (!gtk_uri_launcher_launch_finish(GTK_URI_LAUNCHER(launcher), result, &error)) {
-        g_warning("opening a link: %s", error->message);
-    }
+// What a subframe may hold besides the app's own documents (the agent-HTML iframe loads app://ompanion/frame.html):
+// about:blank and about:srcdoc, and what frame.html's policy lets an agent page embed. The pages' policies decide which
+// of these load: the app page's frame-src 'self', frame.html's https:, data: and blob:.
+bool subframeMayHold(const char *uri) {
+    return isPage(uri) || hasScheme(uri, "about") || hasScheme(uri, "https") || hasScheme(uri, "data") ||
+           hasScheme(uri, "blob");
 }
 
-void openExternally(const char *uri) {
-    g_autoptr(GtkUriLauncher) launcher = gtk_uri_launcher_new(uri);
-    gtk_uri_launcher_launch(launcher, shell.window, nullptr, onLaunched, nullptr);
-}
-
-// Only app://ompanion runs in the main frame. Subframes may also hold about: documents; the agent-HTML iframe loads
-// app://ompanion/frame.html. Navigation actions carry no frame, so they admit both; the response decision, which
-// knows the main frame, keeps other pages out of it, and onLoadChanged catches about: pages, which have no response.
+// Only app://ompanion runs in the main frame. Navigation actions carry no frame, so they admit what a subframe may
+// hold; the response decision, which knows the main frame, keeps other pages out of it, and onLoadChanged catches
+// about: pages, which have no response. Links open only through shell.openUrl, which the page calls after asking the
+// user: no navigation and no new window is handed to the browser.
 gboolean decidePolicy(WebKitWebView *, WebKitPolicyDecision *decision, WebKitPolicyDecisionType type, gpointer) {
     if (type == WEBKIT_POLICY_DECISION_TYPE_RESPONSE) {
         auto *response = WEBKIT_RESPONSE_POLICY_DECISION(decision);
         const char *uri = webkit_uri_request_get_uri(webkit_response_policy_decision_get_request(response));
-        if (isPage(uri) ||
-            (!webkit_response_policy_decision_is_main_frame_main_resource(response) && hasScheme(uri, "about"))) {
+        // A subframe's document WebKit cannot show would become a download, which an agent page never starts.
+        if (webkit_response_policy_decision_is_main_frame_main_resource(response)
+                ? isPage(uri)
+                : subframeMayHold(uri) && webkit_response_policy_decision_is_mime_type_supported(response)) {
             return FALSE;
         }
         g_warning("navigation: blocked loading %s", uri);
@@ -297,16 +311,12 @@ gboolean decidePolicy(WebKitWebView *, WebKitPolicyDecision *decision, WebKitPol
     WebKitNavigationAction *action =
         webkit_navigation_policy_decision_get_navigation_action(WEBKIT_NAVIGATION_POLICY_DECISION(decision));
     const char *uri = webkit_uri_request_get_uri(webkit_navigation_action_get_request(action));
-    if (type == WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION && (isPage(uri) || hasScheme(uri, "about"))) {
+    if (type == WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION && subframeMayHold(uri)) {
         webkit_policy_decision_use(decision);
         return TRUE;
     }
+    g_warning("navigation: blocked %s", uri);
     webkit_policy_decision_ignore(decision);
-    if ((hasScheme(uri, "https") || hasScheme(uri, "http")) && webkit_navigation_action_is_user_gesture(action)) {
-        openExternally(uri);
-    } else {
-        g_warning("navigation: blocked %s", uri);
-    }
     return TRUE;
 }
 
@@ -328,9 +338,27 @@ void onLoadChanged(WebKitWebView *view, WebKitLoadEvent event, gpointer) {
     }
 }
 
+// The web process crashed, or the shell ended it (endIfUnresponsive).
 void onWebProcessTerminated(WebKitWebView *view, WebKitWebProcessTerminationReason reason, gpointer) {
     g_warning("web process terminated (reason %d); reloading", reason);
     webkit_web_view_reload(view);
+}
+
+// An agent's page runs in the app page's web process, so one that never yields (an endless loop) stops the app too.
+// Once WebKit finds the process unresponsive (an input event unanswered for a few seconds), the shell ends it, and
+// onWebProcessTerminated loads the page again. From the main loop: not inside WebKit's own notification.
+gboolean endIfUnresponsive(gpointer) {
+    if (shell.view && !webkit_web_view_get_is_web_process_responsive(shell.view)) {
+        g_warning("web process unresponsive; ending it");
+        webkit_web_view_terminate_web_process(shell.view);
+    }
+    return G_SOURCE_REMOVE;
+}
+
+void onResponsiveChanged(WebKitWebView *view, GParamSpec *, gpointer) {
+    if (!webkit_web_view_get_is_web_process_responsive(view)) {
+        g_idle_add(endIfUnresponsive, nullptr);
+    }
 }
 
 // Dropped until the page has sent its first message: before that nothing in it listens.
@@ -440,20 +468,28 @@ void activate(GtkApplication *app, gpointer) {
     webkit_security_manager_register_uri_scheme_as_secure(security, "app");
     webkit_security_manager_register_uri_scheme_as_cors_enabled(security, "app");
 
+    // The handlers live in kWorld, bridged to the page by two top-frame scripts (kPageScript, kCoreScript).
     g_autoptr(WebKitUserContentManager) content = webkit_user_content_manager_new();
     g_signal_connect(content, "script-message-received::core", G_CALLBACK(onScriptMessage), nullptr);
-    if (!webkit_user_content_manager_register_script_message_handler(content, "core", nullptr)) {
+    if (!webkit_user_content_manager_register_script_message_handler(content, "core", kWorld)) {
         g_error("registering the core script message handler failed");
     }
+    g_autoptr(WebKitUserScript) pageScript = webkit_user_script_new(
+        kPageScript, WEBKIT_USER_CONTENT_INJECT_TOP_FRAME, WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START, nullptr, nullptr);
+    webkit_user_content_manager_add_script(content, pageScript);
+    g_autoptr(WebKitUserScript) coreScript =
+        webkit_user_script_new_for_world(kCoreScript, WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+                                         WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START, kWorld, nullptr, nullptr);
+    webkit_user_content_manager_add_script(content, coreScript);
     if (timing) {
         g_signal_connect(content, "script-message-received::timing", G_CALLBACK(onTimingMessage), nullptr);
-        if (!webkit_user_content_manager_register_script_message_handler(content, "timing", nullptr)) {
+        if (!webkit_user_content_manager_register_script_message_handler(content, "timing", kWorld)) {
             g_error("registering the timing script message handler failed");
         }
-        g_autoptr(WebKitUserScript) script = webkit_user_script_new(
+        g_autoptr(WebKitUserScript) script = webkit_user_script_new_for_world(
             "document.addEventListener('DOMContentLoaded', () => "
             "window.webkit.messageHandlers.timing.postMessage(''), {once: true});",
-            WEBKIT_USER_CONTENT_INJECT_TOP_FRAME, WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START, nullptr, nullptr);
+            WEBKIT_USER_CONTENT_INJECT_TOP_FRAME, WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START, kWorld, nullptr, nullptr);
         webkit_user_content_manager_add_script(content, script);
     }
     // Persistent, so the page's localStorage (its first-frame snapshot) survives a restart.
@@ -472,6 +508,7 @@ void activate(GtkApplication *app, gpointer) {
     g_signal_connect(view, "decide-policy", G_CALLBACK(decidePolicy), nullptr);
     g_signal_connect(view, "load-changed", G_CALLBACK(onLoadChanged), nullptr);
     g_signal_connect(view, "web-process-terminated", G_CALLBACK(onWebProcessTerminated), nullptr);
+    g_signal_connect(view, "notify::is-web-process-responsive", G_CALLBACK(onResponsiveChanged), nullptr);
     g_signal_connect(view, "run-file-chooser", G_CALLBACK(onRunFileChooser), nullptr);
     watchFileDrops(view);
     webkit_web_view_load_uri(view, kStartUri);

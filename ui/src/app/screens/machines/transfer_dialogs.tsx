@@ -1,10 +1,9 @@
 // lib/screens/machines/transfer_dialogs.dart: export of the SSH machines to copy or save, and import of one.
 import { createEffect, createSignal, For, Show, untrack } from "solid-js";
 import { call } from "../../../bridge";
-import { asJsonObject, boolean, FormatException, string } from "../../../core/rpc/json_fields";
-import { BridgeLink } from "../../../core/transport/bridge_link";
+import { FormatException } from "../../../core/rpc/json_fields";
 import { useMachines } from "../../app_state";
-import { joinPath } from "../../files/file_paths";
+import { saveFile } from "../../files/save_file";
 import { t } from "../../i18n/i18n";
 import type { SshMachine } from "../../models/machine";
 import type { HostKeyImportChange } from "../../models/machine_export";
@@ -32,28 +31,6 @@ export function showImportMachinesDialog(): Promise<void> {
 interface Status {
   readonly text: string;
   readonly failed: boolean;
-}
-
-/**
- * Offers `text` in the platform's save panel as `name` (`shell.saveFile` serves it from the core's cache directory);
- * resolves to whether the user saved it.
- */
-async function saveFile(name: string, text: string): Promise<boolean> {
-  const cache = string(asJsonObject(await call<unknown>("core.paths"), "core.paths"), "cache");
-  const path = joinPath(cache, name);
-  const local = new BridgeLink("local");
-  try {
-    const files = await local.files();
-    await files.write(path, new TextEncoder().encode(text));
-    try {
-      const answer = await call<unknown>("shell.saveFile", { name, url: `cache/${name}` });
-      return boolean(asJsonObject(answer, "shell.saveFile"), "saved");
-    } finally {
-      await files.remove(path);
-    }
-  } finally {
-    await local.close();
-  }
 }
 
 function ExportDialog(props: { readonly close: () => void }) {

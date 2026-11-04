@@ -1,10 +1,12 @@
 // Dev gallery of the transcript, for screenshots (`ui/scripts/shots/transcript.ts`): `?gallery=transcript&fixture=<name>`
 // shows one transcript, at most `&width=<px>` wide (the chat pane's width in the app). Fixtures: the recorded omp
 // sessions in harness/fixtures that show transcript rows, replayed through core/store's reducer; `answer`
-// (bench/answer.md as a settled reply), `tools` (every tool body and status), `messages` (every message row
-// kind, with a pending prompt waiting for its reply), `ansi` (command output in every SGR colour and attribute),
-// `long` (a 2,000-row transcript, with how long its first frame took), `stream` (answer.md streaming in, checking that
-// settled blocks keep their DOM) and `history` (earlier pages loading above the top row, checking that it stays put).
+// (bench/answer.md as a settled reply), `tools` (every tool body and status), `pages` (the companion's html_render
+// pages: shown, long, refused, streaming), `busy` (a page whose script never ends: it stops the app where the frame
+// shares the app's thread), `messages` (every message row kind, with a pending prompt waiting for its reply), `ansi`
+// (command output in every SGR colour and attribute), `long` (a 2,000-row transcript, with how long its first frame
+// took), `stream` (answer.md streaming in, checking that settled blocks keep their DOM) and `history` (earlier pages
+// loading above the top row, checking that it stays put).
 // `&open=1` opens every settled turn and closed tool line; `&scroll=<px>` scrolls down to that offset once the
 // transcript is on screen. main.tsx loads it only for `?gallery=transcript`; the recordings are lazy chunks, and the
 // large or row-less ones (big-frame, the companion-only ones) stay out of the build.
@@ -28,6 +30,7 @@ import { showSnackBar } from "../../../widgets/snackbar";
 import answer from "../../../../../../bench/answer.md?raw";
 import type { TranscriptActions } from "./transcript_actions";
 import { messageGallery } from "./gallery_messages";
+import { busyPageGallery, pageGallery } from "./gallery_pages";
 import { toolGallery, toolGallerySubagents } from "./gallery_tools";
 import { TranscriptView } from "./transcript_view";
 import "./gallery.css";
@@ -45,7 +48,7 @@ const recordings = Object.keys(outFiles)
   .map((path) => path.slice(path.lastIndexOf("/") + 1, -".out.jsonl".length))
   .sort();
 
-const scenarios = ["answer", "tools", "messages", "ansi", "long", "stream", "history", ...recordings];
+const scenarios = ["answer", "tools", "pages", "busy", "messages", "ansi", "long", "stream", "history", ...recordings];
 
 function fixtureFile(files: Record<string, () => Promise<string>>, name: string, direction: string) {
   const path = Object.keys(files).find((key) => key.endsWith(`/${name}.${direction}.jsonl`));
@@ -227,6 +230,11 @@ async function load(name: string): Promise<SessionView> {
         subagents: toolGallerySubagents(),
         run: { running: true, outcome: runIdle, paused: false },
       });
+    case "pages":
+      // The last turn works on its pages: it shows every row, the settled turns keep their shown pages.
+      return sessionView({ transcript: pageGallery(), run: { running: true, outcome: runIdle, paused: false } });
+    case "busy":
+      return sessionView({ transcript: busyPageGallery() });
     case "messages":
       return messagesView();
     case "ansi":

@@ -81,6 +81,7 @@ decisions.
 | D24 | A relay, the Bun server in `relay/`, runs in Docker on our own VPS behind its reverse proxy at `push.ompanion.app`; it holds the FCM service account, forwards messages and keeps no state. Payloads are AES-256-GCM encrypted with a key the phone makes, which reaches machines only over SSH. Contract: `contracts/push.md`. | Sending through FCM needs the project's service-account key, which cannot ship in the companion: anyone holding it could push to every install. User choices: run the relay on the VPS we already have; encrypt end to end. The relay, Google and Apple see a Firebase installation ID and ciphertext only. TLS and the reverse proxy are the VPS's own setup, not part of the repository. |
 | D25 | Firebase Messaging is integrated natively in the shells: the Android SDK in `shells/android/`, the iOS SDK through Swift Package Manager in the iOS app only. Android decrypts and posts in its `FirebaseMessagingService`; iOS decrypts in a Notification Service Extension. Local notifications (the desktops' session notifications, every device's usage reminders) are the shells' `shell.notify*` services. A build without the Firebase config has no push and says so. | Native decryption posts within Android's few seconds per message without starting the page, and iOS needs the extension in any case to replace the encrypted placeholder. Desktop shells carry no Firebase SDK. |
 | D26 | Usage reminders: the usage pane sets a reminder on a limit's reset (once, or at every reset of a window something was used in) or on an account being usable again (the reset of its last exhausted limit; once, or each time it runs out). The device schedules it with the system at the reset time omp reports (`shell.notifySchedule`): Apple and Android post it while the app is not running (Android with an inexact alarm), Windows through `ScheduledToastNotifier`, which keeps it across restarts; Linux, which has no scheduling, posts it while the app runs. Every-time reminders learn their next reset from `omp usage --json`, which the app reads while a reminder is set: in the usage pane, from a machine that comes online, after a run of a session open here ends (at most every 10 minutes per machine), and a minute after a reminder's time. | No daemon (D1), and no run may be alive when a limit resets, so the machines cannot send it. The reset time is known in advance. The next reset is never extrapolated from the window length: a rolling window starts with its next request. An exact Android alarm needs a permission granted in the system settings from Android 14 on. Usage spent from omp's own TUI reaches an every-time reminder only when the app next reads that machine's usage. |
+| D27 | Agent pages: the companion offers `html_render` in every session the app starts, with no setting; the transcript shows a page at its call in a sandboxed frame (`docs/contracts/html-render.md`). Pages may load https resources (CDN libraries, images, fonts); `http:` stays blocked. Every link a page opens asks first, showing the full URL. | User choice, after reading t3code's `html_render`. A page cannot reach the app, the bridge or the core; it can reach the network. A busy page stops the app page on WKWebView, Android WebView and WebKitGTK (sometimes WebView2), so a page that was running when the app stopped waits for a tap to run again. Streaming a page costs more than its size (§5, R4), so `html` is capped at 100,000 characters. |
 
 ## 3. Architecture
 
@@ -270,13 +271,16 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   run that worked for 14 hours without settling wrote 16 GB, 12.5 GB of it these updates, up to 60 frames and 3.2 MB a
   second), and an `eval` cell running 40 subagents sent a 13.5 MB `tool_execution_update`, an `rpc_chunk` sequence, for
   each of their status changes (84 generations in under 6 minutes while omp emptied its output backlog; no device kept
-  up, so every reconnect ended in a gap). The pump takes a whole `rpc_chunk` sequence as one frame. It holds each
-  `tool_execution_update` and `subagent_progress` for 250 ms and writes only the newest per tool call or subagent, and
-  not before the last one written for it would take at 1 MiB/s (`progressRate`): a 13.5 MB frame goes out about every
-  13 s. `subagent_lifecycle`, `subagent_event`, `ompx`, `extension_ui_request` and `response` lines pass held progress
-  whose id they do not hold; any other frame writes what is held first, so the log is omp's output minus superseded
-  progress, in order wherever the order could change a state (on the 16 GB log: 22 % of the bytes at 60 frames a
-  second, 66 % at 4). Every MiB it writes a generation mark. Neither a mark nor a rotation lands inside an `rpc_chunk`
+  up, so every reconnect ended in a gap). The pump takes a whole `rpc_chunk` sequence as one frame. It holds
+  `tool_execution_update`, `subagent_progress` and `message_update`, writing only the newest per tool call, subagent
+  or message. Progress waits 250 ms from the first held frame; a message frame under 64 KiB has no fixed hold, while a
+  larger one waits 250 ms. Each also waits until the last frame written for its key would take to send at 1 MiB/s
+  (`progressRate`): a 13.5 MB frame goes out about every 13 s. A message update without a usable trailing `messageId`
+  goes out without coalescing. `subagent_lifecycle`, `subagent_event`, `ompx`, `extension_ui_request` and `response`
+  lines pass held updates whose id they do not hold; any other frame writes what is held first, so the log is omp's
+  output minus superseded updates, in order wherever the order could change a state. On the 16 GB log the progress hold
+  kept 22 % of the bytes at 60 frames a second, 66 % at 4. Every MiB it writes a generation mark. Neither a mark nor a
+  rotation lands inside an `rpc_chunk`
   sequence: both wait for its last chunk, as readers take a sequence only whole and uninterrupted. At 64 MiB it rotates
   in place at a line boundary while omp's output waits in the pipe: it leaves the log as it is for 250 ms, so followers
   read it to its end (what omp wrote meanwhile comes out of the pipe at once and can fill the next generation within a
@@ -445,7 +449,7 @@ Hub, todos, session tree, files, terminal. Phone: the same screens, one at a tim
 |---|---|
 | Machines | add/edit, jump chain, keys, host-key trust, probe and install status, omp version and update, forwards, import/export |
 | Session browser | all projects on a machine, search, pin, rename, delete, fork, recent-activity warning |
-| Transcript | markdown, math, code, thinking, images, per-tool cards (bash, read, edit/write diff, eval, todo, task subagents, web, browser screenshots, tts), compaction dividers, virtualized |
+| Transcript | markdown, math, code, thinking, images, agent HTML pages, per-tool cards (bash, read, edit/write diff, eval, todo, task subagents, web, browser screenshots, tts), compaction dividers, virtualized |
 | Composer | prompt, steer, follow-up, queue list with dequeue, attachments, `@` files, `/` palette from `get_available_commands`, model and thinking pickers, context and cost meter, push-to-talk |
 | Dialogs | tool approval, `ask` (full fidelity), extension `select/confirm/input/editor`, login URL and code |
 | Agent Hub | roster, progress, per-agent transcript, steer, kill, revive, usage |
@@ -511,7 +515,7 @@ a real tailnet is still open (§12).
 | R1 | The companion depends on omp internals, including TypeScript-private fields and rebuilt goal and loop logic; every omp release can break it, and goal and loop behaviour can drift from the TUI. | CI against 18.3.1; feature checks with fallbacks; a separate build for a release that breaks the current one (§6); the rebuilds track `interactive-mode.ts` line by line per supported version |
 | R2 | Detached sessions are shell plumbing; `tail` behaviour and log growth vary by host. | measured in M0 (`research/m0-detached-sessions.md`); the pump collapses progress, rotates at 64 MiB with a carry, and pauses on an empty log for BSD `tail -F` (§5); a follower that still reads across a rotation meets a mark of the new generation and rebuilds its view |
 | R3 | The Windows detached form rests on WMI breakaway and a byte pump. | its scripts are tested with PowerShell 7 standing in for Windows PowerShell (`ui/src/core/channel/windows_scripts.e2e.test.ts`, `run_channel.e2e.test.ts`). CI's `windows-host` job runs the host operations and detached runs against the Windows runner's own Win32-OpenSSH, with cmd.exe and PowerShell as its default shell (`ui/src/core/host/windows_host.e2e.test.ts`, `ui/src/core/session/windows_session.e2e.test.ts`, ports of the Dart suite's) |
-| R4 | `message_update` carries the whole accumulated message each time (O(n²) bytes per reply), `subagent_progress` and a `task` call's updates carry whole snapshots, omp repeats each image in up to five frames, and the SSH stack (`x/crypto/ssh`) has no compression. | coalesce rendering; the pump keeps only the newest progress per tool call or subagent every 250 ms (§5); the follow script sends each image once |
+| R4 | `message_update` carries the whole accumulated message each time (O(n²) bytes per reply), `subagent_progress` and a `task` call's updates carry whole snapshots, omp repeats each image in up to five frames, and the SSH stack (`x/crypto/ssh`) has no compression. | coalesce rendering; the pump holds the newest update per message, tool call or subagent with size-based pacing (§5); the follow script sends each image once |
 | R5 | The page runs on whatever webview the platform has: iOS 16's WebKit is the oldest the app supports, Android's System WebView and Windows' WebView2 Runtime update on their own schedule, and WebKitGTK comes from the distribution or the Flatpak runtime. An API or CSS feature an old engine lacks breaks the app there. | the build targets `safari16`, `chrome107` and `edge107` (`ui/vite.config.ts`) and `app.md` lists what the page may not use; every shell's smoke run checks the bridge, storage, processes and rendering on its engine. iOS 16, macOS 13 and Android below 14 have not run (§14) |
 | R6 | Two writers on one session file: the app resumes a session a TUI still holds. Before omp 18.4.9 omp only has per-write locks; from 18.4.9 the second writer moves to a new file instead, which splits the conversation. | probe for a write descriptor or a live terminal breadcrumb and read such a session instead of launching into it (D21); POSIX only, so a Windows host can still get a second writer; a run's move to a new file is recorded from omp's `session-persistence` notice (§5) |
 | R7 | Concurrent devices race: two prompts land in either order; a dialog is answered twice. | ordered by `in.jsonl`; every device sees every command; unknown dialog ids are ignored by omp |
@@ -577,6 +581,10 @@ pass on macOS, the iOS simulator, a Pixel 7, Linux x64 (on the runner and in the
   content (`answer-*.js`, 0.12 MB) ships in the release build.
 - **Binary data crosses the bridge as base64 in JSON text** (`fs.read`, `fs.write`, binary streams); files to show or
   save go through the cache directory as `cache/<name>` URLs instead.
-- **The agent-HTML frame has known holes.** The app shows no model HTML, but the sandboxed frame the smoke run proves
-  lets a script click a link, which opens the system browser on Apple, Android and Windows (Linux needs a real click),
-  and CSP cannot block WebRTC inside it.
+- **A busy agent page stops the app.** The frame shares the app page's thread on WKWebView, Android WebView and
+  WebKitGTK (and on WebView2 whenever it shares the renderer). Android 10 and later, Linux and Windows end the hung
+  renderer once an input goes unanswered and reload (Windows after 16-18 s); on Apple only a force quit recovers it.
+  A page that stopped the app while it loaded, or within a second after, then waits paused for the reader; one that
+  stops it later runs again when its session opens. On WebView2, the first large wheel notch over a page at the very
+  bottom of the chat can still pull it back to the bottom. A real https load from a page and a real "Save as HTML" file
+  have not run.

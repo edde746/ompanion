@@ -69,6 +69,7 @@ export { default as folder } from "@material-symbols/svg-400/outlined/folder.svg
 export { default as folder_off } from "@material-symbols/svg-400/outlined/folder_off.svg?raw";
 export { default as folder_open } from "@material-symbols/svg-400/outlined/folder_open.svg?raw";
 export { default as forum } from "@material-symbols/svg-400/outlined/forum.svg?raw";
+export { default as fullscreen } from "@material-symbols/svg-400/outlined/fullscreen.svg?raw";
 export { default as gpp_bad } from "@material-symbols/svg-400/outlined/gpp_bad.svg?raw";
 export { default as gpp_maybe } from "@material-symbols/svg-400/outlined/gpp_maybe.svg?raw";
 export { default as help_fill } from "@material-symbols/svg-400/outlined/help-fill.svg?raw";
@@ -150,3 +151,4 @@ export { default as visibility } from "@material-symbols/svg-400/outlined/visibi
 export { default as visibility_off } from "@material-symbols/svg-400/outlined/visibility_off.svg?raw";
 export { default as vpn_key } from "@material-symbols/svg-400/outlined/vpn_key.svg?raw";
 export { default as warning } from "@material-symbols/svg-400/outlined/warning.svg?raw";
+export { default as web } from "@material-symbols/svg-400/outlined/web.svg?raw";

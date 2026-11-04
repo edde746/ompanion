@@ -2,6 +2,7 @@ import type { AgentSession, ExtensionAPI, ExtensionCommandContext, ExtensionCont
 import { CallParseError, parseCall } from "./args.ts";
 import { askDialog } from "./ask.ts";
 import { bindChannel, type Channel, channel, errorFrame, eventFrame, replyFrame } from "./channel.ts";
+import { registerHtmlRender } from "./html-render.ts";
 import { IDLE_EXIT_EVENT, idleRun, installIdleExit, tracked } from "./idle.ts";
 import { installKeepAwake } from "./keep-awake.ts";
 import { installNotifications, notifyVerbs } from "./notify.ts";
@@ -96,6 +97,7 @@ async function dispatch(call: CallRequest, pi: ExtensionAPI, ctx: ExtensionComma
 
 export default function ompx(pi: ExtensionAPI): void {
 	pi.on("session_start", (_event, ctx) => bindMain(pi, ctx));
+	registerHtmlRender(pi);
 	pi.registerCommand("ompx", {
 		description: "ompanion companion channel (docs/contracts/ompx.md)",
 		handler: (args, ctx) =>

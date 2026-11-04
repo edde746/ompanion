@@ -48,6 +48,7 @@ what stock lacks.
 | Large paste delivery | `[Paste #N]` chip expanded on submit; "Attach as local file" writes `local://paste-N.md` | APP: the paste's text goes into the message after the typed text; over 256 KB FS writes `paste-N.md` into CE `session.localRoot` and the message names `local://paste-N.md` | send | M2 |
 | Attached files | `@path`, auto-read on submit (file-mentions.ts) | APP `@"<path>"` mention omp auto-reads: this computer's files where they are; other machines' via FS upload into CE `session.localRoot` (100 MB cap, progress) | send, file-mention rows | M2 |
 | Read and reply images | image in the `read` result; terminal image protocols | `toolResult` image blocks (live and via `get_entries`); in session files omp stores an image as `blob:sha256:<hash>`, read from `blobs/` beside `sessions/`; host image script (`fetchHostImage`, ffmpeg preview) over SSH | read card preview; markdown machine-path images with notices | M2 |
+| Agent pages | — | CE `html_render` tool; RPC tool calls and results | transcript page at the call, full screen, save as HTML | M2 |
 | `@` file mentions | `@` | FS file index | composer | M7 |
 | Tool approvals | inline | RPC `extension_ui_request select` "Allow tool: …" Approve/Deny | inline request panel | M2 |
 | `ask` tool | ask dialog | CE `ctx.ui.askDialog` (headers, previews, notes, multi-select); RPC select/editor fallback | inline question form | M2 |

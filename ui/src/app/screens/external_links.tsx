@@ -32,10 +32,21 @@ export function opensWithoutAsking(url: string): boolean {
  */
 export async function openExternalLink(url: string): Promise<void> {
   if (!opensWithoutAsking(url)) {
-    const confirmed = await showDialog<boolean>((close) => <ConfirmLinkDialog url={url} close={close} />);
+    const body = t.links.confirmBody({ scheme: schemeOf(url) });
+    const confirmed = await showDialog<boolean>((close) => <ConfirmLinkDialog url={url} body={body} close={close} />);
     if (confirmed !== true) return;
   }
   await launch(url);
+}
+
+/**
+ * Opens a link the reader clicked in an agent's page (page_frame/page_frame.tsx). Whatever its scheme, it shows its
+ * full URL first and opens only when the user confirms: a page's link text can say anything.
+ */
+export async function openPageLink(url: string): Promise<void> {
+  const body = t.links.pageBody;
+  const confirmed = await showDialog<boolean>((close) => <ConfirmLinkDialog url={url} body={body} close={close} />);
+  if (confirmed === true) await launch(url);
 }
 
 /**
@@ -56,7 +67,7 @@ async function launch(url: string): Promise<void> {
   }
 }
 
-function ConfirmLinkDialog(props: { url: string; close: (confirmed: boolean) => void }) {
+function ConfirmLinkDialog(props: { url: string; body: string; close: (confirmed: boolean) => void }) {
   return (
     <Dialog
       icon={Symbols.warning}
@@ -69,7 +80,7 @@ function ConfirmLinkDialog(props: { url: string; close: (confirmed: boolean) => 
         </>
       }
     >
-      <p class="external-links-body">{t.links.confirmBody({ scheme: schemeOf(props.url) })}</p>
+      <p class="external-links-body">{props.body}</p>
       <p class="external-links-url">{props.url}</p>
     </Dialog>
   );

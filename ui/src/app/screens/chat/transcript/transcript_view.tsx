@@ -7,6 +7,7 @@ import { TurnExpansion } from "../../../sessions/turn_expansion";
 import { ActivityMark } from "../../../widgets/activity_mark";
 import { IconButton, TextButton } from "../../../widgets/button";
 import * as Symbols from "../../../widgets/symbols";
+import { pageScrollEvent, pageTouchEvent } from "../../page_frame/page_frame";
 import { TranscriptRowView } from "./message_rows";
 import { RowExtents } from "./row_extents";
 import { type TranscriptActions, TranscriptScope, TranscriptStorage } from "./transcript_actions";
@@ -32,8 +33,14 @@ const overscan = 800;
 /** How long after a wheel, touch, key or press, or after the last scroll event of its momentum, scrolls are the reader's. */
 const readerWindowMs = 150;
 
-/** Keys that scroll the transcript while the focus is in it. */
+/** Keys that scroll the transcript while the focus is in it, or on <body> after the reader last pressed in it. */
 const scrollKeys = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "]);
+
+/**
+ * The scroller of the transcript the reader last pressed in. A scroll key on <body> scrolls the scroller the reader
+ * last clicked, as the browser keeps it, so only that transcript takes such a key as the reader's.
+ */
+let keyScroller: HTMLElement | undefined;
 
 /** Where the transcript's text is one step up (`chatTextTheme`): the window's shorter side is at least 600 px. */
 const roomyQuery = "(min-width: 600px) and (min-height: 600px)";
@@ -280,7 +287,10 @@ export function TranscriptView(props: TranscriptViewProps) {
 
   /** Follow the growth at the bottom. Starts true: a transcript opens at its newest row. */
   let pinned = true;
-  /** A touch is on the transcript: its scroll is the reader's, not to be overridden by following the growth. */
+  /**
+   * A touch is on the transcript: its scroll is the reader's, not to be overridden by following the growth. A page's
+   * frame keeps its touches in its own document and reports them (`pageTouchEvent`).
+   */
   let touching = false;
   /** A mouse or pen button is down in the transcript: a scrollbar drag, or a selection scrolling past an edge. */
   let pressing = false;
@@ -455,6 +465,29 @@ export function TranscriptView(props: TranscriptViewProps) {
     if (element.scrollTop - slack < loadEarlierDistance) loadEarlier(false);
   }
 
+  function touchStarted() {
+    // A finger landing stops any momentum, so a written offset interrupts nothing: the offset takes the slack over,
+    // and rows a fling lifted out of reach above the top come back for this drag.
+    if (slack !== 0) {
+      readerUntil = 0;
+      settle();
+    }
+    touching = true;
+  }
+
+  function touchEnded() {
+    touching = false;
+    readerScrolls();
+    onScroll();
+  }
+
+  /** A wheel turned or a scroll key pressed by the reader, towards the top when `up`. */
+  function wheeled(up: boolean) {
+    readerScrolls();
+    // At once: a growth settled before the scroll event would put the view back at the bottom.
+    if (up) pinned = false;
+  }
+
   function loadEarlier(retry: boolean) {
     const load = props.actions.onLoadEarlier;
     const history = props.view.historyLength;
@@ -559,6 +592,25 @@ export function TranscriptView(props: TranscriptViewProps) {
     };
     window.addEventListener("pointerup", release);
     window.addEventListener("pointercancel", release);
+    const pageTouch = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      if (event.detail === true) touchStarted();
+      else touchEnded();
+    };
+    scroller?.addEventListener(pageTouchEvent, pageTouch);
+    const pageScroll = (event: Event) => {
+      if (event instanceof CustomEvent) wheeled(event.detail === true);
+    };
+    scroller?.addEventListener(pageScrollEvent, pageScroll);
+    // A click on text leaves the focus on <body>, so a scroll key's keydown never passes the scroller.
+    const key = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (!scroller || !scrollKeys.has(event.key)) return;
+      if (target === document.body ? keyScroller === scroller : target instanceof Node && scroller.contains(target)) {
+        readerScrolls();
+      }
+    };
+    window.addEventListener("keydown", key);
     if (scroller) measure.observe(scroller);
     if (column) measure.observe(column);
     // Its height changes with the load-earlier row above the column too (button, spinner, gone), which moves the rows.
@@ -567,6 +619,10 @@ export function TranscriptView(props: TranscriptViewProps) {
       roomy.removeEventListener("change", applyTextSize);
       window.removeEventListener("pointerup", release);
       window.removeEventListener("pointercancel", release);
+      scroller?.removeEventListener(pageTouchEvent, pageTouch);
+      scroller?.removeEventListener(pageScrollEvent, pageScroll);
+      window.removeEventListener("keydown", key);
+      if (keyScroller === scroller) keyScroller = undefined;
       measure.disconnect();
       clearTimeout(jumping);
       clearTimeout(stopTimer);
@@ -611,32 +667,14 @@ export function TranscriptView(props: TranscriptViewProps) {
             class="transcript-scroll"
             ref={(el) => (scroller = el)}
             onScroll={onScroll}
-            onWheel={(event) => {
-              readerScrolls();
-              // At once: a growth settled before the scroll event would put the view back at the bottom.
-              if (event.deltaY < 0) pinned = false;
-            }}
-            onKeyDown={(event) => {
-              if (scrollKeys.has(event.key)) readerScrolls();
-            }}
+            onWheel={(event) => wheeled(event.deltaY < 0)}
             onPointerDown={(event) => {
+              keyScroller = scroller;
               if (event.pointerType !== "touch") pressing = true;
             }}
-            onTouchStart={() => {
-              // A finger landing stops any momentum, so a written offset interrupts nothing: the offset takes the slack
-              // over, and rows a fling lifted out of reach above the top come back for this drag.
-              if (slack !== 0) {
-                readerUntil = 0;
-                settle();
-              }
-              touching = true;
-            }}
+            onTouchStart={touchStarted}
             onTouchMove={readerScrolls}
-            onTouchEnd={() => {
-              touching = false;
-              readerScrolls();
-              onScroll();
-            }}
+            onTouchEnd={touchEnded}
           >
             <div class="transcript-content" ref={(el) => (content = el)}>
               <Show when={props.actions.onLoadEarlier}>

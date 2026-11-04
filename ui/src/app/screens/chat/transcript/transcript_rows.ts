@@ -512,6 +512,9 @@ export class TranscriptRowModel {
     return index === undefined ? undefined : (this.items[index] as ToolResultItem);
   }
 
+  /** `resultOf` bound, for `keeps`. */
+  private readonly resultFor = (callId: string) => this.resultOf(callId);
+
   /**
    * Puts the tail rows after the items' rows: the pending prompt, then the awaiting-reply row. `update` and `refold`
    * put them back after changing the items' rows.
@@ -655,7 +658,7 @@ export class TranscriptRowModel {
       const last = this.endOf(item);
       for (let row = this.itemStart[item]!; row < last; row++) {
         const shown = this.all[row]!;
-        if (open || keeps(shown, replies)) this.show(shown);
+        if (open || keeps(shown, replies, this.resultFor)) this.show(shown);
       }
     }
   }
@@ -668,7 +671,7 @@ export class TranscriptRowModel {
     const files = new Set<string>();
     for (let index = this.itemStart[head]!, last = this.endOf(end - 1); index < last; index++) {
       const row = this.all[index]!;
-      if (!keeps(row, replies)) work = true;
+      if (!keeps(row, replies, this.resultFor)) work = true;
       if (row.kind === "ToolRow") {
         toolCalls++;
         for (const file of this.changedFiles(row)) files.add(file);
@@ -751,8 +754,16 @@ export class TranscriptRowModel {
   }
 }
 
-/** Whether `row` of a folded turn shows while the turn is closed. `replies` are the turn's `TranscriptRowModel.replies`. */
-function keeps(row: TranscriptRow, replies: ReadonlySet<AssistantItem>): boolean {
+/**
+ * Whether `row` of a folded turn shows while the turn is closed. `replies` are the turn's `TranscriptRowModel.replies`;
+ * `resultOf` gives a call's latest result. A page the reader was shown stays like a reply; a failed one folds as the
+ * work it is.
+ */
+function keeps(
+  row: TranscriptRow,
+  replies: ReadonlySet<AssistantItem>,
+  resultOf: (callId: string) => ToolResultItem | undefined,
+): boolean {
   switch (row.kind) {
     case "ItemRow":
       return row.item.kind !== "CustomItem" && row.item.kind !== "RulesItem";
@@ -760,9 +771,13 @@ function keeps(row: TranscriptRow, replies: ReadonlySet<AssistantItem>): boolean
       return replies.has(row.item);
     case "AssistantFooterRow":
       return replies.has(row.item) || failed(row.item);
+    case "ToolRow": {
+      if (toolKindFor(row.toolName) !== "page") return false;
+      const result = resultOf(row.callId);
+      return result?.state === "done" && !result.isError;
+    }
     case "ThinkingRow":
     case "AssistantImageRow":
-    case "ToolRow":
     case "TurnSummaryRow":
     case "PendingPromptRow":
     case "AwaitingReplyRow":
@@ -876,6 +891,7 @@ export type ToolKind =
   | "webSearch"
   | "eval"
   | "goal"
+  | "page"
   | "generic";
 
 /**
@@ -908,6 +924,9 @@ export function toolKindFor(toolName: string, options: { args?: unknown; details
       return "eval";
     case "goal":
       return "goal";
+    // The companion's tool (companion/): an HTML page shown where the call sits.
+    case "html_render":
+      return "page";
     default:
       return "generic";
   }

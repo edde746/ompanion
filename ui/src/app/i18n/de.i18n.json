@@ -582,6 +582,7 @@
   "links": {
     "confirmTitle": "Diesen Link öffnen?",
     "confirmBody": "Das ist ein $scheme:-Link, keine Webseite. Er wird in der App geöffnet, die $scheme:-Links auf diesem Gerät verarbeitet.",
+    "pageBody": "Eine Seite im Chat möchte diesen Link öffnen.",
     "open": "Öffnen"
   },
   "prompt": {
@@ -1257,6 +1258,15 @@
       "goalNone": "kein aktives Ziel",
       "goalElapsed": "$time vergangen",
       "report": "Bericht"
+    },
+    "page": {
+      "writing": "Seite wird geschrieben · $size",
+      "fullScreen": "Vollbild",
+      "save": "Als HTML speichern",
+      "saveFailed": "Die Seite konnte nicht gespeichert werden: $error",
+      "fileName": "seite",
+      "stopped": "Diese Seite hat die App beim letzten Mal angehalten.",
+      "run": "Seite ausführen"
     },
     "execution": {
       "notSent": "Nicht an das Modell gesendet",

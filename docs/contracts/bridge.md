@@ -177,7 +177,7 @@ Each shell serves `ui/dist` (built with relative URLs) from the app bundle, and 
 | Shell | Page URL | Page → core | Core → page |
 |---|---|---|---|
 | Apple (WKWebView) | `app://ompanion/index.html` (`WKURLSchemeHandler`) | `window.webkit.messageHandlers.core.postMessage(text)` | `evaluateJavaScript("window.ompCore.receive(" + message + ")")` |
-| Linux (WebKitGTK 6) | `app://ompanion/index.html` (URI scheme registered secure and CORS-enabled) | `window.webkit.messageHandlers.core.postMessage(text)` | `webkit_web_view_evaluate_javascript` of the same expression |
+| Linux (WebKitGTK 6) | `app://ompanion/index.html` (URI scheme registered secure and CORS-enabled) | `window.webkit.messageHandlers.core.postMessage(text)`: a top-frame user script's stand-in, which hands the text to the real handler in a script world of the shell's own (a top-frame script there, on the app's origin only) | `webkit_web_view_evaluate_javascript` of the same expression |
 | Windows (WebView2) | `https://app.ompanion/index.html` (`WebResourceRequested`: a virtual host mapping raises no such event, and `cache/` needs one) | `window.chrome.webview.postMessage(text)` | `PostWebMessageAsJson(message)`; the page reads `event.data` |
 | Android (WebView) | `https://appassets.androidplatform.net/assets/ui/index.html` (`WebViewAssetLoader`) | `ompCoreNative.postMessage(text)` (`WebViewCompat.addWebMessageListener`, origin-restricted) | the latest `JavaScriptReplyProxy.postMessage(message)`; the page reads `ompCoreNative.onmessage` |
 
@@ -185,9 +185,9 @@ The page defines `window.ompCore.receive(message)` before its first request; `me
 Messages the core emits before the page loaded, or while it reloads, are dropped. The Android shell can answer only
 after the page's first message, which is always a request.
 
-The page is the app's own code; model output never runs in it. HTML from a model belongs in the sandboxed frame of
-`ui/src/AgentFrame.tsx` (`ui/public/frame.html`), whose policy the smoke run's `html` check proves; the app shows no
-model HTML.
+The page is the app's own code; model HTML runs only in the sandboxed `PageFrame`
+(`ui/src/app/screens/page_frame/`, `ui/public/frame.html`). Its policy and the agent page protocol are in
+`docs/contracts/html-render.md`; the smoke run's `html` check exercises the frame.
 
 **Cache files.** Every shell also serves `<page base>/cache/<name>` from the core's cache directory (`core.paths`),
 so `fs.download` and `net.fetch` results load as ordinary URLs (images, file previews). They come with
@@ -305,7 +305,7 @@ page's epoch marks as `shell timing page {…}` to stderr and keeps its smoke-on
 | `echo` | 200 sequential `core.echo` round trips return their params; the line carries `p50Ms` and `p95Ms` |
 | `flood` | `core.flood` of 20,000,000 bytes in 65,536-byte chunks arrives whole; the line carries `mbPerSec` |
 | `markdown` | a fixed sample with a heading, a list, a table, a fenced code block and `$…$` math renders those elements |
-| `html` | a sample page with an inline script runs in the sandboxed agent-HTML iframe, reports its content height to the page, and its `fetch` and image load of an outside URL are both blocked |
+| `html` | a sample page in an agent page's frame (`PageFrame`, `ui/public/frame.html`), with no network needed: its inline script reads a theme variable (`--background`, not empty) while the page loads; the frame reports a height above 0; a `fetch` and an image (`srcset`, which no engine upgrades to https: as Chromium does an `http:` `<img src>` on an https: page) of an `http:` URL fail with `securitypolicyviolation` events for `connect-src` and `img-src`; a `fetch` and an image of `https://ompanion-smoke.invalid/` (never resolves) raise none; a script's `click()` on an https link sends the app no link message; and a `store.write` and a `shell.secretSet` the page posts to every native handler it finds (`window.webkit.messageHandlers.core`, `window.chrome.webview`, `window.ompCoreNative`; the line's `handlers`) get no answer, in the frame or through the app's `window.ompCore.receive`, and leave no document and no secret. The line carries what the page saw |
 | `terminal` | xterm.js shows a marker line written to it, from `pty.open` on desktops and from `core.flood` data on phones |
 | `exec` | desktops: `local.exec` of `sh -c "echo smoke-ok"` (`cmd /c echo smoke-ok` on Windows) prints `smoke-ok` and exits 0 |
 | `pty` | desktops: a local `pty.open` shell echoes a marker written with `stream.write` |

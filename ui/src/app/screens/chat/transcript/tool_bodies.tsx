@@ -33,6 +33,7 @@ import {
   hasScheme,
   imageType,
   linesOf,
+  pageCall,
   readCall,
   type TaskAgent,
   taskAgents,
@@ -72,6 +73,8 @@ export function toolParts(data: ToolData, actions: Accessor<TranscriptActions>):
       return evalParts(data);
     case "goal":
       return goalParts(data);
+    case "page":
+      return pageParts(data);
     case "generic":
       return genericParts(data);
   }
@@ -782,6 +785,24 @@ function GoalBody(props: { data: ToolData }) {
       <ErrorAndImages data={props.data} />
     </>
   );
+}
+
+/**
+ * A page call that did not show (page_view.tsx shows the others): the ordinary tool line with the page's title, and
+ * for a failure the error the model got.
+ */
+function pageParts(data: ToolData): ToolParts {
+  return {
+    subject: pageCall(data).title,
+    monoSubject: false,
+    meta: [],
+    expanded: false,
+    body: data.isError ? PageBody : undefined,
+  };
+}
+
+function PageBody(props: { data: ToolData }) {
+  return <ErrorAndImages data={props.data} />;
 }
 
 function genericParts(data: ToolData): ToolParts {

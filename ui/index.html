@@ -8,7 +8,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <meta name="color-scheme" content="light dark" />
-    <!-- Agent HTML does not run under this policy: it loads frame.html, which carries its own (src/AgentFrame.tsx). -->
+    <!-- Agents' pages run under frame.html's own policy, not this one (src/app/screens/page_frame/page_frame.tsx). -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' %FIRST_FRAME_HASH%; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src %CONNECT_SRC%; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"

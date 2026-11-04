@@ -10,6 +10,8 @@ import type {
 } from "../../../../core/store/session_view";
 import type { ToolResultItem } from "../../../../core/store/transcript";
 import { extensionOf } from "../../../files/file_paths";
+import { t } from "../../../i18n/i18n";
+import { formatBytes } from "../../../utils/byte_size";
 import { type DiffLine, parseOmpDiff } from "./diff";
 import { imageSize, type ImageSize } from "./images";
 import { type ToolKind, toolKindFor, type ToolRow, toolRowAbandoned } from "./transcript_rows";
@@ -715,6 +717,42 @@ export const goalCall = once((data): GoalCall => {
     report: str(details?.completionBudgetReport),
   };
 });
+
+/** The companion's `html_render` tool: a page the reader sees where the call sits. */
+export interface PageCall {
+  /** As far as it has arrived while the call streams. */
+  readonly title: string;
+  /** What the reader sees: the page as the tool changed it (local images inlined), else the call's own. */
+  readonly html: string;
+}
+
+export const pageCall = once((data): PageCall => {
+  const details = obj(data.details);
+  return {
+    title: (str(details?.title) ?? str(data.args.title) ?? "").trim(),
+    html: str(details?.html) ?? str(data.args.html) ?? "",
+  };
+});
+
+/**
+ * `Writing page · 12 KB`: the placeholder's line while the call's page streams. The size counts characters, the unit
+ * of the tool's limit.
+ */
+export function pageWriting(data: ToolData): string {
+  return t.transcript.page.writing({ size: formatBytes(str(data.args.html)?.length ?? 0) });
+}
+
+/** Characters no platform's file names take, and control characters. */
+const unsafeFileName = /[\\/:*?"<>|\u0000-\u001f\u007f]+/g;
+
+/**
+ * `<title>.html`, what the save panel offers for a page: the title without the characters a file name cannot hold, at
+ * most 100 characters before the extension.
+ */
+export function pageFileName(title: string): string {
+  const base = title.replace(unsafeFileName, " ").replace(/\s+/g, " ").trim().replace(/^\.+|\.+$/g, "").slice(0, 100);
+  return `${base.trim() || t.transcript.page.fileName}.html`;
+}
 
 export interface GenericCall {
   readonly subject: string;

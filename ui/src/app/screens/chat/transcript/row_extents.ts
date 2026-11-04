@@ -1,7 +1,7 @@
 // Port of lib/screens/chat/transcript/row_extents.dart. Its MeasuredRow is not ported: the transcript measures its rows
 // with a ResizeObserver and reports each height to `RowExtents.measured`.
 import type { ContentBlock } from "../../../../core/store/content";
-import type { TranscriptRow } from "./transcript_rows";
+import { toolKindFor, type TranscriptRow } from "./transcript_rows";
 
 /**
  * Row heights for the transcript's scroll extent: the height a row had when last measured, else an estimate from its
@@ -86,8 +86,9 @@ function extentAt14(row: TranscriptRow, column: number): number {
     case "AssistantImageRow":
       return 6 + 200;
     case "ToolRow":
-      // One tool line; an open body is measured once it is laid out.
-      return 2 + 29;
+      // A page: its title bar over a page about a chart tall. Any other call: one tool line; an open body is measured
+      // once it is laid out.
+      return toolKindFor(row.toolName) === "page" ? 2 + 36 + 320 + 6 : 2 + 29;
     case "AssistantFooterRow":
       // The message actions sit at the end of the facts' line and make it an icon button tall.
       return 4 + (row.item.entryId === undefined ? 16 : 32);

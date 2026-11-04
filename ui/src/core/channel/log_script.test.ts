@@ -76,16 +76,20 @@ function parsed(line: string): JsonObject {
   return asJsonObject(JSON.parse(line), "line");
 }
 
-/** [frame] as omp sends one over its line limit: [count] `rpc_chunk` lines, each with the base64 of its slice. */
-function chunks(frame: string, chunkId: string, count: number): string[] {
+/**
+ * [frame] as omp sends one over its line limit: [count] `rpc_chunk` lines, each with the base64 of its slice of [size]
+ * bytes (the last one of what is left).
+ */
+function chunks(frame: string, chunkId: string, count: number, size?: number): string[] {
   const bytes = new TextEncoder().encode(frame);
-  const size = Math.ceil(bytes.length / count);
-  return Array.from(
-    { length: count },
-    (_, i) =>
+  const slice = size ?? Math.ceil(bytes.length / count);
+  return Array.from({ length: count }, (_, i) => {
+    const end = i === count - 1 ? bytes.length : (i + 1) * slice;
+    return (
       `{"type":"rpc_chunk","chunkId":"${chunkId}","index":${i},"count":${count},"byteLength":${bytes.length},` +
-      `"data":"${Buffer.from(bytes.subarray(i * size, Math.min((i + 1) * size, bytes.length))).toString("base64")}"}`,
-  );
+      `"data":"${Buffer.from(bytes.subarray(i * slice, end)).toString("base64")}"}`
+    );
+  });
 }
 
 async function until(done: () => boolean): Promise<void> {
@@ -191,6 +195,56 @@ test("the next progress of a tool call waits as long as its last one takes at pr
   await until(() => read().includes("toolu_small"));
   await finish(process);
   expect(splitLines(read())).toEqual([big(1), update("toolu_small", 1), big(2)]);
+});
+
+/** A streamed assistant message's frame as omp stamps it: the message id last, after the whole message. */
+function message(id: string, n: number, pad = 0): string {
+  return (
+    `{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"x"},` +
+    `"message":{"role":"assistant","n":${n},"pad":"${"x".repeat(pad)}"},"messageId":"${id}"}`
+  );
+}
+
+function messageEnd(id: string): string {
+  return `{"type":"message_end","message":{"role":"assistant"},"messageId":"${id}"}`;
+}
+
+test("a message frame under 64 KiB goes out at once; the newest next one after its bytes at progressRate", async () => {
+  const process = pump({ hold: 60000, progressRate: 1000 });
+  await write(process, linesOf([message("msg-1", 1), message("msg-1", 2), message("msg-1", 3), messageEnd("msg-1")]));
+  await finish(process);
+  // message 1 takes about 0.15 s at 1000 bytes a second: 2 and 3 come before that, and the end releases 3.
+  expect(splitLines(read())).toEqual([message("msg-1", 1), message("msg-1", 3), messageEnd("msg-1")]);
+});
+
+test("a message's frame of 64 KiB or more waits the hold after the first one held", async () => {
+  const process = pump({ hold: 100 });
+  const big = (n: number) => message("msg-2", n, 70_000);
+  await write(process, linesOf([big(1), big(2)]));
+  await until(() => read() !== "");
+  await finish(process);
+  expect(splitLines(read())).toEqual([big(2)]);
+});
+
+test("a message frame without its id last, or with one that needs decoding, goes out at once", async () => {
+  const process = pump({ hold: 60000, progressRate: 1000 });
+  const escaped = String.raw`{"type":"message_update","message":{"n":1},"messageId":"m\"1"}`;
+  const notLast = '{"type":"message_update","messageId":"msg-1","message":{"n":2}}';
+  await write(process, linesOf([message("msg-1", 1), message("msg-1", 2), escaped, notLast]));
+  await finish(process);
+  // The held frame goes out ahead of a frame that is not held.
+  expect(splitLines(read())).toEqual([message("msg-1", 1), message("msg-1", 2), escaped, notLast]);
+});
+
+test("a chunked message frame is keyed by its end, also when the last chunk cuts the id short", async () => {
+  const process = pump({ hold: 60000, progressRate: 1000 });
+  const first = chunks(message("msg-3", 1, 400), "rpc-1", 3);
+  const frame = message("msg-3", 2, 400);
+  const second = chunks(frame, "rpc-2", 2, frame.length - 5);
+  const third = chunks(message("msg-3", 3, 400), "rpc-3", 3);
+  await write(process, linesOf([...first, ...second, ...third, messageEnd("msg-3")]));
+  await finish(process);
+  expect(splitLines(read())).toEqual([...first, ...third, messageEnd("msg-3")]);
 });
 
 test("a rotation starts the next generation with its marker, the history as of the carry, and the log from there", async () => {

@@ -1,0 +1,11 @@
+/* The page sits on whatever it is in: no stroke, no tone of its own (frame.html keeps its document transparent). */
+.page-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+}
+
+.page-frame-fill {
+  height: 100%;
+}

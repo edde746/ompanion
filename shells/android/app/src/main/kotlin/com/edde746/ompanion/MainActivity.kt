@@ -27,6 +27,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebViewRenderProcess
+import android.webkit.WebViewRenderProcessClient
 import android.widget.FrameLayout
 import androidx.activity.BackEventCompat
 import androidx.activity.ComponentActivity
@@ -253,6 +255,7 @@ class MainActivity : ComponentActivity() {
         webView.settings.allowContentAccess = false
         webView.webViewClient = Client()
         webView.webChromeClient = Chrome()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) webView.setWebViewRenderProcessClient(Unresponsive())
         WebViewCompat.addWebMessageListener(webView, "ompCoreNative", setOf("https://$HOST")) { _, message, _, isMainFrame, proxy ->
             // Only the page itself talks to the core: a frame of the same origin must not take over its replies.
             if (!isMainFrame) {
@@ -654,18 +657,19 @@ class MainActivity : ComponentActivity() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
             assetLoader.shouldInterceptRequest(request.url)
 
+        // Links open only through shell.openUrl, which the page calls after asking the user: the main frame never
+        // leaves the app, and no navigation is handed to the browser. Subframes (the agent-HTML frame and what its page
+        // embeds) load what the pages' policies allow. With multiple windows off, window.open and target=_blank come
+        // here as main-frame navigations.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url
-            if (!request.isForMainFrame || url.host == HOST) return false
-            if (url.scheme == "https" || url.scheme == "http") {
-                startActivity(Intent(Intent.ACTION_VIEW, url))
-            } else {
-                Log.w(TAG, "blocked a navigation to $url")
-            }
+            if (!request.isForMainFrame || (url.scheme == "https" && url.host == HOST)) return false
+            Log.w(TAG, "blocked a navigation to ${url.scheme}://${url.host}")
             return true
         }
 
-        // The renderer crashed or the system reclaimed it: a fresh WebView reloads the page; the core keeps running.
+        // The renderer crashed, the system reclaimed it or Unresponsive ended it: a fresh WebView reloads the page; the
+        // core keeps running.
         @RequiresApi(Build.VERSION_CODES.O)
         override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
             Log.e(TAG, "the renderer is gone (crashed: ${detail.didCrash()}); reloading the page")
@@ -679,6 +683,19 @@ class MainActivity : ComponentActivity() {
             showPage()
             return true
         }
+    }
+
+    // An agent's page shares the app page's renderer here, so one that never yields (an endless loop) stops the app
+    // too. Once the renderer misses an input event or a navigation for a few seconds, it is ended, and
+    // onRenderProcessGone loads the page again.
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private inner class Unresponsive : WebViewRenderProcessClient() {
+        override fun onRenderProcessUnresponsive(view: WebView, renderer: WebViewRenderProcess?) {
+            Log.e(TAG, "the renderer is unresponsive; ending it")
+            if (renderer?.terminate() != true) Log.e(TAG, "ending the unresponsive renderer failed")
+        }
+
+        override fun onRenderProcessResponsive(view: WebView, renderer: WebViewRenderProcess?) = Unit
     }
 }
 

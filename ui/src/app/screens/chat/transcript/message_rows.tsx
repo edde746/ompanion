@@ -1,6 +1,6 @@
 // Port of lib/screens/chat/transcript/message_rows.dart: the component of one transcript row.
 import { createMemo, For, Match, Show, Switch, untrack, useContext } from "solid-js";
-import type { JSX } from "@solidjs/web";
+import { Dynamic, type JSX } from "@solidjs/web";
 import { isJsonObject } from "../../../../core/rpc/json_fields";
 import { isImageBlock, textOf } from "../../../../core/store/content";
 import {
@@ -31,18 +31,20 @@ import "./code_style.css";
 import { ImageStrip, TranscriptImage } from "./images_view";
 import { TranscriptMarkdown } from "./markdown";
 import "./message_rows.css";
+import { PageView } from "./page_view";
 import { splitSummaryFiles } from "./summary_files";
 import { SummaryFiles } from "./summary_files_view";
 import { TerminalOutput, ToolCard, TranscriptCard } from "./tool_card";
 import { toolData } from "./tool_data";
 import { TranscriptScope, useStoredState } from "./transcript_actions";
-import type {
-  AssistantFooterRow,
-  AwaitingReplyRow,
-  ThinkingRow,
-  TranscriptRow,
-  TurnFacts,
-  TurnSummaryRow,
+import {
+  type AssistantFooterRow,
+  type AwaitingReplyRow,
+  type ThinkingRow,
+  toolKindFor,
+  type TranscriptRow,
+  type TurnFacts,
+  type TurnSummaryRow,
 } from "./transcript_rows";
 import { folds, foldAt, head, lineCount } from "./user_message";
 
@@ -119,7 +121,12 @@ export function TranscriptRowView(props: {
           {(image) => <TranscriptImage image={image().block} />}
         </Match>
         <Match when={props.row.kind === "ToolRow" ? props.row : undefined}>
-          {(tool) => <ToolCard data={toolData({ row: tool(), result: props.result, subagents: props.subagents })} />}
+          {(tool) => (
+            <Dynamic
+              component={toolKindFor(tool().toolName) === "page" ? PageView : ToolCard}
+              data={toolData({ row: tool(), result: props.result, subagents: props.subagents })}
+            />
+          )}
         </Match>
         <Match when={props.row.kind === "AssistantFooterRow" ? props.row : undefined}>
           {(footer) => <AssistantFooter row={footer()} />}

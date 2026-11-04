@@ -92,16 +92,3 @@ main {
 .smoke-terminal {
   height: 220px;
 }
-
-/* Agent HTML */
-
-.agent-frame {
-  /* The reported height is the content's; borders go outside it. */
-  box-sizing: content-box;
-  display: block;
-  width: calc(100% - 2px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: #ffffff;
-  min-height: 40px;
-}

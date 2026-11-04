@@ -325,32 +325,31 @@ final class Shell: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUID
         decisionHandler(policy(for: navigationAction))
     }
 
+    /// Links open only through shell.openUrl, which the page calls after asking the user: a navigation away from the
+    /// app is cancelled, never handed to the browser.
     private func policy(for action: WKNavigationAction) -> WKNavigationActionPolicy {
         guard let url = action.request.url else { return .cancel }
         switch action.targetFrame?.isMainFrame {
         case true? where Self.isApp(url):
             return .allow
-        // Subframes: the agent-HTML frame (the bundle's frame.html), srcdoc and blank frames.
-        case false? where Self.isApp(url) || url.absoluteString == "about:srcdoc" || url.absoluteString == "about:blank":
+        // Subframes: the agent-HTML frame (the bundle's frame.html) and what its page embeds. The pages' policies decide
+        // which of these load: the app page's frame-src 'self', frame.html's https:, data: and blob:.
+        case false? where Self.isApp(url) || Self.subframeSchemes.contains(url.scheme ?? ""):
             return .allow
         default:
-            if url.scheme == "http" || url.scheme == "https", action.navigationType == .linkActivated {
-                Self.openExternally(url)
-            }
+            NSLog("shell: blocked a navigation to %@://%@", url.scheme ?? "", url.host ?? "")
             return .cancel
         }
     }
 
-    // window.open: the page never gets a second web view; an http(s) URL goes to the system browser.
+    // window.open and target=_blank: the page never gets a second web view, and no link opens the browser this way.
     func webView(
         _ webView: WKWebView,
         createWebViewWith configuration: WKWebViewConfiguration,
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        if let url = navigationAction.request.url, url.scheme == "http" || url.scheme == "https" {
-            Self.openExternally(url)
-        }
+        NSLog("shell: blocked a new window for %@", navigationAction.request.url?.scheme ?? "no URL")
         return nil
     }
 
@@ -384,13 +383,8 @@ final class Shell: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUID
         url.scheme == "app" && url.host == "ompanion"
     }
 
-    private static func openExternally(_ url: URL) {
-        #if os(macOS)
-        NSWorkspace.shared.open(url)
-        #else
-        UIApplication.shared.open(url)
-        #endif
-    }
+    /// Besides the app's own: srcdoc and blank frames, and what frame.html's policy lets an agent page embed.
+    private static let subframeSchemes: Set<String> = ["about", "https", "data", "blob"]
 }
 
 /// The core's listener for one page.

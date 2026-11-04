@@ -439,18 +439,14 @@ HRESULT onDomContentLoaded(ICoreWebView2*, ICoreWebView2DOMContentLoadedEventArg
     return S_OK;
 }
 
+// window.open and target=_blank. Links open only through shell.openUrl, which the page calls after asking the user, so
+// no new window opens anything: Handled keeps WebView2 from opening a window of its own.
 HRESULT onNewWindowRequested(ICoreWebView2*, ICoreWebView2NewWindowRequestedEventArgs* args) {
     LPWSTR raw;
     check(args->get_Uri(&raw), "reading a new window's URI");
     std::wstring uri = take(raw);
-    // Handled: WebView2 opens no window of its own.
     check(args->put_Handled(TRUE), "handling a new window");
-    if (!uri.starts_with(L"https://") && !uri.starts_with(L"http://")) {
-        log("blocked a new window for " + narrow(uri));
-        return S_OK;
-    }
-    auto opened = reinterpret_cast<INT_PTR>(ShellExecuteW(window, L"open", uri.c_str(), nullptr, nullptr, SW_SHOWNORMAL));
-    if (opened <= 32) log("opening " + narrow(uri) + " in the browser failed: " + std::to_string(opened));
+    log("blocked a new window for " + narrow(uri));
     return S_OK;
 }
 
@@ -464,9 +460,15 @@ HRESULT onProcessFailed(ICoreWebView2*, ICoreWebView2ProcessFailedEventArgs* arg
         if (!PostMessageW(window, kRecreate, 0, 0)) fail("posting the webview's recreation", lastError());
         break;
     case COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED:
-    case COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE:
-        log("the page's render process failed (kind " + std::to_string(kind) + "): reloading");
+        log("the page's render process exited: reloading");
         check(webview->Reload(), "reloading the page");
+        break;
+    // The page stopped answering input: a script that never yields, the app's own or an agent page's (WebView2 puts the
+    // sandboxed frame in a process of its own only sometimes). Reload does not bring it back: the reload waits on the
+    // same busy process. A new webview does, as WebView2's documentation advises; the old one's process goes with it.
+    case COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE:
+        log("the page's render process is unresponsive: recreating the webview");
+        if (!PostMessageW(window, kRecreate, 0, 0)) fail("posting the webview's recreation", lastError());
         break;
     default:
         log("a WebView2 process failed (kind " + std::to_string(kind) + ")");

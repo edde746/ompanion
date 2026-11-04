@@ -2,31 +2,151 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <!-- The agent HTML's policy; see src/AgentFrame.tsx. No source reaches the network. -->
+    <!--
+      The policy of an agent's page (src/app/screens/page_frame/page_frame.tsx): scripts, styles, images, fonts,
+      media, workers, frames and connections from https:, wss:, data: and blob:, never from http:. On Windows and
+      Android the app's own origin is https: too, so a page can load the app's files, but not read them: it has an
+      opaque origin and the shells send no CORS headers. document.open() keeps the document, and with it this
+      policy, for the page written into it.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'"
+      content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https: data: blob:; style-src 'unsafe-inline' https: data:; img-src https: data: blob:; font-src https: data:; media-src https: data: blob:; connect-src https: wss: data: blob:; worker-src https: data: blob:; frame-src https: data: blob:; form-action 'none'; base-uri 'none'"
     />
+    <!-- Until the page is written: the frame's colour scheme follows its element's, so it stays transparent. -->
+    <meta name="color-scheme" content="light dark" />
     <script>
-      // Replaces this document with the agent HTML the page posts, keeping this document's policy, then reports the
-      // content height whenever it changes.
-      addEventListener("message", function onHtml(event) {
-        if (event.source !== parent || !event.data || typeof event.data.html !== "string") return;
-        removeEventListener("message", onHtml);
-        document.open();
-        document.write(event.data.html);
-        document.close();
+      // The page's theme sheet: the app's colour scheme and variables, then the base sheet. A variable whose name or
+      // value could end its declaration, the rule or the <style> element is left out.
+      function themeSheet(theme) {
+        var variables = theme && typeof theme.variables === "object" && theme.variables !== null ? theme.variables : {};
+        var css = ":root{color-scheme:" + (theme && theme.appearance === "dark" ? "dark" : "light");
+        Object.keys(variables).forEach(function (name) {
+          var value = variables[name];
+          if (/^--[a-z0-9-]+$/.test(name) && typeof value === "string" && !/[;{}<>\\]/.test(value)) {
+            css += ";" + name + ":" + value;
+          }
+        });
+        return (
+          css +
+          "}html{background:transparent;color:var(--foreground);font:14px/1.5 var(--font-sans)}" +
+          "body{margin:0}code,kbd,pre,samp{font-family:var(--font-mono)}"
+        );
+      }
+
+      // Runs in the page's document ahead of the page's HTML, so before any of its scripts.
+      function helper(themeSheet) {
+        // Taken now: the page's scripts may shadow `parent`.
+        var host = parent;
+        var style = document.getElementById("ompanion-theme");
         var root = document.documentElement;
+
+        // The page's height whenever it changes: the root element's box, not scrollHeight, which never drops below
+        // the frame's current height.
         var reported = -1;
-        var report = function () {
-          // The root element's box, not scrollHeight: scrollHeight never drops below the frame's current height.
+        new ResizeObserver(function () {
           var height = Math.ceil(root.getBoundingClientRect().height);
           if (height === reported) return;
           reported = height;
-          parent.postMessage({ type: "ompanion-frame-height", height: height }, "*");
-        };
-        new ResizeObserver(report).observe(root);
-        report();
+          host.postMessage({ type: "ompanion-frame-height", height: height }, "*");
+        }).observe(root, { box: "border-box" });
+
+        addEventListener("message", function (event) {
+          var data = event.data;
+          if (event.source !== host || !data || data.type !== "ompanion-frame-theme") return;
+          style.textContent = themeSheet(data.theme);
+        });
+
+        // No link navigates the frame. A link within this document (a fragment, javascript:) works as usual; any
+        // other is cancelled, and a click of the reader's (not a script's) on one that leaves the app's own origin
+        // goes to the app as its absolute URL, which asks the reader before it opens anything.
+        addEventListener(
+          "click",
+          function (event) {
+            var path = event.composedPath();
+            var anchor = null;
+            for (var index = 0; index < path.length && anchor === null; index++) {
+              if (path[index] instanceof Element && path[index].matches("a[href]")) anchor = path[index];
+            }
+            if (anchor === null) return;
+            var link = document.createElement("a");
+            link.href = anchor.getAttribute("href");
+            var here = location.href.split("#")[0];
+            if (link.protocol === "javascript:" || (link.href !== here && link.href.split("#")[0] === here)) return;
+            event.preventDefault();
+            if (!event.isTrusted || (link.protocol === location.protocol && link.host === location.host)) return;
+            host.postMessage({ type: "ompanion-frame-link", url: link.href }, "*");
+          },
+          true,
+        );
+
+        // Whether the reader's finger is on the page: a drag that starts here scrolls the app's transcript, whose
+        // document never sees this document's touches, and the transcript must know the scroll is the reader's.
+        var touching = false;
+        function touch(event) {
+          var down = event.touches.length > 0;
+          if (!event.isTrusted || down === touching) return;
+          touching = down;
+          host.postMessage({ type: "ompanion-frame-touch", touching: down }, "*");
+        }
+        addEventListener("touchstart", touch, { capture: true, passive: true });
+        addEventListener("touchend", touch, { capture: true, passive: true });
+        addEventListener("touchcancel", touch, { capture: true, passive: true });
+
+        // The page has loaded: its scripts have run and what it loads has arrived. The app keeps the page's run
+        // record until a second after this (page_runs.ts): a page that never gets here, or that stops the app right
+        // after, keeps it.
+        addEventListener("load", function () {
+          host.postMessage({ type: "ompanion-frame-loaded" }, "*");
+        });
+
+        // A wheel or scroll key here scrolls the app's transcript too, as far as the page does not scroll itself: the
+        // transcript must know that scroll is the reader's. Space is left out: it scrolls nothing outside the frame
+        // (Chromium and WebKit), and keys typed into a field scroll nothing.
+        // Whether each scroll key scrolls towards the top.
+        var scrollKeys = { ArrowUp: true, PageUp: true, Home: true, ArrowDown: false, PageDown: false, End: false };
+        function scrolled(up) {
+          host.postMessage({ type: "ompanion-frame-scroll", up: up }, "*");
+        }
+        addEventListener(
+          "wheel",
+          function (event) {
+            if (event.isTrusted && !event.ctrlKey && event.deltaY !== 0) scrolled(event.deltaY < 0);
+          },
+          { capture: true, passive: true },
+        );
+        addEventListener(
+          "keydown",
+          function (event) {
+            var target = event.target;
+            var up = scrollKeys[event.key];
+            if (!event.isTrusted || typeof up !== "boolean" || target.isContentEditable) return;
+            if (!/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) scrolled(up);
+          },
+          true,
+        );
+      }
+
+      // The page arrives once: this document becomes the page's, under this document's policy.
+      addEventListener("message", function onPage(event) {
+        var data = event.data;
+        if (event.source !== parent || !data || data.type !== "ompanion-frame-page" || typeof data.html !== "string") {
+          return;
+        }
+        removeEventListener("message", onPage);
+        document.open();
+        document.write(
+          '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+            '<style id="ompanion-theme">' +
+            themeSheet(data.theme) +
+            "</style><script>(" +
+            helper +
+            ")(" +
+            themeSheet +
+            ");<\/script>",
+        );
+        document.write(data.html);
+        document.close();
       });
       parent.postMessage({ type: "ompanion-frame-ready" }, "*");
     </script>
