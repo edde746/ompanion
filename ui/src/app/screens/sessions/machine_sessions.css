@@ -185,10 +185,6 @@
   background: var(--on-surface);
 }
 
-.machine-sessions-dot-muted {
-  background: var(--on-surface-variant);
-}
-
 .machine-sessions-title {
   flex: 1;
   min-width: 0;

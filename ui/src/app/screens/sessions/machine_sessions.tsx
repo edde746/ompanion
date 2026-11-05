@@ -403,7 +403,7 @@ function StatusMark(props: { readonly mark: SessionStatus | "unread"; readonly w
           <Icon icon={Symbols.link_off} size={iconSize} class="machine-sessions-muted" />
         </Match>
         <Match when={props.mark === "runningOnMachine"}>
-          <span class="machine-sessions-dot machine-sessions-dot-muted" />
+          <Icon icon={Symbols.terminal} size={iconSize} class="machine-sessions-muted" />
         </Match>
         <Match when={props.mark === "unread"}>
           <span class="machine-sessions-dot" />

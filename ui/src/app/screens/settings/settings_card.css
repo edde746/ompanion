@@ -54,9 +54,12 @@
   letter-spacing: var(--body-medium-tracking);
 }
 
-/* The label of a switch that cannot change dims with it; the detail line, which may say why, stays readable. */
+/*
+ * The label of a switch that cannot change dims to the detail line's tone: dimmer than the detail would invert them,
+ * and the detail, which may say why, stays readable.
+ */
 .settings-switch-row-disabled .settings-row-label {
-  color: rgb(var(--on-surface-rgb) / 0.38);
+  color: var(--on-surface-variant);
 }
 
 .settings-row-detail {

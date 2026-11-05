@@ -871,7 +871,7 @@
     "offline": "Offline",
     "connecting": "Connecting…",
     "online": "omp $version",
-    "needsOmp": "omp needed: $reason",
+    "needsOmp": "$reason",
     "connect": "Connect",
     "install": "Install omp",
     "installOn": "Install omp on $machine",

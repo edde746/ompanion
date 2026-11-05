@@ -457,7 +457,8 @@ function AssistantFooter(props: { row: AssistantFooterRow }) {
     if (usage && usage.cacheRead > 0) list.push(t.transcript.tokensCached({ count: formatTokens(usage.cacheRead) }));
     if (usage && usage.cost > 0) list.push(formatUsd(usage.cost, usage.cost < 0.01 ? 4 : 3));
     const duration = item().durationMs;
-    if (duration !== undefined) list.push(t.transcript.seconds({ value: seconds(duration) }));
+    // Under 0.1 s it would read `0.0 s`, which says nothing; the thinking line leaves it out the same way.
+    if (duration !== undefined && duration >= 100) list.push(t.transcript.seconds({ value: seconds(duration) }));
     return list;
   });
   const recovery = () => item().retryRecovery;
