@@ -120,8 +120,11 @@ async function policySettings(
   return { policies, reservePct: number(await get("retry.usageReservePct"), "value") };
 }
 
-/** `formatAccountHeader` after the label and the qualifier. */
-export function headerParts(report: UsageReport, nowMs: number): string[] {
+/**
+ * `formatAccountHeader` after the label and the qualifier. The report's age shows only when it is over 90 s older than
+ * `pageFetchedAt`, the newest report, whose age the page already says.
+ */
+export function headerParts(report: UsageReport, nowMs: number, pageFetchedAt = nowMs): string[] {
   const parts: string[] = [];
   const plan = report.planType;
   if (plan !== undefined && plan !== "") parts.push(t.usage.plan({ plan }));
@@ -145,7 +148,7 @@ export function headerParts(report: UsageReport, nowMs: number): string[] {
     }
   }
   const fetchedAt = report.fetchedAt;
-  if (fetchedAt !== undefined && nowMs - fetchedAt > 90_000) {
+  if (fetchedAt !== undefined && pageFetchedAt - fetchedAt > 90_000) {
     parts.push(t.usage.fetchedAgo({ ago: formatUsageDuration(nowMs - fetchedAt) }));
   }
   return parts;

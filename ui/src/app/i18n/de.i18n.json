@@ -41,16 +41,12 @@
     "fetched": "Vor $ago abgerufen",
     "notFetched": "Noch nicht abgerufen",
     "hideIdentities": "E-Mails und Organisationen ausblenden",
-    "showIdentities": "E-Mails und Organisationen anzeigen",
+    "more": "Mehr",
     "hiddenIdentity": "Ausgeblendet",
     "none": "Keine Nutzungsdaten. Konten von Anbietern mit Nutzungs-Endpunkt (zum Beispiel Claude- und ChatGPT-Abos) zeigen hier ihre Limits.",
     "noMachines": "Noch keine Rechner. Füge einen in der Seitenleiste hinzu.",
     "machines": "Rechner",
     "asking": "omp wird abgefragt…",
-    "machineAccounts": {
-      "one": "omp $version · $n Konto",
-      "other": "omp $version · $n Konten"
-    },
     "providerAccounts": {
       "one": "$n Konto",
       "other": "$n Konten"
@@ -82,7 +78,6 @@
     "exhausted": "ausgeschöpft",
     "policyOn": "$line ($machine)",
     "noLimits": "keine Limits gemeldet",
-    "notReported": "nicht gemeldet",
     "noData": "keine Daten",
     "amountOf": "$used / $limit",
     "amountLeft": "$amount übrig",
@@ -105,17 +100,17 @@
     "reloginWithin": "innerhalb von $duration erneut anmelden (Anthropic lässt OAuth-Grants ~30 Tage nach der Anmeldung ablaufen)",
     "reloginNow": "Grant ist älter als die ~30 Tage von Anthropic; melde dich jetzt neu an",
     "capacity": "Kapazität",
-    "capacityWindow": {
-      "one": "$used/$n Konto genutzt · $left× Kontingent übrig",
-      "other": "$used/$n Konten genutzt · $left× Kontingent übrig"
+    "capacityUsed": {
+      "one": "$used/$n Konto genutzt",
+      "other": "$used/$n Konten genutzt"
     },
+    "capacityLeft": "$left× Kontingent übrig",
     "tabs": {
       "limits": "Limits",
       "stats": "Statistik"
     },
     "stats": {
       "reading": "Sitzungsdateien werden gelesen…",
-      "scanned": "$files Sitzungsdateien · $size · $time",
       "unreadable": {
         "one": "$n Datei konnte nicht gelesen werden: $error",
         "other": "$n Dateien konnten nicht gelesen werden: $error"

@@ -2,7 +2,6 @@
 import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, For, onSettled, Show, untrack } from "solid-js";
 import { activityQueryLocal, activityRanges, localDay, readActivityStats } from "../../../core/host/activity_stats";
-import type { HostProbe } from "../../../core/host/probe";
 import type { MachineRuntime, MachineStatus } from "../../../core/session/machine_runtime";
 import type { Subscription } from "../../../core/util/stream";
 import { useMachines, useSessions, useSettings, useUsageReminders } from "../../app_state";
@@ -13,8 +12,7 @@ import type { Machine } from "../../models/machine";
 import type { ReminderMode } from "../../notifications/usage_reminder";
 import { reminderTime } from "../../notifications/usage_reminder";
 import { Prefs } from "../../providers/settings_provider";
-import { formatBytes } from "../../utils/byte_size";
-import { formatCount, formatFixed } from "../../utils/number_format";
+import { formatFixed } from "../../utils/number_format";
 import { ActivityMark } from "../../widgets/activity_mark";
 import { AppSegmented } from "../../widgets/app_segmented";
 import { AppSelect } from "../../widgets/app_select";
@@ -246,7 +244,7 @@ export function UsagePane() {
   );
 }
 
-function LimitsTab(props: {
+export function LimitsTab(props: {
   readonly machines: readonly Machine[];
   readonly statusOf: (id: string) => MachineStatus | undefined;
   readonly usage: ReadonlyMap<string, Fetch<MachineUsage>>;
@@ -265,69 +263,85 @@ function LimitsTab(props: {
   const overview = createMemo(() => mergeUsage(loaded()));
   const loading = () => [...props.usage.values()].some((fetch) => fetch.kind === "Loading");
   const fetchedAt = () => usageOverviewFetchedAt(overview());
+  const unanswered = () =>
+    props.machines.filter((machine) => !isAnswered(props.statusOf(machine.id), props.usage.get(machine.id)));
+  async function more(anchor: HTMLElement): Promise<void> {
+    const choice = await showMenu<"fetch" | "hide">({
+      anchor,
+      items: [
+        { value: "fetch", label: t.usage.fetchAgain, icon: Symbols.cloud_sync },
+        { value: "hide", label: t.usage.hideIdentities, checked: props.hide },
+      ],
+    });
+    if (choice === "fetch") props.onFetchAll(true);
+    if (choice === "hide") props.onHide(!props.hide);
+  }
   return (
     <>
       <div class="usage-pane-toolbar">
         {/* A machine that answered with no accounts leaves nothing to date: the note under the machines says why. */}
-        <Show
-          when={
-            fetchedAt() !== undefined
-              ? t.usage.fetched({ ago: formatUsageDuration(props.now - fetchedAt()!) })
-              : loaded().length === 0
-                ? t.usage.notFetched
-                : undefined
-          }
-        >
-          {(text) => <span class="usage-pane-muted usage-pane-fetched">{text()}</span>}
-        </Show>
-        <span class="usage-pane-actions">
-          <IconButton
-            icon={props.hide ? Symbols.visibility_off : Symbols.visibility}
-            tooltip={props.hide ? t.usage.showIdentities : t.usage.hideIdentities}
-            onClick={() => props.onHide(!props.hide)}
-          />
-          {/* Both stay enabled while a machine is still answering: a stalled machine must not hold up the others. */}
-          <TextButton icon={Symbols.cloud_sync} onClick={() => props.onFetchAll(true)}>
-            {t.usage.fetchAgain}
-          </TextButton>
-          <IconButton icon={Symbols.refresh} tooltip={t.config.refresh} onClick={() => props.onFetchAll(false)} />
+        <span class="usage-pane-muted usage-pane-fetched">
+          {fetchedAt() !== undefined
+            ? t.usage.fetched({ ago: formatUsageDuration(props.now - fetchedAt()!) })
+            : loaded().length === 0
+              ? t.usage.notFetched
+              : ""}
         </span>
+        {/* Both stay enabled while a machine is still answering: a stalled machine must not hold up the others. */}
+        <IconButton icon={Symbols.refresh} tooltip={t.config.refresh} onClick={() => props.onFetchAll(false)} />
+        <IconButton
+          icon={Symbols.more_vert}
+          tooltip={t.usage.more}
+          onClick={(event) => {
+            if (event.currentTarget instanceof HTMLElement) void more(event.currentTarget);
+          }}
+        />
       </div>
       <Show
         when={props.machines.length > 0}
         fallback={<p class="usage-pane-muted usage-pane-note">{t.usage.noMachines}</p>}
       >
-        <Heading text={t.usage.machines} />
-        <ConfigBlock padding="4px 12px">
-          <For each={props.machines}>
-            {(machine) => (
-              <MachineRow
-                machine={machine}
-                status={props.statusOf(machine.id)}
-                fetch={props.usage.get(machine.id)}
-                asking={t.usage.asking}
-                describe={(probe, value: MachineUsage) =>
-                  t.usage.machineAccounts({
-                    n:
-                      value.snapshot.reports.length +
-                      value.snapshot.accountsWithoutUsage.length +
-                      value.snapshot.disabledCredentials.length,
-                    version: probe.ompVersion ?? "?",
-                  })
-                }
-                onRetry={() => props.onRetry(machine.id)}
-              />
-            )}
-          </For>
-        </ConfigBlock>
+        <MachinesNeedingAttention machines={unanswered()}>
+          {(machine) => (
+            <MachineRow
+              machine={machine}
+              status={props.statusOf(machine.id)}
+              fetch={props.usage.get(machine.id)}
+              asking={t.usage.asking}
+              onRetry={() => props.onRetry(machine.id)}
+            />
+          )}
+        </MachinesNeedingAttention>
         <Show when={overview().providers.length === 0 && loaded().length > 0 && !loading()}>
           <p class="usage-pane-muted usage-pane-note">{t.usage.none}</p>
         </Show>
         <For each={overview().providers}>
-          {(provider) => <ProviderSection provider={provider} now={props.now} hide={props.hide} />}
+          {(provider) => (
+            <ProviderSection provider={provider} now={props.now} fetchedAt={fetchedAt()} hide={props.hide} />
+          )}
         </For>
       </Show>
     </>
+  );
+}
+
+/** A machine whose answer is in: it leaves the machines list, which lists only the machines that need a look. */
+function isAnswered<T>(status: MachineStatus | undefined, fetch: Fetch<T> | undefined): boolean {
+  return status?.kind === "MachineOnline" && fetch?.kind === "Loaded";
+}
+
+/** The machines still asking, failing or offline, under a heading; nothing while every machine answered. */
+function MachinesNeedingAttention(props: {
+  readonly machines: readonly Machine[];
+  readonly children: (machine: Machine) => JSX.Element;
+}) {
+  return (
+    <Show when={props.machines.length > 0}>
+      <Heading text={t.usage.machines} />
+      <ConfigBlock padding="4px 12px">
+        <For each={props.machines}>{(machine) => props.children(machine)}</For>
+      </ConfigBlock>
+    </Show>
   );
 }
 
@@ -354,6 +368,13 @@ function StatsTab(props: {
     mergeActivity(answered().filter((entry) => filter() === "" || entry.id === filter()).map((entry) => entry.activity)),
   );
   const loading = () => [...props.activity.values()].some((fetch) => fetch.kind === "Loading");
+  /** Machines not answered yet, and those whose scan could not read every file. */
+  const attention = () =>
+    props.machines.filter((machine) => {
+      const fetch = props.activity.get(machine.id);
+      if (!isAnswered(props.statusOf(machine.id), fetch)) return true;
+      return fetch?.kind === "Loaded" && fetch.value.stats.scan.errors > 0;
+    });
   const rangeLabel = (days: number) => {
     switch (days) {
       case 7:
@@ -395,30 +416,20 @@ function StatsTab(props: {
         when={props.machines.length > 0}
         fallback={<p class="usage-pane-muted usage-pane-note">{t.usage.noMachines}</p>}
       >
-        <Heading text={t.usage.machines} />
-        <ConfigBlock padding="4px 12px">
-          <For each={props.machines}>
-            {(machine) => (
-              <MachineRow
-                machine={machine}
-                status={props.statusOf(machine.id)}
-                fetch={props.activity.get(machine.id)}
-                asking={s().reading}
-                describe={(_, value: MachineActivity) => {
-                  const scan = value.stats.scan;
-                  const scanned = s().scanned({
-                    files: formatCount(scan.files),
-                    size: formatBytes(scan.bytes),
-                    time: `${formatCount(Math.round(value.elapsedMs))} ms`,
-                  });
-                  if (scan.errors === 0) return scanned;
-                  return `${scanned} · ${s().unreadable({ n: scan.errors, error: scan.error ?? "" })}`;
-                }}
-                onRetry={() => props.onRetry(machine.id)}
-              />
-            )}
-          </For>
-        </ConfigBlock>
+        <MachinesNeedingAttention machines={attention()}>
+          {(machine) => (
+            <MachineRow
+              machine={machine}
+              status={props.statusOf(machine.id)}
+              fetch={props.activity.get(machine.id)}
+              asking={s().reading}
+              describe={(value: MachineActivity) =>
+                s().unreadable({ n: value.stats.scan.errors, error: value.stats.scan.error ?? "" })
+              }
+              onRetry={() => props.onRetry(machine.id)}
+            />
+          )}
+        </MachinesNeedingAttention>
         <Show when={activityOverviewIsEmpty(overview()) && answered().length > 0 && !loading()}>
           <p class="usage-pane-muted usage-pane-note">{s().none}</p>
         </Show>
@@ -450,14 +461,14 @@ function Dot(props: { readonly color: string }) {
   return <span class="usage-pane-dot" style={{ background: props.color }} />;
 }
 
-/** One machine: its status, what it answered (`describe`) or why not, and the action that helps. */
+/** A machine that needs a look: its status, why, and the action that helps; `describe` says what an answer lacks. */
 function MachineRow<T>(props: {
   readonly machine: Machine;
   readonly status: MachineStatus | undefined;
   readonly fetch: Fetch<T> | undefined;
   /** The line while the machine answers. */
   readonly asking: string;
-  readonly describe: (probe: HostProbe, answer: T) => string;
+  readonly describe?: (answer: T) => string;
   readonly onRetry: () => void;
 }) {
   const sessions = useSessions();
@@ -479,7 +490,7 @@ function MachineRow<T>(props: {
           };
         }
         if (fetch.kind === "Loaded") {
-          return { text: <span class="usage-pane-muted usage-pane-ellipsis">{props.describe(status.probe, fetch.value)}</span> };
+          return { text: <span class="usage-pane-warning usage-pane-ellipsis">{props.describe?.(fetch.value)}</span> };
         }
         return {
           text: <span class="usage-pane-error">{describeConnectError(fetch.error)}</span>,
@@ -520,7 +531,13 @@ function MachineRow<T>(props: {
  * One provider as `omp usage` prints it: its accounts, the accounts without usage data, the disabled credentials, and
  * the capacity per window.
  */
-function ProviderSection(props: { readonly provider: ProviderUsage; readonly now: number; readonly hide: boolean }) {
+function ProviderSection(props: {
+  readonly provider: ProviderUsage;
+  readonly now: number;
+  /** The newest report's fetch time, the page's `Fetched … ago`. */
+  readonly fetchedAt: number | undefined;
+  readonly hide: boolean;
+}) {
   const others = () => props.provider.withoutUsage.length + props.provider.disabled.length > 0;
   return (
     <section class="usage-pane-provider">
@@ -536,6 +553,7 @@ function ProviderSection(props: { readonly provider: ProviderUsage; readonly now
             index={index()}
             templates={props.provider.templates}
             now={props.now}
+            fetchedAt={props.fetchedAt}
             hide={props.hide}
           />
         )}
@@ -553,20 +571,25 @@ function ProviderSection(props: { readonly provider: ProviderUsage; readonly now
       <Show when={props.provider.capacity.length > 0}>
         <ConfigBlock padding="10px 16px">
           <h3 class="usage-pane-capacity-title">{t.usage.capacity}</h3>
-          <For each={props.provider.capacity}>
-            {(stat) => (
-              <div class="usage-pane-capacity">
-                <span class="usage-pane-capacity-window">{capacityWindow(stat)}</span>
-                <span class="usage-pane-small-muted usage-pane-figures">
-                  {t.usage.capacityWindow({
-                    n: stat.accounts,
-                    used: formatFixed(stat.usedAccounts, 2),
-                    left: formatFixed(stat.remainingAccounts, 2),
-                  })}
-                </span>
-              </div>
-            )}
-          </For>
+          <div class="usage-pane-capacity">
+            <For each={props.provider.capacity}>
+              {(stat) => (
+                <>
+                  <span class="usage-pane-capacity-window">{capacityWindow(stat)}</span>
+                  {/* Two facts, each kept whole: a narrow block wraps between them, never inside one. */}
+                  <span class="usage-pane-small-muted usage-pane-figures">
+                    <span class="usage-pane-fact">
+                      {t.usage.capacityUsed({ n: stat.accounts, used: formatFixed(stat.usedAccounts, 2) })}
+                    </span>
+                    {" · "}
+                    <span class="usage-pane-fact">
+                      {t.usage.capacityLeft({ left: formatFixed(stat.remainingAccounts, 2) })}
+                    </span>
+                  </span>
+                </>
+              )}
+            </For>
+          </div>
         </ConfigBlock>
       </Show>
     </section>
@@ -579,18 +602,26 @@ function capacityWindow(stat: CapacityStat): string {
 }
 
 /**
- * An account: its header (status, label, organization, plan, saved resets, age, machines), its policy, and one line
- * per limit any account of the provider has.
+ * An account: its header (status, label, organization, the reminder bell, machines), a muted line of its facts (plan,
+ * saved resets, an age older than the page's), its policy, and a line per limit it reports.
  */
 function AccountBlock(props: {
   readonly account: AccountUsage;
   readonly index: number;
   readonly templates: readonly LimitTemplate[];
   readonly now: number;
+  readonly fetchedAt: number | undefined;
   readonly hide: boolean;
 }) {
   const report = () => props.account.report;
-  const limits = createMemo(() => new Map(report().limits.map((limit) => [limit.id, limit])));
+  const rows = createMemo(() => {
+    const limits = new Map(report().limits.map((limit) => [limit.id, limit]));
+    return props.templates.flatMap((template) => {
+      const limit = limits.get(template.id);
+      return limit === undefined ? [] : [{ title: template.title, limit }];
+    });
+  });
+  const facts = () => headerParts(report(), props.now, props.fetchedAt);
   return (
     <ConfigBlock padding="12px 16px 10px" class="usage-pane-account">
       <div class="usage-pane-account-header">
@@ -609,15 +640,15 @@ function AccountBlock(props: {
               </span>
             )}
           </Show>
-          <For each={headerParts(report(), props.now)}>
-            {(part) => <span class="usage-pane-small-muted">{` · ${part}`}</span>}
-          </For>
         </span>
         <Show when={report().limits.some((limit) => limit.resetsAt !== undefined)}>
           <ReminderButton report={report()} now={props.now} />
         </Show>
         <MachineTags machines={props.account.machines} />
       </div>
+      <Show when={facts().length > 0}>
+        <p class="usage-pane-small-muted usage-pane-policy">{facts().join(" · ")}</p>
+      </Show>
       <For each={props.account.policies}>
         {({ machine, policy }) => (
           <p class="usage-pane-small-muted usage-pane-policy">
@@ -628,29 +659,22 @@ function AccountBlock(props: {
         )}
       </For>
       <Show
-        when={report().limits.length > 0}
+        when={rows().length > 0}
         fallback={<p class="usage-pane-small-muted usage-pane-no-limits">{t.usage.noLimits}</p>}
       >
         <div class="usage-pane-limits">
-          <For each={props.templates}>
-            {(template) => (
+          <For each={rows()}>
+            {(row) => (
               <div class="usage-pane-limit">
                 <span class="usage-pane-limit-dot">
-                  <Dot
-                    color={(() => {
-                      const limit = limits().get(template.id);
-                      return limit === undefined ? "var(--surface-container-highest)" : statusColor(usageLimitStatus(limit));
-                    })()}
-                  />
+                  <Dot color={statusColor(usageLimitStatus(row.limit))} />
                 </span>
-                <span class={["usage-pane-limit-title", { "usage-pane-muted": !limits().has(template.id) }]}>
-                  {template.title}
-                </span>
+                <span class="usage-pane-limit-title">{row.title}</span>
                 <span class="usage-pane-limit-bar">
-                  <Bar limit={limits().get(template.id)} />
+                  <Bar limit={row.limit} />
                 </span>
                 <span class="usage-pane-limit-details">
-                  <LimitDetails limit={limits().get(template.id)} report={report()} now={props.now} />
+                  <LimitDetails limit={row.limit} report={report()} now={props.now} />
                 </span>
               </div>
             )}
@@ -661,38 +685,31 @@ function AccountBlock(props: {
   );
 }
 
-/**
- * `describeAmount` and the reset countdown, then the limit's notes; "not reported" for a limit the account lacks. The
- * countdown opens the limit's reminder.
- */
-function LimitDetails(props: { readonly limit: UsageLimit | undefined; readonly report: UsageReport; readonly now: number }) {
+/** `describeAmount` and the reset countdown, then the limit's notes. The countdown opens the limit's reminder. */
+function LimitDetails(props: { readonly limit: UsageLimit; readonly report: UsageReport; readonly now: number }) {
   return (
-    <Show when={props.limit} fallback={<span>{t.usage.notReported}</span>}>
-      {(limit) => (
-        <>
-          <Show
-            when={limit().resetsAt !== undefined && limit().resetsAt! > props.now}
-            fallback={<span>{limitAmount(limit())}</span>}
-          >
-            <span class="usage-pane-reset-line">
-              <span>{`${limitAmount(limit())} · `}</span>
-              <ReminderButton
-                report={props.report}
-                limit={limit()}
-                now={props.now}
-                label={t.usage.resetsIn({
-                  verb: limit().resetLabel ?? t.usage.resets,
-                  duration: formatUsageDuration(limit().resetsAt! - props.now),
-                })}
-              />
-            </span>
-          </Show>
-          <Show when={limit().notes.length > 0}>
-            <span>{limit().notes.join(" · ")}</span>
-          </Show>
-        </>
-      )}
-    </Show>
+    <>
+      <Show
+        when={props.limit.resetsAt !== undefined && props.limit.resetsAt > props.now}
+        fallback={<span>{limitAmount(props.limit)}</span>}
+      >
+        <span class="usage-pane-reset-line">
+          <span>{`${limitAmount(props.limit)} · `}</span>
+          <ReminderButton
+            report={props.report}
+            limit={props.limit}
+            now={props.now}
+            label={t.usage.resetsIn({
+              verb: props.limit.resetLabel ?? t.usage.resets,
+              duration: formatUsageDuration(props.limit.resetsAt! - props.now),
+            })}
+          />
+        </span>
+      </Show>
+      <Show when={props.limit.notes.length > 0}>
+        <span>{props.limit.notes.join(" · ")}</span>
+      </Show>
+    </>
   );
 }
 
@@ -819,13 +836,13 @@ function ReminderButton(props: {
 
 /**
  * A flat quota bar: onSurface while fine, the status colour once it warns or is exhausted; an empty track when the
- * provider gives no fraction or the account lacks the limit.
+ * provider gives no fraction.
  */
-function Bar(props: { readonly limit: UsageLimit | undefined }) {
+function Bar(props: { readonly limit: UsageLimit }) {
   const fill = () => {
     const limit = props.limit;
-    const fraction = limit?.usedFraction;
-    if (limit === undefined || fraction === undefined) return undefined;
+    const fraction = limit.usedFraction;
+    if (fraction === undefined) return undefined;
     const status = usageLimitStatus(limit);
     const color = status === "exhausted" ? "var(--error)" : status === "warning" ? "var(--warning)" : "var(--on-surface)";
     return { width: `${Math.min(1, Math.max(0, fraction)) * 100}%`, background: color };
@@ -905,10 +922,8 @@ function OtherRow(props: {
     <div class="usage-pane-other">
       <span class="usage-pane-other-icon">{props.icon}</span>
       <span class="usage-pane-other-body">
-        <span class="usage-pane-other-label">
-          {props.label}
-          <span class={props.error ? "usage-pane-small-error" : "usage-pane-small-muted"}>{`  ${props.text}`}</span>
-        </span>
+        <span>{props.label}</span>
+        <span class={props.error ? "usage-pane-small-error" : "usage-pane-small-muted"}>{props.text}</span>
         {props.children}
       </span>
       <MachineTags machines={[props.machine]} />

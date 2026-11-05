@@ -195,7 +195,17 @@ export const screens: Screen[] = [
     reach: async (context) => {
       await resetSettings(context.page);
       await openUsage(context.page);
-      await context.page.locator(".usage-pane").getByText(/^omp \d/).first().waitFor({ timeout: 60_000 });
+      // An answered machine leaves the machines list; the isolated omp's answer is the note that it has no accounts.
+      await context.page.locator(".usage-pane").getByText(/^No usage data/).waitFor({ timeout: 60_000 });
+    },
+  },
+  // The isolated omp has no provider accounts: the limits come from the recorded `omp usage` fixtures.
+  { name: "usage-limits", query: "gallery=usage" },
+  {
+    name: "usage-limits-end",
+    query: "gallery=usage",
+    reach: async ({ page }) => {
+      await page.locator(".usage-pane-body").evaluate((element) => element.scrollTo(0, element.scrollHeight));
     },
   },
   { name: "stats-omp", omp: true, reach: (context) => openStats(context) },

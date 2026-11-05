@@ -533,11 +533,14 @@ export function identityOrg(identity: UsageIdentity, base: string | undefined): 
   return org === base ? undefined : org;
 }
 
-/** `formatProviderName`: `openai-codex` → `Openai Codex`. */
+/** Words of provider ids omp's title case gets wrong (`Openai`). */
+const brandWords: Readonly<Record<string, string>> = { openai: "OpenAI", github: "GitHub", deepseek: "DeepSeek" };
+
+/** omp's `formatProviderName` with brands spelled as they spell themselves: `openai-codex` → `OpenAI Codex`. */
 export function formatProviderName(provider: string): string {
   return provider
     .split(/[-_]/)
-    .map((part) => (part === "" ? "" : `${part[0]!.toUpperCase()}${part.slice(1)}`))
+    .map((part) => brandWords[part] ?? (part === "" ? "" : `${part[0]!.toUpperCase()}${part.slice(1)}`))
     .join(" ");
 }
 

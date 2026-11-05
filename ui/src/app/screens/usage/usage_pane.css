@@ -25,6 +25,10 @@
   color: var(--error);
 }
 
+.usage-pane-warning {
+  color: var(--warning);
+}
+
 .usage-pane-small-muted,
 .usage-pane-small-error,
 .usage-pane-small-warning {
@@ -49,15 +53,11 @@
   margin-bottom: var(--gap);
 }
 
-/*
- * The fetch time, then the actions at the end; on a phone the time takes a line above them, so the fetch keeps its
- * words.
- */
+/* The fetch time, then refresh and the menu (ask providers again, hide identities) at the end, on one line. */
 .usage-pane-toolbar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--gap);
+  gap: 4px;
   min-height: var(--control);
 }
 
@@ -67,19 +67,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.usage-pane-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--gap);
-  margin-left: auto;
-}
-
-@media (max-width: 599px) {
-  .usage-pane-fetched {
-    flex-basis: 100%;
-  }
 }
 
 .usage-pane-heading {
@@ -141,23 +128,36 @@
   container-type: inline-size;
 }
 
+/*
+ * The label cut with `…` beside the bell and the machine tags; on a narrow card the tags take a line of their own
+ * under the label, so a long email keeps its room.
+ */
 .usage-pane-account-header {
   display: flex;
-  align-items: flex-start;
-}
-
-.usage-pane-account-header > .usage-pane-dot {
-  margin-top: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 4px;
 }
 
 .usage-pane-account-title {
   flex: 1;
   min-width: 0;
   margin: 0 var(--gap) 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .usage-pane-account-label {
   font-weight: 600;
+}
+
+@container (width < 480px) {
+  .usage-pane-account-header > .usage-pane-tags {
+    flex-basis: 100%;
+    justify-content: flex-start;
+    padding-left: 18px;
+  }
 }
 
 /* Hide mode's mosaic in an identity's place, in the text colour, from below the baseline to about cap height. */
@@ -221,6 +221,24 @@
   color: var(--on-surface-variant);
 }
 
+/*
+ * A limit's bell shows once its reminder is set, or while the pointer is on its countdown: a bell after every reset
+ * read as clutter, and the account's bell in the header says reminders exist. The slot keeps its width.
+ */
+.usage-pane-countdown .usage-pane-mark {
+  opacity: 0;
+}
+
+.usage-pane-countdown:focus-visible .usage-pane-mark {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .usage-pane-countdown:hover .usage-pane-mark {
+    opacity: 1;
+  }
+}
+
 .usage-pane-mark-active {
   color: var(--on-surface);
 }
@@ -240,10 +258,13 @@
   padding-left: 18px;
 }
 
-/* Limits in columns, as `omp usage` pads them: status, title, bar, amounts and reset. */
+/*
+ * Limits in columns, as `omp usage` pads them: status, title, bar, amounts and reset. The title and amount columns
+ * have a floor, so the bars of a provider's accounts, each in its own block, start and end at the same place.
+ */
 .usage-pane-limits {
   display: grid;
-  grid-template-columns: 18px auto 1fr auto;
+  grid-template-columns: 18px minmax(12em, max-content) 1fr minmax(15em, max-content);
   margin-top: 6px;
 }
 
@@ -344,8 +365,8 @@
   min-width: 0;
 }
 
-.usage-pane-other-label > span {
-  white-space: pre-wrap;
+.usage-pane-fact {
+  white-space: nowrap;
 }
 
 .usage-pane-capacity-title {
@@ -354,21 +375,20 @@
   letter-spacing: var(--label-large-tracking);
 }
 
+/* The windows in a column as wide as the longest, the figures in the rest. */
 .usage-pane-capacity {
-  display: flex;
-  align-items: flex-start;
-  padding: 2px 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 16px;
+  row-gap: 4px;
 }
 
 .usage-pane-capacity-window {
-  flex: none;
-  width: 96px;
   font: var(--body-small);
   letter-spacing: var(--body-small-tracking);
 }
 
 .usage-pane-figures {
-  flex: 1;
   font-variant-numeric: tabular-nums;
 }
 

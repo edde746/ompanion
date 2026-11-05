@@ -46,13 +46,12 @@ export type Translations = {
     readonly fetched: (args: { ago: Param }) => string;
     readonly notFetched: string;
     readonly hideIdentities: string;
-    readonly showIdentities: string;
+    readonly more: string;
     readonly hiddenIdentity: string;
     readonly none: string;
     readonly noMachines: string;
     readonly machines: string;
     readonly asking: string;
-    readonly machineAccounts: (args: { n: number; version: Param }) => string;
     readonly providerAccounts: (args: { n: number }) => string;
     readonly accountN: (args: { n: Param }) => string;
     readonly apiKey: string;
@@ -78,7 +77,6 @@ export type Translations = {
     readonly exhausted: string;
     readonly policyOn: (args: { line: Param; machine: Param }) => string;
     readonly noLimits: string;
-    readonly notReported: string;
     readonly noData: string;
     readonly amountOf: (args: { used: Param; limit: Param }) => string;
     readonly amountLeft: (args: { amount: Param }) => string;
@@ -101,14 +99,14 @@ export type Translations = {
     readonly reloginWithin: (args: { duration: Param }) => string;
     readonly reloginNow: string;
     readonly capacity: string;
-    readonly capacityWindow: (args: { n: number; used: Param; left: Param }) => string;
+    readonly capacityUsed: (args: { n: number; used: Param }) => string;
+    readonly capacityLeft: (args: { left: Param }) => string;
     readonly tabs: {
       readonly limits: string;
       readonly stats: string;
     };
     readonly stats: {
       readonly reading: string;
-      readonly scanned: (args: { files: Param; size: Param; time: Param }) => string;
       readonly unreadable: (args: { n: number; error: Param }) => string;
       readonly allMachines: string;
       readonly machineFilter: string;

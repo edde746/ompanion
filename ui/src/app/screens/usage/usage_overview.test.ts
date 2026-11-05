@@ -259,7 +259,11 @@ const numbers = [999, 18.4, 1500, 25000, 1500000];
 test("formatting follows omp's", () => {
   expect(durations.map(formatUsageDuration)).toEqual(["850ms", "1.5s", "35.5s", "30m15s", "2h14m", "2d5h", "1d"]);
   expect(numbers.map(formatUsageNumber)).toEqual(["999", "18.4", "1.5K", "25K", "1.5M"]);
-  expect(formatProviderName("openai-codex")).toBe("Openai Codex");
+  expect(["openai-codex", "github-copilot", "google_vertex"].map(formatProviderName)).toEqual([
+    "OpenAI Codex",
+    "GitHub Copilot",
+    "Google Vertex",
+  ]);
   expect(limitTitle(target.reports[0]!.limits[0]!)).toBe("Claude 5 Hour");
 });
 

@@ -41,16 +41,12 @@
     "fetched": "Fetched $ago ago",
     "notFetched": "Not fetched yet",
     "hideIdentities": "Hide emails and organizations",
-    "showIdentities": "Show emails and organizations",
+    "more": "More",
     "hiddenIdentity": "Hidden",
     "none": "No usage data. Accounts of providers with a usage endpoint (for example Claude and ChatGPT subscriptions) show their limits here.",
     "noMachines": "No machines yet. Add one in the sidebar.",
     "machines": "Machines",
     "asking": "Asking omp…",
-    "machineAccounts": {
-      "one": "omp $version · $n account",
-      "other": "omp $version · $n accounts"
-    },
     "providerAccounts": {
       "one": "$n account",
       "other": "$n accounts"
@@ -82,7 +78,6 @@
     "exhausted": "exhausted",
     "policyOn": "$line ($machine)",
     "noLimits": "no limits reported",
-    "notReported": "not reported",
     "noData": "no data",
     "amountOf": "$used / $limit",
     "amountLeft": "$amount left",
@@ -105,17 +100,17 @@
     "reloginWithin": "re-login within $duration (Anthropic expires OAuth grants ~30d after login)",
     "reloginNow": "grant is past Anthropic's ~30d lifetime; re-login now",
     "capacity": "Capacity",
-    "capacityWindow": {
-      "one": "$used/$n account used · $left× quota left",
-      "other": "$used/$n accounts used · $left× quota left"
+    "capacityUsed": {
+      "one": "$used/$n account used",
+      "other": "$used/$n accounts used"
     },
+    "capacityLeft": "$left× quota left",
     "tabs": {
       "limits": "Limits",
       "stats": "Stats"
     },
     "stats": {
       "reading": "Reading session files…",
-      "scanned": "$files session files · $size · $time",
       "unreadable": {
         "one": "$n file could not be read: $error",
         "other": "$n files could not be read: $error"
