@@ -363,7 +363,8 @@ async function usage(context: ShotContext): Promise<void> {
   const { page } = context;
   await toSidebar(page);
   await page.getByRole("button", { name: "Nutzung", exact: true }).click();
-  await page.locator(".usage-pane").getByText(/^omp \d/).first().waitFor({ timeout });
+  // An answered machine leaves the machines list; the isolated omp's answer is the note that it has no accounts.
+  await page.locator(".usage-pane").getByText(/^Keine Nutzungsdaten/).waitFor({ timeout });
   await context.snap("17-usage");
 }
 
