@@ -879,8 +879,8 @@
     "hours": "$value h",
     "days": "$value d",
     "pair": "$big $small",
-    "percent": "$value\u00a0%",
-    "usd": "$value\u00a0\\$"
+    "percent": "$value %",
+    "usd": "$value \\$"
   },
   "sessions": {
     "offline": "Offline",
