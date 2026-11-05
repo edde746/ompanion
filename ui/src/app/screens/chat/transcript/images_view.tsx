@@ -220,7 +220,7 @@ export function ZoomedImage(props: { bytes: Uint8Array; onClose: () => void }) {
             ref={(element) => (image = element)}
             src={url()}
             alt={t.transcript.image}
-            draggable={false}
+            draggable="false"
           />
         </div>
       </div>

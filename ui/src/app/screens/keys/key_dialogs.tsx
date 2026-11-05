@@ -123,7 +123,7 @@ function ImportKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
             rows={4}
             value={pem()}
             placeholder={t.keys.privateKeyHint}
-            spellcheck={false}
+            spellcheck="false"
             autocomplete="off"
             autocapitalize="off"
             onInput={(event) => setPem(event.currentTarget.value)}

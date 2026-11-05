@@ -218,6 +218,7 @@ export function ComposerField(props: ComposerFieldProps) {
       ref={root}
       class={["composer-field", { "composer-field-empty": empty() }]}
       contenteditable="plaintext-only"
+      spellcheck="false"
       role="textbox"
       aria-multiline="true"
       aria-label={props.placeholder}

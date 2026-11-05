@@ -372,7 +372,7 @@ function EditorField(props: { readonly value: string; readonly onInput: (value: 
       }}
       class="request-panel-editor code-style"
       value={props.value}
-      spellcheck={false}
+      spellcheck="false"
       onInput={(event) => {
         props.onInput(event.currentTarget.value);
         grow();

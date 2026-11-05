@@ -154,7 +154,7 @@ function ImportDialog(props: { readonly close: () => void }) {
           ref={field}
           class="transfer-dialogs-text"
           value={text()}
-          spellcheck={false}
+          spellcheck="false"
           autocomplete="off"
           onInput={(event) => setText(event.currentTarget.value)}
         />

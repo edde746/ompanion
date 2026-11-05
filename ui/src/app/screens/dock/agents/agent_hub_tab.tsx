@@ -445,6 +445,7 @@ function AgentDetail(props: {
               placeholder={props.agent.status === "parked" ? t.dock.hub.steerParkedHint : t.dock.hub.steerHint}
               disabled={busy()}
               enterkeyhint="send"
+              spellcheck="false"
               ref={(element) => (steerInput = element)}
               onInput={(event) => setDraft(event.currentTarget.value)}
               onKeyDown={(event) => {

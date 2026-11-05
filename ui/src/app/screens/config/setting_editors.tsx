@@ -464,7 +464,7 @@ function JsonArea(props: { readonly value: string; readonly rows: number; readon
       rows={props.rows}
       value={props.value}
       autofocus
-      spellcheck={false}
+      spellcheck="false"
       autocomplete="off"
       onInput={(event) => props.onInput(event.currentTarget.value)}
     />

@@ -46,7 +46,7 @@ export function TextField(props: TextFieldProps) {
         disabled={props.disabled}
         autofocus={props.autofocus}
         enterkeyhint={props.enterKeyHint}
-        spellcheck={false}
+        spellcheck="false"
         autocomplete="off"
         onInput={(event) => props.onInput(event.currentTarget.value)}
         onKeyDown={(event) => {

@@ -269,6 +269,7 @@ function SummaryDialog(props: { readonly close: (instructions?: string) => void 
           class="tree-tab-instructions"
           rows={2}
           autofocus
+          spellcheck="false"
           value={instructions()}
           onInput={(event) => setInstructions(event.currentTarget.value)}
         />
