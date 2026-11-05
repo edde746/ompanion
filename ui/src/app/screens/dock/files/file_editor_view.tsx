@@ -72,7 +72,7 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
     setDiff({ kind: "loading" });
     props.workspace.diff(props.document.path()).then(
       (text) => {
-        if (request === diffRequest) setDiff({ kind: "loaded", lines: parseUnifiedDiff(text) });
+        if (request === diffRequest) setDiff({ kind: "loaded", lines: withoutFileHeader(parseUnifiedDiff(text)) });
       },
       (error: unknown) => {
         if (request === diffRequest) setDiff({ kind: "failed", error });
@@ -403,6 +403,15 @@ function Editor(props: {
   );
 
   return <div class={["file-editor-code", { "file-editor-hidden": props.hidden }]} ref={host} />;
+}
+
+/**
+ * The diff without git's file header (`diff --git`, `index`, `---`/`+++`) above the first hunk: the open file already
+ * names it. A diff without hunks (a binary file, a mode change) keeps its header, the only text it has.
+ */
+function withoutFileHeader(lines: DiffLine[]): DiffLine[] {
+  const firstHunk = lines.findIndex((line) => line.kind === "hunk");
+  return firstHunk > 0 ? lines.slice(firstHunk) : lines;
 }
 
 function GitDiff(props: { readonly state: GitDiffState; readonly onRetry: () => void }) {

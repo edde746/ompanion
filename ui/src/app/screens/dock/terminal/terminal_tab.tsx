@@ -61,42 +61,48 @@ export function TerminalTab(props: { readonly machine: Machine; readonly session
 
   return (
     <div class="terminal-tab">
-      <div class="terminal-tab-bar">
-        <div class="terminal-tab-strip">
-          <For each={tabs()}>
-            {(session, index) => (
-              <TerminalTabButton
-                title={(session.changed(), session.title)}
-                selected={session === selected()}
-                onSelect={() => deck().select(index())}
-                onClose={() => deck().close(session)}
-              />
-            )}
-          </For>
+      <Show when={tabs().length > 0}>
+        <div class="terminal-tab-bar">
+          <div class="terminal-tab-strip">
+            <For each={tabs()}>
+              {(session, index) => (
+                <TerminalTabButton
+                  title={(session.changed(), session.title)}
+                  selected={session === selected()}
+                  onSelect={() => deck().select(index())}
+                  onClose={() => deck().close(session)}
+                />
+              )}
+            </For>
+          </div>
+          <IconButton
+            icon={Symbols.text_decrease}
+            iconSize={20}
+            tooltip={t.dock.terminals.smaller}
+            disabled={dock.terminalFontSize() <= minTerminalFontSize}
+            onClick={() => zoom(dock, -1)}
+          />
+          <IconButton
+            icon={Symbols.text_increase}
+            iconSize={20}
+            tooltip={t.dock.terminals.larger}
+            disabled={dock.terminalFontSize() >= maxTerminalFontSize}
+            onClick={() => zoom(dock, 1)}
+          />
+          <IconButton icon={Symbols.add} tooltip={t.dock.terminals.newTerminal} onClick={open} />
         </div>
-        <IconButton
-          icon={Symbols.text_decrease}
-          iconSize={20}
-          tooltip={t.dock.terminals.smaller}
-          disabled={dock.terminalFontSize() <= minTerminalFontSize}
-          onClick={() => zoom(dock, -1)}
-        />
-        <IconButton
-          icon={Symbols.text_increase}
-          iconSize={20}
-          tooltip={t.dock.terminals.larger}
-          disabled={dock.terminalFontSize() >= maxTerminalFontSize}
-          onClick={() => zoom(dock, 1)}
-        />
-        <IconButton icon={Symbols.add} tooltip={t.dock.terminals.newTerminal} onClick={open} />
-      </div>
+      </Show>
       <Show
         when={selected()}
         keyed
         fallback={
           <DockEmptyState
             icon={Symbols.terminal}
-            message={t.dock.terminals.empty({ machine: props.machine.name })}
+            message={
+              props.machine.kind === "LocalMachine"
+                ? t.dock.terminals.emptyLocal
+                : t.dock.terminals.empty({ machine: props.machine.name })
+            }
             action={
               <TonalButton icon={Symbols.add} onClick={open}>
                 {t.dock.terminals.newTerminal}

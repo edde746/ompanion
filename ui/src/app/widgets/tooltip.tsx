@@ -1,7 +1,7 @@
 // Flutter's Tooltip: a short label under a control, shown while a mouse rests on it or after a long press. Every
 // control with a tooltip gets it as its accessible name too. A label fades in and out (raw_tooltip.dart); a hidden one
 // stays until it has faded.
-import { createEffect, createMemo, createSignal, For } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup } from "solid-js";
 import { Curves, curveFrames, play, settled } from "../motion";
 import { insets } from "../platform";
 import { safeArea } from "./menu_placement";
@@ -49,6 +49,10 @@ export function tooltip(message: () => string, options: { readonly tap?: boolean
   let element: HTMLElement | undefined;
   createEffect(message, (text) => {
     element?.setAttribute("aria-label", text);
+  });
+  // A target removed under the pointer gets no pointerleave: its label goes with it (a snack bar timing out).
+  onCleanup(() => {
+    if (element && shown()?.target === element) hide();
   });
   return (target: HTMLElement) => {
     element = target;

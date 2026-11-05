@@ -8,6 +8,11 @@
   color: var(--on-surface);
 }
 
+/* The pane scrolls; its blocks keep their height (a card clips its content, so it would shrink and cut its rows). */
+.machine-detail-pane > * {
+  flex: none;
+}
+
 .machine-detail-pane-header {
   display: flex;
   align-items: center;

@@ -92,6 +92,10 @@
   background: var(--on-surface-variant);
 }
 
+.tool-card-mark-approval {
+  color: var(--warning);
+}
+
 .tool-card-line .tool-card-name {
   flex: none;
   max-width: 160px;

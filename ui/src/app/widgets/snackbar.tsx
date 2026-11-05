@@ -1,10 +1,12 @@
 // ScaffoldMessenger's SnackBar in the theme: inverseSurface with onInverseSurface text and radius `radius`, one at a
 // time, each for 4 s from when it is in, in the order they came. It moves as Material 3's floating SnackBar does
 // (material/snack_bar.dart): it grows from its bottom edge and fades in, fades out when it times out or its action is
-// pressed, and the next one comes in after. A touch can swipe it down and away (Dismissible, direction down).
+// pressed, and the next one comes in after. A touch can swipe it down and away (Dismissible, direction down). Its text
+// shows at most 3 lines; a longer one is whole in its tooltip.
 import { createSignal, onSettled, Show } from "solid-js";
 import { Curves, curveFrames, motionScale, play, settled } from "../motion";
 import { insets } from "../platform";
+import { tooltip } from "./tooltip";
 import "./snackbar.css";
 
 export interface SnackBarAction {
@@ -92,6 +94,8 @@ function restingBottom(): string | undefined {
 
 function SnackBar(props: { readonly bar: Bar }) {
   let element!: HTMLDivElement;
+  let text!: HTMLSpanElement;
+  const fullText = tooltip(() => props.bar.text);
   const bottom = restingBottom();
   let entering: Animation[] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -105,6 +109,7 @@ function SnackBar(props: { readonly bar: Bar }) {
   });
 
   onSettled(() => {
+    if (text.scrollHeight > text.clientHeight) fullText(text);
     // M3: the height grows from the bottom edge (Align(bottomLeft, heightFactor)) while it fades in over 40–60 %.
     entering = [
       play(
@@ -232,7 +237,9 @@ function SnackBar(props: { readonly bar: Bar }) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <span class="snackbar-text">{props.bar.text}</span>
+      <span class="snackbar-text" ref={text}>
+        {props.bar.text}
+      </span>
       <Show when={props.bar.action}>
         {(action) => (
           <button

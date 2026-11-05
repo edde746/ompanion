@@ -1,20 +1,15 @@
-/* A full-width row, square, as the Flutter tree's InkWell rows: the active path's bar sits on the pane's edge. */
+/* A full-width row, square, as the Flutter tree's InkWell rows. */
 .list-row.session-tree-row {
   height: var(--list-row-height);
   margin: 0;
-  padding: 0 8px 0 0;
+  padding: 0 8px;
   border-radius: 0;
   gap: 0;
 }
 
-.session-tree-row-path {
-  align-self: stretch;
-  flex: none;
-  width: 3px;
-}
-
-.session-tree-row-path-active {
-  background: var(--on-surface-variant);
+/* Entries off the path to the current leaf recede; the toggle keeps its tone, so every branch stays as easy to open. */
+.session-tree-row-off-path > :not(.session-tree-row-toggle) {
+  opacity: 0.6;
 }
 
 .session-tree-row-toggle {

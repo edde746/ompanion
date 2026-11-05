@@ -111,6 +111,8 @@ function SessionChat(props: ChatScreenProps & { readonly session: LiveSession })
       onOpenSubagent: (id) => dock.openSubagent(id),
       // A large session opens with its latest part; the transcript asks for earlier pages as the reader scrolls up.
       onLoadEarlier: current.loadEarlier,
+      awaitsApproval: (callId) =>
+        view().requests.some((request) => request.kind === "ApprovalRequest" && request.toolCallId === callId),
       images: sessionImages(),
     };
   });

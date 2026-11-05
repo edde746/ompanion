@@ -408,6 +408,24 @@ export interface MentionedFile {
   /** `tooLarge` or `binary` when the contents were not read. */
   readonly skippedReason?: string;
   readonly image: boolean;
+  /** A directory: omp reads it as a listing of its entries, not as lines of text. */
+  readonly folder: boolean;
+}
+
+/*
+ * omp's FileMentionMessage marks no directory, but reads one into a listing (file-mentions.ts,
+ * `buildDirectoryListing`): `(empty directory)`, or one `name` or `name/` a line ending in its age, `(3d ago)` or
+ * `(just now)`, and maybe a `[… limit reached]` notice after a blank line. An entry younger than a second has no age,
+ * so its listing reads as a file.
+ */
+const emptyListing = "(empty directory)";
+const listingLine = /^.+ \((?:\d+(?:mo|w|d|h|m) ago|just now)\)$/;
+const listingNotice = /\n\n\[[^\n]*limit reached\]$/;
+
+function isListing(content: string | undefined): boolean {
+  if (content === undefined) return false;
+  if (content === emptyListing) return true;
+  return content.replace(listingNotice, "").split("\n").every((line) => listingLine.test(line));
 }
 
 /**
@@ -566,6 +584,7 @@ export function decodeMessage(
           byteSize: optInt(file, "byteSize"),
           skippedReason: optString(file, "skippedReason"),
           image: optObject(file, "image") !== undefined,
+          folder: optObject(file, "image") === undefined && isListing(optString(file, "content")),
         })),
       });
     default:

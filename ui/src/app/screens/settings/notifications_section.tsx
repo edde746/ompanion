@@ -9,7 +9,7 @@ import type { Machine } from "../../models/machine";
 import type { PushService } from "../../notifications/push_service";
 import type { UsageReminder } from "../../notifications/usage_reminder";
 import type { UsageReminders } from "../../notifications/usage_reminders";
-import { isDesktop } from "../../platform";
+import { isDesktop, shellInfo } from "../../platform";
 import { Prefs } from "../../providers/settings_provider";
 import { IconButton, TextButton } from "../../widgets/button";
 import { showSnackBar } from "../../widgets/snackbar";
@@ -31,8 +31,8 @@ function kindLabel(kind: NotificationKind): string {
 
 /**
  * Desktops: notifications about the sessions open here, and the kinds. Phones: push notifications, the kinds they ask
- * the machines for, and a test notification from each connected machine. Both: the usage reminders set in the usage
- * pane. A phone without push shows none of it.
+ * the machines for, and a test notification from each connected machine; a build without push says so on its disabled
+ * switch. Both: the usage reminders set in the usage pane.
  */
 export function NotificationsSection() {
   const settings = useSettings();
@@ -42,7 +42,8 @@ export function NotificationsSection() {
   const [testing, setTesting] = createSignal<ReadonlySet<string>>(new Set());
   const on = () => {
     const service = push();
-    return service === undefined ? settings.get(Prefs.desktopNotifications) : service.enabled();
+    if (service !== undefined) return service.enabled();
+    return isDesktop() && settings.get(Prefs.desktopNotifications);
   };
 
   createEffect(push, (service) => {
@@ -81,72 +82,75 @@ export function NotificationsSection() {
   }
 
   return (
-    <Show when={push() !== undefined || isDesktop()}>
-      <div class="notifications-section">
-        <h2 class="settings-pane-heading">{t.notifications.title}</h2>
-        <SettingsCard>
-          <Show
-            when={push()}
-            fallback={
+    <div class="notifications-section">
+      <h2 class="settings-pane-heading">{t.notifications.title}</h2>
+      <SettingsCard>
+        <Show
+          when={push()}
+          fallback={
+            isDesktop() ? (
               <SettingsSwitchRow
                 label={t.notifications.desktop}
                 detail={t.notifications.desktopDetail}
                 value={on()}
                 onChanged={(value) => void settings.set(Prefs.desktopNotifications, value)}
               />
-            }
-          >
-            {(service) => (
+            ) : (
+              // A build with push has its service once the notifications started, right after boot.
               <SettingsSwitchRow
                 label={t.notifications.push}
-                detail={
-                  service().availability()?.available === false
-                    ? t.notifications.pushUnavailable({ reason: service().availability()?.reason ?? "" })
-                    : service().lostKey() && !on()
-                      ? t.notifications.pushLost
-                      : t.notifications.pushDetail
-                }
-                value={on()}
-                onChanged={
-                  // Off stays possible whatever the build says.
-                  service().busy() || (!on() && service().availability()?.available !== true)
-                    ? undefined
-                    : (value) => void setPush(service(), value)
-                }
+                detail={shellInfo().push ? t.notifications.pushDetail : t.notifications.pushNotInBuild}
+                value={false}
               />
-            )}
-          </Show>
-          <For each={notificationKinds}>
-            {(kind) => (
-              <SettingsSwitchRow
-                label={kindLabel(kind)}
-                value={settings.get(Prefs.notify(kind))}
-                onChanged={on() ? (value) => void settings.set(Prefs.notify(kind), value) : undefined}
-              />
-            )}
-          </For>
-        </SettingsCard>
-        <Show when={on() ? push() : undefined}>
+            )
+          }
+        >
           {(service) => (
-            <div class="notifications-section-tests">
-              <TestCard
-                push={service()}
-                testing={testing()}
-                onTest={(machine) => void sendTest(service(), machine)}
-              />
-            </div>
+            <SettingsSwitchRow
+              label={t.notifications.push}
+              detail={
+                service().availability()?.available === false
+                  ? t.notifications.pushUnavailable({ reason: service().availability()?.reason ?? "" })
+                  : service().lostKey() && !on()
+                    ? t.notifications.pushLost
+                    : t.notifications.pushDetail
+              }
+              value={on()}
+              onChanged={
+                // Off stays possible whatever the build says.
+                service().busy() || (!on() && service().availability()?.available !== true)
+                  ? undefined
+                  : (value) => void setPush(service(), value)
+              }
+            />
           )}
         </Show>
-        <Show when={usageReminders()}>
-          {(reminders) => (
-            <Show when={reminders().reminders().length > 0}>
-              <h3 class="notifications-section-reminders">{t.usageReminders.title}</h3>
-              <RemindersCard reminders={reminders()} />
-            </Show>
+        <For each={notificationKinds}>
+          {(kind) => (
+            <SettingsSwitchRow
+              label={kindLabel(kind)}
+              value={settings.get(Prefs.notify(kind))}
+              onChanged={on() ? (value) => void settings.set(Prefs.notify(kind), value) : undefined}
+            />
           )}
-        </Show>
-      </div>
-    </Show>
+        </For>
+      </SettingsCard>
+      <Show when={on() ? push() : undefined}>
+        {(service) => (
+          <div class="notifications-section-tests">
+            <TestCard push={service()} testing={testing()} onTest={(machine) => void sendTest(service(), machine)} />
+          </div>
+        )}
+      </Show>
+      <Show when={usageReminders()}>
+        {(reminders) => (
+          <Show when={reminders().reminders().length > 0}>
+            <h3 class="notifications-section-reminders">{t.usageReminders.title}</h3>
+            <RemindersCard reminders={reminders()} />
+          </Show>
+        )}
+      </Show>
+    </div>
   );
 }
 

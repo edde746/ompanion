@@ -57,8 +57,8 @@ const kindIcons: Readonly<Record<TreeEntryKind, string>> = {
 };
 
 /**
- * One row: the active path's bar at the left edge, the indent, the branch head's toggle, the kind's icon, the label
- * chip, the text cut to one line, the count a collapsed branch hides and the current position's mark.
+ * One row: the indent, the branch head's toggle, the kind's icon, the label chip, the text cut to one line, the count a
+ * collapsed branch hides and the current position's mark. Rows off the active path recede.
  */
 export function SessionTreeRow(props: {
   readonly row: TreeRow;
@@ -70,9 +70,13 @@ export function SessionTreeRow(props: {
 }) {
   const entry = () => props.row.entry;
   return (
-    <ListRow class="session-tree-row" selected={props.selected} onClick={props.onClick} onMenu={props.onMenu}>
-      <span class={["session-tree-row-path", { "session-tree-row-path-active": props.row.onActivePath }]} />
-      <span class="session-tree-row-toggle" style={{ "margin-left": `${4 + props.row.depth * 14}px` }}>
+    <ListRow
+      class={props.row.onActivePath ? "session-tree-row" : "session-tree-row session-tree-row-off-path"}
+      selected={props.selected}
+      onClick={props.onClick}
+      onMenu={props.onMenu}
+    >
+      <span class="session-tree-row-toggle" style={{ "margin-left": `${props.row.depth * 14}px` }}>
         <Show when={props.onToggle}>
           {(toggle) => (
             <button

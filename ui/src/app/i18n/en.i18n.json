@@ -26,6 +26,7 @@
     "homeBody": "Select a machine in the sidebar, or add one.",
     "homeSessionTitle": "No session open",
     "homeSessionBody": "Open a session from the sidebar, or start one on $machine.",
+    "homeNeedsOmpBody": "Sessions on $machine need omp there first: $reason",
     "usageTitle": "Usage",
     "settingsTitle": "Settings"
   },
@@ -413,6 +414,7 @@
     "terminals": {
       "newTerminal": "New terminal",
       "empty": "No terminal open on $machine.",
+      "emptyLocal": "No terminal open on this computer.",
       "close": "Close",
       "restart": "Restart",
       "smaller": "Smaller text",
@@ -799,6 +801,7 @@
     "pushDetail": "From your machines, while this phone is not in the session",
     "pushLost": "Turned off: this phone no longer has its notification key, as after a restore from a backup. Turn them on again.",
     "pushUnavailable": "Not available: $reason",
+    "pushNotInBuild": "Not available: this build of ompanion cannot receive push notifications",
     "kindInput": "A session needs input",
     "kindDone": "A run finishes",
     "kindFailed": "A run fails",
@@ -871,6 +874,7 @@
     "needsOmp": "omp needed: $reason",
     "connect": "Connect",
     "install": "Install omp",
+    "installOn": "Install omp on $machine",
     "refresh": "Refresh",
     "collapse": "Collapse",
     "expand": "Expand",
@@ -1199,6 +1203,7 @@
     "tool": {
       "running": "Running…",
       "background": "Running in the background",
+      "awaitingApproval": "Waiting for your approval",
       "interrupted": "Did not finish",
       "error": "Error",
       "arguments": "Arguments",
@@ -1292,6 +1297,10 @@
     "mentionedFiles": {
       "one": "Attached $n file",
       "other": "Attached $n files"
+    },
+    "mentionedItems": {
+      "one": "Attached $n item",
+      "other": "Attached $n items"
     },
     "skippedTooLarge": "too large",
     "skippedBinary": "binary",

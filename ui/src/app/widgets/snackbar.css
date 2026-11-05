@@ -1,10 +1,13 @@
-/* Floating at the bottom centre of the safe area, above the home indicator and the keyboard; at most 600 px wide. A
-   touch drags it (snackbar.tsx), so the browser pans nothing under it. */
+/*
+ * Floating at the bottom centre of the safe area, above the home indicator and the keyboard; at most 600 px wide. A
+ * touch drags it (snackbar.tsx), so the browser pans nothing under it. Over the pushed pages (10), under the dialog
+ * layer (20): a modal dialog and its scrim cover it, as Flutter's dialog route covers the Scaffold's snack bar.
+ */
 .snackbar {
   position: fixed;
   left: calc(50% + (var(--inset-left) - var(--inset-right)) / 2);
   bottom: calc(max(var(--inset-bottom), var(--inset-keyboard)) + 16px);
-  z-index: 25;
+  z-index: 15;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -27,9 +30,15 @@
   color: var(--error);
 }
 
+/* At most 3 lines; margins, not padding, round it, so a clamped 4th line cannot show in the padding. */
 .snackbar-text {
+  display: -webkit-box;
   flex: 1;
-  padding: 10px 8px 10px 0;
+  margin: 10px 0;
+  padding-right: 8px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
   overflow-wrap: anywhere;
 }
 

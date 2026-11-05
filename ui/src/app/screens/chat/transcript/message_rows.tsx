@@ -687,17 +687,24 @@ function Marker(props: { icon: string; text: string }) {
 
 function FileMentions(props: { item: FileMentionItem }) {
   const scope = useContext(TranscriptScope);
+  // A folder among them makes "files" wrong.
+  const label = () =>
+    props.item.files.some((file) => file.folder)
+      ? t.transcript.mentionedItems({ n: props.item.files.length })
+      : t.transcript.mentionedFiles({ n: props.item.files.length });
   return (
     <div class="message-rows-mentions">
-      <span class="message-rows-label">{t.transcript.mentionedFiles({ n: props.item.files.length })}</span>
+      <span class="message-rows-label">{label()}</span>
       <For each={props.item.files}>
         {(file) => (
           <span ref={tooltip(() => file.path)}>
             <Chip
-              icon={file.image ? Symbols.image : Symbols.description}
+              icon={file.folder ? Symbols.folder : file.image ? Symbols.image : Symbols.description}
               label={[
                 file.path.split("/").pop() ?? file.path,
-                ...(file.lineCount !== undefined ? [t.transcript.tool.lines({ n: file.lineCount })] : []),
+                ...(file.lineCount !== undefined && !file.folder
+                  ? [t.transcript.tool.lines({ n: file.lineCount })]
+                  : []),
                 ...(file.skippedReason === "tooLarge" ? [t.transcript.skippedTooLarge] : []),
                 ...(file.skippedReason === "binary" ? [t.transcript.skippedBinary] : []),
               ].join(" · ")}

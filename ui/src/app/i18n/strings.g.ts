@@ -31,6 +31,7 @@ export type Translations = {
     readonly homeBody: string;
     readonly homeSessionTitle: string;
     readonly homeSessionBody: (args: { machine: Param }) => string;
+    readonly homeNeedsOmpBody: (args: { machine: Param; reason: Param }) => string;
     readonly usageTitle: string;
     readonly settingsTitle: string;
   };
@@ -379,6 +380,7 @@ export type Translations = {
     readonly terminals: {
       readonly newTerminal: string;
       readonly empty: (args: { machine: Param }) => string;
+      readonly emptyLocal: string;
       readonly close: string;
       readonly restart: string;
       readonly smaller: string;
@@ -762,6 +764,7 @@ export type Translations = {
     readonly pushDetail: string;
     readonly pushLost: string;
     readonly pushUnavailable: (args: { reason: Param }) => string;
+    readonly pushNotInBuild: string;
     readonly kindInput: string;
     readonly kindDone: string;
     readonly kindFailed: string;
@@ -834,6 +837,7 @@ export type Translations = {
     readonly needsOmp: (args: { reason: Param }) => string;
     readonly connect: string;
     readonly install: string;
+    readonly installOn: (args: { machine: Param }) => string;
     readonly refresh: string;
     readonly collapse: string;
     readonly expand: string;
@@ -1150,6 +1154,7 @@ export type Translations = {
     readonly tool: {
       readonly running: string;
       readonly background: string;
+      readonly awaitingApproval: string;
       readonly interrupted: string;
       readonly error: string;
       readonly arguments: string;
@@ -1223,6 +1228,7 @@ export type Translations = {
     readonly thinkingOff: string;
     readonly rulesApplied: (args: { n: number; rules: Param }) => string;
     readonly mentionedFiles: (args: { n: number }) => string;
+    readonly mentionedItems: (args: { n: number }) => string;
     readonly skippedTooLarge: string;
     readonly skippedBinary: string;
     readonly backgroundResult: string;

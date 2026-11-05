@@ -282,7 +282,7 @@ describe("turns fold", () => {
   test("a settled turn shows its user message, a summary, what always shows and its last message", () => {
     const transcript = [
       user(1000, "fix it"),
-      fileMentionItem({ timestamp: 1001, files: [{ path: "a.dart", image: false }] }),
+      fileMentionItem({ timestamp: 1001, files: [{ path: "a.dart", image: false, folder: false }] }),
       assistant(2000, [{ kind: "ThinkingBlock", thinking: "plan" }, text("Looking."), call("c1")], {
         stopReason: "toolUse",
       }),

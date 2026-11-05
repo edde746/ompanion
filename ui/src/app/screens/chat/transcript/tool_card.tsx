@@ -71,7 +71,10 @@ export function ToolCard(props: { data: ToolData }) {
           toggle();
         }}
       >
-        <StatusMark status={props.data.status} />
+        <StatusMark
+          status={props.data.status}
+          awaitsApproval={actions?.().awaitsApproval?.(props.data.row.callId) ?? false}
+        />
         <span class="tool-card-name code-style">{props.data.name}</span>
         {/* The subject, then the harness intent in what room is left: one line, cut at its end. */}
         <span class="tool-card-text">
@@ -118,12 +121,18 @@ export function ToolCard(props: { data: ToolData }) {
 }
 
 /**
- * The start of a tool line: the activity mark while the call runs, else a 6 px dot, `success` when it is done, `error`
- * when it failed, `onSurfaceVariant` when it was interrupted.
+ * The start of a tool line: the `help` mark in `warning` while an approval request holds the call, the activity mark
+ * while it runs, else a 6 px dot, `success` when it is done, `error` when it failed, `onSurfaceVariant` when it was
+ * interrupted.
  */
-function StatusMark(props: { status: ToolStatus }) {
+function StatusMark(props: { status: ToolStatus; awaitsApproval: boolean }) {
   return (
     <Switch>
+      <Match when={props.awaitsApproval && (props.status === "pending" || props.status === "running")}>
+        <span class="tool-card-mark tool-card-mark-approval" ref={tooltip(() => t.transcript.tool.awaitingApproval)}>
+          <Icon icon={Symbols.help_fill} size={14} />
+        </span>
+      </Match>
       <Match when={props.status === "pending" || props.status === "running"}>
         <span class="tool-card-mark" ref={tooltip(() => t.transcript.tool.running)}>
           <ActivityMark color="var(--running)" />

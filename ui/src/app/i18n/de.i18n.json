@@ -26,6 +26,7 @@
     "homeBody": "Wähle in der Seitenleiste einen Rechner aus oder füge einen hinzu.",
     "homeSessionTitle": "Keine Sitzung geöffnet",
     "homeSessionBody": "Öffne eine Sitzung in der Seitenleiste oder starte eine auf $machine.",
+    "homeNeedsOmpBody": "Für Sitzungen auf $machine wird dort zuerst omp benötigt: $reason",
     "usageTitle": "Nutzung",
     "settingsTitle": "Einstellungen"
   },
@@ -434,6 +435,7 @@
     "terminals": {
       "newTerminal": "Neues Terminal",
       "empty": "Kein Terminal auf $machine geöffnet.",
+      "emptyLocal": "Kein Terminal auf diesem Computer geöffnet.",
       "close": "Schließen",
       "restart": "Neu starten",
       "smaller": "Kleinerer Text",
@@ -820,6 +822,7 @@
     "pushDetail": "Von deinen Rechnern, während dieses Telefon nicht in der Sitzung ist",
     "pushLost": "Deaktiviert: Dieses Telefon hat seinen Benachrichtigungsschlüssel nicht mehr, etwa nach einer Wiederherstellung aus einem Backup. Schalte sie wieder ein.",
     "pushUnavailable": "Nicht verfügbar: $reason",
+    "pushNotInBuild": "Nicht verfügbar: Dieser Build von ompanion kann keine Push-Benachrichtigungen empfangen",
     "kindInput": "Eine Sitzung braucht eine Eingabe",
     "kindDone": "Ein Lauf endet",
     "kindFailed": "Ein Lauf schlägt fehl",
@@ -892,6 +895,7 @@
     "needsOmp": "omp erforderlich: $reason",
     "connect": "Verbinden",
     "install": "omp installieren",
+    "installOn": "omp auf $machine installieren",
     "refresh": "Aktualisieren",
     "collapse": "Einklappen",
     "expand": "Ausklappen",
@@ -1220,6 +1224,7 @@
     "tool": {
       "running": "Läuft…",
       "background": "Läuft im Hintergrund",
+      "awaitingApproval": "Wartet auf deine Freigabe",
       "interrupted": "Nicht abgeschlossen",
       "error": "Fehler",
       "arguments": "Argumente",
@@ -1313,6 +1318,10 @@
     "mentionedFiles": {
       "one": "$n Datei angehängt",
       "other": "$n Dateien angehängt"
+    },
+    "mentionedItems": {
+      "one": "$n Element angehängt",
+      "other": "$n Elemente angehängt"
     },
     "skippedTooLarge": "zu groß",
     "skippedBinary": "binär",

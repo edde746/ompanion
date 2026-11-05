@@ -32,6 +32,9 @@ export interface TranscriptActions {
   /** Load the page of history before the oldest row; resolves when the view holds it. */
   readonly onLoadEarlier?: () => Promise<void>;
 
+  /** Whether an open approval request holds the tool call with this id. Rows read it in JSX, so they follow it. */
+  readonly awaitsApproval?: (callId: string) => boolean;
+
   /**
    * Image files of the session's machine that the transcript names by path; undefined where there is no machine to
    * load them from, and such images show their path.
