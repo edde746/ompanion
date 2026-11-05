@@ -23,7 +23,6 @@ body {
   font: var(--body-medium);
   letter-spacing: var(--body-medium-tracking);
   -webkit-text-size-adjust: 100%;
-  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   /*
    * As in the Flutter app, chrome text is not selectable: a double click on a button or a row would select its label.

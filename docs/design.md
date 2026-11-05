@@ -92,7 +92,9 @@ and the greys take the neutral roles). Muted values in both bases.
 Sizes: `--control: 36px`, `--radius: 10px` (controls), `--card-radius: 12px`, `--sheet-radius: 16px`, `--gap: 8px`,
 `--row-height: 32px` (dense list rows on desktops; `--row-height-touch: 44px` on iOS and Android, both as
 `--list-row-height`). Type: Material 3's type scale as `font` shorthands (`--body-medium`, `--label-small`, …) with
-their tracking (`--body-medium-tracking`); code in `--code` (`--font-mono`, JetBrains Mono).
+their tracking (`--body-medium-tracking`); code in `--code` (`--font-mono`, JetBrains Mono). Text keeps the platform's
+own smoothing: `-webkit-font-smoothing: antialiased` turns off macOS's stem darkening and draws every weight visibly
+thinner than the Flutter app did, worst on dark themes.
 
 ## Icons
 
