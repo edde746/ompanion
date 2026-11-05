@@ -81,7 +81,7 @@
   /* _SwitchPainter's colour animation: easeOut forward and easeIn back, so easeOut either way, over the toggle. */
   .switch,
   .switch-thumb {
-    transition: background-color 300ms var(--curve-ease-out);
+    transition: background-color calc(300ms * var(--motion-scale)) var(--curve-ease-out);
   }
 
   /*
@@ -91,7 +91,7 @@
   .switch-thumb::before {
     transition:
       opacity 50ms var(--curve-fast-out-slow-in),
-      transform 100ms var(--curve-fast-out-slow-in);
+      transform calc(100ms * var(--motion-scale)) var(--curve-fast-out-slow-in);
   }
 
   .switch:hover .switch-thumb::before,
@@ -100,6 +100,6 @@
   }
 
   .switch[data-pressed] .switch-thumb::before {
-    transition-duration: 0s, 100ms;
+    transition-duration: 0s, calc(100ms * var(--motion-scale));
   }
 }

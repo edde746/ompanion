@@ -74,15 +74,16 @@ export const Curves = {
   easeInOutCubicEmphasized: threePointCubic([0.05, 0], [0.133333, 0.06], [0.166666, 0.4], [0.208333, 0.82], [0.25, 1]),
   standard: cubic(0.2, 0, 0, 1),
   emphasizedDecelerate: cubic(0.05, 0.7, 0.1, 1),
-  emphasizedAccelerate: cubic(0.3, 0, 0.8, 0.15),
 } as const;
 
 /**
- * What durations are multiplied by: 0.05 while the system asks for less motion, as Flutter's AnimationController does
- * under `disableAnimations`, so a change still reads as a change without travelling across the screen.
+ * What durations are multiplied by. Flutter's durations, played at their length, felt slow in the app, so it plays them
+ * at 0.6 (theme.css's --motion-scale, for stylesheets). While the system asks for less motion, 0.05, as Flutter's
+ * AnimationController does under `disableAnimations`, so a change still reads as a change without travelling across
+ * the screen.
  */
 export function motionScale(): number {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0.05 : 1;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0.05 : 0.6;
 }
 
 /**

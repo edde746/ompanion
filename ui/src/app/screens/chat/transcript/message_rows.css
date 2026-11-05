@@ -135,7 +135,7 @@
 /* AnimatedOpacity: 120 ms, linearly (an implicit animation's default curve). */
 .message-rows-user > .message-rows-actions {
   opacity: 0;
-  transition: opacity 120ms linear;
+  transition: opacity calc(120ms * var(--motion-scale)) linear;
 }
 
 .message-rows-user:hover > .message-rows-actions,

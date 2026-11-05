@@ -78,10 +78,12 @@ real-omp page scenario; `?gallery=transcript&fixture=pages` and `fixture=busy` s
   (`dist/assets/index-*.js`) at 595.41 KB, 200.90 KB gzipped. The entry includes the pump script
   (`core/channel/log_script.ts`) and English page strings (`app/i18n/en.i18n.json`); the page frame and transcript page
   UI are in lazy chunks. A change that grows the entry says why.
-- Motion is Material motion with the Flutter SDK's durations and curves, named where they are used: `app/motion.ts`
-  holds the curves (`Curves.*`) and plays script-driven motion as Web Animations on transform, opacity and clip-path
-  (`curveFrames`, `play`, `settled`), so the compositor runs it even while a page mounts; stylesheets use the Bézier
-  curves in `theme.css` (`--curve-…`). Durations shrink to 5 % under `prefers-reduced-motion`. Page routes are
+- Motion is Material motion with the Flutter SDK's durations and curves, named where they are used, played at 0.6 of
+  their length (`motionScale()`, `--motion-scale` in `theme.css`; the 50 ms state-layer fades keep theirs). Menus have
+  their own motion (`menuMotion` in `widgets/popup_menu.tsx`): a fade with a 6 px move, not MenuAnchor's reveal.
+  `app/motion.ts` holds the curves (`Curves.*`) and plays script-driven motion as Web Animations on transform, opacity
+  and clip-path (`curveFrames`, `play`, `settled`), so the compositor runs it even while a page mounts; stylesheets use
+  the Bézier curves in `theme.css` (`--curve-…`). Durations shrink to 5 % under `prefers-reduced-motion`. Page routes are
   `widgets/page_stack.tsx` (the phone layout's pages and `navigator.tsx`'s pushed pages; the platform's default
   transition, the iOS back swipe and Android's predictive back); an overlay that closes stays mounted, inert, until
   its motion ends (dialogs, menus, snack bars, tooltips). A pressable gets the pressed highlight and ripple of
@@ -108,7 +110,7 @@ the one with the other (`devbridge -static`, a free port, a fresh temporary HOME
 `build/shots/<area>-<name>-<size>-<theme>.png` (`…-<theme>-webkit.png` in WebKit), desktop 1440 × 900 and phone
 390 × 844 (an iPhone's insets), light and dark. Its header lists the options (`--only`, `--sizes`, `--themes`,
 `--browser`, `--shot`, `--smoke`, `--omp`). The browser reports reduced motion, so the app's motion runs at 5 % of its
-length and a scenario's next step does not race a 500 ms page transition; each picture waits for running motion to end.
+length and a scenario's next step does not race a 300 ms page transition; each picture waits for running motion to end.
 
 `VITE_GALLERIES=1` makes a dev build: the dev galleries with their recorded fixtures, the in-page mock core and
 `window.ompDev`. `bun run build` leaves all three out, so the release `dist` the shells bundle carries none of them.

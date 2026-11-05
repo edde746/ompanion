@@ -1,11 +1,11 @@
 // The theme's flat menus (MenuAnchor, PopupMenuButton, AppSelect's list): a surfaceBright popover with radius
 // `radius`, rows one control tall. One menu is open at a time; it opens under its anchor (above when there is more room
 // there) or at a point for a context menu, inside the safe area (menu_placement.ts), and closes on a choice, a click
-// outside, Escape or back. It moves as Material 3's animated MenuAnchor does (menuMotion); a closing menu stays on
-// screen, inert, until its motion ends.
+// outside, Escape or back. It fades in while it moves a few pixels away from its anchor and fades out (menuMotion); a
+// closing menu stays on screen, inert, until its motion ends.
 import { createEffect, createSignal, For, onSettled, Show } from "solid-js";
 import { type Deferred, deferred } from "../../deferred";
-import { type Curve, Curves, cubic, curveFrames, flipped, motionScale, play, settled } from "../motion";
+import { Curves, curveFrames, motionScale, play, settled } from "../motion";
 import { insets, isTouch, onBack } from "../platform";
 import { Icon } from "./icon";
 import { type Box, placeMenu, safeArea } from "./menu_placement";
@@ -186,68 +186,47 @@ function Menu(props: { readonly menu: Open }) {
   );
 }
 
-// menu_anchor.dart: _kMenuOpeningDuration, _kMenuClosingDuration.
-const openMs = 500;
+// The menus' own motion, not MenuAnchor's: its 500 ms reveal, the panel growing while its rows fade in one after
+// another, read as slow and busy. Before motionScale(): opening 250 ms, closing 150 ms (_kMenuClosingDuration).
+const openMs = 250;
 const closeMs = 150;
-/** _kMenuPanelHeightForwardCurve, material-web's emphasized easing. */
-const heightOpening = cubic(0.3, 0, 0, 1);
-/** _kMenuPanelHeightReverseCurve: the panel shrinks to 35 % on a flipped emphasizedAccelerate, then fades. */
-const heightClosing: Curve = (t) => 0.35 + 0.65 * flipped(Curves.emphasizedAccelerate)(t);
+/** How far the panel travels into its place while it opens, in px. */
+const travel = 6;
 
 /**
- * Material 3's menu motion, MenuAnchor(animated: true) in menu_anchor.dart, for `panel` and its children as the items.
- * Opening (500 ms): the panel is revealed from its anchor's side, from the bottom when it opened upward, as its height
- * grows on heightOpening; it fades in over the first 50 ms (_kMenuPanelOpacityForwardCurve) and each item over half the
- * time, staggered evenly from the first to the last (_kMenuItemRelativeFadeInDuration). Closing (150 ms) plays the
- * reverse curves: the panel shrinks to 35 % and fades over the last 50 ms (_kMenuPanelOpacityReverseCurve), each item
- * fading over a third of the time, the last first (_kMenuItemRelativeFadeOutDuration, …FadeOutDelay). Clipped and
- * moved, never scaled. Returns what plays either way from where the motion stands, as the AnimationController reverses
- * or goes forward from its value; that resolves true once it ends, false when the other way replaced it.
+ * The menus' motion for `panel`. Opening, the whole panel fades in on Curves.decelerate while it moves `travel` px away
+ * from its anchor's side into place: up when it opened upward, down otherwise. Closing, it fades out where it is, on
+ * linear time. Nothing is clipped or scaled, so the rows stay sharp and read at once. Returns what plays either way
+ * from where the motion stands, as an AnimationController reverses or goes forward from its value; that resolves true
+ * once it ends, false when the other way replaced it.
  */
 export function menuMotion(panel: HTMLElement, up: boolean): (open: boolean) => Promise<boolean> {
-  let running: { readonly open: boolean; readonly height: Animation; readonly all: readonly Animation[] } | undefined;
+  let running: { readonly open: boolean; readonly animation: Animation } | undefined;
   /** The controller's value at rest: 0 closed, 1 open. */
   let rest = 0;
   return (open) => {
     // The time fraction of the running motion, as the controller's value.
-    const fraction = running?.height.effect?.getComputedTiming().progress ?? 0;
+    const fraction = running?.animation.effect?.getComputedTiming().progress ?? 0;
     const value = running ? (running.open ? fraction : 1 - fraction) : rest;
     if (value === (open ? 1 : 0)) return Promise.resolve(true);
-    const items = [...panel.children];
-    const radius = getComputedStyle(panel).borderTopLeftRadius;
-    const frame = (height: number): Keyframe => ({
-      clipPath: `inset(0 0 ${(1 - height) * 100}% 0 round ${radius})`,
-      ...(up ? { transform: `translateY(${(1 - height) * 100}%)` } : {}),
-    });
-    let animations: Animation[];
-    if (open) {
-      const gap = items.length > 1 ? 0.5 / (items.length - 1) : 0;
-      animations = [
-        play(panel, curveFrames(heightOpening, frame), openMs),
-        play(panel, [{ opacity: 0 }, { opacity: 1, offset: 50 / openMs }, { opacity: 1 }], openMs),
-        ...items.map((item, index) => play(item, [{ opacity: 0 }, { opacity: 1 }], openMs / 2, index * gap * openMs)),
-      ];
-    } else {
-      const gap = items.length > 1 ? 1 / 3 / (items.length - 1) : 0;
-      animations = [
-        play(panel, curveFrames((time) => heightClosing(1 - time), frame), closeMs),
-        play(panel, [{ opacity: 1 }, { opacity: 1, offset: 100 / closeMs }, { opacity: 0 }], closeMs),
-        ...items.map((item, index) =>
-          play(item, [{ opacity: 1 }, { opacity: 0 }], closeMs / 3, (2 / 3 - index * gap) * closeMs),
-        ),
-      ];
-    }
-    const elapsed = (open ? value * openMs : (1 - value) * closeMs) * motionScale();
-    for (const animation of animations) animation.currentTime = elapsed;
-    for (const animation of running?.all ?? []) animation.cancel();
-    const mine = { open, height: animations[0]!, all: animations };
+    const offset = up ? travel : -travel;
+    const animation = open
+      ? play(
+          panel,
+          curveFrames(Curves.decelerate, (at) => ({ opacity: at, transform: `translateY(${(1 - at) * offset}px)` })),
+          openMs,
+        )
+      : play(panel, [{ opacity: 1 }, { opacity: 0 }], closeMs);
+    animation.currentTime = (open ? value * openMs : (1 - value) * closeMs) * motionScale();
+    running?.animation.cancel();
+    const mine = { open, animation };
     running = mine;
-    return settled(mine.height).then((ended) => {
+    return settled(animation).then((ended) => {
       if (ended && running === mine) {
         running = undefined;
         rest = open ? 1 : 0;
         // Open, the menu rests in its own style; closed, it keeps the last frame until it is removed.
-        if (open) for (const animation of mine.all) animation.cancel();
+        if (open) animation.cancel();
       }
       return ended;
     });

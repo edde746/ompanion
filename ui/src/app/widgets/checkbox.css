@@ -133,7 +133,7 @@
   .radio::before {
     transition:
       opacity 50ms var(--curve-fast-out-slow-in),
-      transform 100ms var(--curve-fast-out-slow-in);
+      transform calc(100ms * var(--motion-scale)) var(--curve-fast-out-slow-in);
   }
 
   .checkbox:hover::before,
@@ -145,15 +145,15 @@
 
   .checkbox:active::before,
   .radio:active::before {
-    transition-duration: 0s, 100ms;
+    transition-duration: 0s, calc(100ms * var(--motion-scale));
   }
 
   /* _kToggleDuration along Curves.easeIn: the ring's colour and the dot. */
   .radio {
-    transition: color 200ms var(--curve-ease-in);
+    transition: color calc(200ms * var(--motion-scale)) var(--curve-ease-in);
   }
 
   .radio-ring::after {
-    transition: transform 200ms var(--curve-ease-in);
+    transition: transform calc(200ms * var(--motion-scale)) var(--curve-ease-in);
   }
 }

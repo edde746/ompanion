@@ -86,7 +86,7 @@
   background: var(--surface-container-highest);
   color: var(--on-surface);
   transform: scale(0);
-  transition: transform 150ms linear;
+  transition: transform calc(150ms * var(--motion-scale)) linear;
 }
 
 .transcript-jump-shown .transcript-jump-button.icon-button {

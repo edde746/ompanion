@@ -134,8 +134,11 @@
 
   /*
    * Flutter's curves that CSS can draw, for transitions in stylesheets (app/motion.ts has every curve the app uses, for
-   * motion driven from script). Durations are written where they are used, in Flutter's milliseconds.
+   * motion driven from script). Durations are written where they are used, in Flutter's milliseconds, times
+   * --motion-scale: the app plays Flutter's motion faster, as motionScale() does for script. The 50 ms fades of the
+   * hover and focus state layers keep their length.
    */
+  --motion-scale: 0.6;
   --curve-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
   --curve-ease-in: cubic-bezier(0.42, 0, 1, 1);
   --curve-ease-out: cubic-bezier(0, 0, 0.58, 1);
@@ -269,7 +272,7 @@
 ::view-transition-group(root),
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 200ms;
+  animation-duration: calc(200ms * var(--motion-scale));
   animation-timing-function: linear;
 }
 
