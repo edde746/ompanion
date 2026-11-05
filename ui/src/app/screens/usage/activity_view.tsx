@@ -1,6 +1,6 @@
 // Port of lib/screens/usage/activity_view.dart.
 import type { JSX } from "@solidjs/web";
-import { createMemo, createSignal, For, onSettled, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import {
   type ActivityDay,
   activityRanges,
@@ -20,7 +20,7 @@ import { decimalSeparator, formatCount, formatFixed, formatPercent, formatUsd } 
 import { formatTokens } from "../../utils/token_count";
 import { AppSegmented } from "../../widgets/app_segmented";
 import { AppSelect } from "../../widgets/app_select";
-import { ConfigBlock, ConfigTag } from "../config/config_widgets";
+import { ConfigBlock, ConfigTag, createWidth, type StatTile, StatTiles } from "../config/config_widgets";
 import {
   type ActivityBucket,
   type ActivityOverview,
@@ -90,7 +90,7 @@ export function ActivityView(props: {
       s.prompts({ n: prompts, count: formatCount(prompts) }),
     ].join(" · ");
   };
-  const headTiles = createMemo((): Tile[] => {
+  const headTiles = createMemo((): StatTile[] => {
     const s = t.usage.stats;
     const totals = requests();
     const today = props.today;
@@ -144,12 +144,17 @@ export function ActivityView(props: {
       },
       {
         label: s.speed,
-        value: rate === undefined ? "–" : s.tokensPerSecond({ n: formatFixed(rate, rate < 10 ? 1 : 0) }),
+        value:
+          rate === undefined
+            ? "–"
+            : s.tokensPerSecond({
+                n: rate < 1000 ? formatFixed(rate, rate < 10 ? 1 : 0) : formatTokens(Math.round(rate)),
+              }),
         detail: ttft === undefined ? "" : s.ttft({ ms: formatCount(Math.round(ttft)) }),
       },
     ];
   });
-  const promptTiles = (): Tile[] => {
+  const promptTiles = (): StatTile[] => {
     const s = t.usage.stats;
     const typed = range().typed;
     const prompts = range().prompts;
@@ -181,7 +186,7 @@ export function ActivityView(props: {
   const share = (part: number, whole: number) => (whole === 0 ? 0 : part / whole);
   return (
     <div class="activity-view">
-      <Tiles tiles={headTiles()} />
+      <StatTiles tiles={headTiles()} />
       <ConfigBlock padding="16px">
         <Heatmap
           days={props.overview.days}
@@ -306,7 +311,7 @@ export function ActivityView(props: {
       </div>
       <div class="activity-view-section">{t.usage.stats.promptSection}</div>
       <Show when={range().prompts > 0} fallback={<div class="activity-view-none">{t.usage.stats.noPrompts}</div>}>
-        <Tiles tiles={promptTiles()} />
+        <StatTiles tiles={promptTiles()} />
         <ChartCard title={t.usage.stats.cloud}>
           <WordCloud cloud={range().typed.cloud} />
         </ChartCard>
@@ -353,40 +358,6 @@ export function ActivityView(props: {
           </ChartCard>
         </div>
       </Show>
-    </div>
-  );
-}
-
-interface Tile {
-  readonly label: string;
-  readonly value: string;
-  readonly detail: string;
-}
-
-/** Headline numbers: equal tiles of 160 px or more, in rows that hold the same number of tiles where they can. */
-function Tiles(props: { readonly tiles: readonly Tile[] }) {
-  const [width, measure] = createWidth();
-  const tiles = createMemo(() => props.tiles);
-  const perRow = () => {
-    const count = tiles().length;
-    const fit = Math.max(2, Math.min(count, Math.floor((width() + 12) / (160 + 12))));
-    return Math.ceil(count / Math.ceil(count / fit));
-  };
-  return (
-    <div
-      ref={measure}
-      class="activity-view-tiles"
-      style={{ "grid-template-columns": `repeat(${perRow()}, minmax(0, 1fr))` }}
-    >
-      <For each={tiles()}>
-        {(tile) => (
-          <ConfigBlock padding="12px 14px">
-            <div class="activity-view-tile-label">{tile.label}</div>
-            <div class="activity-view-tile-value">{tile.value}</div>
-            <div class="activity-view-tile-detail">{tile.detail}</div>
-          </ConfigBlock>
-        )}
-      </For>
     </div>
   );
 }
@@ -1087,19 +1058,6 @@ function TokenMix(props: { readonly requests: RequestTotals }) {
       </div>
     </div>
   );
-}
-
-/** A ref for an element and its content width, followed as it resizes; 0 until it is laid out. */
-function createWidth(): [width: () => number, ref: (element: HTMLElement) => void] {
-  const [width, setWidth] = createSignal(0);
-  let element: HTMLElement | undefined;
-  onSettled(() => {
-    if (element === undefined) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
-    observer.observe(element);
-    return () => observer.disconnect();
-  });
-  return [width, (next) => (element = next)];
 }
 
 /**

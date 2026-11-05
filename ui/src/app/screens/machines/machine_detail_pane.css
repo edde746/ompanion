@@ -119,6 +119,12 @@
   user-select: text;
 }
 
+/* The code font a step under the body, as code sits beside body text in the transcript. */
+.machine-detail-pane-fact-mono {
+  font: 400 13px / 1.54 var(--font-mono);
+  font-variant-ligatures: none;
+}
+
 .machine-detail-pane-unprobed {
   display: flex;
   align-items: center;

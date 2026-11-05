@@ -11,6 +11,7 @@ import { type Machine, type SshEndpoint, sshEndpointLabel, sshMachineHops } from
 import { homeSelection } from "../../providers/shell_provider";
 import { testConnection } from "../../services/machine_connector";
 import { appLogger } from "../../utils/app_logger";
+import { shortPath } from "../../utils/home_path";
 import { ActivityMark } from "../../widgets/activity_mark";
 import { FilledButton, IconButton, TextButton, TonalButton } from "../../widgets/button";
 import { Icon } from "../../widgets/icon";
@@ -180,11 +181,20 @@ export function MachineDetailPane(props: { readonly machine: Machine }) {
 }
 
 /** One fact: a label column and a selectable value. */
-function Fact(props: { readonly label: string; readonly value: string; readonly color?: string }) {
+function Fact(props: {
+  readonly label: string;
+  readonly value: string;
+  readonly color?: string;
+  /** A path or command: the code font, as design.md sets for paths. */
+  readonly mono?: boolean;
+}) {
   return (
     <div class="machine-detail-pane-fact">
       <span class="machine-detail-pane-fact-label">{props.label}</span>
-      <span class="machine-detail-pane-fact-value" style={{ color: props.color }}>
+      <span
+        class={["machine-detail-pane-fact-value", { "machine-detail-pane-fact-mono": props.mono }]}
+        style={{ color: props.color }}
+      >
         {props.value}
       </span>
     </div>
@@ -226,14 +236,21 @@ function Facts(props: {
           <>
             <Fact label={t.machines.os} value={osLabel(probe())} />
             <Fact label={t.machines.arch} value={probe().arch} />
-            <Fact label={t.machines.shell} value={probe().shell ?? (hostProbeIsWindows(probe()) ? "cmd.exe" : "—")} />
+            <Fact
+              label={t.machines.shell}
+              value={probe().shell ?? (hostProbeIsWindows(probe()) ? "cmd.exe" : "—")}
+              mono={probe().shell !== undefined}
+            />
             {/* omp runs with the machine's own PATH when the login shell gave none, so tools the user's shell has may
                 be missing from its bash tool. Say why. */}
             <Show when={probe().loginProblem}>
               {(problem) => <Fact label={t.machines.loginPath} value={problem()} color="var(--warning)" />}
             </Show>
-            <Fact label={t.machines.home} value={probe().home} />
-            <Fact label={t.machines.omp} value={probe().ompPath ?? t.machines.notFound} />
+            <Fact label={t.machines.home} value={probe().home} mono />
+            {/* Under the home, as `~/…` like every other path the app shows; the line above says where `~` is. */}
+            <Show when={probe().ompPath} fallback={<Fact label={t.machines.omp} value={t.machines.notFound} />}>
+              {(path) => <Fact label={t.machines.omp} value={shortPath(path(), probe().home)} mono />}
+            </Show>
             <Fact label={t.machines.ompVersion} value={probe().ompVersion ?? "—"} />
             <Fact
               label={t.machines.companion}

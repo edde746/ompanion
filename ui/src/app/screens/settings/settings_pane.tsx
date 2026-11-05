@@ -76,16 +76,18 @@ export function SettingsPane() {
       <NotificationsSection />
       <h2 class="settings-pane-section settings-pane-channel">{t.settings.buildChannel}</h2>
       <p class="settings-pane-muted">{buildChannel}</p>
-      <h2 class="settings-pane-heading settings-pane-section">{t.settings.shortcuts}</h2>
-      <div class="settings-pane-shortcuts">
-        <For each={shortcutList(appShortcuts(), isApple())}>
-          {([label, keys]) => (
-            <div class="settings-pane-shortcut">
-              <span>{label}</span>
-              <span class="settings-pane-keys">{keys}</span>
-            </div>
-          )}
-        </For>
+      <div class="settings-pane-keyboard">
+        <h2 class="settings-pane-heading settings-pane-section">{t.settings.shortcuts}</h2>
+        <div class="settings-pane-shortcuts">
+          <For each={shortcutList(appShortcuts(), isApple())}>
+            {([label, keys]) => (
+              <div class="settings-pane-shortcut">
+                <span>{label}</span>
+                <span class="settings-pane-keys">{keys}</span>
+              </div>
+            )}
+          </For>
+        </div>
       </div>
       <div class="settings-pane-section" />
       <AboutSection />

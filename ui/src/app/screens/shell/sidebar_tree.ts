@@ -1,6 +1,6 @@
 // lib/screens/shell/sidebar_tree.dart: the sidebar's machines, projects and sessions as one flat list of rows with
 // known heights, so the list lays out only the rows on screen and its scroll extent is exact. `sidebarRows` builds it;
-// search filters it. Also the pure parts of lib/screens/sessions/machine_sessions.dart (`shortPath`, `relativeTime`,
+// search filters it. Also the pure parts of lib/screens/sessions/machine_sessions.dart (`relativeTime`,
 // `SessionStatus`, `sidebarEntryTitle`, what a session row's mark says): bun tests cannot load a .tsx.
 import { hostProbeScratchDirs } from "../../../core/host/probe";
 import type { SessionSummary } from "../../../core/host/session_listing";
@@ -13,6 +13,7 @@ import type { Machine } from "../../models/machine";
 import type { SessionReads } from "../../sessions/session_reads";
 import { firstUserMessage, liveSessionName, sessionName } from "../../sessions/session_name";
 import { type SessionListing, SessionsProvider } from "../../sessions/sessions_provider";
+import { shortPath } from "../../utils/home_path";
 
 /** A session row: a file from the machine's listing, a session this device has open, a pin, or several of these. */
 export interface SidebarEntry {
@@ -373,16 +374,6 @@ function sessionRows(
 function find(text: string, needle: string): TextRange | undefined {
   const start = text.toLowerCase().indexOf(needle);
   return start < 0 ? undefined : { start, end: start + needle.length };
-}
-
-/** `path` with the machine's home directory as `~`. */
-export function shortPath(path: string, home: string | undefined): string {
-  if (home === undefined || home === "") return path;
-  if (path === home) return "~";
-  for (const separator of ["/", "\\"]) {
-    if (path.startsWith(`${home}${separator}`)) return `~${separator}${path.substring(home.length + 1)}`;
-  }
-  return path;
 }
 
 const minuteMs = 60 * 1000;

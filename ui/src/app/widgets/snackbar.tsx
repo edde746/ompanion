@@ -77,8 +77,22 @@ interface Drag {
   readonly samples: { time: number; x: number; y: number }[];
 }
 
+/**
+ * Where a bar rests when a chat's composer is on screen: 8 px above its block, as Material's floating SnackBar rests
+ * above a bottom bar, so it never covers the draft or the send button. Undefined elsewhere: the stylesheet's place.
+ */
+function restingBottom(): string | undefined {
+  for (const block of document.querySelectorAll<HTMLElement>(".composer-block")) {
+    if (block.closest("[inert]") !== null) continue;
+    const rect = block.getBoundingClientRect();
+    if (rect.height > 0 && rect.bottom <= window.innerHeight) return `${window.innerHeight - rect.top + 8}px`;
+  }
+  return undefined;
+}
+
 function SnackBar(props: { readonly bar: Bar }) {
   let element!: HTMLDivElement;
+  const bottom = restingBottom();
   let entering: Animation[] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
   let hiding = false;
@@ -211,6 +225,7 @@ function SnackBar(props: { readonly bar: Bar }) {
     <div
       class={["snackbar", { "snackbar-error": props.bar.error }]}
       role="status"
+      style={{ bottom }}
       ref={element}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

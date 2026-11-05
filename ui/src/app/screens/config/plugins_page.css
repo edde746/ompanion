@@ -102,13 +102,19 @@
   }
 }
 
+/* As the install row: under 240 px of field the button takes a line of its own, at the end. */
 .plugins-page-source {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--gap);
   padding-top: var(--gap);
 }
 
 .plugins-page-source-field {
-  flex: 1;
+  flex: 1 1 240px;
+}
+
+.plugins-page-source > :last-child {
+  margin-left: auto;
 }

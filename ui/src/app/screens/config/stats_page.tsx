@@ -15,7 +15,14 @@ import { t } from "../../i18n/i18n";
 import { formatFixed, formatPercent, formatUsd } from "../../utils/number_format";
 import { formatTokens } from "../../utils/token_count";
 import { tooltip } from "../../widgets/tooltip";
-import { ConfigBlock, ConfigError, ConfigHeader, ConfigSectionTitle, RefreshAction } from "./config_widgets";
+import {
+  ConfigError,
+  ConfigHeader,
+  ConfigSectionTitle,
+  RefreshAction,
+  type StatTile,
+  StatTiles,
+} from "./config_widgets";
 import "./stats_page.css";
 
 /**
@@ -87,16 +94,7 @@ export function StatsPage(props: { readonly target: ConfigTarget }) {
                 when={current().overall.requests > 0}
                 fallback={<p class="stats-page-none">{t.config.stats.none}</p>}
               >
-                <div class="stats-page-metrics">
-                  <For each={metrics(current().overall)}>
-                    {(metric) => (
-                      <ConfigBlock class="stats-page-metric">
-                        <span class="stats-page-metric-label">{metric.label}</span>
-                        <span class="stats-page-metric-value">{metric.value}</span>
-                      </ConfigBlock>
-                    )}
-                  </For>
-                </div>
+                <StatTiles tiles={metrics(current().overall)} />
                 <ConfigSectionTitle text={t.config.stats.perHour} />
                 <Bars bars={hourlyRequests(current().timeSeries, { now: Date.now() })} />
                 <ConfigSectionTitle text={t.config.stats.byModel} />
@@ -126,7 +124,7 @@ export function StatsPage(props: { readonly target: ConfigTarget }) {
   );
 }
 
-function metrics(overall: StatsTotals): { label: string; value: string }[] {
+function metrics(overall: StatsTotals): StatTile[] {
   const tiles = [
     { label: t.config.stats.requests, value: String(overall.requests) },
     { label: t.config.stats.errors, value: `${overall.failed} (${formatPercent(overall.errorRate)})` },
@@ -141,10 +139,14 @@ function metrics(overall: StatsTotals): { label: string; value: string }[] {
   if (overall.avgTtftMs !== undefined) {
     tiles.push({ label: t.config.stats.ttft, value: `${Math.round(overall.avgTtftMs)} ms` });
   }
-  if (overall.avgTokensPerSecond !== undefined) {
+  const rate = overall.avgTokensPerSecond;
+  if (rate !== undefined) {
     tiles.push({
       label: t.config.stats.speed,
-      value: t.config.stats.tokensPerSecond({ n: formatFixed(overall.avgTokensPerSecond, 1) }),
+      // As tokens read everywhere past 1,000 (`22.5K`), with a decimal only where it says something.
+      value: t.config.stats.tokensPerSecond({
+        n: rate < 1000 ? formatFixed(rate, rate < 10 ? 1 : 0) : formatTokens(Math.round(rate)),
+      }),
     });
   }
   return tiles;

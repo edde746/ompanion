@@ -6,6 +6,7 @@ import type { LiveSession } from "../../core/session/live_session";
 import type { MachineRuntime } from "../../core/session/machine_runtime";
 import type { Machine } from "../models/machine";
 import type { SessionsProvider } from "../sessions/sessions_provider";
+import { shortPath } from "../utils/home_path";
 import { type UsageSnapshot, usageSnapshotFromJson } from "./cli_results";
 import { cliJson, runOmp } from "./omp_cli";
 
@@ -37,6 +38,12 @@ export class ConfigTarget {
     const status = this.runtime.status;
     if (status.kind === "MachineOnline" || status.kind === "MachineNeedsOmp") return status.probe;
     throw new Error(`${this.machine.name} is not connected`);
+  }
+
+  /** `path` with the machine's home as `~`, as the sidebar and chat header write paths; as it is while offline. */
+  shownPath(path: string): string {
+    const status = this.runtime.status;
+    return status.kind === "MachineOnline" || status.kind === "MachineNeedsOmp" ? shortPath(path, status.probe.home) : path;
   }
 
   /** The machine's shared no-session rpc process with the companion. */

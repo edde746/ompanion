@@ -12,6 +12,7 @@ import type { ComposerDraft } from "../../sessions/composer_draft";
 import { liveSessionName } from "../../sessions/session_name";
 import { linkState, sessionViewSelector } from "../../sessions/session_view_builder";
 import { SessionsProvider } from "../../sessions/sessions_provider";
+import { shortPath } from "../../utils/home_path";
 import { ActivityMark } from "../../widgets/activity_mark";
 import { IconButton, TonalButton } from "../../widgets/button";
 import { Icon } from "../../widgets/icon";
@@ -20,7 +21,7 @@ import { showSnackBar } from "../../widgets/snackbar";
 import * as Symbols from "../../widgets/symbols";
 import { tooltip } from "../../widgets/tooltip";
 import { windowDragArea } from "../../window_chrome";
-import { pinOf, shortPath } from "../shell/sidebar_tree";
+import { pinOf } from "../shell/sidebar_tree";
 import "./chat_header.css";
 import { abortRunWith, type MenuCommand, sessionMenuCommands, stopSession, togglePauseWith } from "./chat_header_actions";
 

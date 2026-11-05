@@ -42,6 +42,19 @@
   letter-spacing: var(--body-medium-tracking);
 }
 
+/* A layout box of its own only where it goes: the heading and card sit in the pane's column as before. */
+.settings-pane-keyboard {
+  display: contents;
+}
+
+/* A phone (shorter side under 600 px) has no keyboard to press them on; a tablet may. */
+@media not all and (min-width: 600px) and (min-height: 600px) {
+  :root[data-platform="ios"] .settings-pane-keyboard,
+  :root[data-platform="android"] .settings-pane-keyboard {
+    display: none;
+  }
+}
+
 .settings-pane-shortcuts {
   align-self: stretch;
   padding: 8px 16px;

@@ -82,7 +82,7 @@ export function AccountsPage(props: { readonly target: ConfigTarget }) {
     const project = props.target.projectSession();
     return project === undefined
       ? t.config.accounts.machineWide
-      : t.config.accounts.sessionView({ path: project.cwd });
+      : t.config.accounts.sessionView({ path: props.target.shownPath(project.cwd) });
   };
 
   const load = async () => {

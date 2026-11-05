@@ -12,6 +12,7 @@ import { isTouch } from "../../platform";
 import { preloadAfterBoot } from "../../preload";
 import { liveSessionName } from "../../sessions/session_name";
 import { linkState, sessionViewSelector } from "../../sessions/session_view_builder";
+import { shortPath } from "../../utils/home_path";
 import { ActivityMark } from "../../widgets/activity_mark";
 import { IconButton, TextButton } from "../../widgets/button";
 import { Icon } from "../../widgets/icon";
@@ -29,7 +30,6 @@ import {
   sessionRowMark,
   sessionRowStates,
   sessionStatusWords,
-  shortPath,
   sidebarEntryTitle,
   type TextRange,
 } from "../shell/sidebar_tree";

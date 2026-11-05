@@ -35,6 +35,7 @@ import { DiffView } from "../../chat/transcript/diff_view";
 import { syntaxHighlighting } from "./editor_syntax";
 import "./file_editor_view.css";
 import { findPanel } from "./find_panel";
+import { wrappedLines } from "./wrapped_indent";
 
 /** Caps the rows a diff builds; DiffView lays out every row. */
 const maxDiffLines = 4000;
@@ -329,7 +330,7 @@ function Editor(props: {
   const readOnly = new Compartment();
   const wrap = new Compartment();
   const settings = useSettings();
-  const wrapping = (on: boolean): Extension => (on ? EditorView.lineWrapping : []);
+  const wrapping = (on: boolean): Extension => (on ? wrappedLines : []);
   const document = untrack(() => props.document);
   const language = languageFor(baseName(untrack(() => document.path())));
   const extensions = (): Extension[] => [

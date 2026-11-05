@@ -166,6 +166,8 @@ export const screens: Screen[] = [
   },
   {
     name: "shortcuts",
+    // A phone shows no shortcuts (docs/design.md, Keyboard shortcuts).
+    sizes: ["desktop"],
     reach: async (context) => {
       await resetSettings(context.page);
       await openSettings(context.page);

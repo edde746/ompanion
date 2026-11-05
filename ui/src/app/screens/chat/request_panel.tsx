@@ -199,12 +199,15 @@ function RequestContent(props: {
   );
 
   switch (request.kind) {
-    case "ApprovalRequest":
+    case "ApprovalRequest": {
+      // omp lists the narrowest approval first (`Approve`, `Approve Once`); the wider grants after it (for the session,
+      // a file, a directory) stay tonal, so the one filled button is the one that approves this call alone.
+      const primary = request.options.find(isApproveOption);
       return frame(
         <ApprovalBody session={session} request={request} />,
         <For each={request.options}>
           {(option) =>
-            isApproveOption(option) ? (
+            option === primary ? (
               <FilledButton disabled={busy()} onClick={() => respond({ value: option })}>
                 {option}
               </FilledButton>
@@ -216,6 +219,7 @@ function RequestContent(props: {
           }
         </For>,
       );
+    }
     case "SelectRequest":
       return frame(
         <div class="request-panel-options">

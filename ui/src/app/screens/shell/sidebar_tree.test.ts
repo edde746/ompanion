@@ -25,7 +25,6 @@ import {
   sessionRowMark,
   sessionRowStates,
   shortListCount,
-  shortPath,
   sidebarEntries,
   sidebarEntryTitle,
   sidebarRowKey,
@@ -528,17 +527,6 @@ describe("session row", () => {
     expect(sidebarEntryTitle({ summary: summary("m", app, "first") })).toBe("first");
     expect(sidebarEntryTitle({ pin: { ...pin("m", "x"), title: "Pinned title" } })).toBe("Pinned title");
     expect(sidebarEntryTitle({})).toBe(t.sessions.untitled);
-  });
-});
-
-describe("shortPath", () => {
-  test("the machine's home directory becomes ~", () => {
-    expect(shortPath("/home/me", "/home/me")).toBe("~");
-    expect(shortPath("/home/me/app", "/home/me")).toBe("~/app");
-    expect(shortPath("C:\\Users\\me\\app", "C:\\Users\\me")).toBe("~\\app");
-    expect(shortPath("/home/meow/app", "/home/me")).toBe("/home/meow/app");
-    expect(shortPath("/home/me/app", undefined)).toBe("/home/me/app");
-    expect(shortPath("/home/me/app", "")).toBe("/home/me/app");
   });
 });
 

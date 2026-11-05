@@ -51,7 +51,9 @@ export function RolesPage(props: { readonly target: ConfigTarget }) {
     const session = project();
     return [
       t.config.roles.storage({ storage: roles.storage }),
-      session === undefined ? t.config.roles.noProject : t.config.roles.projectIs({ path: session.cwd }),
+      session === undefined
+        ? t.config.roles.noProject
+        : t.config.roles.projectIs({ path: props.target.shownPath(session.cwd) }),
     ].join("\n");
   };
 

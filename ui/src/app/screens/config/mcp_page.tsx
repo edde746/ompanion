@@ -169,9 +169,9 @@ export function McpPage(props: { readonly target: ConfigTarget }) {
   });
 
   const subtitle = () => {
-    const lines = [t.config.mcp.userFile({ path: userFile })];
+    const lines = [t.config.mcp.userFile({ path: target.shownPath(userFile) })];
     const file = projectFile();
-    if (file !== undefined) lines.push(t.config.mcp.projectFile({ path: file }));
+    if (file !== undefined) lines.push(t.config.mcp.projectFile({ path: target.shownPath(file) }));
     return lines.join("\n");
   };
 

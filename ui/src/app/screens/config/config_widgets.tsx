@@ -1,6 +1,6 @@
 // Port of lib/screens/config/config_widgets.dart: the pieces every configuration page is built from.
 import type { JSX } from "@solidjs/web";
-import { For, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import { call } from "../../../bridge";
 import type { Provenance } from "../../config/settings_schema";
 import { t } from "../../i18n/i18n";
@@ -98,6 +98,54 @@ export function ConfigBlock(props: {
   return (
     <div class={["config-block", props.class]} style={props.padding === undefined ? undefined : { padding: props.padding }}>
       {props.children}
+    </div>
+  );
+}
+
+/** A ref for an element and its content width, followed as it resizes; 0 until it is laid out. */
+export function createWidth(): [width: () => number, ref: (element: HTMLElement) => void] {
+  const [width, setWidth] = createSignal(0);
+  let element: HTMLElement | undefined;
+  onSettled(() => {
+    if (element === undefined) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
+    observer.observe(element);
+    return () => observer.disconnect();
+  });
+  return [width, (next) => (element = next)];
+}
+
+export interface StatTile {
+  readonly label: string;
+  readonly value: string;
+  /** A muted line under the value; `""` keeps the line's height, so a row where some tiles have one stays even. */
+  readonly detail?: string;
+}
+
+/**
+ * Headline numbers (design.md, Stat tiles): equal tiles of 160 px or more, in rows that hold the same number of tiles
+ * where they can, so 8 tiles are 4 + 4, never 6 + 2.
+ */
+export function StatTiles(props: { readonly tiles: readonly StatTile[] }) {
+  const [width, measure] = createWidth();
+  const perRow = () => {
+    const count = props.tiles.length;
+    const fit = Math.max(2, Math.min(count, Math.floor((width() + 12) / (160 + 12))));
+    return Math.ceil(count / Math.ceil(count / fit));
+  };
+  return (
+    <div ref={measure} class="stat-tiles" style={{ "grid-template-columns": `repeat(${perRow()}, minmax(0, 1fr))` }}>
+      <For each={props.tiles}>
+        {(tile) => (
+          <ConfigBlock padding="12px 14px">
+            <div class="stat-tiles-label">{tile.label}</div>
+            <div class="stat-tiles-value">{tile.value}</div>
+            <Show when={tile.detail !== undefined}>
+              <div class="stat-tiles-detail">{tile.detail}</div>
+            </Show>
+          </ConfigBlock>
+        )}
+      </For>
     </div>
   );
 }

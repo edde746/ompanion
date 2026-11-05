@@ -57,39 +57,6 @@
   color: var(--on-surface-variant);
 }
 
-/* Stat tiles. */
-.activity-view-tiles {
-  display: grid;
-  gap: 12px;
-}
-
-.activity-view-tile-label {
-  font: var(--label-medium);
-  letter-spacing: var(--label-medium-tracking);
-  color: var(--on-surface-variant);
-}
-
-.activity-view-tile-value {
-  margin-top: 6px;
-  overflow: hidden;
-  font: var(--headline-small);
-  letter-spacing: var(--headline-small-tracking);
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.activity-view-tile-detail {
-  min-height: 16px;
-  margin-top: 2px;
-  overflow: hidden;
-  font: var(--body-small);
-  letter-spacing: var(--body-small-tracking);
-  color: var(--on-surface-variant);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /*
  * Chart card. Off-screen cards are not laid out, as Flutter's SliverList lays out only the rows near the viewport: the
  * engine skips a card's contents until it nears the viewport and keeps its last height while it skips them again. The

@@ -186,16 +186,18 @@
   user-select: text;
 }
 
+/* The text takes 280 px at least: on a phone the actions go to a line of their own under it, at its end. */
 .config-header {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--gap);
   padding: 12px 12px 8px 16px;
 }
 
 .config-header-text {
-  flex: 1;
+  flex: 1 1 280px;
   min-width: 0;
 }
 
@@ -219,6 +221,7 @@
   flex: none;
   align-items: center;
   gap: var(--gap);
+  margin-left: auto;
 }
 
 .config-refresh-busy {
@@ -258,4 +261,37 @@
 .config-mono {
   font-family: var(--font-mono);
   font-variant-ligatures: none;
+}
+
+/* Stat tiles (StatTiles): a muted label, the value in the headline size with tabular figures, a muted detail line. */
+.stat-tiles {
+  display: grid;
+  gap: 12px;
+}
+
+.stat-tiles-label {
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+  color: var(--on-surface-variant);
+}
+
+.stat-tiles-value {
+  margin-top: 6px;
+  overflow: hidden;
+  font: var(--headline-small);
+  letter-spacing: var(--headline-small-tracking);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-tiles-detail {
+  min-height: 16px;
+  margin-top: 2px;
+  overflow: hidden;
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+  color: var(--on-surface-variant);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

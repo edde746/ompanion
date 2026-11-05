@@ -135,7 +135,14 @@ export function TreeTab(props: { readonly session: LiveSession }) {
               <ActivityMark size={20} />
             </div>
           </Match>
-          <Match when={state.tree()?.entries.length === 0}>
+          {/* Nothing to list without a search or a filter of the user's: the standard filter hides the bookkeeping a
+              session starts with, so a new one has entries but no rows. */}
+          <Match
+            when={
+              state.tree()?.entries.length === 0 ||
+              (state.rows().length === 0 && state.query().trim() === "" && state.filter() === "standard")
+            }
+          >
             <DockEmptyState icon={Symbols.account_tree} message={t.dock.sessionTree.empty} />
           </Match>
           <Match when={state.rows().length === 0}>

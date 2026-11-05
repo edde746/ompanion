@@ -20,15 +20,17 @@
   color: var(--on-surface-variant);
 }
 
+/* The search takes 200 px at least: in a phone's dialog the thinking select goes to a line of its own under it. */
 .config-model-picker-controls {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--gap);
 }
 
 .config-model-picker-search {
-  flex: 1;
+  flex: 1 1 200px;
   min-width: 0;
 }
 

@@ -5,8 +5,9 @@
   justify-content: center;
 }
 
+/* 8 px between roles, the gap between blocks everywhere: their rows are alike, so the tone's edge must show. */
 .roles-page-card {
-  margin: 2px 0;
+  margin: 4px 0;
 }
 
 .roles-page-heading {

@@ -129,7 +129,7 @@ export function PluginsPage(props: { readonly target: ConfigTarget }) {
   const installed = createMemo(() => new Set(plugins()?.marketplace.map((plugin) => plugin.id)));
   const subtitle = () => {
     const directory = cwd();
-    return directory === undefined ? undefined : t.config.plugins.inProject({ path: directory });
+    return directory === undefined ? undefined : t.config.plugins.inProject({ path: target.shownPath(directory) });
   };
 
   return (

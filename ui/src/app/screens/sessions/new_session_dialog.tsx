@@ -8,6 +8,7 @@ import { useSessions, useShell } from "../../app_state";
 import { t } from "../../i18n/i18n";
 import type { Machine } from "../../models/machine";
 import { openAndShow } from "../../sessions/show_session";
+import { shortPath } from "../../utils/home_path";
 import { ActivityMark } from "../../widgets/activity_mark";
 import { AppSegmented } from "../../widgets/app_segmented";
 import { FilledButton, IconButton, TextButton, TonalButton } from "../../widgets/button";
@@ -21,7 +22,6 @@ import { tooltip } from "../../widgets/tooltip";
 import { recentModels } from "../chat/composer_palettes";
 import { pickModel } from "../config/model_picker";
 import { describeConnectError } from "../machines/connect_dialogs";
-import { shortPath } from "../shell/sidebar_tree";
 import {
   DirectoryBrowser,
   expandHome,

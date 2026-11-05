@@ -8,30 +8,6 @@
   letter-spacing: var(--body-medium-tracking);
 }
 
-.stats-page-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gap);
-}
-
-.stats-page-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 168px;
-}
-
-.stats-page-metric-label {
-  color: var(--on-surface-variant);
-  font: var(--label-medium);
-  letter-spacing: var(--label-medium-tracking);
-}
-
-.stats-page-metric-value {
-  font: var(--title-medium);
-  letter-spacing: var(--title-medium-tracking);
-}
-
 .stats-page-bars {
   display: flex;
   height: 96px;
