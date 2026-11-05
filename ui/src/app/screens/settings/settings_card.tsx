@@ -42,7 +42,7 @@ export function SettingsSwitchRow(props: {
   readonly onChanged?: (value: boolean) => void;
 }) {
   return (
-    <div class="settings-switch-row">
+    <div class={["settings-switch-row", { "settings-switch-row-disabled": props.onChanged === undefined }]}>
       <span class="settings-row-text">
         <span class="settings-row-label">{props.label}</span>
         <Show when={props.detail}>{(detail) => <span class="settings-row-detail">{detail()}</span>}</Show>

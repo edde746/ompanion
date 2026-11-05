@@ -92,6 +92,12 @@ export class FileWorkspace {
     return this.rootDir;
   }
 
+  /** The machine's home directory (SFTP space); undefined until the browser has read it. */
+  homeDir(): string | undefined {
+    this.changed();
+    return this.home;
+  }
+
   probe(): HostProbe | undefined {
     this.changed();
     return this.lastProbe;

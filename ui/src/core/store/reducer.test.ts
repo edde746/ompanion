@@ -274,6 +274,25 @@ describe("run status", () => {
     expect(view.stateStale).toBe(true);
   });
 
+  test("context usage is omp's get_state figure before and after the first turn, never the reply's own usage", () => {
+    // Before any request omp estimates the system prompt, the tool schemas and the messages.
+    const before = { tokens: 7400, contextWindow: 128000, percent: 5.78125 };
+    let view = fromState(state({ contextUsage: before }));
+    expect(view.contextUsage).toEqual(before);
+
+    // The reply's usage (10 in) does not replace it; the meter keeps the estimate until omp is asked again.
+    const reply = assistant(200, [text("done")]);
+    view = apply(view, [running, agentEnd([user("Read it", 100), reply], { isTerminal: true })]);
+    expect(view.contextUsage).toEqual(before);
+    expect(view.stateStale).toBe(true);
+
+    // Afterwards omp anchors on the provider's prompt tokens, which cover the same system prompt and tools.
+    const after = { tokens: 7650, contextWindow: 128000, percent: 5.9765625 };
+    view = withState(view, state({ contextUsage: after }));
+    expect(view.contextUsage).toEqual(after);
+    expect(view.stateStale).toBe(false);
+  });
+
   test("an abort mid-stream ends the reply and the run as aborted", () => {
     const partial = assistant(200, [text("Starting a long"), toolCall("call_1", "bash", { command: "sleep" })]);
     const aborted = assistant(200, [text("Starting a long"), toolCall("call_1", "bash", { command: "sleep" })], {

@@ -54,6 +54,28 @@ describe("paths", () => {
     expect(breadcrumbs("/")).toEqual([{ label: "/", path: "/" }]);
   });
 
+  test("breadcrumbs inside the home start at ~; outside it, and with a root home, at /", () => {
+    expect(breadcrumbs("/Users/edde/code/api-server", "/Users/edde")).toEqual([
+      { label: "~", path: "/Users/edde" },
+      { label: "code", path: "/Users/edde/code" },
+      { label: "api-server", path: "/Users/edde/code/api-server" },
+    ]);
+    expect(breadcrumbs("/Users/edde/", "/Users/edde")).toEqual([{ label: "~", path: "/Users/edde" }]);
+    expect(breadcrumbs("/C:/Users/x/src", "/C:/Users/x")).toEqual([
+      { label: "~", path: "/C:/Users/x" },
+      { label: "src", path: "/C:/Users/x/src" },
+    ]);
+    expect(breadcrumbs("/Users/eddie", "/Users/edde")).toEqual([
+      { label: "/", path: "/" },
+      { label: "Users", path: "/Users" },
+      { label: "eddie", path: "/Users/eddie" },
+    ]);
+    expect(breadcrumbs("/etc", "/")).toEqual([
+      { label: "/", path: "/" },
+      { label: "etc", path: "/etc" },
+    ]);
+  });
+
   test("relative paths only inside the root", () => {
     expect(relativePath("/home/omp", "/home/omp/a/b")).toBe("a/b");
     expect(relativePath("/home/omp", "/home/omp")).toBe(".");

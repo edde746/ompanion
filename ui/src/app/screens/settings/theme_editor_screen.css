@@ -50,6 +50,16 @@
   letter-spacing: var(--body-medium-tracking);
 }
 
+/*
+ * While the on-screen keyboard is up for a hex field, a narrow page leaves the strip out: what is left of the screen
+ * holds the token's row and its picker. A hex reaches the preview as it is applied, when the keyboard goes.
+ */
+@container (width < 840px) {
+  .theme-editor-typing .theme-editor-preview-slot {
+    display: none;
+  }
+}
+
 /* A wide page: the preview 320 px wide beside the list. */
 @container (min-width: 840px) {
   .theme-editor-body {
@@ -147,11 +157,25 @@
   }
 }
 
-.theme-editor-swatch {
+/*
+ * The swatch on a 2 px ring of the highest container tone: a colour of the card's own tone keeps its edge, and no
+ * swatch gets a bright outline that would read as an empty checkbox.
+ */
+.theme-editor-swatch-halo {
+  display: flex;
   flex: none;
+  align-items: center;
+  justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: 7px;
+  background: var(--surface-container-highest);
+}
+
+.theme-editor-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
 }
 
 .theme-editor-token-text {

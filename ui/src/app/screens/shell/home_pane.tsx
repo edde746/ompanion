@@ -56,9 +56,9 @@ function SessionHome(props: { readonly machine: Machine; readonly onAddMachine: 
       <Icon icon={Symbols.forum} size={48} class="home-pane-icon" />
       <h2 class="home-pane-title">{t.shell.homeSessionTitle}</h2>
       <p class="home-pane-body">
-        <Show when={needsOmp()} fallback={t.shell.homeSessionBody({ machine: props.machine.name })}>
-          {(needs) => t.shell.homeNeedsOmpBody({ machine: props.machine.name, reason: needs().reason })}
-        </Show>
+        {needsOmp()
+          ? t.shell.homeNeedsOmpBody({ machine: props.machine.name })
+          : t.shell.homeSessionBody({ machine: props.machine.name })}
       </p>
       <div class="home-pane-actions">
         <Show

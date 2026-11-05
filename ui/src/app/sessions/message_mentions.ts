@@ -51,6 +51,21 @@ export function messageMentionFolder(mention: MessageMention): boolean {
   return trailingSeparators.test(mention.path);
 }
 
+/**
+ * One of `paths` names the mention's path: the same path, or one ends in the other after a separator (omp may report
+ * a mention resolved against the session's directory, or as written). Trailing separators do not count.
+ */
+export function messageMentionAmong(mention: MessageMention, paths: readonly string[]): boolean {
+  const own = mention.path.replace(trailingSeparators, "");
+  if (own === "") return false;
+  return paths.some((path) => {
+    const other = path.replace(trailingSeparators, "");
+    if (other === "") return false;
+    const [short, long] = other.length < own.length ? [other, own] : [own, other];
+    return long === short || (long.endsWith(short) && /[/\\]/.test(long.charAt(long.length - short.length - 1)));
+  });
+}
+
 /** omp's `MODEL_MENTION_TAG_RE` (packages/tui/src/prompt/model-mention-syntax.ts). Global: for matchAll and replace. */
 export const modelTag = /<model agent="(m\d+)" name="([^"]*)"\/>/g;
 

@@ -31,7 +31,7 @@ export type Translations = {
     readonly homeBody: string;
     readonly homeSessionTitle: string;
     readonly homeSessionBody: (args: { machine: Param }) => string;
-    readonly homeNeedsOmpBody: (args: { machine: Param; reason: Param }) => string;
+    readonly homeNeedsOmpBody: (args: { machine: Param }) => string;
     readonly usageTitle: string;
     readonly settingsTitle: string;
   };

@@ -1,7 +1,7 @@
 // Port of lib/screens/chat/transcript/transcript_view.dart.
 import { createEffect, createMemo, createSignal, flush, For, onSettled, Show } from "solid-js";
 import type { SessionView, Subagent } from "../../../../core/store/session_view";
-import type { ToolResultItem, TranscriptItem, UserItem } from "../../../../core/store/transcript";
+import type { FileMentionItem, ToolResultItem, TranscriptItem, UserItem } from "../../../../core/store/transcript";
 import { t } from "../../../i18n/i18n";
 import { TurnExpansion } from "../../../sessions/turn_expansion";
 import { ActivityMark } from "../../../widgets/activity_mark";
@@ -46,6 +46,12 @@ let keyScroller: HTMLElement | undefined;
 const roomyQuery = "(min-width: 600px) and (min-height: 600px)";
 
 const noSubagents: readonly Subagent[] = [];
+
+/** The FileMentionItem in the row after `index`, which omp adds right after the user message that mentions files. */
+function mentionsAfter(rows: readonly TranscriptRow[], index: number): FileMentionItem | undefined {
+  const next = rows[index + 1];
+  return next?.kind === "ItemRow" && next.item.kind === "FileMentionItem" ? next.item : undefined;
+}
 
 /** Measures how long each thinking block streamed while the transcript was open. */
 class ThinkingClock {
@@ -110,6 +116,8 @@ interface Entry {
   readonly result: ToolResultItem | undefined;
   readonly subagents: readonly Subagent[];
   readonly thoughtMs: number | undefined;
+  /** The files omp read for a user message's mentions: the FileMentionItem right after it. */
+  readonly mentions: FileMentionItem | undefined;
 }
 
 /** The rows of one update, and what the update asks of the scroll position. */
@@ -265,11 +273,12 @@ export function TranscriptView(props: TranscriptViewProps) {
     const rowModel = model();
     const subagents = props.view.subagents;
     const { first, last } = span();
-    return rows.slice(first, last).map((row) => ({
+    return rows.slice(first, last).map((row, index) => ({
       row,
       result: row.kind === "ToolRow" ? rowModel.resultOf(row.callId) : undefined,
       subagents: row.kind === "ToolRow" && row.toolName === "task" ? subagents : noSubagents,
       thoughtMs: row.kind === "ThinkingRow" ? thinking.durationOf(row.key) : undefined,
+      mentions: row.kind === "ItemRow" && row.item.kind === "UserItem" ? mentionsAfter(rows, first + index) : undefined,
     }));
   });
   /** The top spacer's height; below zero it lifts the rows after it above the column's top. */
@@ -634,6 +643,7 @@ export function TranscriptView(props: TranscriptViewProps) {
     const result = createMemo(() => slot.entry.result);
     const subagents = createMemo(() => slot.entry.subagents);
     const thoughtMs = createMemo(() => slot.entry.thoughtMs);
+    const mentions = createMemo(() => slot.entry.mentions);
     let element: HTMLDivElement | undefined;
     onSettled(() => {
       const key = row().key;
@@ -653,6 +663,7 @@ export function TranscriptView(props: TranscriptViewProps) {
           result={result()}
           subagents={subagents()}
           thoughtMs={thoughtMs()}
+          mentions={mentions()}
           onToggle={(target) => toggleTurn(row().key, target)}
         />
       </div>

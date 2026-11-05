@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test";
 import {
   type MessageMention,
+  messageMentionAmong,
   messageMentionFolder,
   messageMentionName,
   messageMentionUrl,
@@ -105,4 +106,13 @@ test("a mention's name is its path's last segment; a local:// one is no machine 
   ]);
   expect([file, folder, paste].map(messageMentionFolder)).toEqual([false, true, false]);
   expect([file, windows, paste].map(messageMentionUrl)).toEqual([false, false, true]);
+});
+
+test("a mention is among paths that name it as written, resolved, or with a trailing separator", () => {
+  const [absolute, relative] = mentions("@/work/app/src @lib") as [MessageMention, MessageMention];
+  expect(messageMentionAmong(absolute, ["/work/app/src/"])).toBe(true);
+  expect(messageMentionAmong(absolute, ["src"])).toBe(true);
+  expect(messageMentionAmong(relative, ["/work/app/lib"])).toBe(true);
+  expect(messageMentionAmong(relative, ["/work/app/stdlib", "lib.ts"])).toBe(false);
+  expect(messageMentionAmong(absolute, [])).toBe(false);
 });

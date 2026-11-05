@@ -157,6 +157,7 @@ export function state(
     isStreaming?: boolean;
     isSettled?: boolean;
     queued?: number;
+    contextUsage?: JsonObject;
   } = {},
 ): JsonObject {
   return {
@@ -184,7 +185,7 @@ export function state(
     hasPendingAsyncWork: false,
     isSettled: options.isSettled ?? true,
     todoPhases: [],
-    contextUsage: { tokens: 1100, contextWindow: 128000, percent: 0.86 },
+    contextUsage: options.contextUsage ?? { tokens: 1100, contextWindow: 128000, percent: 0.86 },
   };
 }
 

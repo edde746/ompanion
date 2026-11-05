@@ -66,8 +66,9 @@ type Step =
   word title" from 18.5.1). Otherwise the server declines (`<title/>`) and the session stays untitled. They are
   left out of the request log.
 - `finish` defaults to `tool_calls` when a step calls a tool, else `stop`. `usage` defaults to
-  characters / 4 for the request messages and the output; it is sent when the request asks for
-  `stream_options.include_usage`, which omp does.
+  characters / 4 for the request messages and tool schemas and for the output; it is sent when the
+  request asks for `stream_options.include_usage`, which omp does. The tool schemas count as a real
+  provider bills them, so omp's context use after a reply does not fall below its estimate before it.
 - Tool ids default to `call_<request number>_<index>`.
 
 Bun tests (the app's e2e tests, `bun run test:e2e` in `ui/`, get these through `ui/src/test/omp.ts` and

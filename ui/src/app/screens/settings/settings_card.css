@@ -54,6 +54,11 @@
   letter-spacing: var(--body-medium-tracking);
 }
 
+/* The label of a switch that cannot change dims with it; the detail line, which may say why, stays readable. */
+.settings-switch-row-disabled .settings-row-label {
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
 .settings-row-detail {
   color: var(--on-surface-variant);
   font: var(--body-small);

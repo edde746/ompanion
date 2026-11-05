@@ -58,7 +58,10 @@ export interface StreamTurn extends Routed {
 	steps: Step[];
 	/** Defaults to `tool_calls` when a step calls a tool, otherwise `stop`. */
 	finish?: FinishReason;
-	/** Defaults to an estimate: request message characters / 4 in, output characters / 4 out. */
+	/**
+	 * Defaults to an estimate: request message and tool schema characters / 4 in, output characters / 4 out. The tools
+	 * count as a real provider bills them, or omp's context use would drop below its pre-request estimate after a reply.
+	 */
 	usage?: Usage;
 }
 
@@ -258,7 +261,7 @@ function planCompletion(turn: StreamTurn, requestSeq: number, body: Record<strin
 			});
 		}
 	}
-	const prompt = tokens(JSON.stringify(body.messages ?? []).length);
+	const prompt = tokens(JSON.stringify(body.messages ?? []).length + JSON.stringify(body.tools ?? []).length);
 	const completion = tokens(text.length + thinking.length + calls.reduce((sum, c) => sum + c.arguments.length, 0));
 	return {
 		id: `chatcmpl-fake-${requestSeq}`,

@@ -3,6 +3,7 @@ import type { JSX } from "@solidjs/web";
 import { t } from "../../i18n/i18n";
 import {
   type MessagePart,
+  messageMentionAmong,
   messageMentionFolder,
   messageMentionName,
   messageMentionUrl,
@@ -16,11 +17,12 @@ import "./mention_spans.css";
  * `parts` of a user message inline, in the parent's font and colour: text as it is, each file mention a chip with the
  * file's icon and name, its path in a tooltip, each tagged model a chip with its name, its pseudonym in a tooltip.
  * `onOpen` opens a mentioned path on the machine; a `local://` mention, or any mention without `onOpen`, shows its
- * tooltip on tap instead.
+ * tooltip on tap instead. `folders` are paths omp read as folders, so their mentions show the folder icon even without
+ * a trailing separator.
  */
 export function mentionSpans(
   parts: readonly MessagePart[],
-  options: { onOpen?: (path: string) => void } = {},
+  options: { onOpen?: (path: string) => void; folders?: readonly string[] } = {},
 ): JSX.Element {
   const onOpen = options.onOpen;
   return parts.map((part) => {
@@ -30,7 +32,7 @@ export function mentionSpans(
       case "MessageMention": {
         const url = messageMentionUrl(part);
         const name = messageMentionName(part);
-        const icon = messageMentionFolder(part)
+        const icon = messageMentionFolder(part) || messageMentionAmong(part, options.folders ?? [])
           ? Symbols.folder
           : url && name.startsWith("paste-")
             ? Symbols.notes

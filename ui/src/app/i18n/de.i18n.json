@@ -26,7 +26,7 @@
     "homeBody": "Wähle in der Seitenleiste einen Rechner aus oder füge einen hinzu.",
     "homeSessionTitle": "Keine Sitzung geöffnet",
     "homeSessionBody": "Öffne eine Sitzung in der Seitenleiste oder starte eine auf $machine.",
-    "homeNeedsOmpBody": "Für Sitzungen auf $machine wird dort zuerst omp benötigt: $reason",
+    "homeNeedsOmpBody": "Auf $machine wird omp benötigt, bevor dort eine Sitzung starten kann.",
     "usageTitle": "Nutzung",
     "settingsTitle": "Einstellungen"
   },

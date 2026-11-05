@@ -90,14 +90,15 @@ function gapAbove(row: TranscriptRow): number {
 
 /**
  * The component for one transcript row. `result` is the tool result of a ToolRow; `thoughtMs` is the measured
- * duration of a finished ThinkingRow that streamed while this transcript was open; `onToggle` opens or closes the turn
- * of a TurnSummaryRow and gets the row's element.
+ * duration of a finished ThinkingRow that streamed while this transcript was open; `mentions` are the files omp read
+ * for a user message's mentions; `onToggle` opens or closes the turn of a TurnSummaryRow and gets the row's element.
  */
 export function TranscriptRowView(props: {
   row: TranscriptRow;
   result?: ToolResultItem;
   subagents: readonly Subagent[];
   thoughtMs?: number;
+  mentions?: FileMentionItem;
   onToggle?: (row: HTMLElement) => void;
 }) {
   let element!: HTMLDivElement;
@@ -106,7 +107,7 @@ export function TranscriptRowView(props: {
     <div class="message-rows-row" style={{ "padding-top": `${gapAbove(props.row)}px` }} ref={element}>
       <Switch>
         <Match when={props.row.kind === "ItemRow" ? props.row : undefined}>
-          {(row) => <ItemView item={row().item} />}
+          {(row) => <ItemView item={row().item} mentions={props.mentions} />}
         </Match>
         <Match when={props.row.kind === "PendingPromptRow" ? props.row : undefined}>
           {(pending) => <UserMessage item={pending().message} />}
@@ -142,11 +143,11 @@ export function TranscriptRowView(props: {
   );
 }
 
-function ItemView(props: { item: TranscriptItem }) {
+function ItemView(props: { item: TranscriptItem; mentions?: FileMentionItem }) {
   return (
     <Switch>
       <Match when={props.item.kind === "UserItem" ? props.item : undefined}>
-        {(user) => <UserMessage item={user()} />}
+        {(user) => <UserMessage item={user()} mentions={props.mentions} />}
       </Match>
       <Match when={props.item.kind === "ExecutionItem" ? props.item : undefined}>
         {(execution) => <Execution item={execution()} />}
@@ -326,7 +327,7 @@ function Chevron(props: { open: boolean; size?: number }) {
   return <Icon icon={props.open ? Symbols.expand_less : Symbols.expand_more} size={props.size ?? 16} />;
 }
 
-function UserMessage(props: { item: UserItem }) {
+function UserMessage(props: { item: UserItem; mentions?: FileMentionItem }) {
   const item = () => props.item;
   const [expanded, setExpanded] = useStoredState(untrack(() => `transcript-user-expanded:${props.item.key}`), false);
   const scope = useContext(TranscriptScope);
@@ -335,6 +336,7 @@ function UserMessage(props: { item: UserItem }) {
   const folded = createMemo(() => folds(text()));
   const agent = () => item().synthetic || item().attribution === "agent";
   const images = createMemo(() => userItemImages(item()));
+  const folders = createMemo(() => props.mentions?.files.filter((file) => file.folder).map((file) => file.path) ?? []);
   return (
     <div class={["message-rows-user", { "message-rows-user-touch": isTouch() }]}>
       <MessageActions entryId={item().entryId} kind="user" text={text()} />
@@ -348,6 +350,7 @@ function UserMessage(props: { item: UserItem }) {
           <div class="message-rows-bubble-text">
             {mentionSpans(folded() && !expanded() ? head(parts(), foldAt(text())) : parts(), {
               onOpen: (path) => scope().onOpenFile(path),
+              folders: folders(),
             })}
           </div>
         </Show>
@@ -375,7 +378,7 @@ function ThinkingView(props: { row: ThinkingRow; thoughtMs?: number }) {
   const label = () =>
     props.row.live
       ? t.transcript.thinking
-      : props.thoughtMs !== undefined
+      : props.thoughtMs !== undefined && props.thoughtMs >= 100
         ? t.transcript.thoughtFor({ duration: t.transcript.seconds({ value: seconds(props.thoughtMs) }) })
         : t.transcript.thought;
   const reasoning = () => props.row.item.usage?.reasoningTokens ?? 0;

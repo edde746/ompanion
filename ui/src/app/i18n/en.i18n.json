@@ -26,7 +26,7 @@
     "homeBody": "Select a machine in the sidebar, or add one.",
     "homeSessionTitle": "No session open",
     "homeSessionBody": "Open a session from the sidebar, or start one on $machine.",
-    "homeNeedsOmpBody": "Sessions on $machine need omp there first: $reason",
+    "homeNeedsOmpBody": "$machine needs omp before a session can start there.",
     "usageTitle": "Usage",
     "settingsTitle": "Settings"
   },

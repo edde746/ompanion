@@ -89,9 +89,24 @@ export interface Crumb {
   readonly path: string;
 }
 
-/** The directories from the root down to `path`: `/`, then every segment. A Windows drive is one crumb (`C:`). */
-export function breadcrumbs(path: string): Crumb[] {
+/**
+ * The directories from the root down to `path`: `/`, then every segment. A Windows drive is one crumb (`C:`). Inside
+ * `home` they start at `~`, the home directory, as the app writes a machine's paths (`shortPath`).
+ */
+export function breadcrumbs(path: string, home?: string): Crumb[] {
   const normalized = normalizePath(path);
+  if (home !== undefined && !isRootPath(normalizePath(home))) {
+    const below = relativePath(home, normalized);
+    if (below !== undefined) {
+      let current = normalizePath(home);
+      const crumbs: Crumb[] = [{ label: "~", path: current }];
+      for (const part of below === "." ? [] : below.split("/")) {
+        current = joinPath(current, part);
+        crumbs.push({ label: part, path: current });
+      }
+      return crumbs;
+    }
+  }
   const crumbs: Crumb[] = [{ label: "/", path: "/" }];
   let current = "";
   for (const part of normalized.split("/")) {

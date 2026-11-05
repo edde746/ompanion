@@ -16,6 +16,7 @@ import {
   themeTokens,
   tokenGroup,
 } from "../../palette";
+import { insets } from "../../platform";
 import { Prefs } from "../../providers/settings_provider";
 import { applyPalette, tokenProperty } from "../../theme";
 import { ActivityMark } from "../../widgets/activity_mark";
@@ -61,6 +62,13 @@ function ThemeEditorScreen() {
     group,
     tokens: themeTokens.filter((token) => tokenGroup(token) === group),
   }));
+  // Only a hex field raises the keyboard here, and its text reaches the preview once applied, as the keyboard goes.
+  const typing = () => insets().keyboard > 0;
+  let list: HTMLDivElement | undefined;
+  // After platform.ts's revealFocusedField, which keeps the field above the keyboard, has run in the same frame.
+  createEffect(typing, (now, before) => {
+    if (now && !before) requestAnimationFrame(() => list && revealOpenRow(list));
+  });
 
   const save = (palette: AppPalette) => {
     setDraft(palette);
@@ -82,11 +90,11 @@ function ThemeEditorScreen() {
           </TextButton>
         }
       />
-      <div class="theme-editor-body">
+      <div class={["theme-editor-body", { "theme-editor-typing": typing() }]}>
         <div class="theme-editor-preview-slot">
           <Preview palette={draft()} />
         </div>
-        <div class="theme-editor-list">
+        <div class="theme-editor-list" ref={list}>
           <h2 class="theme-editor-title theme-editor-start">{t.themeEditor.startFrom}</h2>
           <AppSegmented<ThemeBase>
             value={draft().base}
@@ -128,6 +136,17 @@ function ThemeEditorScreen() {
   );
 }
 
+/** Scrolls `list` back to the open token's row as far as its focused field stays 20 px above the list's bottom. */
+function revealOpenRow(list: HTMLElement): void {
+  const row = list.querySelector('.theme-editor-token-row[aria-expanded="true"]');
+  const field = document.activeElement;
+  if (!row || !(field instanceof HTMLInputElement) || !list.contains(field)) return;
+  const box = list.getBoundingClientRect();
+  const hidden = box.top - row.getBoundingClientRect().top;
+  const room = box.bottom - 20 - field.getBoundingClientRect().bottom;
+  if (hidden > 0 && room > 0) list.scrollTop -= Math.min(hidden, room);
+}
+
 /** A token: its swatch, name and use, its hex, and a reset while it differs from the base; open, its picker under it. */
 function TokenRow(props: {
   readonly token: ThemeToken;
@@ -154,7 +173,9 @@ function TokenRow(props: {
           props.onTap();
         }}
       >
-        <span class="theme-editor-swatch" style={{ background: props.color }} />
+        <span class="theme-editor-swatch-halo">
+          <span class="theme-editor-swatch" style={{ background: props.color }} />
+        </span>
         <span class="theme-editor-token-text">
           <span class="theme-editor-token-name">{t.themeEditor.names[props.token]}</span>
           <span class="theme-editor-token-use">{t.themeEditor.uses[props.token]}</span>

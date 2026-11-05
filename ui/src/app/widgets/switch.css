@@ -69,12 +69,12 @@
   transform: translate(-50%, -50%);
 }
 
+/*
+ * Material 3 greys a disabled selected switch's track but keeps its thumb light, which reads as on. Here the whole
+ * switch, on or off, keeps its colours at 38 % (disabled content), so its value shows and so does that it is disabled.
+ */
 .switch:disabled {
-  background: rgb(var(--on-surface-rgb) / 0.12);
-}
-
-.switch:disabled .switch-thumb {
-  background: rgb(var(--on-surface-rgb) / 0.38);
+  opacity: 0.38;
 }
 
 @media (prefers-reduced-motion: no-preference) {

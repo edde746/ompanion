@@ -193,7 +193,11 @@ function Browser(props: { readonly workspace: FileWorkspace; readonly onOpen: (p
     >
       {(root) => (
         <div class="files-tab">
-          <Breadcrumbs path={root()} onOpen={(dir) => void props.workspace.openDir(dir)} />
+          <Breadcrumbs
+            path={root()}
+            home={props.workspace.homeDir()}
+            onOpen={(dir) => void props.workspace.openDir(dir)}
+          />
           <div class="files-tab-toolbar">
             <IconButton
               icon={Symbols.arrow_upward}
@@ -467,10 +471,14 @@ function fileIcon(name: string): string {
   }
 }
 
-/** The directories from `/` down to `path`, the deepest one in view at the end. */
-function Breadcrumbs(props: { readonly path: string; readonly onOpen: (dir: string) => void }) {
+/** The directories from `/`, or from `~` inside the home, down to `path`, the deepest one in view at the end. */
+function Breadcrumbs(props: {
+  readonly path: string;
+  readonly home: string | undefined;
+  readonly onOpen: (dir: string) => void;
+}) {
   let strip!: HTMLDivElement;
-  const crumbs = createMemo(() => breadcrumbs(props.path));
+  const crumbs = createMemo(() => breadcrumbs(props.path, props.home));
   createEffect(crumbs, () => {
     strip.scrollLeft = strip.scrollWidth;
   });

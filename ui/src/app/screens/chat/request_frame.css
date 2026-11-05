@@ -36,12 +36,23 @@
   letter-spacing: var(--body-small-tracking);
 }
 
+/* scroll-padding: a field focused from the keyboard scrolls clear of the fade (request_frame.tsx, `fadeHeight`). */
 .request-frame-body {
   flex: 0 1 auto;
   min-height: 0;
   margin-top: 4px;
   padding-right: 8px;
   overflow-y: auto;
+  scroll-padding-bottom: 24px;
+}
+
+/*
+ * While more of the body is below, its last 24 px fade into the card's tone, so a field cut at the edge reads as
+ * scrolled, not broken. A mask, not a stroke or a shadow.
+ */
+.request-frame-more {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
 }
 
 /* The panel sits outside the transcript's selection area; a form's text is selectable here. */
@@ -58,13 +69,30 @@
   letter-spacing: var(--body-small-tracking);
 }
 
+/* One row at the end while the buttons fit on it (request_frame.tsx measures it), else the stacked column below. */
 .request-frame-actions {
   display: flex;
   flex: none;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--gap);
   margin-top: 12px;
   padding-right: 8px;
+}
+
+.request-frame-actions-stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* A label longer than the panel wraps inside its button; one line keeps the control's height. */
+.request-frame-actions-stacked > .button {
+  padding-block: 8px;
+  white-space: normal;
+  text-align: center;
+}
+
+/* The one filled button heads the column, as it leads the reading order of an approval. */
+.request-frame-actions-stacked > .button-filled {
+  order: -1;
 }
