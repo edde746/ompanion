@@ -74,7 +74,7 @@ export class FakeProvider {
 		return (await this.#control("GET", "/control/requests")) as RecordedRequest[];
 	}
 
-	/** Clears the queue and the request log. */
+	/** Clears the queue and the request log; a request still waiting on a wait turn gets a 409 instead of a turn. */
 	async reset(): Promise<void> {
 		await this.#control("POST", "/control/reset");
 	}

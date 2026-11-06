@@ -32,7 +32,7 @@ It listens on 127.0.0.1; `--host <address>` picks another address, for an omp on
 | `POST /v1/chat/completions` | answers with the next eligible queued turn; SSE when `stream: true`, JSON otherwise |
 | `GET /v1/models` | lists `fake-1`, `fake-think` |
 | `POST /control/enqueue` | appends one turn or an array of turns |
-| `POST /control/reset` | clears the queue and the request log |
+| `POST /control/reset` | clears the queue and the request log; a request parked on a wait turn gets a `409` |
 | `GET /control/requests` | every completions request: `{path, body, served: "queue" \| "default" \| "demo", demo?}` |
 | `GET /control/health` | `{ok, queued, requests}` |
 

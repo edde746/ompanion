@@ -369,8 +369,10 @@ export function startServer(port: number, options: { demo?: boolean; hostname?: 
 	let queue: Turn[] = [];
 	let requests: RecordedRequest[] = [];
 	let requestSeq = 0;
-	/** Wake-ups for requests parked on a wait turn; every enqueue fires them. */
+	/** Wake-ups for requests parked on a wait turn; every enqueue and reset fires them. */
 	let waiters: Array<() => void> = [];
+	/** Resets so far: a request parked before one belongs to an earlier test and must not take this one's turns. */
+	let resets = 0;
 	const demo = options.demo ? createDemo() : undefined;
 
 	const completions = async (req: Request, server: Server<undefined>): Promise<Response> => {
@@ -397,6 +399,7 @@ export function startServer(port: number, options: { demo?: boolean; hostname?: 
 			});
 		}
 		while (turn && "wait" in turn) {
+			const parkedIn = resets;
 			turn = take();
 			while (!turn) {
 				// 499: the client went away; nobody reads this reply.
@@ -405,6 +408,11 @@ export function startServer(port: number, options: { demo?: boolean; hostname?: 
 				waiters.push(resolve);
 				req.signal.addEventListener("abort", () => resolve(), { once: true });
 				await promise;
+				if (resets !== parkedIn) {
+					// A 4xx omp does not retry: the request ends without taking a turn of the queue that replaced its own.
+					const message = "the fake provider was reset while this request waited for a turn";
+					return json({ error: { message, type: "invalid_request_error", code: 409 } }, 409);
+				}
 				turn = take();
 			}
 		}
@@ -449,10 +457,15 @@ export function startServer(port: number, options: { demo?: boolean; hostname?: 
 					return json({ object: "list", data: MODEL_IDS.map(id => ({ id, object: "model", created: 0, owned_by: "fake" })) });
 				case "POST /control/enqueue":
 					return enqueue(req);
-				case "POST /control/reset":
+				case "POST /control/reset": {
 					queue = [];
 					requests = [];
+					resets += 1;
+					const parked = waiters;
+					waiters = [];
+					for (const wake of parked) wake();
 					return json({ ok: true });
+				}
 				case "GET /control/requests":
 					return json(requests);
 				case "GET /control/health":
