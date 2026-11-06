@@ -331,14 +331,14 @@ export function TranscriptView(props: TranscriptViewProps) {
     stopTimer = window.setTimeout(readerStopped, readerWindowMs + 20);
   };
 
-  /** The reader's scroll ended: the offset takes the spacer's slack over. */
+  /** The reader's scroll ended: the offset takes the spacer's slack over, and a view left within `pinDistance` of the bottom is put back on it. */
   function readerStopped() {
     stopTimer = undefined;
     // A held touch or press schedules this again when it lets go.
     if (touching || pressing) return;
     const left = readerUntil - performance.now();
     if (left > 0) stopTimer = window.setTimeout(readerStopped, left + 20);
-    else if (slack !== 0) settle();
+    else if (slack !== 0 || pinned) settle();
   }
 
   const [atBottom, setAtBottom] = createSignal(true, { ownedWrite: true });
@@ -403,9 +403,11 @@ export function TranscriptView(props: TranscriptViewProps) {
   }
 
   /**
-   * Puts the scroll position where it belongs after the rows or their heights changed: at the bottom while pinned,
-   * else where the anchor row keeps its place on screen. Runs before the browser paints (from effects and
-   * ResizeObserver callbacks), so a correction never shows.
+   * Puts the scroll position where it belongs after the rows or their heights changed: at the bottom while pinned and
+   * the reader is not scrolling, else where the anchor row keeps its place on screen. While the reader scrolls away
+   * from the bottom `pinned` holds until they are past `pinDistance`, so pinning then would take back what each frame
+   * of the scroll gained (and on iOS stop its momentum); the anchor keeps their place instead, as it does under a
+   * held touch. Runs before the browser paints (from effects and ResizeObserver callbacks), so a correction never shows.
    */
   function settle() {
     const element = scroller;
@@ -418,7 +420,7 @@ export function TranscriptView(props: TranscriptViewProps) {
         setSlack(kept);
         flush();
       }
-      if (pinned && !touching) {
+      if (pinned && !reading()) {
         if (slack !== 0) {
           setSlack(0);
           flush();
@@ -511,8 +513,11 @@ export function TranscriptView(props: TranscriptViewProps) {
     if (!element) return;
     pinned = true;
     const distance = maxScroll(element) - element.scrollTop;
-    // A long way up, the smooth scroll would build every row on its way: jump.
+    // A long way up, the smooth scroll would build every row on its way: jump. The jump is asked for (a send, a tree
+    // navigation, the button), so it overrides the reader's scroll still under way, as a finger landing does in
+    // touchStarted; settle would otherwise keep their place and the next scroll event unpin again.
     if (distance > element.clientHeight * 2) {
+      readerUntil = 0;
       settle();
       return;
     }
