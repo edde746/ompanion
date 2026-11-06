@@ -11,9 +11,9 @@ type TitleGate = { maybeStartTitleGeneration?: (firstMessage: string) => void };
  * history.ts records). omp before 18.8.7 does this through `maybeStartTitleGeneration`, with its own gate: only an
  * unnamed session, no greetings, one request at a time, and a retry from the conversation once a declined message
  * has an answer. 18.8.7 made titling private to an interactive session (`autoTitle`), so there the companion makes
- * the same title-model request itself: only an unnamed session, one request at a time, and `generateTitle` declines a
- * greeting without asking the model; a declined message waits for the next one. omp sends no frame for a title it
- * sets, so every change is reported.
+ * the same title-model request itself: only an unnamed session, one request at a time per session, and `generateTitle`
+ * declines a greeting without asking the model; a declined message waits for the next one. omp sends no frame for a
+ * title it sets, so every change is reported.
  */
 export function installAutoTitle(pi: ExtensionAPI, session: AgentSession): void {
 	delete Bun.env.PI_NO_TITLE;
@@ -38,11 +38,12 @@ export function installAutoTitle(pi: ExtensionAPI, session: AgentSession): void 
 }
 
 function titleFromMessages(session: AgentSession): (text: string) => void {
-	let inFlight: string | undefined;
+	// Keyed by session: a request for another session ending (a switch away and back) leaves this one's in place.
+	const inFlight = new Set<string>();
 	return text => {
 		const sessionId = session.sessionManager.getSessionId();
-		if (session.sessionName || inFlight === sessionId) return;
-		inFlight = sessionId;
+		if (session.sessionName || inFlight.has(sessionId)) return;
+		inFlight.add(sessionId);
 		session
 			.generateTitle(text)
 			.then(async name => {
@@ -55,7 +56,7 @@ function titleFromMessages(session: AgentSession): (text: string) => void {
 				logger.warn("ompx: titling the session failed", { sessionId, error: String(error) });
 			})
 			.finally(() => {
-				if (inFlight === sessionId) inFlight = undefined;
+				inFlight.delete(sessionId);
 			});
 	};
 }

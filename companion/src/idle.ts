@@ -40,9 +40,12 @@ export function idleRun(env: Record<string, string | undefined>, argv: readonly 
 /** Companion calls and commands still running: a `!` command that runs for hours is no idle time. */
 let running = 0;
 let lastActivity = Date.now();
+/** Devices were told this idle stretch ends the run: a stop tried again before any activity tells them no more. */
+let announced = false;
 
 function touch(): void {
 	lastActivity = Date.now();
+	announced = false;
 }
 
 /** Runs a companion call or command, which counts as activity from its start to its end. */
@@ -112,8 +115,9 @@ async function closeInput(dir: string): Promise<void> {
 /**
  * Watches the main session and ends the run once it was idle for `run.afterMs`: no session event, companion call,
  * pause change or roster change, and nothing {@link busy}. Devices get `run.idleExit` first, so the ended session says
- * why; a device that sends while omp stops races it and loses its prompt with the process. A failed stop is logged,
- * shown and tried again after another idle period.
+ * why; a device that sends while omp stops races it and loses its prompt with the process. A stop that leaves omp
+ * running (it failed, or found no feeder to kill) is tried again after another idle period, announced only once; a
+ * failed one is logged and shown.
  */
 export function installIdleExit(session: AgentSession, run: IdleRun): void {
 	session.subscribe(touch);
@@ -134,14 +138,20 @@ export function installIdleExit(session: AgentSession, run: IdleRun): void {
 			arm(run.afterMs);
 			return;
 		}
-		emitEvent(IDLE_EXIT_EVENT, { idleMs: run.afterMs });
-		closeInput(run.dir).catch(error => {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.error("ompanion idle exit failed", { dir: run.dir, error: message });
-			channel().notify(`omp could not stop after ${run.afterMs} ms without activity: ${message}`, "error");
-			touch();
-			arm(run.afterMs);
-		});
+		if (!announced) {
+			announced = true;
+			emitEvent(IDLE_EXIT_EVENT, { idleMs: run.afterMs });
+		}
+		closeInput(run.dir).then(
+			// A stop that worked ends omp before this fires.
+			() => arm(run.afterMs),
+			error => {
+				const message = error instanceof Error ? error.message : String(error);
+				logger.error("ompanion idle exit failed", { dir: run.dir, error: message });
+				channel().notify(`omp could not stop after ${run.afterMs} ms without activity: ${message}`, "error");
+				arm(run.afterMs);
+			},
+		);
 	};
 	arm(run.afterMs);
 }

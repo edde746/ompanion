@@ -152,11 +152,10 @@ export class Channel {
 			settled = true;
 			signal?.removeEventListener("abort", onAbort);
 			rpc.pendingRequests.delete(id);
-			if (sent) {
-				this.#open.delete(id);
-				this.send(eventFrame("request.settled", { id }));
-			}
+			this.#open.delete(id);
+			// Settled before the frame, which can throw (a closed stdout): the caller's promise never strands.
 			finish();
+			if (sent) this.send(eventFrame("request.settled", { id }));
 		};
 		const onAbort = (): void => settle(() => resolve(undefined));
 
@@ -175,11 +174,17 @@ export class Channel {
 		});
 		// omp's map rejects synchronously once stdin has closed (RpcPendingExtensionRequests.set).
 		if (settled) return promise;
-		sent = true;
 		const open: OpenRequest = { id, method, params: params ?? null };
 		this.#open.set(id, open);
 		signal?.addEventListener("abort", onAbort, { once: true });
-		this.send({ type: "ompx", kind: "request", ...open });
+		try {
+			this.send({ type: "ompx", kind: "request", ...open });
+		} catch (error) {
+			// No device saw the request, so none needs its `request.settled`.
+			settle(() => reject(error));
+			return promise;
+		}
+		sent = true;
 		return promise;
 	}
 }

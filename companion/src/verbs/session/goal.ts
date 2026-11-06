@@ -235,11 +235,13 @@ function continueGoal(session: AgentSession, text: string): void {
 	continuationTimer = undefined;
 	// The schedule's gates again: loop or plan mode may have come on since (a `/loop` sent in the 800 ms gap).
 	if (loopEnabled() || session.getPlanModeState()?.enabled) return;
-	// Busy as the TUI sees it: drop the tick; the turn's own end schedules the next one.
-	if (session.isStreaming || session.isCompacting || session.hasPostPromptWork) return;
-	// A switch, new session or branch runs with the agent disconnected; its reconciler or pausing abort cancels
-	// this. A device's prompt or companion call omp is still admitting may start no turn. Look again later.
-	if (session.isSessionTransitioning || session.hasAdmittedSubmission) {
+	// Busy as the TUI sees it, short of compacting: drop the tick; the turn's own end schedules the next one.
+	if (session.isStreaming || session.hasPostPromptWork) return;
+	// A compaction (a `/compact` sent in the 800 ms gap) ends with no turn whose end would schedule the next one: the
+	// TUI drops the tick there and the goal stalls. A switch, new session or branch runs with the agent disconnected;
+	// its reconciler or pausing abort cancels this. A device's prompt or companion call omp is still admitting may
+	// start no turn. Look again later.
+	if (session.isCompacting || session.isSessionTransitioning || session.hasAdmittedSubmission) {
 		continuationTimer = setTimeout(() => continueGoal(session, text), CONTINUATION_DELAY_MS);
 		return;
 	}

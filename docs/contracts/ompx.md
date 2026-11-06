@@ -278,7 +278,7 @@ aborted.
 
 ### run.idleExit
 
-Event `{idleMs: number}`, no `callId`, sent once right before the companion ends the omp of a detached run that sat
+Event `{idleMs: number}`, no `callId`, sent right before the companion ends the omp of a detached run that sat
 idle for `idleMs`. Only a run's launch turns it on (`OMPANION_RUN` and `OMPANION_IDLE_EXIT_MS`, `host-launch.md`, "Idle
 exit"); the control process never sends it. Code: `companion/src/idle.ts`.
 
@@ -292,7 +292,9 @@ exit"); the control process never sends it. Code: `companion/src/idle.ts`.
   `tail` in `tail.pid` (only while that pid's command line names the run's `in.jsonl`), on Windows it creates
   `in.jsonl.stop`. omp drains and exits 0, and `ompanion_exit` follows in `out.jsonl`.
 - A prompt a device appends while omp stops is lost with the process.
-- A failed stop is logged to omp's log and shown as an error notice, and tried again after another `idleMs`.
+- A stop that leaves omp running is tried again after another `idleMs` without activity: a failed one (logged to omp's
+  log and shown as an error notice) and one that found no feeder to kill alike. The event is sent once per idle
+  stretch, not again for a retry with no activity since.
 
 ### notify.test
 
@@ -660,9 +662,9 @@ active. Use /goal to manage it, or /goal drop to start over." or the paused-goal
   wait for the user). The text is omp's `goal-continuation.md`, built at that moment; it is sent as
   `promptCustomMessage({customType: "goal-continuation", display: false, attribution: "agent"}, {streamingBehavior:
   "followUp"})`, so omp prepends its `goal-mode-context`. When it is due, loop mode or plan mode turned on since, or
-  open work now all blocked, cancels it; a streaming, compacting or post-prompt-busy session drops it (the next
-  terminal `agent_end` schedules again); a prompt or companion call still being admitted, or a session switch, new
-  session or branch still in progress, retries it 800 ms later. `agent_start` cancels a pending one.
+  open work now all blocked, cancels it; a streaming or post-prompt-busy session drops it (the next terminal
+  `agent_end` schedules again); a compaction, a prompt or companion call still being admitted, or a session switch,
+  new session or branch still in progress, retries it 800 ms later. `agent_start` cancels a pending one.
 - Failed submission: an objective or continuation that starts no turn (omp threw, shown as an error notice, or
   dropped it before the agent) schedules the next continuation 800 ms later; each further failure in a row doubles
   the wait, up to 60 s. A turn that starts resets it.
@@ -759,7 +761,8 @@ ends in "No active goal.", as in the TUI.
 - The loop repeats the text omp sent the model (after prompt-template expansion); the TUI re-expands the typed text.
 - A prompt that starts no turn leaves a waiting loop waiting; the TUI marks it paused.
 - Images attached to `/goal <objective>` or `/guided-goal` are not forwarded: extension commands receive text only.
-- A continuation due while a prompt or companion call is being admitted is retried 800 ms later instead of dropped.
+- A continuation due while a prompt or companion call is being admitted, or while omp compacts, is retried 800 ms later
+  instead of dropped; the TUI drops it during a compaction, and its goal waits for the user.
 - A continuation or iteration due while a session switch, new session or branch is in progress waits for it; the
   TUI's timers do not look, and would submit into the disconnected agent.
 - A continuation after failed submissions backs off (doubling, up to 60 s); the TUI's main loop retries every 800 ms.

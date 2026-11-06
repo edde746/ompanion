@@ -122,6 +122,32 @@ describe("requests", () => {
 		expect(ui.frames).toEqual([]);
 		expect(channel.openRequests()).toEqual([]);
 	});
+
+	test("an output that throws on the settlement still settles the request", async () => {
+		const { ui, channel } = rpcChannel();
+		const answer = channel.request("ask", {});
+		const id = ui.lastRequestId();
+		const closed = new Error("stdout closed");
+		ui.output = () => {
+			throw closed;
+		};
+		expect(() => ui.respond({ id, value: '{"kind":"chat"}' })).toThrow(closed);
+		expect(await answer).toEqual({ kind: "chat" });
+		expect(ui.pendingRequests.has(id)).toBe(false);
+		expect(channel.openRequests()).toEqual([]);
+	});
+
+	test("an output that throws on the announcement fails the request and leaves nothing open", async () => {
+		const { ui, channel } = rpcChannel();
+		const closed = new Error("stdout closed");
+		ui.output = () => {
+			throw closed;
+		};
+		const controller = new AbortController();
+		await expect(channel.request("ask", {}, controller.signal)).rejects.toBe(closed);
+		expect(ui.pendingRequests.size).toBe(0);
+		expect(channel.openRequests()).toEqual([]);
+	});
 });
 
 describe("fallback channel", () => {

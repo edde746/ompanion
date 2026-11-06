@@ -175,10 +175,12 @@ function enableLoop(limit: LoopLimitConfig | undefined, condition: LoopCondition
  * rejected, parks the loop (input-controller.ts 1189, 1214-1284).
  */
 function submitLoopBody(session: AgentSession, body: string): void {
+	// The loop this body is for: a disable and enable while omp admits it makes another loop.
+	const target = loop;
 	if (session.isStreaming) {
 		promptAsCompanion(session, body, "steer").then(
 			forwarded => {
-				if (forwarded) setLoopPrompt(body);
+				if (forwarded && loop === target) setLoopPrompt(body);
 			},
 			error => channel().notify(errorText(error), "error"),
 		);
@@ -187,11 +189,11 @@ function submitLoopBody(session: AgentSession, body: string): void {
 	setLoopPrompt(body);
 	promptAsCompanion(session, body, "steer").then(
 		forwarded => {
-			if (!forwarded && loop?.prompt === body) pauseLoop();
+			if (!forwarded && loop === target && loop?.prompt === body) pauseLoop();
 		},
 		error => {
 			channel().notify(errorText(error), "error");
-			if (loop?.prompt === body) pauseLoop();
+			if (loop === target && loop?.prompt === body) pauseLoop();
 		},
 	);
 }
@@ -211,6 +213,7 @@ function blocked(session: AgentSession): boolean {
 }
 
 function defer(callback: () => void): void {
+	cancelTimer();
 	timer = setTimeout(() => {
 		timer = undefined;
 		if (loop) callback();

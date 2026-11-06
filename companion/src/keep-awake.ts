@@ -42,8 +42,12 @@ export function installKeepAwake(session: AgentSession): void {
 		if (want === (held !== undefined)) return;
 		if (!want) {
 			clearInterval(recheck);
-			held?.stop();
-			held = undefined;
+			try {
+				held?.stop();
+			} finally {
+				// A release that throws still ends this hold; the next work start takes a new one.
+				held = undefined;
+			}
 			return;
 		}
 		try {
