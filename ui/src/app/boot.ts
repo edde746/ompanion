@@ -13,6 +13,26 @@ import { thisComputerAvailable } from "./services/machine_connector";
 import { newId } from "./utils/ids";
 
 export async function bootApp(state: AppState, info: CoreInfo): Promise<void> {
+  const stores = [state.knownHosts, state.keys, state.sessionReads, state.sessionPins, state.machines];
+  try {
+    await beforeDocuments(state, info);
+  } catch (error) {
+    // What waits for a document (a host key check, a key's name) fails instead of waiting for good.
+    for (const store of stores) store.failLoad(error);
+    throw error;
+  }
+  await Promise.all(stores.map((store) => store.load()));
+  // Once per install, so deleting this computer sticks.
+  if (thisComputerAvailable() && !state.settings.get(Prefs.localMachineSeeded)) {
+    const now = Date.now();
+    const name = "hostname" in info && typeof info.hostname === "string" && info.hostname !== "" ? info.hostname : "localhost";
+    await state.machines.save(localMachine({ id: newId(), name, createdAt: now, updatedAt: now }));
+    await state.settings.set(Prefs.localMachineSeeded, true);
+  }
+  await state.startNotifications();
+}
+
+async function beforeDocuments(state: AppState, info: CoreInfo): Promise<void> {
   await loadPlatform(info);
   // Before anything reads the settings, mints a device id or adds this computer: the Flutter app's are kept. Its code
   // stays out of the entry chunk and loads only when there is Flutter data.
@@ -25,19 +45,4 @@ export async function bootApp(state: AppState, info: CoreInfo): Promise<void> {
   applyLanguage(state.settings.get(Prefs.language));
   if (state.settings.get(Prefs.deviceId) === "") await state.settings.set(Prefs.deviceId, newId());
   await loadDevOverrides();
-  await Promise.all([
-    state.knownHosts.load(),
-    state.keys.load(),
-    state.sessionReads.load(),
-    state.sessionPins.load(),
-    state.machines.load(),
-  ]);
-  // Once per install, so deleting this computer sticks.
-  if (thisComputerAvailable() && !state.settings.get(Prefs.localMachineSeeded)) {
-    const now = Date.now();
-    const name = "hostname" in info && typeof info.hostname === "string" && info.hostname !== "" ? info.hostname : "localhost";
-    await state.machines.save(localMachine({ id: newId(), name, createdAt: now, updatedAt: now }));
-    await state.settings.set(Prefs.localMachineSeeded, true);
-  }
-  await state.startNotifications();
 }

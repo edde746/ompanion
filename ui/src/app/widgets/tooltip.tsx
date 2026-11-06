@@ -16,6 +16,8 @@ const [shown, setShown] = createSignal<Shown | null>(null);
 /** The targets whose label is on screen: the shown one, and hidden ones until their label has faded out. */
 const [labels, setLabels] = createSignal<readonly HTMLElement[]>([]);
 let timer: ReturnType<typeof setTimeout> | undefined;
+/** The target {@link showLater}'s timer will show. */
+let pending: HTMLElement | undefined;
 
 const hoverDelayMs = 300;
 const longPressMs = 500;
@@ -29,12 +31,15 @@ function show(target: HTMLElement, text: string): void {
 function hide(): void {
   clearTimeout(timer);
   timer = undefined;
+  pending = undefined;
   setShown(null);
 }
 
 function showLater(target: HTMLElement, text: () => string, delayMs: number, then?: () => void): void {
   clearTimeout(timer);
+  pending = target;
   timer = setTimeout(() => {
+    pending = undefined;
     show(target, text());
     then?.();
   }, delayMs);
@@ -50,9 +55,16 @@ export function tooltip(message: () => string, options: { readonly tap?: boolean
   createEffect(message, (text) => {
     element?.setAttribute("aria-label", text);
   });
-  // A target removed under the pointer gets no pointerleave: its label goes with it (a snack bar timing out).
+  // A target removed under the pointer gets no pointerleave: its label goes with it (a snack bar timing out), and a
+  // label still waiting to show never does.
   onCleanup(() => {
-    if (element && shown()?.target === element) hide();
+    if (element === undefined) return;
+    if (shown()?.target === element) hide();
+    else if (pending === element) {
+      clearTimeout(timer);
+      timer = undefined;
+      pending = undefined;
+    }
   });
   return (target: HTMLElement) => {
     element = target;
@@ -78,6 +90,7 @@ export function tooltip(message: () => string, options: { readonly tap?: boolean
     if (options.tap) {
       target.addEventListener("click", () => {
         clearTimeout(timer);
+        pending = undefined;
         show(target, message());
         if (pointerType !== "mouse") timer = setTimeout(hide, touchShowMs);
       });

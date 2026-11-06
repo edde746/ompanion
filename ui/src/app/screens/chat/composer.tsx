@@ -159,10 +159,13 @@ function SessionComposer(props: {
       setDismissedMention((dismissed) =>
         dismissed?.start === live?.start && dismissed?.query === live?.query ? dismissed : undefined,
       );
-      // A list that failed loads again for the next `^`, and every `^` gets the recent models as they are then.
+      // A list that failed loads again for the next `^`, and every `^` gets the recent models as they are then. A load
+      // still running for a removed `^` is dropped, so its late failure cannot open the next `^` on a stale error.
       if (live === undefined) {
         setModelsError(undefined);
+        setModelsLoading(false);
         modelsFor = undefined;
+        modelsRequest++;
       }
     },
   );
@@ -198,6 +201,7 @@ function SessionComposer(props: {
       ([loaded, recent]) => {
         if (mine !== modelsRequest) return;
         setModels({ models: loaded, recent });
+        setModelsError(undefined);
         setModelsLoading(false);
       },
       (error: unknown) => {
@@ -450,7 +454,11 @@ function SessionComposer(props: {
                   <ModelPicker session={props.session} machine={props.machine} model={props.view.config.model} />
                 </span>
                 <span class="composer-thinking">
-                  <ThinkingPicker session={props.session} level={props.view.config.thinkingLevel} />
+                  <ThinkingPicker
+                    session={props.session}
+                    model={props.view.config.model}
+                    level={props.view.config.thinkingLevel}
+                  />
                 </span>
                 <ContextMeter usage={props.view.contextUsage} cost={sessionViewUsageTotals(props.view).cost} />
                 <Show when={!modesRow()}>{modes()}</Show>

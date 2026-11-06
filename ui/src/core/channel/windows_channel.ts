@@ -121,7 +121,7 @@ export class WindowsRunChannel implements RunChannel {
     this.inboxReader.sending();
     // Chained, so lines reach the appender in [send] order.
     const handed = this.writes.then(async () => {
-      const appender = await (this.appender ??= this.startAppender());
+      const appender = await this.liveAppender();
       return { ack: appender.append(framedLine(line)) };
     });
     // The chain only keeps the writes in order; each send gets its own error below.
@@ -137,22 +137,39 @@ export class WindowsRunChannel implements RunChannel {
     }
   }
 
+  /** The appender, started on the first send and again after one ended. */
+  private async liveAppender(): Promise<RunAppender> {
+    const appender = await (this.appender ??= this.startAppender());
+    // It ended since it was cached, which emptied the slot.
+    return appender.ended ? await (this.appender ??= this.startAppender()) : appender;
+  }
+
   private async startAppender(): Promise<RunAppender> {
-    const process = await startPowerShell(this.link, this.shell, windowsAppenderScript(hostPath(this.dir)));
-    return new RunAppender(process, this.dir, () => {
+    try {
+      const process = await startPowerShell(this.link, this.shell, windowsAppenderScript(hostPath(this.dir)));
+      return new RunAppender(process, this.dir, () => {
+        this.appender = undefined;
+      });
+    } catch (error) {
+      // Not kept: the next send starts another.
       this.appender = undefined;
-    });
+      throw error;
+    }
   }
 
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
     await this.writes;
-    const appender = this.appender;
-    if (appender !== undefined) await (await appender).finish();
-    await Promise.all([this.log.stop(), ...this.loops]);
-    this.inboxReader.close();
-    await this.files.close();
+    try {
+      // A start that failed emptied the slot, and the sends are done: this one started.
+      const appender = this.appender;
+      if (appender !== undefined) await (await appender).finish();
+    } finally {
+      await Promise.all([this.log.stop(), ...this.loops]);
+      this.inboxReader.close();
+      await this.files.close();
+    }
   }
 }
 

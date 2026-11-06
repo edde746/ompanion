@@ -2,7 +2,6 @@
 // of `~/.ssh/known_hosts` on desktops. The document is read and written whole, so this store is its only writer:
 // MachinesProvider trusts and forgets keys through it.
 import { type Accessor, createSignal, type Setter } from "solid-js";
-import { deferred } from "../../deferred";
 import { type KnownHostEntry, parseKnownHosts } from "../../core/ssh/known_hosts";
 import type { HostKeyCheck, HostKeyVerifier } from "../../core/ssh/ssh_config";
 import { BridgeLink } from "../../core/transport/bridge_link";
@@ -10,6 +9,7 @@ import type { AppDatabase } from "../database/app_database";
 import type { KnownHostRow } from "../database/tables";
 import { type HostKeyVerdict, judgeHostKey, knownHostRow } from "../models/host_key_trust";
 import type { SshEndpoint } from "../models/machine";
+import { LoadGate } from "../utils/load_gate";
 import { thisComputerAvailable } from "./machine_connector";
 
 /**
@@ -23,7 +23,7 @@ export class KnownHostsStore {
   private readonly changed: Accessor<number>;
   private readonly setChanged: Setter<number>;
   private list: readonly KnownHostRow[] = [];
-  private readonly loading = deferred<void>();
+  private readonly loading = new LoadGate();
 
   constructor(private readonly db: AppDatabase) {
     [this.changed, this.setChanged] = createSignal(0, { ownedWrite: true });
@@ -31,13 +31,25 @@ export class KnownHostsStore {
 
   /** Reads the stored keys; boot calls it, so the first frame waits for nothing. */
   async load(): Promise<void> {
-    await this.replace(await this.db.knownHosts.read(), false);
-    this.loading.resolve();
+    let rows: readonly KnownHostRow[];
+    try {
+      rows = await this.db.knownHosts.read();
+    } catch (error) {
+      this.failLoad(error);
+      throw error;
+    }
+    await this.replace(rows, false);
+    this.loading.loaded();
   }
 
-  /** Resolves once the stored keys are in. */
+  /** Rejects {@link ready} with `error`; boot calls it when it fails before {@link load}. */
+  failLoad(error: unknown): void {
+    this.loading.failed(error);
+  }
+
+  /** Resolves once the stored keys are in; rejects when they cannot be read. A host key check then fails. */
   get ready(): Promise<void> {
-    return this.loading.promise;
+    return this.loading.ready;
   }
 
   /** Every trusted key. Tracks. */

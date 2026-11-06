@@ -1,6 +1,7 @@
 // The parts of test/dock/file_workspace_test.dart that need no machine; the rest is file_workspace.e2e.test.ts.
 import { expect, test } from "bun:test";
 import type { HostDirEntry, HostFiles, HostFileStat } from "../../core/transport/host_link";
+import { type Deferred, deferred } from "../../deferred";
 import { MemoryFiles } from "../../test/memory_host";
 import { decodeFileText, FileChangedOnDisk, FileDocument, lineBreakOf, maxEditableBytes } from "./file_document";
 
@@ -84,7 +85,7 @@ test("editing back to the saved text is clean again; saving writes the file's li
   expect(document.dirty()).toBe(false);
 
   document.setText("one\ntwo\nthree\n");
-  await document.save(files);
+  await document.save(async () => files);
   expect(decode(files.files.get("/w/windows.txt"))).toBe("one\r\ntwo\r\nthree\r\n");
   expect(document.dirty()).toBe(false);
   expect(document.saving()).toBe(false);
@@ -95,17 +96,50 @@ test("a change on the machine since loading is a conflict; force overwrites it",
   const document = await FileDocument.load(files, "/w/notes.txt");
   files.put("/w/notes.txt", encode("theirs\n"));
   document.setText("mine\n");
-  const conflict = await document.save(files).catch((error: unknown) => error);
+  const conflict = await document.save(async () => files).catch((error: unknown) => error);
   expect(conflict).toBeInstanceOf(FileChangedOnDisk);
   expect((conflict as FileChangedOnDisk).deleted).toBe(false);
   expect(decode(files.files.get("/w/notes.txt"))).toBe("theirs\n");
   expect(document.dirty()).toBe(true);
 
-  await document.save(files, { force: true });
+  await document.save(async () => files, { force: true });
   expect(decode(files.files.get("/w/notes.txt"))).toBe("mine\n");
 
   await files.remove("/w/notes.txt");
   document.setText("again\n");
-  const deleted = await document.save(files).catch((error: unknown) => error);
+  const deleted = await document.save(async () => files).catch((error: unknown) => error);
   expect((deleted as FileChangedOnDisk).deleted).toBe(true);
+});
+
+/** Writes wait for {@link gate} while it is set. */
+class GatedFiles extends MemoryFiles {
+  gate: Deferred<void> | undefined;
+
+  override async write(path: string, bytes: Uint8Array, options: { append?: boolean } = {}): Promise<void> {
+    await this.gate?.promise;
+    return super.write(path, bytes, options);
+  }
+}
+
+test("a save is saving from the call, and a reload during it reads the file once it is written", async () => {
+  const files = new GatedFiles({ "/w/notes.txt": "old\n" });
+  const document = await FileDocument.load(files, "/w/notes.txt");
+  document.setText("mine\n");
+  const access = deferred<HostFiles>();
+  files.gate = deferred<void>();
+
+  const saving = document.save(() => access.promise);
+  expect(document.saving()).toBe(true);
+  access.resolve(files);
+  const reloading = document.reload(async () => files);
+  files.gate.resolve();
+  await Promise.all([saving, reloading]);
+
+  expect(document.text()).toBe("mine\n");
+  expect(document.dirty()).toBe(false);
+  expect(document.saving()).toBe(false);
+  // The stat is the written file's, so the next save is no conflict.
+  document.setText("again\n");
+  await document.save(async () => files);
+  expect(decode(files.files.get("/w/notes.txt"))).toBe("again\n");
 });

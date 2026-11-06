@@ -2,12 +2,27 @@
 import { afterEach, expect, test } from "bun:test";
 import { createRoot, flush } from "solid-js";
 import type { LiveSession } from "../../../core/session/live_session";
-import { deferred } from "../../../deferred";
+import { type Deferred, deferred } from "../../../deferred";
 import { FakeSession, FakeSessions, fakeRuntime, MemoryFiles, testMachine } from "../../../test/config_fakes";
 import { ConfigTarget } from "../../config/config_target";
-import { configLayerLookup, configLayerParse } from "../../config/config_yaml";
+import { type ConfigLayer, configLayerLookup, configLayerParse } from "../../config/config_yaml";
 import type { SettingSchema } from "../../config/settings_schema";
 import { SettingsPageState } from "./settings_page_state";
+
+/** Files whose next read, once it has the bytes, waits for [held]: a reload stopped partway. */
+class HeldFiles extends MemoryFiles {
+  held: Deferred<void> | undefined;
+
+  override async read(path: string): Promise<Uint8Array> {
+    const bytes = await super.read(path);
+    const held = this.held;
+    this.held = undefined;
+    await held?.promise;
+    return bytes;
+  }
+}
+
+const globalPath = "/home/u/.omp/agent/config.yml";
 
 function switchSetting(path: string, label: string) {
   return {
@@ -39,12 +54,18 @@ function replies(verb: string): unknown {
   }
 }
 
+/** The project session's `settings.get`: every value comes from the project file. */
+function projectReplies(verb: string): unknown {
+  if (verb !== "settings.get") return replies(verb);
+  return { settings: values.settings.map((value) => ({ ...value, provenance: "project" })), conditions: {} };
+}
+
 let dispose: (() => void) | undefined;
 
 afterEach(() => dispose?.());
 
 async function page(project?: LiveSession) {
-  const files = new MemoryFiles();
+  const files = new HeldFiles();
   const control = await new FakeSession({ reply: replies }).attach();
   const sessions = new FakeSessions(fakeRuntime(files));
   sessions.onControl = async () => control;
@@ -123,4 +144,48 @@ test("settings.changed of the page's source updates the effective values", async
   });
   await until(() => state.effective()?.values.get("alpha.enabled")?.provenance === "global");
   state.dispose();
+});
+
+test("a reload of the scope left behind changes neither the values nor the spinner of the new scope", async () => {
+  const project = await new FakeSession({ cwd: "/work/p", runId: "run", reply: projectReplies }).attach();
+  const { files, state } = await page(project);
+  files.texts.set(globalPath, "alpha:\n  enabled: false\n");
+
+  const refresh = deferred<void>();
+  files.held = refresh;
+  const refreshed = state.load();
+  await until(() => files.held === undefined);
+  const scoped = deferred<void>();
+  files.held = scoped;
+  state.changeScope("project");
+  await until(() => files.held === undefined);
+
+  // The global refresh ends first, while the project load still runs.
+  refresh.resolve();
+  await refreshed;
+  flush();
+  expect(state.loading()).toBe(true);
+  expect(state.effective()).toBeUndefined();
+
+  scoped.resolve();
+  await until(() => !state.loading());
+  expect(state.scope()).toBe("project");
+  expect(state.effective()?.values.get("alpha.enabled")?.provenance).toBe("project");
+});
+
+test("a file reload that ends after a newer one leaves the newer text", async () => {
+  const { files, state } = await page();
+  files.texts.set(globalPath, "alpha:\n  enabled: false\n");
+  const held = deferred<void>();
+  files.held = held;
+  const older = state.load();
+  await until(() => files.held === undefined);
+
+  files.texts.set(globalPath, "alpha:\n  enabled: true\n");
+  await state.load();
+  held.resolve();
+  await older;
+  flush();
+  const global: ConfigLayer = state.global() ?? { root: {} };
+  expect(configLayerLookup(global, ["alpha", "enabled"])?.value).toBe(true);
 });

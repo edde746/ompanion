@@ -97,6 +97,8 @@ export class DirectoryBrowser {
   private readonly setError: Setter<string | undefined>;
   private files: HostFiles | undefined;
   private disposed = false;
+  /** The latest `list` call: only it commits, so a slow listing cannot replace the one navigated to after it. */
+  private listing = 0;
 
   /** `link` reads the machine's link, which throws while the machine is not connected. */
   constructor(private readonly link: () => HostLink) {
@@ -123,7 +125,7 @@ export class DirectoryBrowser {
       }
       await this.list(await files.home());
     } catch (error) {
-      this.setError(String(error));
+      if (!this.disposed) this.setError(String(error));
     }
   }
 
@@ -131,6 +133,7 @@ export class DirectoryBrowser {
   async list(path: string): Promise<void> {
     const files = this.files;
     if (files === undefined) return;
+    const mine = ++this.listing;
     this.setEntries(undefined);
     this.setError(undefined);
     try {
@@ -146,9 +149,11 @@ export class DirectoryBrowser {
         const right = b.toLowerCase();
         return left < right ? -1 : left > right ? 1 : 0;
       });
+      if (mine !== this.listing || this.disposed) return;
       this.setPath(path);
       this.setEntries(directories);
     } catch (error) {
+      if (mine !== this.listing || this.disposed) return;
       this.setError(String(error));
     }
   }

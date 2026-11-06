@@ -54,8 +54,13 @@ async function start(): Promise<void> {
     dev.exposeDevApi();
     gallery = await dev.loadGallery();
   }
-  await language;
+  // Strings that did not load leave the app in English; the snack bar can say so once the app is mounted.
+  const languageError = await language.then(
+    () => undefined,
+    (error: unknown) => ({ error }),
+  );
   const disposeApp = mount(gallery);
+  if (languageError !== undefined) failed("language")(languageError.error);
   const info = await call<CoreInfo>("core.info");
   markCoreInfo();
   reportStartup().catch(failed("startup timing"));

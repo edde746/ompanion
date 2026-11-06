@@ -16,7 +16,7 @@ import { ActivityMark } from "../../widgets/activity_mark";
 import { FilledButton, IconButton, TextButton, TonalButton } from "../../widgets/button";
 import { Icon } from "../../widgets/icon";
 import * as Symbols from "../../widgets/symbols";
-import { confirmAction, runReporting } from "../config/config_widgets";
+import { confirmAction, errorText, runReporting } from "../config/config_widgets";
 import { machineStatus, machineStatusText } from "../sessions/machine_status";
 import { SettingsCard, SettingsSwitchRow } from "../settings/settings_card";
 import { describeConnectError, runOnMachine } from "./connect_dialogs";
@@ -267,16 +267,32 @@ function Facts(props: {
 function KeepAwake(props: { readonly runtime: MachineRuntime }) {
   /** The file's state; undefined until read. */
   const [on, setOn] = createSignal<boolean>();
+  /** Why the read failed: the switch still sets the file, which ends the doubt. */
+  const [readFailure, setReadFailure] = createSignal<string>();
   const [busy, setBusy] = createSignal(false);
   const link = () => untrack(() => props.runtime).link;
+  const detail = () => {
+    const failure = readFailure();
+    return failure === undefined ? t.machines.keepAwakeDetail : t.machines.keepAwakeUnread({ error: failure });
+  };
 
-  onSettled(() => void runReporting(async () => setOn(await keepAwake(link()))));
+  onSettled(
+    () =>
+      void keepAwake(link()).then(
+        (value) => setOn(value),
+        (error: unknown) => {
+          appLogger.w("reading keep-awake failed", { error });
+          setReadFailure(errorText(error));
+        },
+      ),
+  );
 
   async function set(value: boolean) {
     setBusy(true);
     await runReporting(async () => {
       await setKeepAwake(link(), value);
       setOn(value);
+      setReadFailure(undefined);
     });
     setBusy(false);
   }
@@ -287,9 +303,11 @@ function KeepAwake(props: { readonly runtime: MachineRuntime }) {
       <SettingsCard>
         <SettingsSwitchRow
           label={t.machines.keepAwake}
-          detail={t.machines.keepAwakeDetail}
+          detail={detail()}
           value={on() ?? false}
-          onChanged={on() === undefined || busy() ? undefined : (value) => void set(value)}
+          onChanged={
+            (on() === undefined && readFailure() === undefined) || busy() ? undefined : (value) => void set(value)
+          }
         />
       </SettingsCard>
     </>

@@ -1,9 +1,11 @@
 // The Tree tab's parts of test/dock/dock_companion_calls_test.dart: which tree operations need the companion, and that
 // one operation runs at a time.
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, jest, test } from "bun:test";
 import { createRoot } from "solid-js";
 import type { JsonObject } from "../../../../core/rpc/json_fields";
-import type { LiveSession } from "../../../../core/session/live_session";
+import { type LinkState, linkLive, type LiveSession } from "../../../../core/session/live_session";
+import { sessionView } from "../../../../core/store/session_view";
+import { Emitter } from "../../../../core/util/stream";
 import { fakeLiveSession } from "../../../../test/fake_live_session";
 import { pumpEventQueue } from "../../../../test/scripted_channel";
 import { TurnExpansion } from "../../../sessions/turn_expansion";
@@ -109,4 +111,33 @@ test("the leaf offers no navigation and only a user message branches", async () 
   const state = await loadedState(fake.session, recordingUi());
   expect(treeActionsFor(entry(state, "a2"), "a2")).toEqual(["label", "copy"]);
   expect(treeActionsFor(entry(state, "u"), "a2")).toEqual(["navigate", "summarize", "label", "branch", "copy"]);
+});
+
+test("a transcript change while the link is down reloads the tree once the link is back", async () => {
+  const fake = await omp(true);
+  const states = new Emitter<LinkState>();
+  let link: LinkState = linkLive;
+  const session = new Proxy(fake.session, {
+    get: (target, key, receiver) =>
+      key === "linkState" ? link : key === "linkStates" ? states.stream : Reflect.get(target, key, receiver),
+  });
+  const setLink = (state: LinkState) => {
+    link = state;
+    states.add(state);
+  };
+  const gets = () => fake.channel.sent.filter((command) => command.type === "get_tree").length;
+  await loadedState(session, recordingUi());
+  expect(gets()).toBe(1);
+
+  setLink({ kind: "LinkReconnecting", attempt: 1, nextTryAt: 0 });
+  jest.useFakeTimers();
+  fake.views.add(sessionView({ transcript: [] }));
+  jest.advanceTimersByTime(1000);
+  jest.useRealTimers();
+  await pumpEventQueue();
+  expect(gets()).toBe(1);
+
+  setLink(linkLive);
+  await pumpEventQueue();
+  expect(gets()).toBe(2);
 });

@@ -14,7 +14,7 @@ import type { SshKeyRow } from "../database/tables";
 import type { SecretStore, StoredPrivateKey } from "../services/secret_store";
 import type { MachinesProvider } from "./machines_provider";
 import { newId } from "../utils/ids";
-import { deferred } from "../../deferred";
+import { LoadGate } from "../utils/load_gate";
 
 /** The key with the same fingerprint is already stored. */
 export class DuplicateSshKey extends Error {
@@ -29,7 +29,7 @@ export class KeysProvider {
   private readonly changed: Accessor<number>;
   private readonly setChanged: Setter<number>;
   private list: readonly SshKeyRow[] = [];
-  private readonly loading = deferred<void>();
+  private readonly loading = new LoadGate();
 
   constructor(
     private readonly db: AppDatabase,
@@ -41,14 +41,24 @@ export class KeysProvider {
 
   /** Reads the stored keys; boot calls it, so the first frame waits for nothing. */
   async load(): Promise<void> {
-    this.list = [...(await this.db.keys.read())].sort((a, b) => a.createdAt - b.createdAt);
+    try {
+      this.list = [...(await this.db.keys.read())].sort((a, b) => a.createdAt - b.createdAt);
+    } catch (error) {
+      this.failLoad(error);
+      throw error;
+    }
     this.setChanged((count) => count + 1);
-    this.loading.resolve();
+    this.loading.loaded();
   }
 
-  /** Resolves once {@link keys} holds the stored keys. */
+  /** Rejects {@link ready} with `error`; boot calls it when it fails before {@link load}. */
+  failLoad(error: unknown): void {
+    this.loading.failed(error);
+  }
+
+  /** Resolves once {@link keys} holds the stored keys; rejects when they cannot be read. */
   get ready(): Promise<void> {
-    return this.loading.promise;
+    return this.loading.ready;
   }
 
   /** Empty until the first read of the document is in; see {@link ready}. */

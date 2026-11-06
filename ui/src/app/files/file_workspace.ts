@@ -75,7 +75,11 @@ export class FileWorkspace {
   private readonly expanded = new Set<string>();
   private readonly docs: FileDocument[] = [];
   private shown: FileDocument | undefined;
+  /** Bumps when the browser or a document is chosen; an open shows its result only if nothing was since it began. */
+  private views = 0;
   private status: GitStatus | undefined;
+  /** Bumps per {@link refreshGit}: only the newest one's status lands. */
+  private gitRefreshes = 0;
   private access: Promise<HostFiles> | undefined;
   private accessLink: HostLink | undefined;
   /** Opens in flight by path, so a double click opens one document. */
@@ -196,6 +200,7 @@ export class FileWorkspace {
     const root = normalizePath(dir);
     this.rootDir = root;
     this.shown = undefined;
+    this.views++;
     this.notify();
     await this.load(root);
     void this.refreshGit();
@@ -284,6 +289,7 @@ export class FileWorkspace {
     if (existing !== undefined) {
       existing.pendingLine = options.line;
       this.shown = existing;
+      this.views++;
       this.notify();
       return Promise.resolve();
     }
@@ -296,30 +302,37 @@ export class FileWorkspace {
   }
 
   private async openNew(path: string, line: number | undefined): Promise<void> {
+    const view = this.views;
     const files = await this.files();
     const stat = await files.stat(path);
     if (stat === null) throw new HostLinkException(`no such file: ${path}`);
     if (stat.isDirectory) {
-      await this.openDir(path);
+      if (this.views === view) await this.openDir(path);
       return;
     }
     const document = await FileDocument.load(files, path);
     if (this.disposed) return;
     document.pendingLine = line;
     this.docs.push(document);
-    this.shown = document;
+    // The user chose what to show meanwhile: the document opens behind it.
+    if (this.views === view) {
+      this.shown = document;
+      this.views++;
+    }
     this.notify();
   }
 
   showBrowser(): void {
     if (this.shown === undefined) return;
     this.shown = undefined;
+    this.views++;
     this.notify();
   }
 
   show(document: FileDocument): void {
     if (!this.docs.includes(document) || this.shown === document) return;
     this.shown = document;
+    this.views++;
     this.notify();
   }
 
@@ -335,12 +348,12 @@ export class FileWorkspace {
   }
 
   async save(document: FileDocument, options: { force?: boolean } = {}): Promise<void> {
-    await document.save(await this.files(), options);
+    await document.save(() => this.files(), options);
     void this.refreshGit();
   }
 
   async reload(document: FileDocument): Promise<void> {
-    await document.reload(await this.files());
+    await document.reload(() => this.files());
   }
 
   /** Creates an empty file `name` in `dir` and opens it. Throws {@link HostFileExists} when the name is taken. */
@@ -426,13 +439,17 @@ export class FileWorkspace {
   async refreshGit(): Promise<void> {
     const root = this.rootDir;
     if (root === undefined) return;
+    const refresh = ++this.gitRefreshes;
+    let status: GitStatus | undefined;
     try {
       const [link, probe] = await this.machine();
-      this.status = await gitStatus(link, probe.commandShell, root);
+      status = await gitStatus(link, probe.commandShell, root);
     } catch (error) {
       appLogger.w(`git status in ${root} failed`, { error });
-      this.status = undefined;
     }
+    // A later refresh, maybe of another browsed directory, began meanwhile; its status is the one to show.
+    if (refresh !== this.gitRefreshes) return;
+    this.status = status;
     this.notify();
   }
 

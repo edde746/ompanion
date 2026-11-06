@@ -19,6 +19,7 @@ import {
   noticeIsError,
   noticeText,
   placedWidgets,
+  seqRestarts,
   type StripChip,
   StopMarks,
   stripChips,
@@ -140,9 +141,14 @@ export function CommandOutputs(props: { readonly session: LiveSession }) {
     () => props.session,
     (view) => view.commandOutputs,
   );
-  // Outputs up to this sequence number are dismissed; the ones there when the chat opens count as seen. Taken when the
-  // chat opens: taken later, it would be taken when an output arrives and hide that one.
-  const [dismissedThrough, setDismissedThrough] = createSignal(() => latestOutputSeq(props.session.view));
+  // Outputs up to this sequence number are dismissed; the ones there when the chat opens, or when a fresh reattach
+  // numbers the view's outputs anew, count as seen. Taken then: taken later, it would be taken when an output arrives
+  // and hide that one.
+  const restarts = seqRestarts(() => props.session);
+  const [dismissedThrough, setDismissedThrough] = createSignal(() => {
+    restarts();
+    return latestOutputSeq(props.session.view);
+  });
   const shown = createMemo(() => newerThan(outputs(), dismissedThrough()));
   return (
     <Show when={shown().at(-1)}>
@@ -174,14 +180,16 @@ export function NoticeHost(props: { readonly session: LiveSession }) {
     () => props.session,
     (view) => view.notices,
   );
-  let current: LiveSession | undefined;
+  const restarts = seqRestarts(() => props.session);
+  let current: { readonly session: LiveSession; readonly restarts: number } | undefined;
   // Notices up to this sequence number were shown.
   let shownThrough = -1;
   createEffect(
-    () => ({ session: props.session, notices: notices() }),
-    ({ session, notices }) => {
-      if (session !== current) {
-        current = session;
+    () => ({ session: props.session, restarts: restarts(), notices: notices() }),
+    ({ session, restarts, notices }) => {
+      // Another session, or this one reattached fresh: its view numbers notices from 0 again, without the old ones.
+      if (session !== current?.session || restarts !== current.restarts) {
+        current = { session, restarts };
         shownThrough = -1;
       }
       const fresh = newerThan(notices, shownThrough);

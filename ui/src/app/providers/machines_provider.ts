@@ -2,7 +2,6 @@
 // and the secrets; the list follows at once.
 import { type Accessor, createSignal, type Setter } from "solid-js";
 import { Emitter, type EventStream } from "../../core/util/stream";
-import { deferred } from "../../deferred";
 import type { AppDatabase } from "../database/app_database";
 import type { KnownHostRow } from "../database/tables";
 import {
@@ -25,6 +24,7 @@ import type { KnownHostsStore } from "../services/known_hosts_store";
 import type { SecretStore } from "../services/secret_store";
 import type { MachineImages } from "../sessions/machine_images";
 import { newId } from "../utils/ids";
+import { LoadGate } from "../utils/load_gate";
 import { Prefs, type SettingsProvider } from "./settings_provider";
 
 /** This computer first, then by name. */
@@ -49,7 +49,7 @@ export class MachinesProvider {
   private isLoaded = false;
   private readonly changesEmitter = new Emitter<void>();
   private readonly deletedEmitter = new Emitter<string>();
-  private readonly loading = deferred<void>();
+  private readonly loading = new LoadGate();
 
   /** Without `images`, {@link delete} leaves the image cache alone. */
   constructor(
@@ -67,15 +67,25 @@ export class MachinesProvider {
    * connects before then.
    */
   async load(): Promise<void> {
-    this.list = sorted((await this.db.machines.read()).map(machineFromRow));
+    try {
+      this.list = sorted((await this.db.machines.read()).map(machineFromRow));
+    } catch (error) {
+      this.failLoad(error);
+      throw error;
+    }
     this.isLoaded = true;
     this.notify();
-    this.loading.resolve();
+    this.loading.loaded();
   }
 
-  /** Resolves once the stored machines are in. */
+  /** Rejects {@link ready} with `error`; boot calls it when it fails before {@link load}. */
+  failLoad(error: unknown): void {
+    this.loading.failed(error);
+  }
+
+  /** Resolves once the stored machines are in; rejects when they cannot be read. */
   get ready(): Promise<void> {
-    return this.loading.promise;
+    return this.loading.ready;
   }
 
   /** This computer first, then by name. */

@@ -492,6 +492,12 @@ export function TranscriptView(props: TranscriptViewProps) {
     onScroll();
   }
 
+  /** A finger on the transcript lifted, or the system cancelled it; the reader holds on while another finger stays. */
+  function touchLifted(event: TouchEvent) {
+    for (const touch of event.touches) if (touch.target instanceof Node && scroller?.contains(touch.target)) return;
+    touchEnded();
+  }
+
   /** A wheel turned or a scroll key pressed by the reader, towards the top when `up`. */
   function wheeled(up: boolean) {
     readerScrolls();
@@ -690,7 +696,8 @@ export function TranscriptView(props: TranscriptViewProps) {
             }}
             onTouchStart={touchStarted}
             onTouchMove={readerScrolls}
-            onTouchEnd={touchEnded}
+            onTouchEnd={touchLifted}
+            onTouchCancel={touchLifted}
           >
             <div class="transcript-content" ref={(el) => (content = el)}>
               <Show when={props.actions.onLoadEarlier}>

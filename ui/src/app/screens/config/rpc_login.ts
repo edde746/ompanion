@@ -128,14 +128,17 @@ export class RpcLogin {
   async cancel(): Promise<void> {
     const question = questionOf(this.control.view);
     if (this.done() || this.error() !== undefined) return;
-    if (question !== undefined) {
-      await this.control.rpc.respondToUi(question.id, { cancelled: true });
-      this.control.dismissRequest(question.id);
+    try {
+      if (question !== undefined) {
+        await this.control.rpc.respondToUi(question.id, { cancelled: true });
+        this.control.dismissRequest(question.id);
+      }
+    } finally {
+      // Measured with openai-codex: after its paste prompt is cancelled omp still waits for the browser's callback,
+      // RPC has no command to stop a login, and the control process stops answering prompts. End it, also when the
+      // question could not be cancelled; the next page load starts a new one.
+      await this.control.detach();
     }
-    // Measured with openai-codex: after its paste prompt is cancelled omp still waits for the browser's callback, RPC
-    // has no command to stop a login, and the control process stops answering prompts. End it; the next page load
-    // starts a new one.
-    await this.control.detach();
   }
 
   /** Stops watching the view and closes the forwards. */

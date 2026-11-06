@@ -1,9 +1,9 @@
 // Port of lib/screens/chat/composer_toolbar.dart, with what the composer toolbar's menus share: ToolbarButton and
 // menuOffsetAbove of lib/screens/chat/model_picker.dart, as ComposerMenu (the menu above the composer block) here.
 import { Portal, type JSX } from "@solidjs/web";
-import { type Accessor, createContext, createEffect, createSignal, For, Show, useContext } from "solid-js";
+import { type Accessor, createContext, createEffect, createSignal, For, onSettled, Show, useContext } from "solid-js";
 import type { LiveSession } from "../../../core/session/live_session";
-import type { ContextUsage } from "../../../core/store/session_view";
+import { type ContextUsage, type ModelRef, modelRefSelector } from "../../../core/store/session_view";
 import { t } from "../../i18n/i18n";
 import { insets, isDesktop, onBack } from "../../platform";
 import { formatFixed, formatUsd } from "../../utils/number_format";
@@ -216,6 +216,8 @@ function thinkingLevelLabel(level: string): string {
 /** The thinking level button: loads the model's levels when opened and marks the current one. */
 export function ThinkingPicker(props: {
   readonly session: LiveSession;
+  /** The session's model, whose levels the picker offers. */
+  readonly model: ModelRef | undefined;
   /** Undefined when the model reports none, which omp treats as off. */
   readonly level: string | undefined;
 }) {
@@ -225,18 +227,27 @@ export function ThinkingPicker(props: {
   // The button's ref writes it while the picker renders.
   const [button, setButton] = createSignal<HTMLButtonElement | undefined>(undefined, { ownedWrite: true });
   const current = () => props.level ?? off;
+  const model = () => (props.model === undefined ? undefined : modelRefSelector(props.model));
+  let disposed = false;
+  onSettled(() => () => {
+    disposed = true;
+  });
 
   async function show() {
+    const session = props.session;
+    const loadedFor = model();
     setLoading(true);
     let available: string[];
     try {
-      available = await props.session.rpc.getAvailableThinkingLevels();
+      available = await session.rpc.getAvailableThinkingLevels();
     } catch (error) {
       showSnackBar(t.chat.thinkingFailed({ error: String(error) }));
       return;
     } finally {
       setLoading(false);
     }
+    // Levels loaded for a model or session switched away from meanwhile are not this picker's to offer.
+    if (disposed || props.session !== session || model() !== loadedFor) return;
     if (available.length === 0) {
       showSnackBar(t.chat.noThinking);
       return;

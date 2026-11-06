@@ -2,6 +2,7 @@
 // database's ON DELETE SET NULL is `KeysProvider.delete` clearing the key from the machines' hops.
 import "../../test/page_globals";
 import { expect, test } from "bun:test";
+import { call } from "../../bridge";
 import { useMemoryCore } from "../../test/memory_core";
 import { AppDatabase } from "../database/app_database";
 import type { SshKeyRow } from "../database/tables";
@@ -67,4 +68,16 @@ test("deleting a key leaves machines and jumps without a key, and other keys whe
   await stored.load();
   expect(hops(stored.machines())).toEqual(expected);
   expect(keys.keys().map((row) => row.id)).toEqual(["key-2"]);
+});
+
+test("a keys document that does not read fails ready, so what waits for the keys fails too", async () => {
+  const db = new AppDatabase();
+  await call("store.write", { name: "keys", text: "{}" });
+  const secrets = new SecretStore();
+  const machines = new MachinesProvider(db, secrets, new KnownHostsStore(db), new SettingsProvider(db));
+  const keys = new KeysProvider(db, secrets, machines);
+
+  await expect(keys.load()).rejects.toThrow("expected an array");
+  await expect(keys.ready).rejects.toThrow("expected an array");
+  await expect(keys.delete(key("key-1"))).rejects.toThrow("expected an array");
 });

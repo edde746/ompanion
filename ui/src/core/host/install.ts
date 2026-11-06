@@ -1,6 +1,6 @@
 // Port of packages/omp_core/lib/src/host/install.dart.
 import { type BridgeLink, type CachedFile, netFetch, removeCached } from "../transport/bridge_link";
-import { HostLinkException, type HostLink } from "../transport/host_link";
+import { HostLinkException, type HostFiles, type HostLink } from "../transport/host_link";
 import { script } from "../util/script";
 import { hostProbeIsWindows, hostProbeLoginPathExport, hostProbeReleaseAsset, type HostProbe } from "./probe";
 import {
@@ -188,8 +188,8 @@ ${windowsDownloadBody}${windowsPlaceBody}}
 
 /**
  * Markers of this app's installs whose link dropped before they released `install.lock`. Each such lock still holds a
- * file named by its marker, so a later install from this app takes it over at once instead of waiting until it is
- * stale.
+ * file named by its marker, or was renamed away already ([releaseInstallLock]), so a later install from this app
+ * finishes the release at once instead of waiting until the lock is stale.
  */
 const abandonedInstalls = new Set<string>();
 
@@ -248,9 +248,7 @@ async function placeAsset(
   try {
     const lock = `${await ensureAppDir(files, "")}/install.lock`;
     for (const abandoned of [...abandonedInstalls]) {
-      if ((await files.stat(`${lock}/${abandoned}`)) === null) continue;
-      await files.remove(`${lock}/${abandoned}`);
-      await files.removeDir(lock);
+      await releaseInstallLock(files, lock, abandoned, false);
       abandonedInstalls.delete(abandoned);
     }
     await acquireDirLock(files, lock, {
@@ -294,8 +292,7 @@ async function placeAsset(
       return scriptResultPayload(result, marker);
     } finally {
       try {
-        if ((await files.stat(owner)) !== null) await files.remove(owner);
-        await files.removeDir(lock);
+        await releaseInstallLock(files, lock, marker, true);
       } catch (error) {
         abandonedInstalls.add(marker);
         throw error;
@@ -304,6 +301,23 @@ async function placeAsset(
   } finally {
     await files.close();
   }
+}
+
+/**
+ * Releases the `install.lock` at [lock] of the install [marker] names. Renaming it away frees it in one step; the
+ * renamed directory and the marker file in it go after. Called again, this finishes a release that was cut off: the
+ * lock is renamed only while it holds the marker file, or while [held] (the install holds it, its marker written or
+ * not).
+ */
+async function releaseInstallLock(files: HostFiles, lock: string, marker: string, held: boolean): Promise<void> {
+  const released = `${lock}.${marker}`;
+  if (held || (await files.stat(`${lock}/${marker}`)) !== null) {
+    await files.rename(lock, released);
+  } else if ((await files.stat(released)) === null) {
+    return;
+  }
+  if ((await files.stat(`${released}/${marker}`)) !== null) await files.remove(`${released}/${marker}`);
+  await files.removeDir(released);
 }
 
 /**

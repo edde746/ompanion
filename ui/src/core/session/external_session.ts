@@ -161,9 +161,15 @@ export class ExternalSession implements LiveSession {
   async start(): Promise<void> {
     try {
       const files = await this.link.files();
+      // Detached meanwhile: [finish] found no files to close.
+      if (this.closed) {
+        await files.close();
+        throw new Error(`session ${this.sessionPath} closed while opening`);
+      }
       this.files = files;
       const stat = await files.stat(this.sessionPath);
       if (stat !== null) await this.read(files, stat);
+      if (this.closed) throw new Error(`session ${this.sessionPath} closed while opening`);
       this.setView({ ...this.currentView, external: this.external() });
     } catch (error) {
       this.finish({ kind: "LinkClosed", cause: error });
@@ -232,8 +238,6 @@ export class ExternalSession implements LiveSession {
    * in place.
    */
   private async read(files: HostFiles, stat: HostFileStat): Promise<void> {
-    this.size = stat.size;
-    this.modifiedMs = stat.modifiedMs;
     if (!(await this.readAppended(files, stat.size))) {
       const page = await this.readPage(
         files,
@@ -243,6 +247,7 @@ export class ExternalSession implements LiveSession {
       this.tail = new Uint8Array(0);
       if (page === undefined) {
         this.warn("A line of the session file is not JSON");
+        this.readAt(stat);
         return;
       }
       this.entries = page.entries;
@@ -252,6 +257,13 @@ export class ExternalSession implements LiveSession {
     }
     this.title = readTitle(await files.read(this.sessionPath, { length: headBytes })) ?? this.title;
     this.entriesChanged();
+    this.readAt(stat);
+  }
+
+  /** Records [stat] as read. Only after a read: one that failed is tried again on the next look, changed or not. */
+  private readAt(stat: HostFileStat): void {
+    this.size = stat.size;
+    this.modifiedMs = stat.modifiedMs;
   }
 
   /**

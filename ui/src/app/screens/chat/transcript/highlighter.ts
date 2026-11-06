@@ -427,11 +427,18 @@ export class CodeHighlighter {
             tokenizeTimeLimit,
           }),
         ),
-      ).then((runs) => {
-        this.inFlight.delete(key);
-        this.store(key, runs);
-        return runs;
-      });
+      ).then(
+        (runs) => {
+          this.inFlight.delete(key);
+          this.store(key, runs);
+          return runs;
+        },
+        () => {
+          // Logged by enqueue. Not cached: the next highlight of this code loads again.
+          this.inFlight.delete(key);
+          return undefined;
+        },
+      );
       this.inFlight.set(key, request);
     }
     return request;
@@ -457,24 +464,34 @@ export class CodeHighlighter {
       });
       const state = core.getLastGrammarState(lines);
       return state === undefined ? undefined : { runs: runsOf(lines), state };
-    });
+    }).catch(() => undefined);
   }
 
   /**
    * Queues `tokenize` behind the highlights before it; it runs in a task of its own once the core and the language's
-   * grammar are loaded. Undefined for a language without a grammar; a failure is logged and gives undefined too.
+   * grammar are loaded. Undefined for a language without a grammar, or one that throws on the code; rejects when the
+   * core or the grammar fails to load, which the next call loads again. Failures are logged.
    */
   private enqueue<T>(language: string, tokenize: (core: HighlighterCore) => T | undefined): Promise<T | undefined> {
     const grammar = grammars.get(language);
     if (grammar === undefined) return Promise.resolve(undefined);
     const result = deferred<T | undefined>();
     this.queue.push(async () => {
+      let core: HighlighterCore | undefined;
       try {
-        const core = await (this.core ??= createCore());
+        core = await (this.core ??= createCore());
         if (!core.getLoadedLanguages().includes(language)) await core.loadLanguage(grammar());
+      } catch (error) {
+        // A load can fail for a while (a chunk that did not arrive), so a failed core is not kept.
+        if (core === undefined) this.core = undefined;
+        warn(`Syntax highlighting failed: ${language}: ${String(error)}`);
+        result.reject(error instanceof Error ? error : new Error(String(error)));
+        return;
+      }
+      try {
         result.resolve(tokenize(core));
       } catch (error) {
-        // A grammar that fails to load or throws on some input leaves its text plain.
+        // A grammar that throws on some input leaves its text plain.
         warn(`Syntax highlighting failed: ${language}: ${String(error)}`);
         result.resolve(undefined);
       }

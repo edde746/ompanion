@@ -25,6 +25,7 @@ import {
   OmpStartFailed,
   PermanentConnectFailure,
   reconnectDelay,
+  RunEnded,
   RunGone,
   RunSession,
 } from "./run_session";
@@ -263,6 +264,63 @@ describe("a session file over the paging threshold", () => {
       "user: other question",
       "assistant: other answer",
     ]);
+    await live.detach();
+  });
+
+  test("omp exiting while the open reads back to the leaf fails the open", async () => {
+    const entries = chain();
+    const branch = [
+      entry("b0", "e3", user("other question", 100)),
+      entry("b1", "b0", assistant(101, [text("other answer")])),
+    ];
+    run.entries.push(...entries.slice(0, 4), ...branch, ...entries.slice(4));
+    run.leafId = "b1";
+    access.files.set(run.sessionFile!, file(run.entries));
+    // The second read is the first page back towards the leaf; omp has answered every RPC call by then.
+    const read = access.readSessionFile.bind(access);
+    let reads = 0;
+    access.readSessionFile = async (path, options) => {
+      if (++reads === 2) {
+        run.exit(3);
+        await pumpEventQueue();
+      }
+      return read(path, options);
+    };
+    const live = paged();
+    expect(await rejection(live.start())).toBeInstanceOf(RunEnded);
+    expect(live.linkState.kind).toBe("LinkClosed");
+  });
+
+  test("a rebuild that fails keeps paging the history the view holds", async () => {
+    const entries = chain();
+    run.entries.push(...entries);
+    access.files.set(run.sessionFile!, file(entries));
+    const live = paged();
+    await live.start();
+
+    // A session switch, whose rebuild reads the new file's history and then fails.
+    const s2 = "/home/me/.omp/agent/sessions/-work/s2.jsonl";
+    run.sessionFile = s2;
+    run.sessionId = "s2";
+    run.entries.length = 0;
+    run.entries.push(entry("n1", null, user("new", 100)));
+    access.files.set(s2, file(run.entries));
+    const handle = run.handle.bind(run);
+    run.handle = (command) => {
+      if (command["type"] === "get_subagents") {
+        run.reject(command, "subagents unavailable");
+      } else {
+        handle(command);
+      }
+    };
+    run.emit(newSession());
+    await until(() =>
+      live.view.notices.some((n) => n.kind === "MessageNotice" && n.message.startsWith("Reloading the session failed")),
+    );
+    await pumpEventQueue();
+
+    for (let load = live.loadEarlier; load !== undefined; load = live.loadEarlier) await load();
+    expect(live.view.transcript.map((item) => item.entryId)).toEqual(Array.from({ length: 60 }, (_, n) => `e${n}`));
     await live.detach();
   });
 });
@@ -590,6 +648,31 @@ test("reading the entries of a settled run fails with a notice, and the session 
   expect(notice.message).toStartWith("Reading the session entries failed");
   expect(live.linkState.kind).toBe("LinkLive");
   run.sendError = undefined;
+  await live.detach();
+});
+
+test("a channel that fails to close leaves a notice, and the session reconnects", async () => {
+  let failClose = true;
+  const attach = access.attach.bind(access);
+  access.attach = async (options) => {
+    const channel = await attach(options);
+    const close = channel.close.bind(channel);
+    channel.close = async () => {
+      await close();
+      if (failClose) throw new HostLinkException("the appender did not finish");
+    };
+    return channel;
+  };
+  const live = session({ recordedPath: run.sessionFile, backoff: oneQuickRetry });
+  await live.start();
+  run.dropChannels();
+  await until(
+    () =>
+      live.linkState.kind === "LinkLive" &&
+      live.view.notices.some((n) => n.kind === "MessageNotice" && n.message.startsWith("Closing the channel")),
+  );
+  expect(live.view.notices).toHaveLength(1);
+  failClose = false;
   await live.detach();
 });
 

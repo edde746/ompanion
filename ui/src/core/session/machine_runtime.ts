@@ -609,6 +609,11 @@ export class MachineRuntime {
       if (this.controlSession === session) this.controlSession = undefined;
     };
     await session.start();
+    // Disposed while it started: [dispose] saw no control process to end.
+    if (this.disposed) {
+      await session.detach();
+      throw new Error("the machine runtime was disposed");
+    }
     this.controlSession = session;
     this.controlAccess = access;
     return session;
@@ -977,13 +982,20 @@ class Forward implements LocalForward {
   /** The link this forward ran through dropped, and the core closed its listener with it: listens through [link]. */
   async rebind(link: BridgeLink): Promise<void> {
     if (this.closed) return;
+    let next: NetForward;
     try {
-      this.current = await link.forward("127.0.0.1", this.remotePort, { localPort: this.current.localPort });
+      next = await link.forward("127.0.0.1", this.remotePort, { localPort: this.current.localPort });
     } catch (error) {
       this.closed = true;
       this.onClosed?.();
       throw error;
     }
+    // Closed while it listened again: [close] closed only the old listener.
+    if (this.closed) {
+      await next.close();
+      return;
+    }
+    this.current = next;
   }
 
   async close(): Promise<void> {

@@ -42,7 +42,19 @@ const authMethods: readonly AuthMethod[] = ["key", "password", "agent", "none", 
 
 /** Adds a machine, or edits `machine`. A new machine is selected after saving. */
 export function showMachineEditor(options: { readonly machine?: Machine } = {}): Promise<void> {
-  return showDialog<void>((close) => <EditorAfterKeys machine={options.machine} close={close} />).then(() => undefined);
+  const [saving, setSaving] = createSignal(false);
+  // Escape, the scrim and back wait like Cancel while the machine is stored: it is saved and selected either way.
+  return showDialog<void>(
+    (close) => <EditorAfterKeys machine={options.machine} saving={saving()} setSaving={setSaving} close={close} />,
+    { dismissible: () => !saving() },
+  ).then(() => undefined);
+}
+
+interface EditorProps {
+  readonly machine: Machine | undefined;
+  readonly saving: boolean;
+  readonly setSaving: (saving: boolean) => void;
+  readonly close: () => void;
 }
 
 export function authLabel(method: AuthMethod): string {
@@ -61,18 +73,27 @@ export function authLabel(method: AuthMethod): string {
 }
 
 /** A new hop's default auth depends on whether keys are stored, so the editor waits for them. */
-function EditorAfterKeys(props: { readonly machine: Machine | undefined; readonly close: () => void }) {
+function EditorAfterKeys(props: EditorProps) {
   const keys = useKeys();
   const [ready, setReady] = createSignal(false);
-  onSettled(() => void keys.ready.then(() => setReady(true)));
+  onSettled(
+    () =>
+      void keys.ready.then(
+        () => setReady(true),
+        (error: unknown) => {
+          showSnackBar(errorText(error));
+          props.close();
+        },
+      ),
+  );
   return (
     <Show when={ready()}>
-      <MachineEditor machine={props.machine} close={props.close} />
+      <MachineEditor machine={props.machine} saving={props.saving} setSaving={props.setSaving} close={props.close} />
     </Show>
   );
 }
 
-function MachineEditor(props: { readonly machine: Machine | undefined; readonly close: () => void }) {
+function MachineEditor(props: EditorProps) {
   const machines = useMachines();
   const keys = useKeys();
   const shell = useShell();
@@ -90,7 +111,6 @@ function MachineEditor(props: { readonly machine: Machine | undefined; readonly 
     ),
   );
   const [errors, setErrors] = createSignal<FormErrors>();
-  const [saving, setSaving] = createSignal(false);
   const canChooseKind = () => editing === undefined && thisComputerAvailable() && !machines.hasLocal();
   /** The name field and each hop's fields, to scroll the first one with an error into view. */
   const anchors = new Map<string, HTMLElement>();
@@ -150,12 +170,12 @@ function MachineEditor(props: { readonly machine: Machine | undefined; readonly 
       if (first !== undefined) anchors.get(first)?.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
     }
-    setSaving(true);
+    props.setSaving(true);
     const result = editorSave(current, { createdAt: editing?.createdAt, now: Date.now() });
     try {
       await machines.save(result.machine, { passwords: result.passwords, hostKeys: result.hostKeys });
     } catch (error) {
-      setSaving(false);
+      props.setSaving(false);
       showSnackBar(errorText(error));
       return;
     }
@@ -178,8 +198,10 @@ function MachineEditor(props: { readonly machine: Machine | undefined; readonly 
       class="machine-editor"
       actions={
         <>
-          <TextButton onClick={() => props.close()}>{t.common.cancel}</TextButton>
-          <FilledButton disabled={saving()} onClick={() => void save()}>
+          <TextButton disabled={props.saving} onClick={() => props.close()}>
+            {t.common.cancel}
+          </TextButton>
+          <FilledButton disabled={props.saving} onClick={() => void save()}>
             {t.common.save}
           </FilledButton>
         </>

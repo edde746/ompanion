@@ -94,6 +94,7 @@ export class BridgeLink implements HostLink {
     this.checkOpen();
     const pty = options.pty;
     const target = this.machine === "local" ? { command, env: this.environment } : { machine: this.machine, command };
+    let process: BridgeProcess;
     try {
       const stream = pty
         ? await openStream("pty.open", {
@@ -104,10 +105,11 @@ export class BridgeLink implements HostLink {
             encoding: "base64",
           })
         : await openStream(this.machine === "local" ? "local.exec" : "ssh.exec", { ...target, encoding: "base64" });
-      return new BridgeProcess(stream);
+      process = new BridgeProcess(stream);
     } catch (error) {
       throw linkError(this.label, "exec failed", error);
     }
+    return this.stillOpen(process);
   }
 
   async files(): Promise<HostFiles> {
@@ -117,11 +119,13 @@ export class BridgeLink implements HostLink {
 
   async connect(host: string, port: number): Promise<HostSocket> {
     this.checkOpen();
+    let socket: BridgeSocket;
     try {
-      return new BridgeSocket(await openStream("net.connect", { machine: this.machine, host, port }));
+      socket = new BridgeSocket(await openStream("net.connect", { machine: this.machine, host, port }));
     } catch (error) {
       throw linkError(this.label, `connect to ${host}:${port} failed`, error);
     }
+    return this.stillOpen(socket);
   }
 
   /** Listens on this device's loopback ([localPort], or any free port) and carries each connection to [host]:[port]. */
@@ -135,10 +139,10 @@ export class BridgeLink implements HostLink {
     }
     const json = asObject(result, "net.forward");
     const forward = string(json, "forward");
-    return {
+    return this.stillOpen<NetForward>({
       localPort: integer(json, "localPort"),
       close: () => call("net.forwardClose", { forward }),
-    };
+    });
   }
 
   /**
@@ -172,6 +176,16 @@ export class BridgeLink implements HostLink {
 
   private checkOpen() {
     if (this.closed) throw new HostLinkException(`${this.label}: link is closed`);
+  }
+
+  /**
+   * [opened], unless the link closed while it opened: then it is closed and this throws as [checkOpen]. On this
+   * computer nothing else would end it, as a closed `local` link sends the core no request.
+   */
+  private async stillOpen<T extends { close(): Promise<void> }>(opened: T): Promise<T> {
+    if (!this.closed) return opened;
+    await opened.close();
+    throw new HostLinkException(`${this.label}: link is closed`);
   }
 }
 

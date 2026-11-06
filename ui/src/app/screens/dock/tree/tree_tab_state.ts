@@ -86,6 +86,8 @@ export class TreeTabState {
   // Signals show their writes only after the next flush; these guard against a second start within one.
   private loadRunning = false;
   private reloadAgain = false;
+  /** A reload came while the link was down; the link coming back runs it. */
+  private reloadMissed = false;
   private operationRunning = false;
   private disposed = false;
 
@@ -148,7 +150,8 @@ export class TreeTabState {
         this.debounce = setTimeout(() => void this.reload(), reloadDelayMs);
       }),
       session.linkStates.listen((state) => {
-        if (state.kind === "LinkLive" && (this.tree() === undefined || this.error() !== undefined)) void this.reload();
+        if (state.kind !== "LinkLive") return;
+        if (this.reloadMissed || this.tree() === undefined || this.error() !== undefined) void this.reload();
       }),
     ];
     queueMicrotask(() => void this.reload());
@@ -176,7 +179,11 @@ export class TreeTabState {
       this.reloadAgain = true;
       return;
     }
-    if (this.session.linkState.kind !== "LinkLive") return;
+    if (this.session.linkState.kind !== "LinkLive") {
+      this.reloadMissed = true;
+      return;
+    }
+    this.reloadMissed = false;
     this.loadRunning = true;
     this.setLoading(true);
     try {

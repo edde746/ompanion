@@ -3,7 +3,7 @@
 import { type Accessor, createSignal, type Setter } from "solid-js";
 import type { SessionSummary } from "../../core/host/session_listing";
 import type { Subscription } from "../../core/util/stream";
-import { deferred } from "../../deferred";
+import { LoadGate } from "../utils/load_gate";
 import type { AppDatabase } from "../database/app_database";
 import type { PinnedSessionRow } from "../database/tables";
 import type { MachinesProvider } from "../providers/machines_provider";
@@ -24,15 +24,20 @@ export class SessionPins {
   /** The listing of each machine last applied to the pins. */
   private readonly applied = new Map<string, readonly SessionSummary[]>();
   private listings: ReadonlyMap<string, readonly SessionSummary[]> = new Map();
-  private readonly loading = deferred<void>();
+  private readonly loading = new LoadGate();
 
   constructor(private readonly db: AppDatabase) {
     [this.changed, this.setChanged] = createSignal(0, { ownedWrite: true });
   }
 
-  /** Resolves once the stored pins are loaded ({@link load}, which boot calls). */
+  /** Resolves once the stored pins are loaded ({@link load}, which boot calls); rejects when they cannot be read. */
   get ready(): Promise<void> {
-    return this.loading.promise;
+    return this.loading.ready;
+  }
+
+  /** Rejects {@link ready} with `error`; boot calls it when it fails before {@link load}. */
+  failLoad(error: unknown): void {
+    this.loading.failed(error);
   }
 
   /** Keeps the pins in step with the listings of `sessions`, and drops those of machines `machines` deletes. */
@@ -67,12 +72,18 @@ export class SessionPins {
 
   /** Reads the stored pins; boot calls it, so the first frame waits for nothing. */
   async load(): Promise<void> {
-    const rows = await this.db.pinnedSessions.read();
+    let rows: readonly PinnedSessionRow[];
+    try {
+      rows = await this.db.pinnedSessions.read();
+    } catch (error) {
+      this.failLoad(error);
+      throw error;
+    }
     if (this.disposed) return;
     this.list = [...rows].sort((a, b) => a.pinnedAt - b.pinnedAt);
     this.loaded = true;
     this.notify();
-    this.loading.resolve();
+    this.loading.loaded();
     this.applyListings();
   }
 

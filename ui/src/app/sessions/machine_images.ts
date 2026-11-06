@@ -283,7 +283,7 @@ export class MachineImages {
     if (stat === null) return remember({ kind: "HostImageProblem", issue: "missing" });
     if (stat.isDirectory) return remember({ kind: "HostImageProblem", issue: "notFile" });
     if (size > imageInputCap) return remember({ kind: "HostImageProblem", issue: "tooLarge", size });
-    const disk = await (this.disk ??= this.openDisk());
+    const disk = await this.openDisk();
     for (const variant of original ? [true] : [true, false]) {
       const stored = await disk.read(diskKey(host, path, size, modified, variant));
       if (stored !== undefined) {
@@ -371,8 +371,16 @@ export class MachineImages {
     }
   }
 
-  private async openDisk(): Promise<DiskCache> {
-    return new DiskCache(await this.cacheDir(), this.diskBytes, this.clock);
+  /** The disk cache, opened once; after a failed open the next call tries again. */
+  private openDisk(): Promise<DiskCache> {
+    if (this.disk !== undefined) return this.disk;
+    const opening = this.cacheDir().then((dir) => new DiskCache(dir, this.diskBytes, this.clock));
+    this.disk = opening;
+    // The callers get the error; this only forgets the failed open.
+    opening.catch(() => {
+      if (this.disk === opening) this.disk = undefined;
+    });
+    return opening;
   }
 
   /**
@@ -392,7 +400,7 @@ export class MachineImages {
       this.memory.delete(key);
       this.memoryUsed -= entryCost(entry);
     }
-    const disk = await (this.disk ??= this.openDisk());
+    const disk = await this.openDisk();
     await disk.deleteKeysStartingWith(prefix);
   }
 }

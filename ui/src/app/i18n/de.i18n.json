@@ -491,7 +491,8 @@
     "notProbed": "Verbinde dich, um OS, Shell und omp des Rechners zu lesen.",
     "power": "Energie",
     "keepAwake": "Diesen Mac wach halten, während omp arbeitet",
-    "keepAwakeDetail": "Während omp in einer Sitzung aus ompanion arbeitet, schläft der Mac nicht – auch nicht direkt nach dem Aufwecken durch eine Anfrage. Nur am Strom; das Display schaltet sich weiterhin ab. Jedes Gerät sieht diesen Schalter."
+    "keepAwakeDetail": "Während omp in einer Sitzung aus ompanion arbeitet, schläft der Mac nicht – auch nicht direkt nach dem Aufwecken durch eine Anfrage. Nur am Strom; das Display schaltet sich weiterhin ab. Jedes Gerät sieht diesen Schalter.",
+    "keepAwakeUnread": "Ob er an ist, ließ sich nicht lesen: $error. Der Schalter setzt es."
   },
   "auth": {
     "key": "Schlüssel",

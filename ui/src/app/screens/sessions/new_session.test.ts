@@ -3,8 +3,8 @@ import { flush } from "solid-js";
 import type { SessionSummary } from "../../../core/host/session_listing";
 import { hostProbe, hostProbeScratchDirs } from "../../../core/host/probe";
 import type { RpcModel } from "../../../core/rpc/results";
-import type { HostFiles } from "../../../core/transport/host_link";
-import { deferred } from "../../../deferred";
+import type { HostDirEntry, HostFiles } from "../../../core/transport/host_link";
+import { type Deferred, deferred } from "../../../deferred";
 import { MemoryFiles, MemoryLink, memoryProbe } from "../../../test/memory_host";
 import { t } from "../../i18n/i18n";
 import {
@@ -34,6 +34,22 @@ class HeldLink extends MemoryLink {
   override async files(): Promise<HostFiles> {
     await this.hold.promise;
     return this.memory;
+  }
+}
+
+/** Files whose listing of a held directory answers only once the test releases it. */
+class HeldListFiles extends MemoryFiles {
+  private readonly holds = new Map<string, Deferred<void>>();
+
+  hold(path: string): Deferred<void> {
+    const hold = deferred<void>();
+    this.holds.set(path, hold);
+    return hold;
+  }
+
+  override async list(path: string): Promise<HostDirEntry[]> {
+    await this.holds.get(path)?.promise;
+    return super.list(path);
   }
 }
 
@@ -153,6 +169,44 @@ test("a directory picker closed while its file channel opens closes the channel"
   link.hold.resolve();
   await opening;
   expect(files.closed).toBe(true);
+});
+
+test("the directory picker shows the directory navigated to last when an earlier listing answers later", async () => {
+  const files = new HeldListFiles({ "/home/u/a/b/x": "x" }, "/home/u");
+  const browser = new DirectoryBrowser(() => new MemoryLink(files));
+  await browser.open("/home/u/a");
+
+  const child = files.hold("/home/u/a/b");
+  const entering = browser.enter("b");
+  await browser.list("/home/u");
+  child.resolve();
+  await entering;
+  flush();
+  expect(browser.path()).toBe("/home/u");
+  expect(browser.entries()).toEqual(["a"]);
+
+  const missing = files.hold("/home/u/gone");
+  const failing = browser.enter("gone");
+  await browser.list("/home/u/a");
+  missing.resolve();
+  await failing;
+  flush();
+  expect(browser.error()).toBeUndefined();
+  expect(browser.path()).toBe("/home/u/a");
+  expect(browser.entries()).toEqual(["b"]);
+});
+
+test("a directory picker closed while it lists keeps the directory it showed", async () => {
+  const files = new HeldListFiles({ "/home/u/a/x": "x" }, "/home/u");
+  const browser = new DirectoryBrowser(() => new MemoryLink(files));
+  await browser.open(undefined);
+  const child = files.hold("/home/u/a");
+  const entering = browser.enter("a");
+  await browser.dispose();
+  child.resolve();
+  await entering;
+  flush();
+  expect(browser.path()).toBe("/home/u");
 });
 
 test("a directory picker on a machine that is not connected says why", async () => {

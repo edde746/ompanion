@@ -343,6 +343,8 @@ export function MachineImage(props: MachineImageProps) {
       }
       appLogger.w(`loading the image ${shown} failed`, { error });
       if (!isWanted()) return;
+      // The notice of what is wrong with the image would hide this failure, which is newer (a failed Load Original).
+      if (problem() !== undefined) setImage(undefined);
       setFailure({ error });
       setLoadingOriginal(false);
     }

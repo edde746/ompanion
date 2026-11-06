@@ -440,6 +440,7 @@ export type Translations = {
     readonly power: string;
     readonly keepAwake: string;
     readonly keepAwakeDetail: string;
+    readonly keepAwakeUnread: (args: { error: Param }) => string;
   };
   readonly auth: {
     readonly key: string;

@@ -46,7 +46,10 @@ export class FileDocument {
   private lineBreak: LineBreak;
   private reason: ReadOnlyReason | undefined;
   private isDirty = false;
-  private isSaving = false;
+  /** Saves called and not yet ended, waiting ones included. */
+  private saves = 0;
+  /** The save or reload in progress: the next one waits for it, so neither sees the other half done. */
+  private turn: Promise<void> = Promise.resolve();
   private textRevision = 0;
 
   /** A line (1-based) the editor should reveal once laid out. */
@@ -88,9 +91,10 @@ export class FileDocument {
     return this.isDirty;
   }
 
+  /** Set from the call to {@link save}, before the file access is open, so a second click sees it. */
   saving(): boolean {
     this.changed();
-    return this.isSaving;
+    return this.saves > 0;
   }
 
   get baseline(): HostFileStat {
@@ -141,43 +145,56 @@ export class FileDocument {
 
   /**
    * Writes the text back. Unless `force`, first checks that size and modification time still match what was loaded,
-   * and throws {@link FileChangedOnDisk} when they do not.
+   * and throws {@link FileChangedOnDisk} when they do not. Runs after the save or reload in progress.
    */
-  async save(files: HostFiles, options: { force?: boolean } = {}): Promise<void> {
-    if (this.reason !== undefined) throw new Error(`${this.currentPath} is read-only`);
-    const path = this.currentPath;
-    this.isSaving = true;
+  save(files: () => Promise<HostFiles>, options: { force?: boolean } = {}): Promise<void> {
+    this.saves++;
     this.notify();
-    try {
-      if (options.force !== true) {
-        const current = await files.stat(path);
-        if (current === null) throw new FileChangedOnDisk(path, { deleted: true });
-        if (current.size !== this.stat.size || current.modifiedMs !== this.stat.modifiedMs) {
-          throw new FileChangedOnDisk(path, { deleted: false });
+    return this.inTurn(async () => {
+      try {
+        if (this.reason !== undefined) throw new Error(`${this.currentPath} is read-only`);
+        const path = this.currentPath;
+        const opened = await files();
+        if (options.force !== true) {
+          const current = await opened.stat(path);
+          if (current === null) throw new FileChangedOnDisk(path, { deleted: true });
+          if (current.size !== this.stat.size || current.modifiedMs !== this.stat.modifiedMs) {
+            throw new FileChangedOnDisk(path, { deleted: false });
+          }
         }
+        const text = this.text();
+        const lines = this.lineBreak === "\n" ? text : text.replaceAll("\n", this.lineBreak);
+        await opened.write(path, new TextEncoder().encode(lines));
+        this.saved = text;
+        this.stat = (await opened.stat(path)) ?? this.stat;
+        this.isDirty = this.differsFromSaved();
+      } finally {
+        this.saves--;
+        this.notify();
       }
-      const text = this.text();
-      await files.write(path, new TextEncoder().encode(this.lineBreak === "\n" ? text : text.replaceAll("\n", this.lineBreak)));
-      this.saved = text;
-      this.stat = (await files.stat(path)) ?? this.stat;
-      this.isDirty = this.differsFromSaved();
-    } finally {
-      this.isSaving = false;
-      this.notify();
-    }
+    });
   }
 
-  /** Replaces the text with the file's current content, dropping edits. */
-  async reload(files: HostFiles): Promise<void> {
-    const [text, stat, reason] = await read(files, this.currentPath);
-    this.plain = this.saved = withLf(text);
-    this.state = undefined;
-    this.textRevision++;
-    this.stat = stat;
-    this.lineBreak = lineBreakOf(text);
-    this.reason = reason;
-    this.isDirty = false;
-    this.notify();
+  /** Replaces the text with the file's current content, dropping edits. Runs after the save or reload in progress. */
+  reload(files: () => Promise<HostFiles>): Promise<void> {
+    return this.inTurn(async () => {
+      const [text, stat, reason] = await read(await files(), this.currentPath);
+      this.plain = this.saved = withLf(text);
+      this.state = undefined;
+      this.textRevision++;
+      this.stat = stat;
+      this.lineBreak = lineBreakOf(text);
+      this.reason = reason;
+      this.isDirty = false;
+      this.notify();
+    });
+  }
+
+  private inTurn(run: () => Promise<void>): Promise<void> {
+    const result = this.turn.then(run);
+    // The caller gets the error; the next save or reload runs either way.
+    this.turn = result.catch(() => undefined);
+    return result;
   }
 
   /** Compares lengths first: an edit that changes the length needs no look at the text. */

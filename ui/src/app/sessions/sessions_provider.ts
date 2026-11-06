@@ -78,6 +78,8 @@ export class SessionsProvider {
   /** The route each runtime's machine had when the runtime was created; {@link route}. */
   private readonly routes = new Map<string, string | undefined>();
   private readonly listings = new Map<string, SessionListing>();
+  /** Per machine, the newest {@link refresh}: only it publishes, as listings can finish out of order. */
+  private readonly refreshes = new Map<string, number>();
   private readonly modelLists = new Map<string, Promise<RpcModel[]>>();
   private readonly opened: LiveSession[] = [];
   private readonly machineIds = new Map<LiveSession, string>();
@@ -85,7 +87,8 @@ export class SessionsProvider {
   private readonly execRuns = new Map<LiveSession, ExecRuns>();
   private readonly turns = new Map<LiveSession, TurnExpansion>();
   private readonly deadlines = new Map<LiveSession, RequestDeadlines>();
-  private readonly oauthForwards = new Map<string, LocalForward>();
+  /** By `machineId:port`; set while the forward opens, so a second login on the port shares it. */
+  private readonly oauthForwards = new Map<string, Promise<LocalForward>>();
   private activeSession: LiveSession | undefined;
   private disposed = false;
 
@@ -258,8 +261,13 @@ export class SessionsProvider {
       return session;
     }
     const index = this.opened.indexOf(session);
-    if (index < 0) this.opened.push(replacement);
-    else this.opened[index] = replacement;
+    // Disposed, or `session` was detached, stopped, deleted with its machine or replaced by another reopen meanwhile.
+    if (this.disposed || index < 0) {
+      if (!this.disposed && this.opened.includes(replacement)) return replacement;
+      await replacement.detach();
+      throw new Error("the session was closed while it opened again");
+    }
+    this.opened[index] = replacement;
     this.machineIds.delete(session);
     this.machineIds.set(replacement, machine.id);
     const draft = this.drafts.get(session);
@@ -333,6 +341,10 @@ export class SessionsProvider {
    */
   async refresh(machine: Machine): Promise<void> {
     const runtime = this.runtimeFor(machine);
+    const generation = (this.refreshes.get(machine.id) ?? 0) + 1;
+    this.refreshes.set(machine.id, generation);
+    // A later refresh, or an edit of the machine's route that replaced the runtime, makes this one's result stale.
+    const stale = () => this.refreshes.get(machine.id) !== generation || this.runtimes.get(machine.id) !== runtime;
     const current = () => this.listings.get(machine.id) ?? emptyListing;
     this.setListing(machine.id, { ...current(), loading: true });
     try {
@@ -345,16 +357,16 @@ export class SessionsProvider {
         default:
           await runtime.connectAndProbe();
       }
+      if (stale()) return;
       if (runtime.status.kind !== "MachineOnline") {
         this.setListing(machine.id, { ...current(), loading: false, error: undefined });
         return;
       }
       const sessions = await runtime.listSessions();
-      // An edit of the machine's route replaced the runtime meanwhile; this listing is of the old place.
-      if (this.runtimes.get(machine.id) !== runtime) return;
+      if (stale()) return;
       this.setListing(machine.id, { sessions, loading: false, loadedAt: Date.now() });
     } catch (error) {
-      if (this.runtimes.get(machine.id) !== runtime) return;
+      if (stale()) return;
       this.setListing(machine.id, { ...current(), loading: false, error });
     }
   }
@@ -391,10 +403,17 @@ export class SessionsProvider {
     const key = `${machine.id}:${port}`;
     const existing = this.oauthForwards.get(key);
     if (existing !== undefined) return existing;
-    const forward = await this.runtimeFor(machine).forwardLocal(port, { localPort: port });
-    this.oauthForwards.set(key, forward);
+    const opening = this.runtimeFor(machine).forwardLocal(port, { localPort: port });
+    this.oauthForwards.set(key, opening);
+    let forward: LocalForward;
+    try {
+      forward = await opening;
+    } catch (error) {
+      if (this.oauthForwards.get(key) === opening) this.oauthForwards.delete(key);
+      throw error;
+    }
     setTimeout(() => {
-      if (this.oauthForwards.get(key) !== forward) return;
+      if (this.oauthForwards.get(key) !== opening) return;
       this.oauthForwards.delete(key);
       void forward.close();
     }, oauthForwardLifetimeMs);
@@ -444,6 +463,7 @@ export class SessionsProvider {
         void session.detach();
       }
       this.listings.delete(id);
+      this.refreshes.delete(id);
       for (const key of [...this.modelLists.keys()]) if (key.startsWith(`${id}@`)) this.modelLists.delete(key);
       // The runtime closes its forwards.
       for (const key of [...this.oauthForwards.keys()]) if (key.startsWith(`${id}:`)) this.oauthForwards.delete(key);
@@ -460,7 +480,7 @@ export class SessionsProvider {
     this.machinesSubscription.cancel();
     for (const runtime of this.runtimes.values()) void runtime.dispose();
     this.runtimes.clear();
-    for (const forward of this.oauthForwards.values()) void forward.close();
+    for (const forward of this.oauthForwards.values()) void forward.then((opened) => opened.close());
     this.oauthForwards.clear();
     for (const deadlines of this.deadlines.values()) deadlines.dispose();
     this.deadlines.clear();

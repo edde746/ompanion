@@ -27,7 +27,7 @@ interface Context {
   info: CoreInfo;
   /** A visible element the check may render into; emptied after the check. */
   stage: HTMLElement;
-  /** Runs fn when the check ends, however it ends. */
+  /** Runs fn when the check ends, however it ends; at once when it ended already (it timed out). */
   defer(fn: () => void): void;
 }
 
@@ -582,7 +582,15 @@ async function runSmoke(info: CoreInfo, stage: HTMLElement, report: (line: strin
   for (const check of checks) {
     if (check.desktopOnly && !info.local) continue;
     const cleanups: (() => void)[] = [];
-    const context: Context = { info, stage, defer: (fn) => cleanups.push(fn) };
+    let ended = false;
+    const context: Context = {
+      info,
+      stage,
+      defer: (fn) => {
+        if (ended) fn();
+        else cleanups.push(fn);
+      },
+    };
     const start = performance.now();
     let result: CheckResult;
     try {
@@ -591,6 +599,7 @@ async function runSmoke(info: CoreInfo, stage: HTMLElement, report: (line: strin
     } catch (error) {
       result = { check: check.name, pass: false, ms: round(performance.now() - start), error: String(error) };
     }
+    ended = true;
     for (const cleanup of cleanups.reverse()) cleanup();
     stage.replaceChildren();
     results.push(result);

@@ -61,6 +61,21 @@ test("after the freshness window a stat decides: the same file stays, a changed 
   expect(machine.fetches).toHaveLength(2);
 });
 
+test("a cache directory that failed to open is tried again by the next load", async () => {
+  let opens = 0;
+  const cache = new MachineImages({
+    cacheDir: async () => {
+      if (opens++ === 0) throw new Error("no cache directory");
+      return nodeImageCacheDir(temp);
+    },
+    clock: () => now,
+  });
+
+  await expect(cache.load(machine, "/home/u/a.png")).rejects.toThrow("no cache directory");
+  expect(((await cache.load(machine, "/home/u/a.png")) as HostImageBytes).size).toBe(1000);
+  expect(opens).toBe(2);
+});
+
 test("loads of one image at the same time share one fetch", async () => {
   const cache = images();
   const gate = deferred<void>();

@@ -1246,13 +1246,16 @@ function subagentProgress(view: SessionView, payload: JsonObject): SessionView {
   const progress = object(payload, "progress");
   const id = string(progress, "id");
   const existing = findSubagent(view, id);
+  const status = enumByName(subagentStatuses, string(progress, "status"));
+  // A progress frame that trails the end is stale: it would reopen a finished subagent.
+  if (existing !== undefined && finished(existing.status) && !finished(status)) return view;
   return putSubagent(view, {
     id,
     index: integer(payload, "index"),
     agent: string(payload, "agent"),
     agentSource: optString(payload, "agentSource") ?? "",
     description: optString(progress, "description") ?? existing?.description,
-    status: enumByName(subagentStatuses, string(progress, "status")),
+    status,
     task: optString(payload, "task") ?? existing?.task,
     assignment: optString(payload, "assignment") ?? existing?.assignment,
     sessionFile: optString(payload, "sessionFile") ?? existing?.sessionFile,

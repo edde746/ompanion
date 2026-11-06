@@ -11,7 +11,7 @@ import { FilledButton, TextButton } from "../../widgets/button";
 import { Dialog, showDialog } from "../../widgets/dialog";
 import { Icon } from "../../widgets/icon";
 import * as Symbols from "../../widgets/symbols";
-import { errorText } from "../config/config_widgets";
+import { errorText, runReporting } from "../config/config_widgets";
 import "./transfer_dialogs.css";
 
 /** Exports stay small: machine records and host keys only. */
@@ -97,6 +97,7 @@ function ImportDialog(props: { readonly close: () => void }) {
   const [busy, setBusy] = createSignal(false);
   const [changes, setChanges] = createSignal<readonly HostKeyImportChange[]>([]);
   const [confirmed, setConfirmed] = createSignal<ReadonlySet<HostKeyImportChange>>(new Set());
+  const [trusting, setTrusting] = createSignal<ReadonlySet<HostKeyImportChange>>(new Set());
   let field!: HTMLTextAreaElement;
   let picker!: HTMLInputElement;
 
@@ -106,12 +107,20 @@ function ImportDialog(props: { readonly close: () => void }) {
     field.style.height = `${field.scrollHeight}px`;
   });
 
+  /** New text is not what was imported: the last import's outcome and host-key changes go. */
+  function changeText(next: string) {
+    setText(next);
+    setStatus(undefined);
+    setChanges([]);
+    setConfirmed(new Set<HostKeyImportChange>());
+  }
+
   async function chooseFile(file: File) {
     if (file.size > maxImportBytes) {
       setStatus({ text: t.transfer.invalid({ error: t.keys.fileTooLarge }), failed: true });
       return;
     }
-    setText(await file.text());
+    changeText(await file.text());
   }
 
   async function importText() {
@@ -131,8 +140,13 @@ function ImportDialog(props: { readonly close: () => void }) {
   }
 
   async function trust(change: HostKeyImportChange) {
-    await provider.trustImportedHostKeys(change);
-    setConfirmed((set) => new Set([...set, change]));
+    if (trusting().has(change)) return;
+    setTrusting((set) => new Set([...set, change]));
+    await runReporting(async () => {
+      await provider.trustImportedHostKeys(change);
+      setConfirmed((set) => new Set([...set, change]));
+    });
+    setTrusting((set) => new Set([...set].filter((entry) => entry !== change)));
   }
 
   return (
@@ -156,7 +170,8 @@ function ImportDialog(props: { readonly close: () => void }) {
           value={text()}
           spellcheck="false"
           autocomplete="off"
-          onInput={(event) => setText(event.currentTarget.value)}
+          readonly={busy()}
+          onInput={(event) => changeText(event.currentTarget.value)}
         />
         <input
           ref={picker}
@@ -187,6 +202,7 @@ function ImportDialog(props: { readonly close: () => void }) {
                 <HostKeyChangeTile
                   change={change}
                   confirmed={confirmed().has(change)}
+                  busy={busy() || trusting().has(change)}
                   onTrust={() => void trust(change)}
                 />
               )}
@@ -205,6 +221,7 @@ function ImportDialog(props: { readonly close: () => void }) {
 function HostKeyChangeTile(props: {
   readonly change: HostKeyImportChange;
   readonly confirmed: boolean;
+  readonly busy: boolean;
   readonly onTrust: () => void;
 }) {
   return (
@@ -229,7 +246,11 @@ function HostKeyChangeTile(props: {
       <div class="transfer-dialogs-end">
         <Show
           when={props.confirmed}
-          fallback={<FilledButton onClick={() => props.onTrust()}>{t.transfer.trustKeys}</FilledButton>}
+          fallback={
+            <FilledButton disabled={props.busy} onClick={() => props.onTrust()}>
+              {t.transfer.trustKeys}
+            </FilledButton>
+          }
         >
           <span class="transfer-dialogs-trusted">{t.transfer.keysTrusted}</span>
         </Show>

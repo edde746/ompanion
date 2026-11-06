@@ -5,7 +5,7 @@ import type { SessionSummary } from "../../core/host/session_listing";
 import type { LiveSession } from "../../core/session/live_session";
 import type { SessionView } from "../../core/store/session_view";
 import type { Subscription } from "../../core/util/stream";
-import { deferred } from "../../deferred";
+import { LoadGate } from "../utils/load_gate";
 import type { AppDatabase } from "../database/app_database";
 import type { ReadMarkerRow } from "../database/tables";
 import type { MachinesProvider } from "../providers/machines_provider";
@@ -48,7 +48,7 @@ export class SessionReads {
   private listings: ReadonlyMap<string, readonly SessionSummary[]> = new Map();
   private disposed = false;
   private unfollow: (() => void) | undefined;
-  private readonly loading = deferred<void>();
+  private readonly loading = new LoadGate();
 
   /** `relist` lists a machine's sessions again; the listing's modification times are the markers' clock. */
   constructor(
@@ -59,9 +59,17 @@ export class SessionReads {
     [this.changed, this.setChanged] = createSignal(0, { ownedWrite: true });
   }
 
-  /** Resolves once the persisted markers are loaded ({@link load}, which boot calls); listings apply from then on. */
+  /**
+   * Resolves once the persisted markers are loaded ({@link load}, which boot calls); listings apply from then on.
+   * Rejects when they cannot be read.
+   */
   get ready(): Promise<void> {
-    return this.loading.promise;
+    return this.loading.ready;
+  }
+
+  /** Rejects {@link ready} with `error`; boot calls it when it fails before {@link load}. */
+  failLoad(error: unknown): void {
+    this.loading.failed(error);
   }
 
   /** Tracks what `sessions` has open and lists, and what `shell` shows; drops the markers of deleted machines. */
@@ -116,11 +124,18 @@ export class SessionReads {
 
   /** Reads the persisted markers; boot calls it, so the first frame waits for nothing. */
   async load(): Promise<void> {
-    for (const row of await this.db.readMarkers.read()) this.markers.set(fileKey(row.machineId, row.path), row);
+    let rows: readonly ReadMarkerRow[];
+    try {
+      rows = await this.db.readMarkers.read();
+    } catch (error) {
+      this.failLoad(error);
+      throw error;
+    }
+    for (const row of rows) this.markers.set(fileKey(row.machineId, row.path), row);
     if (this.disposed) return;
     this.loaded = true;
     this.notify();
-    this.loading.resolve();
+    this.loading.loaded();
     this.applyListings();
   }
 

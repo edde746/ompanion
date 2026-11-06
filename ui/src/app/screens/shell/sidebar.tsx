@@ -109,8 +109,8 @@ export function Sidebar(props: SidebarProps) {
   const [showAll, setShowAll] = createSignal<ReadonlySet<string>>(new Set());
   /** Counts the status changes of the machines' runtimes, which decide the machines' notices. */
   const [statusChanges, setStatusChanges] = createSignal(0);
-  /** Machines whose first listing was asked for. */
-  const listed = new Set<string>();
+  /** Runtimes whose first listing was asked for: an edit of a machine's route replaces its runtime and its listing. */
+  const listed = new WeakSet<MachineRuntime>();
   let searchField: HTMLInputElement | undefined;
 
   // This computer starts expanded and connected; SSH machines connect when opened, so the app never dials (and
@@ -179,13 +179,17 @@ export function Sidebar(props: SidebarProps) {
     };
   });
 
-  // An expanded machine lists its sessions the first time it shows.
+  // An expanded machine lists its sessions the first time it shows, and again once its runtime was replaced.
   createEffect(
-    () => machines.machines().filter(isExpanded),
+    () => {
+      runtimes();
+      return machines.machines().filter(isExpanded);
+    },
     (shown) => {
       for (const machine of shown) {
-        if (listed.has(machine.id)) continue;
-        listed.add(machine.id);
+        const runtime = sessions.runtimeFor(machine);
+        if (listed.has(runtime)) continue;
+        listed.add(runtime);
         loadIfNeeded(machine);
       }
     },

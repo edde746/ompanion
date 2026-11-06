@@ -470,7 +470,8 @@
     "notProbed": "Connect to read the machine's OS, shell and omp.",
     "power": "Power",
     "keepAwake": "Keep this Mac awake while omp works",
-    "keepAwakeDetail": "While omp works in a session from ompanion, the Mac does not sleep, also right after a request woke it. Only on power; the display still turns off. Every device sees this switch."
+    "keepAwakeDetail": "While omp works in a session from ompanion, the Mac does not sleep, also right after a request woke it. Only on power; the display still turns off. Every device sees this switch.",
+    "keepAwakeUnread": "Could not read whether it is on: $error. The switch sets it."
   },
   "auth": {
     "key": "Key",

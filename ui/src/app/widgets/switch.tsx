@@ -124,7 +124,12 @@ export function Switch(props: SwitchProps) {
       if (heading === undefined) move((from) => resizeFrames(from, props.value ? onSize : offSize), reactionMs);
       return;
     }
-    dragged = event.type === "pointerup";
+    if (event.type === "pointercancel") {
+      // The system took the pointer (a scroll, a system gesture): the thumb goes back and the value stays.
+      toggle(props.value);
+      return;
+    }
+    dragged = true;
     // _handleDragEnd: the nearer side wins.
     const on = (parseFloat(getComputedStyle(thumb).left) - offX) / travel >= 0.5;
     toggle(on);

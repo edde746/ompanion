@@ -1,7 +1,7 @@
 // lib/screens/shell/shell_screen.dart: the adaptive layout. Wide: sidebar, center pane, right dock (beside the center
 // from 1100 px, a drawer below). Narrow (under 600 px): the same screens stacked, one at a time, with back navigation.
 import type { JSX } from "@solidjs/web";
-import { createMemo, createSignal, lazy, lazyModule, Loading, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, lazy, lazyModule, Loading, onSettled, Show } from "solid-js";
 import type { LiveSession } from "../../../core/session/live_session";
 import { useDock, useMachines, useSessions, useSettings, useShell } from "../../app_state";
 import { t } from "../../i18n/i18n";
@@ -228,6 +228,18 @@ function WideShell(props: { readonly inlineDock: boolean; readonly width: number
     void settings.set(drag.pane === "sidebar" ? Prefs.sidebarWidth : Prefs.dockWidth, kept[drag.pane]);
   }
 
+  // A pane that closes mid-drag (a shortcut, or the window narrowing past the inline dock) takes its edge, and with it
+  // the pointer capture, so no pointerup ends the drag: drop it, and the width it asked for, unsaved.
+  createEffect(
+    () => {
+      const pane = dragging()?.pane;
+      return pane !== undefined && !(pane === "sidebar" ? sidebarOpen() : dockOpen());
+    },
+    (orphaned) => {
+      if (orphaned) setDragging(null);
+    },
+  );
+
   /** The strip along a pane's inner edge that resizes the pane when dragged, from where the pointer went down. */
   const edge = (pane: Pane, style: () => JSX.CSSProperties) => (
     <div
@@ -248,12 +260,14 @@ function WideShell(props: { readonly inlineDock: boolean; readonly width: number
           target.removeEventListener("pointermove", move);
           target.removeEventListener("pointerup", end);
           target.removeEventListener("pointercancel", end);
+          target.removeEventListener("lostpointercapture", end);
           endDrag();
           refreshDragRegions();
         };
         target.addEventListener("pointermove", move);
         target.addEventListener("pointerup", end);
         target.addEventListener("pointercancel", end);
+        target.addEventListener("lostpointercapture", end);
       }}
     />
   );

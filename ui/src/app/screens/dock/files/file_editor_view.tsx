@@ -103,6 +103,8 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
     try {
       await props.workspace.save(document, { force });
       showSnackBar(strings().saved({ name: baseName(document.path()) }));
+      // The file on disk changed, so a diff on screen is stale.
+      if (showDiff()) loadDiff();
     } catch (error) {
       if (!(error instanceof FileChangedOnDisk)) {
         showSnackBar(strings().saveFailed({ error: String(error) }));

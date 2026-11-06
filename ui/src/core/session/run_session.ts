@@ -151,6 +151,12 @@ interface FilePage {
   readonly from: number;
 }
 
+/** A seed's history: from byte [from] of the session file [file] on, or all of it when [from] is 0. */
+interface History extends RpcEntries {
+  readonly from: number;
+  readonly file?: string;
+}
+
 /**
  * `fresh`: first attach, the recent part of the log (`attachRun`), a view built from nothing. `resume`: same generation
  * as before, the frames missed while away apply to the view as it is. `reseed`: the log was rotated past this device,
@@ -383,7 +389,9 @@ export class RunSession implements LiveSession {
     });
     const tracked = new TrackedChannel(channel);
     const rpc = new RpcClient(tracked, { deviceId: this.deviceId });
-    const attachment = new Attachment(channel, tracked, rpc, new CompanionClient(rpc));
+    const attachment = new Attachment(channel, tracked, rpc, new CompanionClient(rpc), (error) =>
+      this.warn(`Closing the channel to run ${this.runId} failed: ${String(error)}`),
+    );
     this.attaching = attachment;
     // A rotation while this device was away cut off frames it never read: rebuild from RPC.
     const seed = mode !== "resume" || channel.generation !== resume?.generation;
@@ -405,6 +413,8 @@ export class RunSession implements LiveSession {
       }
       if (seed) await this.seed(attachment, { fresh: mode === "fresh", fileEntries });
       if (this.closed) throw new Error(`session ${this.runId} closed while attaching`);
+      // The channel ended while no RPC call was left to fail: the seed's last reads are session file reads.
+      if (attachment.earlyEnd !== undefined) throw attachment.earlyEnd;
     } catch (error) {
       // Frames applied straight to the view were read for good; buffered ones are read again by the next attach.
       if (!this.seeding && mode === "resume") this.resume = attachment.position;
@@ -525,6 +535,9 @@ export class RunSession implements LiveSession {
     for (const problem of problems) view = notice(view, "warning", problem);
     this.entries = [...history.entries];
     this.leafId = history.leafId;
+    // With the entries: a failed seed keeps the window the loaded entries came from, which [loadEarlier] pages back.
+    this.historyFrom = history.from;
+    this.historyFile = history.file;
     this.seeding = false;
     this.setView(view);
     this.noteState(stateJson);
@@ -568,12 +581,9 @@ export class RunSession implements LiveSession {
    * file: omp refuses a response over 64 MiB ("RPC response exceeded the transport limit"), and a 260 MB session
    * file's history is one.
    */
-  private async stateFileEntries(rpc: RpcClient, state: Promise<unknown>): Promise<RpcEntries> {
+  private async stateFileEntries(rpc: RpcClient, state: Promise<unknown>): Promise<History> {
     const path = optString(asJsonObject(await state, "get_state result"), "sessionFile");
-    if (path === undefined) {
-      this.historyFrom = 0;
-      return rpc.getEntries();
-    }
+    if (path === undefined) return wholeHistory(rpc);
     return this.entriesAfter(rpc, path, this.readEntries(path), state);
   }
 
@@ -591,21 +601,17 @@ export class RunSession implements LiveSession {
     path: string,
     file: Promise<FilePage | undefined>,
     state: Promise<unknown>,
-  ): Promise<RpcEntries> {
+  ): Promise<History> {
     const page = await file;
     const last = page?.entries[page.entries.length - 1]?.["id"];
-    if (page === undefined || typeof last !== "string") {
-      this.historyFrom = 0;
-      return rpc.getEntries();
-    }
+    if (page === undefined || typeof last !== "string") return wholeHistory(rpc);
     let after: RpcEntries;
     try {
       after = await rpc.getEntries({ since: last });
     } catch (error) {
       if (!(error instanceof RpcCommandException) || error.code !== "unknown_since") throw error;
       this.isBehindFile = optString(asJsonObject(await state, "get_state result"), "sessionFile") === path;
-      this.historyFrom = 0;
-      return rpc.getEntries();
+      return wholeHistory(rpc);
     }
     const leafId = after.leafId;
     let entries = [...page.entries, ...after.entries];
@@ -613,16 +619,11 @@ export class RunSession implements LiveSession {
     // The reader navigated back to an older branch: its leaf is further up the file.
     while (from > 0 && leafId !== undefined && !entries.some((entry) => entry["id"] === leafId)) {
       const earlier = await this.readPage(path, Math.max(0, from - this.historyPageBytes), from);
-      if (earlier === undefined) {
-        this.historyFrom = 0;
-        return rpc.getEntries();
-      }
+      if (earlier === undefined) return wholeHistory(rpc);
       entries = [...earlier.entries, ...entries];
       from = earlier.from;
     }
-    this.historyFrom = from;
-    this.historyFile = path;
-    return { entries, leafId };
+    return { entries, leafId, from, file: path };
   }
 
   private async loadEarlierEntries(): Promise<void> {
@@ -846,10 +847,14 @@ export class RunSession implements LiveSession {
   }
 
   private ended(attachment: Attachment, error: unknown): void {
-    if (this.closed || attachment !== this.attached) return;
+    if (this.closed) return;
+    const cause = error ?? new RpcClosedException(`the channel to run ${this.runId} ended`);
+    // [attach] has yet to publish it, and fails with this instead.
+    if (attachment === this.attaching) attachment.earlyEnd = cause;
+    if (attachment !== this.attached) return;
     this.attached = undefined;
     this.resume = attachment.position;
-    void attachment.close();
+    attachment.closeLater();
     const code = attachment.channel.exitCode;
     if (this.stopping || (code !== undefined && this.access.persistent)) {
       this.finish({ kind: "LinkClosed", exitCode: code });
@@ -860,7 +865,7 @@ export class RunSession implements LiveSession {
       return;
     }
     const gap = error instanceof RpcClosedException && error.cause instanceof RunLogGap;
-    void this.reconnect(error ?? new RpcClosedException(`the channel to run ${this.runId} ended`), { reseed: gap });
+    void this.reconnect(cause, { reseed: gap });
   }
 
   private async reconnect(cause: unknown, options: { reseed: boolean }): Promise<void> {
@@ -916,10 +921,10 @@ export class RunSession implements LiveSession {
     this.reconnectNow();
     const attachment = this.attached;
     this.attached = undefined;
-    if (attachment !== undefined) void attachment.close();
+    attachment?.closeLater();
     const attaching = this.attaching;
     this.attaching = undefined;
-    if (attaching !== undefined) void attaching.close();
+    attaching?.closeLater();
     this.setLinkState(state);
     this.viewEmitter.close();
     this.linkEmitter.close();
@@ -942,6 +947,11 @@ export class RunSession implements LiveSession {
   private warn(message: string): void {
     this.setView(notice(this.currentView, "warning", message));
   }
+}
+
+/** The whole history, from `get_entries`. */
+async function wholeHistory(rpc: RpcClient): Promise<History> {
+  return { ...(await rpc.getEntries()), from: 0 };
 }
 
 /** A companion call whose failure the seed reports as a toast instead of failing. */
@@ -1024,6 +1034,9 @@ class Attachment {
 
   /** Why the channel broke, when the inbox side noticed first. */
   failure: unknown;
+
+  /** Why the channel ended while [RunSession.attach] still set it up. */
+  earlyEnd: unknown;
   private closing: Promise<void> | undefined;
 
   constructor(
@@ -1031,6 +1044,8 @@ class Attachment {
     readonly tracked: TrackedChannel,
     readonly rpc: RpcClient,
     readonly companion: CompanionClient,
+    /** Hears why a [closeLater] failed. */
+    private readonly closeFailed: (error: unknown) => void,
   ) {}
 
   get position(): Position {
@@ -1039,12 +1054,17 @@ class Attachment {
 
   fail(error: unknown): void {
     this.failure ??= error;
-    void this.close();
+    this.closeLater();
   }
 
   close(): Promise<void> {
     this.closing ??= this.shutDown();
     return this.closing;
+  }
+
+  /** [close] without waiting for it. A close already under way has a caller that hears how it went. */
+  closeLater(): void {
+    if (this.closing === undefined) this.close().catch(this.closeFailed);
   }
 
   private async shutDown(): Promise<void> {

@@ -12,7 +12,7 @@ import {
   sessionView,
 } from "../../../core/store/session_view";
 import { FakeLiveSession, settle } from "../../../test/live_session";
-import { ScriptedChannel, startClient } from "../../../test/scripted_channel";
+import { rejection, ScriptedChannel, startClient } from "../../../test/scripted_channel";
 import { RpcLogin } from "./rpc_login";
 
 /** The control session, over a channel where `login` stays pending until the test answers it; records `detach`. */
@@ -84,6 +84,19 @@ test("Cancel ends a pending login: omp's question is cancelled and the control s
 
   expect(control.channel.sent).toContainEqual({ type: "extension_ui_response", id: "code", cancelled: true });
   expect(control.dismissed).toEqual(["code"]);
+  expect(control.detached).toBe(true);
+});
+
+test("Cancel detaches the control session even when omp's question cannot be cancelled", async () => {
+  const { control, login } = await startLogin({ remote: false });
+  control.emit(sessionView({ requests: [codePrompt] }));
+  await settle();
+  const failure = new Error("pipe closed");
+  control.rpc.respondToUi = async () => {
+    throw failure;
+  };
+
+  expect(await rejection(login.cancel())).toBe(failure);
   expect(control.detached).toBe(true);
 });
 

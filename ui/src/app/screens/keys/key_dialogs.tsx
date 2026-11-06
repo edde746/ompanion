@@ -21,12 +21,26 @@ import "./key_dialogs.css";
 
 /** Imports a pasted or picked private key. Resolves with the stored key, or undefined when cancelled. */
 export function showImportKeyDialog(): Promise<SshKeyRow | undefined> {
-  return showDialog<SshKeyRow>((close) => <ImportKeyDialog close={close} />);
+  const [busy, setBusy] = createSignal(false);
+  // Escape, the scrim and back wait like Cancel while the key is stored: it is stored either way.
+  return showDialog<SshKeyRow>((close) => <ImportKeyDialog busy={busy()} setBusy={setBusy} close={close} />, {
+    dismissible: () => !busy(),
+  });
 }
 
 /** Generates an Ed25519 key and shows its public half. Resolves with the stored key, or undefined when cancelled. */
 export function showGenerateKeyDialog(): Promise<SshKeyRow | undefined> {
-  return showDialog<SshKeyRow>((close) => <GenerateKeyDialog close={close} />);
+  const [busy, setBusy] = createSignal(false);
+  // As the import: a key being generated is stored either way.
+  return showDialog<SshKeyRow>((close) => <GenerateKeyDialog busy={busy()} setBusy={setBusy} close={close} />, {
+    dismissible: () => !busy(),
+  });
+}
+
+interface KeyDialogProps {
+  readonly busy: boolean;
+  readonly setBusy: (busy: boolean) => void;
+  readonly close: (key?: SshKeyRow) => void;
 }
 
 export async function copyPublicKey(key: SshKeyRow): Promise<void> {
@@ -34,7 +48,7 @@ export async function copyPublicKey(key: SshKeyRow): Promise<void> {
   showSnackBar(t.keys.publicKeyCopied);
 }
 
-function ImportKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
+function ImportKeyDialog(props: KeyDialogProps) {
   const keys = useKeys();
   const [name, setName] = createSignal("");
   const [pem, setPem] = createSignal("");
@@ -42,7 +56,6 @@ function ImportKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
   const [nameMissing, setNameMissing] = createSignal(false);
   const [pemMissing, setPemMissing] = createSignal(false);
   const [error, setError] = createSignal<string>();
-  const [busy, setBusy] = createSignal(false);
   let fileInput: HTMLInputElement | undefined;
 
   const take = (read: { text: string } | { error: string }, fileName: string) => {
@@ -85,7 +98,7 @@ function ImportKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
     setNameMissing(noName);
     setPemMissing(noPem);
     if (noName || noPem) return;
-    setBusy(true);
+    props.setBusy(true);
     setError(undefined);
     try {
       const key = await keys.importKey({
@@ -95,7 +108,7 @@ function ImportKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
       });
       props.close(key);
     } catch (failure) {
-      setBusy(false);
+      props.setBusy(false);
       setError(describeKeyError(failure));
     }
   };
@@ -106,8 +119,10 @@ function ImportKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
       title={t.keys.importTitle}
       actions={
         <>
-          <TextButton onClick={() => props.close()}>{t.common.cancel}</TextButton>
-          <FilledButton disabled={busy()} onClick={() => void submit()}>
+          <TextButton disabled={props.busy} onClick={() => props.close()}>
+            {t.common.cancel}
+          </TextButton>
+          <FilledButton disabled={props.busy} onClick={() => void submit()}>
             {t.keys.importAction}
           </FilledButton>
         </>
@@ -132,7 +147,7 @@ function ImportKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
         <div class="key-dialogs-file">
           <TextButton
             icon={Symbols.folder_open}
-            disabled={busy()}
+            disabled={props.busy}
             onClick={() => void chooseFile().catch((failure: unknown) => setError(String(failure)))}
           >
             {t.common.chooseFile}
@@ -154,7 +169,7 @@ function ImportKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
             value={passphrase()}
             onInput={setPassphrase}
             onSubmit={() => {
-              if (!busy()) void submit();
+              if (!props.busy) void submit();
             }}
           />
           <span class="key-dialogs-helper">{t.keys.passphraseHint}</span>
@@ -165,7 +180,7 @@ function ImportKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
   );
 }
 
-function GenerateKeyDialog(props: { readonly close: (key?: SshKeyRow) => void }) {
+function GenerateKeyDialog(props: KeyDialogProps) {
   const keys = useKeys();
   // The device name as the default, so an `authorized_keys` line tells which device holds the key.
   const [name, setName] = createSignal(
@@ -176,19 +191,19 @@ function GenerateKeyDialog(props: { readonly close: (key?: SshKeyRow) => void })
   );
   const [nameMissing, setNameMissing] = createSignal(false);
   const [generated, setGenerated] = createSignal<SshKeyRow>();
-  const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string>();
 
   const generate = async () => {
     const noName = name().trim() === "";
     setNameMissing(noName);
     if (noName) return;
-    setBusy(true);
+    props.setBusy(true);
     try {
       setGenerated(await keys.generateEd25519({ name: name().trim() }));
     } catch (failure) {
-      setBusy(false);
       setError(String(failure));
+    } finally {
+      props.setBusy(false);
     }
   };
 
@@ -201,8 +216,10 @@ function GenerateKeyDialog(props: { readonly close: (key?: SshKeyRow) => void })
           title={t.keys.generateTitle}
           actions={
             <>
-              <TextButton onClick={() => props.close()}>{t.common.cancel}</TextButton>
-              <FilledButton disabled={busy()} onClick={() => void generate()}>
+              <TextButton disabled={props.busy} onClick={() => props.close()}>
+                {t.common.cancel}
+              </TextButton>
+              <FilledButton disabled={props.busy} onClick={() => void generate()}>
                 {t.keys.generateAction}
               </FilledButton>
             </>
@@ -215,7 +232,7 @@ function GenerateKeyDialog(props: { readonly close: (key?: SshKeyRow) => void })
                 onInput={setName}
                 autofocus
                 onSubmit={() => {
-                  if (!busy()) void generate();
+                  if (!props.busy) void generate();
                 }}
               />
             </LabeledField>

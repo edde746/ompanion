@@ -11,6 +11,7 @@ import {
   transcriptLinkTarget,
 } from "../../../../markdown/blocks";
 import type * as Renderer from "../../../../markdown/render";
+import { appLogger } from "../../../utils/app_logger";
 import { openExternalLink } from "../../external_links";
 import { CodeBlock } from "./code_block";
 import { languageForFence } from "./highlighter";
@@ -21,9 +22,16 @@ const [renderer, setRenderer] = createSignal<typeof Renderer>();
 let rendererLoad: Promise<void> | undefined;
 
 function loadRenderer(): void {
-  rendererLoad ??= import("../../../../markdown/render").then((module) => {
-    setRenderer(() => module);
-  });
+  rendererLoad ??= import("../../../../markdown/render").then(
+    (module) => {
+      setRenderer(() => module);
+    },
+    (error: unknown) => {
+      // The chunk may arrive another time: the next text to mount loads it again; until then blocks show their source.
+      rendererLoad = undefined;
+      appLogger.w("loading the markdown renderer failed", { error });
+    },
+  );
 }
 
 /**

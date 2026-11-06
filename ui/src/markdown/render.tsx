@@ -313,9 +313,16 @@ let mathLoad: Promise<void> | undefined;
 
 /** A formula through KaTeX, which loads with the first one; until then its TeX shows. */
 function MathView(props: { tex: string; display: boolean }) {
-  mathLoad ??= import("./math").then((module) => {
-    setMath(() => module);
-  });
+  mathLoad ??= import("./math").then(
+    (module) => {
+      setMath(() => module);
+    },
+    (error: unknown) => {
+      // The TeX stays; the next formula tries again.
+      mathLoad = undefined;
+      appLogger.w("Loading KaTeX failed", { error });
+    },
+  );
   return (
     <Switch fallback={<span class={props.display ? "markdown-math-display" : undefined}>{props.tex}</span>}>
       <Match when={math()}>

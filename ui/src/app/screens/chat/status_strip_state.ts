@@ -1,5 +1,6 @@
 // The decisions of lib/screens/chat/status_strip.dart: what the status strip says, which command outputs and extension
 // widgets show, and what a notice says.
+import { type Accessor, createMemo } from "solid-js";
 import type { LiveSession } from "../../../core/session/live_session";
 import {
   type ExtensionWidget,
@@ -11,6 +12,7 @@ import {
   type WidgetPlacement,
 } from "../../../core/store/session_view";
 import { t } from "../../i18n/i18n";
+import { sessionViewSelector } from "../../sessions/session_view_builder";
 
 /** How long Stopped shows after a stop. */
 export const stoppedForMs = 4000;
@@ -101,6 +103,23 @@ export function latestOutputSeq(view: SessionView): number {
 /** The notices or command outputs after `seq`, the last one shown or dismissed. */
 export function newerThan<T extends { readonly seq: number }>(items: readonly T[], seq: number): T[] {
   return items.filter((item) => item.seq > seq);
+}
+
+/**
+ * How often `session`'s view numbered its seqs from 0 again. A fresh reattach rebuilds the view from nothing on the
+ * same session object, so the notices and command outputs shown or dismissed up to a seq before it say nothing of the
+ * ones after.
+ */
+export function seqRestarts(session: Accessor<LiveSession>): Accessor<number> {
+  const nextSeq = sessionViewSelector(session, (view) => view.nextSeq);
+  let last = 0;
+  let restarts = 0;
+  return createMemo(() => {
+    const seq = nextSeq();
+    if (seq < last) restarts++;
+    last = seq;
+    return restarts;
+  });
 }
 
 /**

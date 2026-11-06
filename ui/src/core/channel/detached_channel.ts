@@ -60,7 +60,7 @@ export class DetachedChannel implements RunChannel {
     const channel = new DetachedChannel(link, dir, options.inboxOffset);
     // Started alongside the log follower: the client's first send (`negotiate_protocol`, right after `ready` or the
     // attach) waited up to 190 ms for this exec channel and its script over SSH to an M3 MacBook Air. A failed start
-    // reaches the sends.
+    // reaches the sends waiting for it; the next send starts another.
     const appender = channel.startAppender();
     ignore(appender);
     channel.appender = appender;
@@ -142,7 +142,7 @@ export class DetachedChannel implements RunChannel {
    * [send] order even when one of them is uploaded first.
    */
   private async write(line: string): Promise<{ ack: Promise<number> }> {
-    const appender = await (this.appender ??= this.startAppender());
+    const appender = await this.liveAppender();
     const framed = framedLine(line);
     // The appender reads a leading `@` as the name of an uploaded file.
     if (framed.length - 1 <= inlineAppendLimit && !line.startsWith("@")) return { ack: appender.append(framed) };
@@ -153,14 +153,28 @@ export class DetachedChannel implements RunChannel {
     } finally {
       await files.close();
     }
-    return { ack: appender.append(encoder.encode(`@${name}\n`)) };
+    // The appender may have ended during the upload.
+    return { ack: (await this.liveAppender()).append(encoder.encode(`@${name}\n`)) };
+  }
+
+  /** The appender, started with the attach and again after one ended or failed to start. */
+  private async liveAppender(): Promise<RunAppender> {
+    const appender = await (this.appender ??= this.startAppender());
+    // It ended since it was cached, which emptied the slot.
+    return appender.ended ? await (this.appender ??= this.startAppender()) : appender;
   }
 
   private async startAppender(): Promise<RunAppender> {
-    const process = await startPosixScript(this.link, appenderScript(this.dir));
-    return new RunAppender(process, this.dir, () => {
+    try {
+      const process = await startPosixScript(this.link, appenderScript(this.dir));
+      return new RunAppender(process, this.dir, () => {
+        this.appender = undefined;
+      });
+    } catch (error) {
+      // Not kept: the next send starts another.
       this.appender = undefined;
-    });
+      throw error;
+    }
   }
 
   /**

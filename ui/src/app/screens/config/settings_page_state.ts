@@ -46,6 +46,9 @@ export class SettingsPageState {
   private links: Subscription | undefined;
   private fileReload: ReturnType<typeof setTimeout> | undefined;
   private projectEdits: Promise<void> = Promise.resolve();
+  /** The latest `load()` and `loadFiles()`; an older one that ends late publishes nothing. */
+  private loads = 0;
+  private fileLoads = 0;
   private disposed = false;
 
   constructor(private readonly target: ConfigTarget) {}
@@ -68,6 +71,8 @@ export class SettingsPageState {
   async load(): Promise<void> {
     // Also called after awaited work, when the page may be gone.
     if (this.disposed) return;
+    const request = ++this.loads;
+    const current = () => !this.disposed && request === this.loads;
     this.loadingSignal[1](true);
     this.errorSignal[1](undefined);
     try {
@@ -75,6 +80,7 @@ export class SettingsPageState {
       const schema =
         this.schema() ??
         settingsSchemaFromJson(asJsonObject(await control.companion.call("settings.schema"), "settings.schema"));
+      if (!current()) return;
       const project = this.target.projectSession();
       let scope = this.scope();
       if (scope === "project" && project === undefined) {
@@ -82,21 +88,21 @@ export class SettingsPageState {
         this.scopeSignal[1](scope);
       }
       const source = scope === "project" && project !== undefined ? project : control;
-      if (this.disposed) return;
       this.watch(source);
       const effective = settingsSnapshotFromJson(
         asJsonObject(await source.companion.call("settings.get"), "settings.get"),
       );
+      if (!current()) return;
       await this.loadFiles();
-      if (this.disposed) return;
+      if (!current()) return;
       this.schemaSignal[1](schema);
       this.effectiveSignal[1](effective);
       this.source = source;
       if (this.tab() === undefined) this.tabSignal[1](schema.tabs[0] ?? advancedTab);
     } catch (error) {
-      if (!this.disposed) this.errorSignal[1](error);
+      if (current()) this.errorSignal[1](error);
     } finally {
-      if (!this.disposed) this.loadingSignal[1](false);
+      if (current()) this.loadingSignal[1](false);
     }
   }
 
@@ -129,13 +135,18 @@ export class SettingsPageState {
 
   private async loadFiles(): Promise<void> {
     const target = this.target;
+    const request = ++this.fileLoads;
+    const current = () => !this.disposed && request === this.fileLoads;
     try {
       const path = this.globalPath() ?? (await target.globalConfigPath());
+      if (!current()) return;
       this.globalPathSignal[1](path);
       const text = await target.readText(path);
+      if (!current()) return;
       this.globalSignal[1](text === undefined ? { root: {} } : configLayerParse(text));
       this.globalErrorSignal[1](undefined);
     } catch (error) {
+      if (!current()) return;
       this.globalSignal[1](undefined);
       this.globalErrorSignal[1](error);
     }
@@ -149,9 +160,11 @@ export class SettingsPageState {
       const path = target.projectConfigPath(session.cwd);
       this.projectPathSignal[1](path);
       const text = await target.readText(path);
+      if (!current()) return;
       this.projectSignal[1](text === undefined ? { root: {} } : configLayerParse(text));
       this.projectErrorSignal[1](undefined);
     } catch (error) {
+      if (!current()) return;
       this.projectSignal[1](undefined);
       this.projectErrorSignal[1](error);
     }
@@ -237,7 +250,7 @@ export class SettingsPageState {
   /** A `settings.set` / `settings.unset` reply is the new effective value in the control process. */
   private applyResult(control: LiveSession, result: unknown): void {
     const current = this.effective();
-    if (control !== this.source || current === undefined) return;
+    if (this.disposed || control !== this.source || current === undefined) return;
     const value = settingValueFromJson(asJsonObject(result, "settings reply"));
     this.effectiveSignal[1](settingsSnapshotMerge(current, { values: new Map([[value.path, value]]), conditions: {} }));
   }

@@ -1091,4 +1091,25 @@ describe("subagents", () => {
     expect(withSubagents(view, []).subagents.map((subagent) => subagent.status)).toEqual(["completed"]);
     expect(withSubagents(reduce(sessionView(), lifecycle("started")), []).subagents).toEqual([]);
   });
+
+  test("a progress frame after the end leaves the subagent finished", () => {
+    const progress = (status: string, tokens: number): JsonObject => ({
+      type: "subagent_progress",
+      payload: {
+        index: 0,
+        agent: "task",
+        agentSource: "bundled",
+        progress: { index: 0, id: "Echo", status, tokens },
+      },
+    });
+    const view = apply(sessionView(), [
+      lifecycle("started"),
+      progress("running", 10),
+      lifecycle("completed"),
+      progress("running", 20),
+    ]);
+    expect([view.subagents[0]?.status, view.subagents[0]?.progress?.tokens]).toEqual(["completed", 10]);
+    // A final progress frame still brings the last numbers.
+    expect(reduce(view, progress("completed", 30)).subagents[0]?.progress?.tokens).toBe(30);
+  });
 });
