@@ -91,9 +91,8 @@ final class Push: NSObject, MessagingDelegate {
             "runId": route.runId ?? NSNull(),
             "sessionPath": route.sessionPath ?? NSNull(),
         ]
-        if launchTapTaken {
-            shell?.emit("shell.pushTap", tap)
-        } else {
+        // A page reloaded after a crash is not ready yet: it takes the tap as its launch tap when it starts.
+        if !(launchTapTaken && shell?.emit("shell.pushTap", tap) == true) {
             launchTap = tap
         }
     }

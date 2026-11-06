@@ -675,6 +675,8 @@ class MainActivity : ComponentActivity() {
             Log.e(TAG, "the renderer is gone (crashed: ${detail.didCrash()}); reloading the page")
             replyProxy = null
             fileChooser = null
+            // The dead page's save panel answers nobody: saved() drops its result, and the new page can save again.
+            saving = null
             root.removeView(view)
             view.destroy()
             // Start again releases what the dead page opened: streams, forwards, SSH machines

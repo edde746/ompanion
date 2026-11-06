@@ -177,11 +177,13 @@ final class Shell: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUID
         }
     }
 
-    /// Sends the page a shell event. Before the loaded page's first message nothing receives it, so it is dropped: the
-    /// page asks for the state it carries when it starts.
-    func emit(_ event: String, _ params: [String: Any]) {
-        guard pageReady else { return }
+    /// Sends the page a shell event; false when it was dropped. Before the loaded page's first message nothing receives
+    /// it, so it is dropped: the page asks for the state it carries when it starts.
+    @discardableResult
+    func emit(_ event: String, _ params: [String: Any]) -> Bool {
+        guard pageReady else { return false }
         deliver(Self.json(["event": event, "params": params]))
+        return true
     }
 
     /// Sends a `shell.notificationTap` event, after the page's first message when no page is ready yet.
