@@ -57,7 +57,7 @@ type targetConn struct {
 	idle    *time.Timer
 }
 
-func (c *Core) sshConnect(page uint64, params json.RawMessage) (any, error) {
+func (c *Core) sshConnect(page uint64, params json.RawMessage) (any, func(), error) {
 	p, err := decode[struct {
 		sshHop
 		ProxyCommand string          `json:"proxyCommand"`
@@ -68,7 +68,7 @@ func (c *Core) sshConnect(page uint64, params json.RawMessage) (any, error) {
 		Tag          json.RawMessage `json:"tag"`
 	}](params)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	hops := append(slices.Clone(p.Jump), p.sshHop)
 	timeout := sshDialTimeout
@@ -85,7 +85,7 @@ func (c *Core) sshConnect(page uint64, params json.RawMessage) (any, error) {
 	}
 	d, err := newDialer(c, page, hops, p.Tag, timeout, p.ProxyCommand)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var clients []*ssh.Client
 	for i, hop := range hops {
@@ -98,7 +98,7 @@ func (c *Core) sshConnect(page uint64, params json.RawMessage) (any, error) {
 			for j := len(clients) - 1; j >= 0; j-- {
 				err = errors.Join(err, notClosedConn(clients[j].Close()))
 			}
-			return nil, hopError(i, hop, err)
+			return nil, nil, hopError(i, hop, err)
 		}
 		clients = append(clients, client)
 	}
@@ -122,12 +122,14 @@ func (c *Core) sshConnect(page uint64, params json.RawMessage) (any, error) {
 	c.mu.Lock()
 	c.machines[m.id] = m
 	c.mu.Unlock()
-	for i, jump := range m.jumps {
-		go m.watch(jump, hops[i].label(), nil)
-	}
-	go m.watch(clients[last], m.label, primary)
-	go m.keepalive(every, maxMissed)
-	return map[string]any{"machine": m.id, "hostKeys": d.hostKeys()}, nil
+	// Watched once the response named the machine: the page listens for its ssh.closed only then.
+	return map[string]any{"machine": m.id, "hostKeys": d.hostKeys()}, func() {
+		for i, jump := range m.jumps {
+			go m.watch(jump, hops[i].label(), nil)
+		}
+		go m.watch(clients[last], m.label, primary)
+		go m.keepalive(every, maxMissed)
+	}, nil
 }
 
 func (c *Core) machine(id string) (*machine, error) {
@@ -135,9 +137,13 @@ func (c *Core) machine(id string) (*machine, error) {
 	defer c.mu.Unlock()
 	m, ok := c.machines[id]
 	if !ok {
-		return nil, withCode("closed", fmt.Errorf("unknown machine %q", id))
+		return nil, unknownMachine(id)
 	}
 	return m, nil
+}
+
+func unknownMachine(id string) error {
+	return withCode("closed", fmt.Errorf("unknown machine %q", id))
 }
 
 // close closes the machine's connections, the target's first, and the forwards through it; reason says why, for the

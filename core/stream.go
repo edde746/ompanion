@@ -54,11 +54,12 @@ func (s *stream) silence() {
 	}
 }
 
-// pause stops the stream's events: its outputs wait in Write, so the reads stop, until resume.
+// pause stops the stream's events: its outputs wait in Write, so the reads stop, until resume. A quiet stream emits
+// nothing more, and no page would resume it: it runs on to its end.
 func (s *stream) pause() {
 	s.flowMu.Lock()
 	defer s.flowMu.Unlock()
-	if s.paused == nil {
+	if s.paused == nil && !s.quiet {
 		s.paused = make(chan struct{})
 	}
 }

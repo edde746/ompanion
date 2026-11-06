@@ -1,10 +1,12 @@
 package core
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -125,6 +127,30 @@ func TestFlood(t *testing.T) {
 	}
 }
 
+// TestFloodEndsWithItsPage checks that core.flood, which no process backs, stops once its page went away: the next
+// page gets none of its events.
+func TestFloodEndsWithItsPage(t *testing.T) {
+	h := newHarness(t)
+	// Far more than it sends before the reload.
+	stream := h.open("core.flood", map[string]int{"bytes": 1 << 30, "chunk": 1 << 16})
+	h.next(stream)
+	var leaked atomic.Int32
+	h.core.SetEmit(func(string) { leaked.Add(1) })
+	time.Sleep(300 * time.Millisecond)
+	if n := leaked.Load(); n > 0 {
+		t.Fatalf("the next page got %d events of the old page's flood", n)
+	}
+}
+
+// TestExitOfAPageThatWentAway checks that a core.exit whose page went away before it took effect does not end the core
+// under the next page.
+func TestExitOfAPageThatWentAway(t *testing.T) {
+	h := newHarness(t)
+	h.ok("core.exit", map[string]int{"code": 3}) // an exit ends the test binary with 3
+	h.core.SetEmit(h.receive)
+	time.Sleep(300 * time.Millisecond)
+}
+
 func TestCompleteUTF8(t *testing.T) {
 	euro := "€"  // E2 82 AC
 	smile := "😀" // F0 9F 98 80
@@ -240,6 +266,63 @@ func TestOutputCoalesces(t *testing.T) {
 		if len(chunk) > coalesceMax+37 {
 			t.Fatalf("an event of %d bytes", len(chunk))
 		}
+	}
+}
+
+// TestPauseAfterThePageWentAway checks that a stream.pause run after the next page took over, such as the old page's
+// queued behind its other flow requests, does not hold back the stream's end: no page would resume it.
+func TestPauseAfterThePageWentAway(t *testing.T) {
+	h := newHarness(t)
+	s := h.core.newStream(false)
+	s.kill = func() error { return nil }
+	h.core.register(s)
+	h.core.SetEmit(h.receive)
+	h.ok("stream.pause", map[string]string{"stream": s.id})
+	exited := make(chan struct{})
+	go func() {
+		h.core.exit(s, ending{code: 0})
+		close(exited)
+	}()
+	select {
+	case <-exited:
+	case <-time.After(testTimeout):
+		t.Fatal("a stream paused after its page went away never ended")
+	}
+}
+
+// TestNetConnectDeliversItsTail checks that what a TCP peer sends right before it closes comes out before the stream's
+// end, though it arrives within the coalescing window of the previous event.
+func TestNetConnectDeliversItsTail(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	seen := make(chan struct{})
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		if _, err := conn.Write([]byte("first")); err != nil {
+			t.Error(err)
+			return
+		}
+		<-seen
+		if _, err := conn.Write([]byte("tail")); err != nil {
+			t.Error(err)
+		}
+	}()
+	h := newHarness(t)
+	stream := h.open("net.connect", map[string]any{"machine": "local", "host": "127.0.0.1",
+		"port": listener.Addr().(*net.TCPAddr).Port})
+	if m := h.next(stream); m.Params.Data != base64.StdEncoding.EncodeToString([]byte("first")) {
+		t.Fatalf("first event %s", m.raw)
+	}
+	close(seen)
+	if got, exit := h.drainBytes(stream); string(got) != "tail" || exit.Params.Code == nil || *exit.Params.Code != 0 {
+		t.Fatalf("after the first event: %q (%s)", got, exit.raw)
 	}
 }
 

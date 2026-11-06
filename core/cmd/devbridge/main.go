@@ -123,10 +123,20 @@ func (b *bridge) serve(w http.ResponseWriter, r *http.Request) {
 	b.mu.Lock()
 	b.count++
 	n := b.count
+	previous := b.current
 	b.current = conn
 	b.core.SetEmit(func(message string) { write(n, []byte(message)) })
 	b.mu.Unlock()
 	log.Printf("devbridge: connection %d from %s took over the core", n, r.Header.Get("Origin"))
+	if previous != nil {
+		// Its page must learn it lost the core: what it sends now would act for this one.
+		go func() {
+			err := previous.Close(websocket.StatusGoingAway, "another page took over the core")
+			if err != nil && !errors.Is(err, net.ErrClosed) {
+				log.Printf("devbridge: connection %d: closing the connection it took over from: %v", n, err)
+			}
+		}()
+	}
 
 	defer func() {
 		b.mu.Lock()
@@ -170,7 +180,17 @@ func (b *bridge) serve(w http.ResponseWriter, r *http.Request) {
 			write(n, b.shell(*request.ID, request.Method, request.Params))
 			continue
 		}
-		b.core.Handle(string(data))
+		// Handed over holding mu, so a takeover cannot slip in between the check and the page the core assigns.
+		b.mu.Lock()
+		current := b.current == conn
+		if current {
+			b.core.Handle(string(data))
+		}
+		b.mu.Unlock()
+		if !current {
+			log.Printf("devbridge: connection %d: dropped a request after another page took over", n)
+			return
+		}
 	}
 }
 

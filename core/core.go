@@ -188,8 +188,8 @@ func (c *Core) Handle(message string) {
 		if !c.sendTo(page, response) && err == nil {
 			c.releaseOpened(result)
 		}
-		// A stream starts only after the response that names it, so its first event finds it known. A released one
-		// still runs to its end, silent.
+		// A stream, or the watch of a machine, starts only after the response that names it, so its first event finds
+		// it known. A released one still runs to its end, silent.
 		if after != nil {
 			after()
 		}
@@ -224,10 +224,13 @@ func (c *Core) dispatch(page uint64, method string, params json.RawMessage) (res
 		}
 		return struct{}{}, func() {
 			time.Sleep(100 * time.Millisecond)
-			os.Exit(p.Code)
+			// A page that went away meanwhile asked for it: the core serves the next one now.
+			if c.page.Load() == page {
+				os.Exit(p.Code)
+			}
 		}, nil
 	case "core.flood":
-		return c.flood(params)
+		return c.flood(page, params)
 	case "core.paths":
 		return noAfter(c.corePaths())
 	case "core.env":
@@ -251,7 +254,7 @@ func (c *Core) dispatch(page uint64, method string, params json.RawMessage) (res
 	case "pty.resize":
 		return c.ptyResize(params)
 	case "ssh.connect":
-		return noAfter(c.sshConnect(page, params))
+		return c.sshConnect(page, params)
 	case "ssh.answer":
 		return noAfter(c.sshAnswer(params))
 	case "ssh.exec":
@@ -322,7 +325,8 @@ func (c *Core) info() map[string]any {
 	}
 }
 
-func (c *Core) flood(params json.RawMessage) (any, func(), error) {
+// flood is a stream of no process, which SetEmit does not know of: it stops at the first event its page no longer gets.
+func (c *Core) flood(page uint64, params json.RawMessage) (any, func(), error) {
 	p, err := decode[struct {
 		Bytes int `json:"bytes"`
 		Chunk int `json:"chunk"`
@@ -334,6 +338,12 @@ func (c *Core) flood(params json.RawMessage) (any, func(), error) {
 		return nil, nil, errors.New("core.flood needs bytes >= 0 and chunk > 0")
 	}
 	id := c.newID("s")
+	event := func(name string, params any) bool {
+		return c.sendTo(page, map[string]any{"event": name, "params": params})
+	}
+	data := func(chunk []byte) bool {
+		return event("stream.data", map[string]string{"stream": id, "fd": "stdout", "data": string(chunk)})
+	}
 	return map[string]string{"stream": id}, func() {
 		var line strings.Builder
 		pending := make([]byte, 0, p.Chunk)
@@ -353,15 +363,17 @@ func (c *Core) flood(params json.RawMessage) (any, func(), error) {
 				pending = append(pending, text[:take]...)
 				text = text[take:]
 				if len(pending) == p.Chunk {
-					c.Event("stream.data", map[string]string{"stream": id, "fd": "stdout", "data": string(pending)})
+					if !data(pending) {
+						return
+					}
 					pending = pending[:0]
 				}
 			}
 		}
-		if len(pending) > 0 {
-			c.Event("stream.data", map[string]string{"stream": id, "fd": "stdout", "data": string(pending)})
+		if len(pending) > 0 && !data(pending) {
+			return
 		}
-		c.Event("stream.exit", map[string]any{"stream": id, "code": 0})
+		event("stream.exit", map[string]any{"stream": id, "code": 0})
 	}, nil
 }
 

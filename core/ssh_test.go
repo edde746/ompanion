@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"regexp"
 	"slices"
@@ -525,6 +526,98 @@ func TestSSHClosed(t *testing.T) {
 	case m := <-h.other:
 		t.Fatalf("after ssh.close: %s", m.raw)
 	case <-time.After(10 * keepaliveUnit):
+	}
+}
+
+// TestSSHClosedAfterConnect checks that a machine whose server hangs up right after the handshake is closed only once
+// the response that names it went out: the page listens for a machine's ssh.closed once it knows its id.
+func TestSSHClosedAfterConnect(t *testing.T) {
+	server := startServer(t, serverOptions{password: "pw"})
+	h := newHarness(t)
+	params, err := json.Marshal(hop(server, map[string]any{"password": "pw"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	type dispatched struct {
+		after func()
+		err   error
+	}
+	done := make(chan dispatched, 1)
+	// The connect as Handle runs it, up to its response.
+	go func() {
+		_, after, err := h.core.dispatch(h.core.page.Load(), "ssh.connect", params)
+		done <- dispatched{after, err}
+	}()
+	prompt := h.event()
+	if prompt.Event != "ssh.prompt" || prompt.params["kind"] != "hostKey" {
+		t.Fatalf("got %s", prompt.raw)
+	}
+	h.ok("ssh.answer", map[string]any{"prompt": prompt.params["prompt"], "accept": true})
+	var connected dispatched
+	select {
+	case connected = <-done:
+	case <-time.After(testTimeout):
+		t.Fatal("ssh.connect did not answer")
+	}
+	if connected.err != nil {
+		t.Fatal(connected.err)
+	}
+	for deadline := time.Now().Add(5 * time.Second); server.connCount() == 0; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the server holds no connection")
+		}
+	}
+	server.dropAll()
+	select {
+	case m := <-h.other:
+		t.Fatalf("before the response that names the machine: %s", m.raw)
+	case <-time.After(300 * time.Millisecond):
+	}
+	if connected.after == nil {
+		t.Fatal("ssh.connect starts nothing once its response went out")
+	}
+	connected.after()
+	if m := h.event(); m.Event != "ssh.closed" {
+		t.Fatalf("got %s", m.raw)
+	}
+}
+
+// TestSSHAgentThatNeverAnswers checks that the handshake's deadline covers ssh-agent calls: an agent that takes the
+// connection and never answers fails the connect in time, as a timeout.
+func TestSSHAgentThatNeverAnswers(t *testing.T) {
+	// macOS limits a socket path to 104 bytes, which t.TempDir() can exceed.
+	dir, err := os.MkdirTemp("/tmp", "ompcore-agent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	listener, err := net.Listen("unix", dir+"/agent.sock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	go func() {
+		var held []net.Conn
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				for _, conn := range held {
+					conn.Close()
+				}
+				return
+			}
+			held = append(held, conn)
+		}
+	}()
+	key, _ := newKey(t)
+	server := startServer(t, serverOptions{keys: []ssh.PublicKey{publicOf(t, key)}})
+	h := newHarness(t)
+	params := hop(server, map[string]any{"agent": dir + "/agent.sock"})
+	params["timeoutSec"] = 0.3
+	start := time.Now()
+	c := h.connect(params, answering(t))
+	if m := c.response; m.Error == nil || m.Error.Code != "timeout" || time.Since(start) > 5*time.Second {
+		t.Fatalf("ssh.connect with a mute agent answered %s after %v", m.raw, time.Since(start))
 	}
 }
 

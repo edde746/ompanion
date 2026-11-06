@@ -139,12 +139,12 @@ fingerprint, comment, agent, key?: <index into its privateKeys>}]`) and `agentPr
 The core is one Go package (`core/`) behind two bindings. Both keep one core per process: the core outlives a
 reloaded page; what the old page opened does not. `Start` again, or a devbridge connection opening or closing,
 replaces the listener, and the core then releases everything the old page held, whose ids the next page never
-knew: it kills every stream (PTYs, `local.exec`, `ssh.exec`, `net.connect`), closes every `net.forward` and every
-SSH machine, and fails every waiting `ssh.prompt`, all without an event to the next page. A request of the old page
-still running gets no response (it would reach the next page under an id of its own) and what it opens is released
-too. A shell that reloads its page without `Start` (a crashed web content process, a fresh WebView) calls `Start`
-again first, or the old page's streams and machines stay open. Detached omp runs live on their machines, not in
-streams, so a reloaded page reattaches to them over new connections.
+knew: it kills every stream (PTYs, `local.exec`, `ssh.exec`, `net.connect`), stops every `core.flood`, closes every
+`net.forward` and every SSH machine, and fails every waiting `ssh.prompt`, all without an event to the next page. A
+request of the old page still running gets no response (it would reach the next page under an id of its own) and what
+it opens is released too; its `core.exit` does not exit. A shell that reloads its page without `Start` (a crashed web
+content process, a fresh WebView) calls `Start` again first, or the old page's streams and machines stay open. Detached
+omp runs live on their machines, not in streams, so a reloaded page reattaches to them over new connections.
 
 **gomobile** (`core/ompcore`, iOS, macOS, Android): `gomobile bind` of package `ompcore` (module `ompanion.app/core`).
 Every build of a binding or the dev bridge passes `-ldflags "-X ompanion.app/core.Version=<VERSION>"`
@@ -261,12 +261,14 @@ tap on a push notification after `shell.pushTakeLaunchTap` was called.
 
 **Dev bridge** (`core/cmd/devbridge`, desktops, development only): `go run ./cmd/devbridge -listen 127.0.0.1:<port>
 [-static <dir>]` serves the real core over a WebSocket at `ws://127.0.0.1:<port>/bridge`, one bridge message per text
-frame, so the page runs in a desktop browser against the real core. Port 0 picks a free port; the stderr line
-`devbridge: serving the core at ws://127.0.0.1:<port>/bridge` names it. It serves the core's cache directory at
-`/cache/<name>` and, with `-static`, `<dir>` (a built `ui/dist`) at `/`. It accepts pages from `localhost`,
-`127.0.0.1` and `[::1]` on any port, and listens on loopback only. It answers `shell.*` itself: secrets in memory;
-`shell.info` with `platform` from `GOOS` (`darwin` → `macos`), `osVersion` from `uname -r`, the core's version split
-at `+` into `appVersion` and `build`, the host name and `push` (true with `OMPCORE_DEVBRIDGE_PUSH=1`), without `paths`
+frame, so the page runs in a desktop browser against the real core. The latest connection takes over the core: the
+bridge closes the one it replaced with status 1001 (going away) and drops what that one still sends for the core. Port
+0 picks a free port; the stderr line `devbridge: serving the core at ws://127.0.0.1:<port>/bridge` names it. It serves
+the core's cache directory at `/cache/<name>` and, with `-static`, `<dir>` (a built `ui/dist`) at `/`. It accepts pages
+from `localhost`, `127.0.0.1` and `[::1]` on any port, and listens on loopback only. It answers `shell.*` itself:
+secrets in memory; `shell.info` with `platform` from `GOOS` (`darwin` → `macos`), `osVersion` from `uname -r`, the
+core's version split at `+` into `appVersion` and `build`, the host name and `push` (true with
+`OMPCORE_DEVBRIDGE_PUSH=1`), without `paths`
 (the page pretends it with `?paths=1`); `openUrl`, `clipboardWrite`, `notify*`, `pushSetVisible`, `pushClear`,
 `backEnabled` and `saveFile` (`{saved: false}`) logged to stderr; `notifyPermission` granted; zeros for `shell.insets`
 and `shell.titleBar`; `dragRegions` does nothing; `pickFiles` and `clipboardFiles` answer `{paths: []}` (cancelled,

@@ -63,19 +63,22 @@ func (c *Core) netForward(params json.RawMessage) (any, error) {
 	if p.Host == "" || p.Port <= 0 {
 		return nil, errors.New("net.forward needs host and port")
 	}
-	if p.Machine != "local" {
-		if _, err := c.machine(p.Machine); err != nil {
-			return nil, err
-		}
-	}
 	listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(p.LocalPort)))
 	if err != nil {
 		return nil, err
 	}
 	f := &forward{id: c.newID("f"), machine: p.Machine, listener: listener, conns: map[net.Conn]struct{}{}}
+	// Checked with the forward's registration: a machine that closes meanwhile must find the forward to close it.
 	c.mu.Lock()
-	c.forwards[f.id] = f
+	_, open := c.machines[p.Machine]
+	open = open || p.Machine == "local"
+	if open {
+		c.forwards[f.id] = f
+	}
 	c.mu.Unlock()
+	if !open {
+		return nil, errors.Join(unknownMachine(p.Machine), notClosed(listener.Close()))
+	}
 	go c.serveForward(f, p.Host, p.Port)
 	return map[string]any{"forward": f.id, "localPort": listener.Addr().(*net.TCPAddr).Port}, nil
 }
@@ -237,6 +240,7 @@ func (c *Core) netConnect(params json.RawMessage) (any, func(), error) {
 			end = ending{code: -1, err: err}
 		}
 		end.err = errors.Join(end.err, notClosed(conn.Close()))
+		out.flush()
 		c.exit(s, end)
 	}, nil
 }

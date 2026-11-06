@@ -53,6 +53,10 @@ func TestBridge(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.CloseNow()
+	// The page it replaced loses the core: its requests would act for this one.
+	if _, _, err := first.Read(ctx); websocket.CloseStatus(err) != websocket.StatusGoingAway {
+		t.Fatalf("the replaced connection read %v, want its close", err)
+	}
 
 	send := func(text string) {
 		if err := conn.Write(ctx, websocket.MessageText, []byte(text)); err != nil {

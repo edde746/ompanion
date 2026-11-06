@@ -274,7 +274,11 @@ func (d *dialer) dial(index int, via *ssh.Client) (*ssh.Client, error) {
 		HostKeyCallback:   a.checkHostKey,
 		HostKeyAlgorithms: hostKeyAlgorithms,
 	}
-	a.deadline = newDeadline(d.timeout, func() { _ = conn.Close() }) // the handshake then fails and reports it
+	// The handshake then fails and reports it; an agent call that hangs in an auth callback needs its own close.
+	a.deadline = newDeadline(d.timeout, func() {
+		_ = conn.Close()
+		a.closeAgent()
+	})
 	clientConn, channels, requests, err := ssh.NewClientConn(conn, address, config)
 	expired := a.deadline.stop()
 	a.closeAgent()
@@ -307,6 +311,7 @@ type attempt struct {
 	offered      []offeredKey
 	agentProblem string
 	agentConn    io.Closer
+	agentClosed  bool // closeAgent ran: an agent connection opened later is closed at once
 	typed        bool // the password went into a keyboard-interactive password prompt once
 }
 
@@ -324,12 +329,13 @@ func (a *attempt) classify(err error, expired bool) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	switch {
+	// The deadline closed the connection and the agent's: what failed since failed for it.
+	case expired:
+		return withCode("timeout", fmt.Errorf("no answer during %s within %v", a.phase, a.dialer.timeout))
 	case a.abort != nil:
 		return a.abort
 	case a.verdict != nil:
 		return a.verdict
-	case expired:
-		return withCode("timeout", fmt.Errorf("no answer during %s within %v", a.phase, a.dialer.timeout))
 	case errors.Is(err, errCannotAnswer) || strings.Contains(err.Error(), "unable to authenticate") ||
 		// SSH_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE, e.g. "Too many authentication failures"; x/crypto's
 		// disconnect error type is unexported.
@@ -555,8 +561,15 @@ func (a *attempt) agentKeys(path string) (keys []*agent.Key, signers []ssh.Signe
 		return nil, nil, fmt.Sprintf("ssh-agent at %s: %v", path, err)
 	}
 	a.mu.Lock()
-	a.agentConn = conn
+	closed := a.agentClosed
+	if !closed {
+		a.agentConn = conn
+	}
 	a.mu.Unlock()
+	if closed {
+		_ = conn.Close() // never used: the handshake is over
+		return nil, nil, fmt.Sprintf("ssh-agent at %s: the handshake ended", path)
+	}
 	client := agent.NewClient(conn)
 	if keys, err = client.List(); err != nil {
 		return nil, nil, fmt.Sprintf("ssh-agent at %s: %v", path, err)
@@ -582,6 +595,7 @@ func (a *attempt) closeAgent() {
 	a.mu.Lock()
 	conn := a.agentConn
 	a.agentConn = nil
+	a.agentClosed = true
 	a.mu.Unlock()
 	if conn != nil {
 		if err := conn.Close(); err != nil {
