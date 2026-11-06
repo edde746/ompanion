@@ -156,38 +156,48 @@ export function createRelay(account: ServiceAccount, fcmOrigin: string): Relay {
     limit(perIp, clientKey(clientIp), "address");
     const message = validate(await readJson(request));
     limit(perFid, message.fid, "FID");
-    let accessToken: string;
-    try {
-      accessToken = await accessTokens.get();
-    } catch (error) {
-      throw new Reply(502, `OAuth: ${String(error)}`);
-    }
-    let response: Response;
-    try {
-      response = await fetch(endpoint, {
-        method: "POST",
-        headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-        body: JSON.stringify(fcmMessage(message, Date.now())),
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      });
-    } catch (error) {
-      throw new Reply(502, `FCM: ${String(error)}`);
-    }
-    if (response.ok) {
-      await response.body?.cancel();
-      return;
-    }
-    if (response.status === 401) accessTokens.drop(accessToken);
-    const text = await response.text();
-    let body: unknown = null;
-    if (response.headers.get("content-type")?.includes("json")) {
+    // FCM answers 401 to a token Google revoked before its expiry: it is dropped, and the push goes once more with a
+    // fresh one, so this notification is not lost.
+    for (let retried = false; ; retried = true) {
+      let accessToken: string;
       try {
-        body = JSON.parse(text);
+        accessToken = await accessTokens.get();
       } catch (error) {
-        throw new Reply(502, `FCM ${response.status}: ${String(error)}`);
+        throw new Reply(502, `OAuth: ${String(error)}`);
       }
+      let response: Response;
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+          body: JSON.stringify(fcmMessage(message, Date.now())),
+          signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        });
+      } catch (error) {
+        throw new Reply(502, `FCM: ${String(error)}`);
+      }
+      if (response.ok) {
+        await response.body?.cancel();
+        return;
+      }
+      if (response.status === 401) {
+        accessTokens.drop(accessToken);
+        if (!retried) {
+          await response.body?.cancel();
+          continue;
+        }
+      }
+      const text = await response.text();
+      let body: unknown = null;
+      if (response.headers.get("content-type")?.includes("json")) {
+        try {
+          body = JSON.parse(text);
+        } catch (error) {
+          throw new Reply(502, `FCM ${response.status}: ${String(error)}`);
+        }
+      }
+      throw fcmErrorReply(response.status, body, response.headers.get("retry-after"));
     }
-    throw fcmErrorReply(response.status, body, response.headers.get("retry-after"));
   }
 
   return async (request, clientIp) => {

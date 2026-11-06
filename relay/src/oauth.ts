@@ -14,7 +14,8 @@ export const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 
 // Google's tokens live an hour. Refreshing 5 minutes early keeps a token from expiring on its way to FCM.
 const REFRESH_EARLY_MS = 5 * 60 * 1000;
-// Two requests (this exchange, then FCM) fit inside the companion's 10 s timeout.
+// Two requests (this exchange, then FCM) fit inside the companion's 10 s timeout. A 401 adds a second pair, which still
+// fits after a cached token's quick 401, the case it is for.
 export const UPSTREAM_TIMEOUT_MS = 4000;
 
 /** Parses the service-account JSON downloaded from the Firebase console; throws when it is not one. */

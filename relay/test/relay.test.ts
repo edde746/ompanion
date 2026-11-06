@@ -312,12 +312,27 @@ describe("the access token", () => {
     expect(new Headers(sends()[2]?.init?.headers).get("authorization")).toBe("Bearer access-2");
   });
 
-  test("is fetched again after FCM answers 401", async () => {
-    fcmReply = () => Response.json({ error: { code: 401, status: "UNAUTHENTICATED" } }, { status: 401 });
-    expect((await send(VALID)).status).toBe(502);
-    fcmReply = () => Response.json({ name: "projects/demo-project/messages/2" });
+  test("a 401 drops it and sends the push once more with a fresh one", async () => {
+    let answered = 0;
+    fcmReply = () =>
+      answered++ === 0
+        ? Response.json({ error: { code: 401, status: "UNAUTHENTICATED" } }, { status: 401 })
+        : Response.json({ name: "projects/demo-project/messages/2" });
     expect((await send(VALID)).status).toBe(204);
     expect(exchanges()).toHaveLength(2);
+    expect(sends().map((call) => new Headers(call.init?.headers).get("authorization"))).toEqual([
+      "Bearer access-1",
+      "Bearer access-2",
+    ]);
+  });
+
+  test("a second 401 fails the send, and the next send fetches it again", async () => {
+    fcmReply = () => Response.json({ error: { code: 401, status: "UNAUTHENTICATED" } }, { status: 401 });
+    expect((await send(VALID)).status).toBe(502);
+    expect(sends()).toHaveLength(2);
+    fcmReply = () => Response.json({ name: "projects/demo-project/messages/3" });
+    expect((await send(VALID)).status).toBe(204);
+    expect(exchanges()).toHaveLength(3);
   });
 });
 
