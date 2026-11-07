@@ -1,18 +1,19 @@
-ompanion 2.0 is the same app rebuilt on the system's own web view, a smaller download. It works with omp 18.3.1 and later, 18.16 included, and installs omp 18.16.0 on a machine that lacks it. It needs iOS 16.
+ompanion 2.0.1 polishes the 2.0 app after a review of every screen, and fixes races in sessions, goals and connections. It works with omp 18.3.1 and later and installs omp 18.16.0 on a machine that lacks it.
 
-Moving to 2.0
-- Your machines, keys, trusted host keys, passwords, settings, pinned sessions and read markers come with you: the app imports them on its first launch
-
-New
-- Agent pages: the agent can show an HTML page in the chat (a chart, a table, a small tool). It runs sandboxed, opens full screen and saves as HTML, and its links ask before they open
-- German, and a language setting
-- Usage reminders: a notification when a limit resets or an account is usable again
-- The model pickers list your recently used models first
-- Hiding account details on the usage page covers emails and organizations with a random mosaic, for screenshots
-- SSH keys moved into Settings
+Changed
+- Animations play faster, and menus fade in instead of unrolling row by row
+- A run waiting for your answer says so: "Needs your input" in the chat header, and a mark on the tool call waiting for approval
+- Approvals: approve once is the one filled button; buttons that do not fit in one row stack into a column, and a long request scrolls above them
+- The usage page is tidier: one toolbar line, a row only for the limits an account reports, and machines listed only when they need attention
+- A machine without sessions offers a new one, the home page offers to install omp on a machine that lacks it, and the terminal tab offers a new terminal
+- Files: a breadcrumb shows the current folder, wrapped lines start past their own indent, and a diff starts at its first hunk
+- The session tree marks the current position and dims the branches off its path
+- Message actions take a line of their own on iPhone instead of narrowing the message
+- Notices sit above the composer and stay under open dialogs
+- German: the strings added in 2.0.0 read consistently
 
 Fixed
-- omp 18.16: the companion loads again, so goals, loops, pause, queue edits, settings, push and the idle exit of detached runs work
-- Ubuntu 26.04 machines: two devices sending to a session at once no longer both take its lock
-- The model list stays above the composer and the keyboard, and the composer's buttons sit on the screen's insets
-- The ask tool's questions can be selected and their links open
+- Scrolling up in a chat while a reply streams is no longer pulled back to the bottom, and keeps its momentum
+- The context meter shows the figure omp's own footer shows
+- Goals continue after a compaction instead of waiting for you
+- A result that arrives after you moved on (another session, a closed dialog) no longer lands on the wrong screen, and syntax highlighting that failed to load loads again
