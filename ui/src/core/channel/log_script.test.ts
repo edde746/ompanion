@@ -236,6 +236,20 @@ test("a message frame without its id last, or with one that needs decoding, goes
   expect(splitLines(read())).toEqual([message("msg-1", 1), message("msg-1", 2), escaped, notLast]);
 });
 
+test("a message frame goes out without its event's copy of the message, the id still last", async () => {
+  const process = pump({ hold: 60000 });
+  const frame =
+    '{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"x","partial":{"n":1}},' +
+    '"message":{"n":1},"messageId":"msg-4"}';
+  await write(process, linesOf([frame, messageEnd("msg-4")]));
+  await finish(process);
+  expect(splitLines(read())).toEqual([
+    '{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"x"},' +
+      '"message":{"n":1},"messageId":"msg-4"}',
+    messageEnd("msg-4"),
+  ]);
+});
+
 test("a chunked message frame is keyed by its end, also when the last chunk cuts the id short", async () => {
   const process = pump({ hold: 60000, progressRate: 1000 });
   const first = chunks(message("msg-3", 1, 400), "rpc-1", 3);

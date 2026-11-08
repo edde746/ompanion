@@ -13,7 +13,7 @@ import {
   windowsCommandLineLimit,
 } from "../host/scripts";
 import type { BridgeLink } from "../transport/bridge_link";
-import type { HostFiles, HostLink, HostProcess, HostSocket, PtyRequest } from "../transport/host_link";
+import type { ExecOptions, HostFiles, HostLink, HostProcess, HostSocket } from "../transport/host_link";
 
 useCore();
 
@@ -28,7 +28,7 @@ class LoginShellLink implements HostLink {
     return this.local.label;
   }
 
-  exec(command: string, options?: { pty?: PtyRequest }): Promise<HostProcess> {
+  exec(command: string, options?: ExecOptions): Promise<HostProcess> {
     return this.local.exec(`exec ${this.shell} -c ${shQuote(command)}`, options);
   }
 

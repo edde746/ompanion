@@ -9,10 +9,9 @@ export interface HostLink {
 
   /**
    * Starts [command] with SSH exec semantics: the machine's shell for this user parses it. On this computer the core
-   * runs `/bin/sh -c` on POSIX and `cmd.exe /d /s /c` on Windows. With [pty] the process gets a terminal; stderr is
-   * merged into stdout.
+   * runs `/bin/sh -c` on POSIX and `cmd.exe /d /s /c` on Windows.
    */
-  exec(command: string, options?: { pty?: PtyRequest }): Promise<HostProcess>;
+  exec(command: string, options?: ExecOptions): Promise<HostProcess>;
 
   /** File access in SFTP path space: POSIX paths, Windows drives as `/C:/...`. */
   files(): Promise<HostFiles>;
@@ -24,6 +23,16 @@ export interface HostLink {
   readonly done: Promise<void>;
 
   close(): Promise<void>;
+}
+
+export interface ExecOptions {
+  /** The process gets a terminal; stderr is merged into stdout. */
+  readonly pty?: PtyRequest;
+  /**
+   * The command writes raw deflate (RFC 1951) on stdout, flushed after every write, and the process's stdout is what
+   * that inflates to: the core inflates it (`inflate` in docs/contracts/bridge.md). Not with [pty].
+   */
+  readonly inflate?: boolean;
 }
 
 export interface PtyRequest {

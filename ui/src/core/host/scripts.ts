@@ -138,12 +138,20 @@ export async function runPosixScript(link: HostLink, text: string): Promise<Scri
 /**
  * Starts [script] with `sh` and leaves stdin open for the script's own reads. `sh -s` cannot be used for that: a shell
  * may read ahead on a pipe and swallow the data meant for the script. Instead the first stdin line carries the
- * script's byte count, and `dd bs=1` reads exactly that many bytes.
+ * script's byte count, and `dd bs=1` reads exactly that many bytes. [inflate]: the script writes raw deflate
+ * (`ExecOptions.inflate`).
  */
-export async function startPosixScript(link: HostLink, text: string): Promise<HostProcess> {
+export async function startPosixScript(
+  link: HostLink,
+  text: string,
+  options: { inflate?: boolean } = {},
+): Promise<HostProcess> {
   const encoder = new TextEncoder();
   const bytes = encoder.encode(text);
-  const process = await link.exec(script`sh -c 'IFS= read -r n && s=$(dd bs=1 count="$n" 2>/dev/null) && eval "$s"' `);
+  const process = await link.exec(
+    script`sh -c 'IFS= read -r n && s=$(dd bs=1 count="$n" 2>/dev/null) && eval "$s"' `,
+    options,
+  );
   process.write(concatBytes([encoder.encode(`${bytes.length}\n`), bytes]));
   return process;
 }

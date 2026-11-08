@@ -63,10 +63,15 @@ export type FollowSource = "tail" | "poll";
  * `lines`: the lines that replace it) comes first, so the app counts offsets in `out.jsonl` bytes. A frame with more
  * distinct images than the window, or one that already names `ompanionImage`, goes out as it is, as does anything
  * that is not a complete frame (a chunk sequence the start offset or the replay cut into, a line that is not JSON).
+ *
+ * All of it goes out as raw deflate (RFC 1951), flushed after every write, for the core to inflate (`inflate` in
+ * docs/contracts/bridge.md): measured on live logs, level 6 with a flush after every line sends 7 to 10 times fewer
+ * bytes (65.1 MB of a log took 7.7 MB), and successive frames of one message cost little more than what changed.
  */
 export const followScript = script`import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync, statSync, watch } from "node:fs";
+import { constants, createDeflateRaw } from "node:zlib";
 
 const [dir, generationText, offsetText, windowText, script, imageWindowText, source, ...tailFlags] = process.argv.slice(2);
 const imageWindow = Number(imageWindowText);
@@ -97,10 +102,19 @@ process.stdin.resume();
 process.stdout.on("error", () => stop(0));
 for (const signal of ["SIGTERM", "SIGHUP", "SIGINT"]) process.on(signal, () => stop(0));
 
+// What a flush produced is all in \`deflated\` by its callback.
+const deflate = createDeflateRaw({ level: 6 });
+const deflated = [];
+deflate.on("data", (chunk) => deflated.push(chunk));
+
+// Resolves once the bytes are handed to stdout, so a slow device holds the reading back.
 function write(buffers) {
   if (buffers.length === 0) return Promise.resolve();
   const { promise, resolve, reject } = Promise.withResolvers();
-  process.stdout.write(buffers.length === 1 ? buffers[0] : Buffer.concat(buffers), (error) => (error ? reject(error) : resolve()));
+  deflate.write(buffers.length === 1 ? buffers[0] : Buffer.concat(buffers));
+  deflate.flush(constants.Z_SYNC_FLUSH, () => {
+    process.stdout.write(Buffer.concat(deflated.splice(0)), (error) => (error ? reject(error) : resolve()));
+  });
   return promise;
 }
 
@@ -475,12 +489,14 @@ export class LogFollower {
           link,
           `${source === "tail" ? posixTailPoll : ""}export BUN_BE_BUN=1 BUN_RUNTIME_TRANSPILER_CACHE_PATH=0\n` +
             `exec ${[tools.bun, ...args].map(shQuote).join(" ")}${source === "tail" ? " $tailpoll" : ""}\n`,
+          { inflate: true },
         );
         break;
       case "cmd":
         exec = link.exec(
           "set BUN_BE_BUN=1&& set BUN_RUNTIME_TRANSPILER_CACHE_PATH=0&& " +
             [tools.bun, ...args].map(windowsArg).join(" "),
+          { inflate: true },
         );
         break;
       case "powershell":
@@ -490,6 +506,7 @@ export class LogFollower {
             "$i.EnvironmentVariables['BUN_BE_BUN'] = '1'; $i.EnvironmentVariables['BUN_RUNTIME_TRANSPILER_CACHE_PATH'] = '0'; " +
             "$p = [System.Diagnostics.Process]::Start($i); " +
             "$p.WaitForExit(); exit $p.ExitCode",
+          { inflate: true },
         );
         break;
     }

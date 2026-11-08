@@ -23,6 +23,7 @@ func (c *Core) localExec(params json.RawMessage) (any, func(), error) {
 		Cwd      string            `json:"cwd"`
 		Env      map[string]string `json:"env"`
 		Encoding string            `json:"encoding"`
+		Inflate  bool              `json:"inflate"`
 	}](params)
 	if err != nil {
 		return nil, nil, err
@@ -69,10 +70,21 @@ func (c *Core) localExec(params json.RawMessage) (any, func(), error) {
 	s.kill = group.kill
 	c.register(s)
 	stdout, stderr := c.output(s, "stdout"), c.output(s, "stderr")
+	var inflated *inflater
+	if p.Inflate {
+		inflated = newInflater(stdout, func() { _ = group.kill() })
+	}
 	return map[string]string{"stream": s.id}, func() {
 		close(s.started)
 		copied := make(chan error, 2)
-		go func() { copied <- copyOutput(stdout, stdoutRead) }()
+		go func() {
+			if inflated == nil {
+				copied <- copyOutput(stdout, stdoutRead)
+				return
+			}
+			err := copyOutput(inflated, stdoutRead)
+			copied <- errors.Join(err, inflated.close())
+		}()
 		go func() { copied <- copyOutput(stderr, stderrRead) }()
 		err := cmd.Wait()
 		end := exitCode(cmd.ProcessState, err)
@@ -118,7 +130,7 @@ wait:
 }
 
 // copyOutput copies a pipe into an output until the pipe ends; closing it (awaitOutput) is an end too.
-func copyOutput(out *output, pipe *os.File) error {
+func copyOutput(out io.Writer, pipe *os.File) error {
 	_, err := io.Copy(out, pipe)
 	if errors.Is(err, os.ErrClosed) {
 		return nil

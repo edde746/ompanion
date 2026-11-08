@@ -638,6 +638,12 @@ func TestSSHSessions(t *testing.T) {
 	if string(out) != "\xff\x00" || *exit.Params.Code != 0 {
 		t.Fatalf("base64 exec: %q (%s)", out, exit.raw)
 	}
+	deflated := deflatedFile(t, "head\n", strings.Repeat("body ", 100_000))
+	o = h.drain(h.open("ssh.exec", map[string]any{"machine": machine, "command": fmt.Sprintf("cat %q", deflated),
+		"inflate": true}))
+	if o.stdout.String() != "head\n"+strings.Repeat("body ", 100_000) || exitCodeOf(t, o) != 0 {
+		t.Fatalf("inflated exec: %d bytes (%s)", o.stdout.Len(), o.exit.raw)
+	}
 	o = h.drain(h.open("pty.open", map[string]any{"machine": machine, "command": `echo "$TERM"`, "term": "vt220",
 		"cols": 80, "rows": 24}))
 	if !strings.Contains(o.stdout.String(), "vt220") {

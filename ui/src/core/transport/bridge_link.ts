@@ -7,6 +7,7 @@ import { ignore } from "../util/async";
 import { base64Decode, base64Encode } from "../util/base64";
 import { Emitter, type EventStream } from "../util/stream";
 import {
+  type ExecOptions,
   type HostDirEntry,
   type HostExit,
   HostFileExists,
@@ -16,7 +17,6 @@ import {
   type HostLink,
   type HostProcess,
   type HostSocket,
-  type PtyRequest,
 } from "./host_link";
 
 /** A loopback port on this device that carries connections to a host and port as the machine sees them. */
@@ -90,9 +90,10 @@ export class BridgeLink implements HostLink {
    * Runs [command] the way the machine's SSH exec would: over SSH the login shell parses it; on this computer the
    * core runs `/bin/sh -c` on POSIX and `cmd.exe /d /s /c` on Windows.
    */
-  async exec(command: string, options: { pty?: PtyRequest } = {}): Promise<HostProcess> {
+  async exec(command: string, options: ExecOptions = {}): Promise<HostProcess> {
     this.checkOpen();
     const pty = options.pty;
+    if (pty && options.inflate) throw new RangeError("Invalid argument (options): a PTY's output is not inflated");
     const target = this.machine === "local" ? { command, env: this.environment } : { machine: this.machine, command };
     let process: BridgeProcess;
     try {
@@ -104,7 +105,11 @@ export class BridgeLink implements HostLink {
             term: pty.term ?? "xterm-256color",
             encoding: "base64",
           })
-        : await openStream(this.machine === "local" ? "local.exec" : "ssh.exec", { ...target, encoding: "base64" });
+        : await openStream(this.machine === "local" ? "local.exec" : "ssh.exec", {
+            ...target,
+            encoding: "base64",
+            ...(options.inflate ? { inflate: true } : {}),
+          });
       process = new BridgeProcess(stream);
     } catch (error) {
       throw linkError(this.label, "exec failed", error);

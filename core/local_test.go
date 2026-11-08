@@ -4,6 +4,7 @@ package core
 
 import (
 	"bytes"
+	"compress/flate"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -137,6 +138,55 @@ func TestBase64Streams(t *testing.T) {
 	h.ok("stream.closeStdin", map[string]string{"stream": cat})
 	if out, exit := h.drainBytes(cat); !bytes.Equal(out, sent) || *exit.Params.Code != 0 {
 		t.Fatalf("cat gave %v (%s)", out, exit.raw)
+	}
+}
+
+// deflatedFile writes parts as the follow script does, raw deflate with a sync flush after each and no final block,
+// and returns the file's path.
+func deflatedFile(t *testing.T, parts ...string) string {
+	t.Helper()
+	var out bytes.Buffer
+	w, err := flate.NewWriter(&out, flate.DefaultCompression)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, part := range parts {
+		if _, err := w.Write([]byte(part)); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.Flush(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := filepath.Join(t.TempDir(), "out.deflate")
+	if err := os.WriteFile(path, out.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestInflatedStreams(t *testing.T) {
+	h := newHarness(t)
+	line := strings.Repeat(`{"type":"message_update","message":{"text":"hello"}}`, 50) + "\n"
+	parts := []string{"7 0 - 0 0\n", line, line, strings.Repeat("x", 300_000) + "\n"}
+	whole := deflatedFile(t, parts...)
+	o := h.drain(h.open("local.exec", map[string]any{"argv": []string{"cat", whole}, "inflate": true}))
+	if o.stdout.String() != strings.Join(parts, "") || exitCodeOf(t, o) != 0 || o.exit.Params.Error != "" {
+		t.Fatalf("inflated %d bytes, want %d (%s)", o.stdout.Len(), len(strings.Join(parts, "")), o.exit.raw)
+	}
+
+	// What a flush ends with comes out while the command still runs.
+	first := deflatedFile(t, "header\n")
+	live := h.open("local.exec", map[string]any{"command": fmt.Sprintf("cat %q; exec sleep 30", first), "inflate": true})
+	h.until(live, "header\n")
+	h.ok("stream.kill", map[string]string{"stream": live})
+	h.drain(live)
+
+	// Output that does not inflate ends the stream at once, with the reason.
+	start := time.Now()
+	o = h.drain(h.open("local.exec", map[string]any{"command": "printf 'not deflate'; exec sleep 30", "inflate": true}))
+	if !strings.Contains(o.exit.Params.Error, "inflating the output") || time.Since(start) > 10*time.Second {
+		t.Fatalf("a stream that does not inflate ended after %v: %s", time.Since(start), o.exit.raw)
 	}
 }
 

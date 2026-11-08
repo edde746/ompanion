@@ -6,7 +6,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type HostProbe, hostProbe } from "../../core/host/probe";
 import type { BridgeLink } from "../../core/transport/bridge_link";
-import { HostFileExists, type HostFiles, type HostLink, type HostProcess, type PtyRequest } from "../../core/transport/host_link";
+import {
+  type ExecOptions,
+  HostFileExists,
+  type HostFiles,
+  type HostLink,
+  type HostProcess,
+} from "../../core/transport/host_link";
 import { localLink, useCore } from "../../test/core";
 import { FileChangedOnDisk, maxEditableBytes } from "./file_document";
 import { type BrowserRow, FileWorkspace } from "./file_workspace";
@@ -47,7 +53,7 @@ class RecordingLink implements HostLink {
     return this.inner.done;
   }
 
-  exec(command: string, options?: { pty?: PtyRequest }): Promise<HostProcess> {
+  exec(command: string, options?: ExecOptions): Promise<HostProcess> {
     this.commands.push(command);
     return this.inner.exec(command, options);
   }

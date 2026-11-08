@@ -13,7 +13,7 @@ import { shQuote } from "../host/scripts";
 import { RpcFrameDecoder } from "../rpc/frame_decoder";
 import { asJsonObject, type JsonObject } from "../rpc/json_fields";
 import type { BridgeLink } from "../transport/bridge_link";
-import type { HostFiles, HostLink, HostProcess, HostSocket, PtyRequest } from "../transport/host_link";
+import type { ExecOptions, HostFiles, HostLink, HostProcess, HostSocket } from "../transport/host_link";
 import { delay, withTimeout } from "../util/async";
 import type { Subscription } from "../util/stream";
 import { splitLines } from "../util/text";
@@ -551,7 +551,7 @@ class PowerShellLink implements HostLink {
     return this.local.label;
   }
 
-  exec(command: string, options?: { pty?: PtyRequest }): Promise<HostProcess> {
+  exec(command: string, options?: ExecOptions): Promise<HostProcess> {
     return this.local.exec(`exec ${shQuote(pwsh!)} -NoProfile -NonInteractive -Command ${shQuote(command)}`, options);
   }
 

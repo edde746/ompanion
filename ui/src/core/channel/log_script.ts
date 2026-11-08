@@ -70,7 +70,9 @@ export const logMarkWidth = 64;
  *   last field (from 18.3.1 on); one without it goes out at once. `subagent_lifecycle`, `subagent_event`, `ompx`,
  *   `extension_ui_request` and `response` lines go out ahead of held frames whose id they do not hold: they change
  *   the state of nothing but what they name. Every other frame (`message_end` among them) first writes what is held, so
- *   the log is omp's output minus superseded frames, in order wherever the order could change a state.
+ *   the log is omp's output minus superseded frames, in order wherever the order could change a state. A held
+ *   `message_update` line goes out without its event's `partial`, a second copy of the message no device reads; its
+ *   pace stays that of omp's whole frame.
  * - Every `markEvery` bytes it writes `{"type":"ompanion_mark","generation":<n>}`, padded to [logMarkWidth] bytes. A
  *   reader that finds another generation's mark read past a rotation it did not see.
  * - It writes nothing of its own inside an `rpc_chunk` sequence: a mark or a rotation due there waits for the
@@ -335,6 +337,21 @@ function heldKey(lines) {
   return null;
 }
 
+// A message_update holds the message twice, as \`message\` and as its event's \`partial\`, which no device reads.
+function withoutPartial(line) {
+  let frame;
+  try {
+    frame = JSON.parse(line.toString("utf8"));
+  } catch {
+    // Not JSON: it goes out as omp wrote it.
+    return line;
+  }
+  const event = frame?.assistantMessageEvent;
+  if (event === null || typeof event !== "object" || !("partial" in event)) return line;
+  delete event.partial;
+  return Buffer.from(JSON.stringify(frame));
+}
+
 // Lines that change the state of nothing but what they name: they go out ahead of held progress whose id they do not
 // hold.
 const passing = ["subagent_lifecycle", "subagent_event", "ompx", "extension_ui_request", "response"].map(
@@ -425,7 +442,8 @@ async function pump([dir, ...limits]) {
       held.delete(key);
       let bytes = 0;
       for (const line of frame.lines) {
-        writeLine(line);
+        // Paced by omp's whole frame: the rate stays the one measured, and the bytes written halve.
+        writeLine(key[0] === "m" && frame.lines.length === 1 ? withoutPartial(line) : line);
         bytes += line.length + 1;
       }
       const wait = (bytes * 1000) / progressRate;

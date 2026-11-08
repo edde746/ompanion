@@ -458,6 +458,7 @@ func (c *Core) sshExec(params json.RawMessage) (any, func(), error) {
 		Machine  string `json:"machine"`
 		Command  string `json:"command"`
 		Encoding string `json:"encoding"`
+		Inflate  bool   `json:"inflate"`
 	}](params)
 	if err != nil {
 		return nil, nil, err
@@ -477,7 +478,7 @@ func (c *Core) sshExec(params json.RawMessage) (any, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return c.runSession(m, session, release, binary, nil, func() error { return session.Start(p.Command) })
+	return c.runSession(m, session, release, binary, p.Inflate, nil, func() error { return session.Start(p.Command) })
 }
 
 func (c *Core) sshPTY(p ptyParams, binary bool) (any, func(), error) {
@@ -510,11 +511,12 @@ func (c *Core) sshPTY(p ptyParams, binary bool) (any, func(), error) {
 	if p.Command != "" {
 		start = func() error { return session.Start(p.Command) }
 	}
-	return c.runSession(m, session, release, binary, resize, start)
+	return c.runSession(m, session, release, binary, false, resize, start)
 }
 
-// runSession starts session on m as a stream; resize is nil when it has no PTY. release runs once it ended.
-func (c *Core) runSession(m *machine, session *ssh.Session, release func(), binary bool,
+// runSession starts session on m as a stream; resize is nil when it has no PTY. release runs once it ended. With inflate
+// the command's stdout is raw deflate (inflater).
+func (c *Core) runSession(m *machine, session *ssh.Session, release func(), binary, inflate bool,
 	resize func(cols, rows int) error, start func() error) (any, func(), error) {
 	fail := func(err error) (any, func(), error) {
 		err = errors.Join(m.lost(err), notEOF(session.Close()))
@@ -529,7 +531,16 @@ func (c *Core) runSession(m *machine, session *ssh.Session, release func(), bina
 	s.machine = m.id
 	stdout, stderr := c.output(s, "stdout"), c.output(s, "stderr")
 	session.Stdout, session.Stderr = stdout, stderr
+	var inflated *inflater
+	if inflate {
+		// Closing the session ends the command.
+		inflated = newInflater(stdout, func() { _ = session.Close() })
+		session.Stdout = inflated
+	}
 	if err := start(); err != nil {
+		if inflated != nil {
+			_ = inflated.close()
+		}
 		return fail(err)
 	}
 	s.stdin = stdin
@@ -542,10 +553,15 @@ func (c *Core) runSession(m *machine, session *ssh.Session, release func(), bina
 	return map[string]string{"stream": s.id}, func() {
 		close(s.started)
 		err := session.Wait()
+		var inflateErr error
+		if inflated != nil {
+			// Wait returned once its copy of the channel's stdout ended.
+			inflateErr = inflated.close()
+		}
 		stdout.flush()
 		stderr.flush()
 		end := sessionEnding(m.ended(err))
-		end.err = errors.Join(end.err, notEOF(session.Close()))
+		end.err = errors.Join(end.err, inflateErr, notEOF(session.Close()))
 		release()
 		c.exit(s, end)
 	}, nil

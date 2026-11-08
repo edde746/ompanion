@@ -11,7 +11,7 @@ import { macArm } from "../../test/host_fixtures";
 import { ompBinary, testedOmpVersion, thisComputer } from "../../test/omp";
 import { asJsonObject, string } from "../rpc/json_fields";
 import { BridgeLink, type CachedFile } from "../transport/bridge_link";
-import { HostLinkException, type HostFiles, type HostProcess, type PtyRequest } from "../transport/host_link";
+import { type ExecOptions, HostLinkException, type HostFiles, type HostProcess } from "../transport/host_link";
 import { fetchOmpAsset, posixInstallCommand, updateOmp, uploadOmp } from "./install";
 import { hostProbe, hostProbeReleaseAsset, type HostProbe } from "./probe";
 import { runPosixScript } from "./scripts";
@@ -226,7 +226,7 @@ class FailingUpload extends BridgeLink {
     this.fail();
   }
 
-  override async exec(command: string, options: { pty?: PtyRequest } = {}): Promise<HostProcess> {
+  override async exec(command: string, options: ExecOptions = {}): Promise<HostProcess> {
     this.check();
     return super.exec(command, options);
   }

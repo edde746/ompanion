@@ -1,6 +1,7 @@
 package core
 
 import (
+	"compress/flate"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -433,6 +434,43 @@ func (o *output) flush() {
 
 func (c *Core) data(id, fd, data string) {
 	c.Event("stream.data", map[string]string{"stream": id, "fd": fd, "data": data})
+}
+
+// inflater is the stdout of a stream started with `inflate`: its command writes raw deflate (RFC 1951), flushed after
+// every write, and what it inflates goes to out. The follow script compresses a run's log this way, 5 to 10 times on
+// the JSON lines omp streams. A command that ends after a sync flush, without a final block, ends cleanly. One whose
+// output does not inflate is stopped with fail, so it does not run on with nobody reading it.
+type inflater struct {
+	in   *io.PipeWriter
+	done chan struct{}
+	err  error // set before done closes
+}
+
+func newInflater(out io.Writer, fail func()) *inflater {
+	read, write := io.Pipe()
+	f := &inflater{in: write, done: make(chan struct{})}
+	go func() {
+		defer close(f.done)
+		_, err := io.Copy(out, flate.NewReader(read))
+		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+			f.err = fmt.Errorf("inflating the output: %w", err)
+			fail()
+		}
+		// What follows a final block or an error is dropped, so writes into in never block.
+		_, _ = io.Copy(io.Discard, read)
+	}()
+	return f
+}
+
+func (f *inflater) Write(p []byte) (int, error) {
+	return f.in.Write(p)
+}
+
+// close ends the input and waits until what it inflated was handed to out.
+func (f *inflater) close() error {
+	f.in.Close()
+	<-f.done
+	return f.err
 }
 
 // completeUTF8 returns the length of b without a trailing UTF-8 sequence that more bytes could still complete.
