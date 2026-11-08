@@ -99,8 +99,10 @@ export class TreeTabState {
   // Signals show their writes only after the next flush; these guard against a second start within one.
   private loadRunning = false;
   private reloadAgain = false;
-  /** A reload came while the link was down; the link coming back runs it. */
+  /** A reload came while the link was down or the tab hidden; the link coming back or the tab showing runs it. */
   private reloadMissed = false;
+  /** The dock shows this tab: a mounted tab stays when another one shows. */
+  private shown = true;
   private operationRunning = false;
   private disposed = false;
 
@@ -174,6 +176,13 @@ export class TreeTabState {
     queueMicrotask(() => void this.reload());
   }
 
+  /** Whether the dock shows the tab: a hidden one leaves the tree, a whole read per change, until it shows again. */
+  setShown(shown: boolean): void {
+    if (shown === this.shown) return;
+    this.shown = shown;
+    if (shown && (this.reloadMissed || this.tree() === undefined || this.error() !== undefined)) void this.reload();
+  }
+
   dispose(): void {
     this.disposed = true;
     clearTimeout(this.debounce);
@@ -196,7 +205,7 @@ export class TreeTabState {
       this.reloadAgain = true;
       return;
     }
-    if (this.session.linkState.kind !== "LinkLive") {
+    if (!this.shown || this.session.linkState.kind !== "LinkLive") {
       this.reloadMissed = true;
       return;
     }

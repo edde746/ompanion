@@ -182,3 +182,18 @@ test("a reattach that rebuilds the transcript of the same branch does not read t
   await emitSettled(fake, viewOf("u", "a", "u2"));
   expect(gets(fake)).toBe(2);
 });
+
+test("a hidden tab reads the tree once it shows again, not on every change while hidden", async () => {
+  const fake = await omp(true);
+  const state = await loadedState(fake.session, recordingUi());
+  expect(gets(fake)).toBe(1);
+
+  state.setShown(false);
+  await emitSettled(fake, viewOf("u2"));
+  await emitSettled(fake, viewOf("u2", "a2"));
+  expect(gets(fake)).toBe(1);
+
+  state.setShown(true);
+  await pumpEventQueue();
+  expect(gets(fake)).toBe(2);
+});

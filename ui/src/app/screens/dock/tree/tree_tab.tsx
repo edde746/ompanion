@@ -1,10 +1,11 @@
 // Port of lib/screens/dock/tree/tree_tab.dart; its state is tree_tab_state.ts, its rows session_tree_view.tsx.
-import { createSignal, For, Match, onSettled, Show, Switch, untrack } from "solid-js";
+import { createEffect, createSignal, For, Match, onSettled, Show, Switch, untrack } from "solid-js";
 import { call } from "../../../../bridge";
 import type { LiveSession } from "../../../../core/session/live_session";
 import { t } from "../../../i18n/i18n";
-import { useSessions } from "../../../app_state";
+import { useSessions, useSettings } from "../../../app_state";
 import { isTouch } from "../../../platform";
+import { Prefs } from "../../../providers/settings_provider";
 import { ActivityMark } from "../../../widgets/activity_mark";
 import { AppSearchField } from "../../../widgets/app_search_field";
 import { FilledButton, IconButton, TextButton, TonalButton } from "../../../widgets/button";
@@ -58,6 +59,12 @@ export function TreeTab(props: { readonly session: LiveSession }) {
     copy: (text) => call("shell.clipboardWrite", { text }).then(() => undefined),
   });
   onSettled(() => () => state.dispose());
+  // A tab's body stays mounted while another tab shows (DockPanel).
+  const settings = useSettings();
+  createEffect(
+    () => settings.get(Prefs.dockTab) === "tree",
+    (shown) => state.setShown(shown),
+  );
   const enabled = (action: TreeAction) =>
     canRunTreeAction(action, { busy: state.busy(), companion: props.session.companionHello !== undefined });
 
