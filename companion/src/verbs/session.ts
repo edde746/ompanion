@@ -36,6 +36,7 @@ import { goalCommands, goalVerbs, installGoalMode } from "./session/goal.ts";
 import { historyVerbs, installHistoryRecording } from "./session/history.ts";
 import { installLoopMode, loopCommands, loopVerbs } from "./session/loop.ts";
 import { installAutoTitle } from "./session/title.ts";
+import { slimTree } from "./session/tree.ts";
 
 /** Wire contract: docs/contracts/ompx.md, sections `sessions.list` through `loop.disable`. */
 
@@ -190,6 +191,12 @@ const lifecycleVerbs: VerbTable = {
 			throw new VerbError("failed", `a new session started, but ${file} could not be deleted (see omp's log)`);
 		}
 		return { deleted: file, current: true, ...state };
+	},
+
+	"tree.get": async (args, { session }) => {
+		expectKeys(args, []);
+		const manager = session.sessionManager;
+		return { tree: slimTree(manager.getTree()), leafId: manager.getLeafId() ?? null };
 	},
 
 	"tree.navigate": async (args, { session }) => {

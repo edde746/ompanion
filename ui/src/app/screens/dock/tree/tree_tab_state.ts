@@ -3,10 +3,13 @@
 import { type Accessor, createMemo, createSignal } from "solid-js";
 import { CompanionException } from "../../../../core/companion/companion_client";
 import { RpcException } from "../../../../core/rpc/exceptions";
+import { asJsonObject } from "../../../../core/rpc/json_fields";
+import { type RpcTree, rpcTreeFromJson } from "../../../../core/rpc/results";
 import type { LiveSession } from "../../../../core/session/live_session";
-import type { TranscriptItem } from "../../../../core/store/transcript";
+import type { SessionView } from "../../../../core/store/session_view";
 import type { Subscription } from "../../../../core/util/stream";
 import { t } from "../../../i18n/i18n";
+import { offersVerb } from "../../chat/mode_verbs";
 import { navigateTree, type TreeNavigationSessions } from "./navigate_tree";
 import {
   type SessionTree,
@@ -57,6 +60,16 @@ export interface TreeTabUi {
 /** Waits this long after the transcript settles before reloading the tree. */
 const reloadDelayMs = 300;
 
+/**
+ * The session and the last entry the transcript names: a new entry (also the ids a settled run's rows get) or a moved
+ * leaf changes it, a rebuilt transcript of the same branch does not.
+ */
+function treeKey(view: SessionView): string {
+  let entryId: string | undefined;
+  for (let i = view.transcript.length - 1; i >= 0 && entryId === undefined; i--) entryId = view.transcript[i]!.entryId;
+  return `${view.config.sessionId ?? ""}\n${entryId ?? ""}`;
+}
+
 export class TreeTabState {
   readonly tree: Accessor<SessionTree | undefined>;
   /** Why the last load failed, while there is no tree to show. */
@@ -92,8 +105,9 @@ export class TreeTabState {
   private disposed = false;
 
   private readonly subscriptions: Subscription[];
-  private seenTranscript: readonly TranscriptItem[];
-  private seenSessionId: string | undefined;
+  private seenTree: string;
+  /** A resync (another session, a label, a navigation on any device) began since the last reload was scheduled. */
+  private resyncSeen = false;
   private debounce: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
@@ -136,16 +150,19 @@ export class TreeTabState {
       return id === undefined ? undefined : tree()?.entries.find((entry) => entry.id === id);
     });
 
-    this.seenTranscript = session.view.transcript;
-    this.seenSessionId = session.view.config.sessionId;
+    this.seenTree = treeKey(session.view);
     this.subscriptions = [
       session.views.listen((view) => {
-        // The tree changes when entries are appended or the session is replaced. While a run streams, the transcript
-        // changes per token; reload once it settles.
-        const changed = view.transcript !== this.seenTranscript || view.config.sessionId !== this.seenSessionId;
-        if (!changed || view.run.running) return;
-        this.seenTranscript = view.transcript;
-        this.seenSessionId = view.config.sessionId;
+        // The tree changes when entries are appended, the leaf moves, a label changes or the session is replaced. A
+        // reattach rebuilds the transcript without any of that; reloading then read a large session's tree again,
+        // which rotated the run's log into another reattach. While a run streams, the transcript changes per token;
+        // reload once it settles.
+        if (view.resyncReason !== undefined) this.resyncSeen = true;
+        if (view.run.running || view.resyncReason !== undefined) return;
+        const key = treeKey(view);
+        if (key === this.seenTree && !this.resyncSeen) return;
+        this.seenTree = key;
+        this.resyncSeen = false;
         clearTimeout(this.debounce);
         this.debounce = setTimeout(() => void this.reload(), reloadDelayMs);
       }),
@@ -187,7 +204,7 @@ export class TreeTabState {
     this.loadRunning = true;
     this.setLoading(true);
     try {
-      const result = await this.session.rpc.getTree();
+      const result = await this.fetchTree();
       if (this.disposed) return;
       this.setTree(sessionTreeDecode(result.tree, result.leafId));
       this.setError(undefined);
@@ -201,6 +218,12 @@ export class TreeTabState {
         void this.reload();
       }
     }
+  }
+
+  /** `get_tree` holds every tool output and image of the session; the companion's `tree.get` only what rows show. */
+  private async fetchTree(): Promise<RpcTree> {
+    if (!offersVerb(this.session, "tree.get")) return this.session.rpc.getTree();
+    return rpcTreeFromJson(asJsonObject(await this.session.companion.call("tree.get"), "tree.get"));
   }
 
   setFilter(filter: TreeFilter): void {

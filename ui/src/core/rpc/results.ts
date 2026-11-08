@@ -238,9 +238,14 @@ export interface RpcEntries {
   readonly leafId?: string;
 }
 
+/** `get_tree`, and the companion's `tree.get`: the same nodes, its entries reduced to what a tree row shows. */
 export interface RpcTree {
   readonly tree: readonly JsonObject[];
   readonly leafId?: string;
+}
+
+export function rpcTreeFromJson(json: JsonObject): RpcTree {
+  return { tree: objects(json, "tree"), leafId: optString(json, "leafId") };
 }
 
 export interface RpcCycledModel {

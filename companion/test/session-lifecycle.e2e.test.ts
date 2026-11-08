@@ -352,6 +352,35 @@ describe("tree.navigate and tree.label", () => {
 		expect((await treeNode(rootAnswer)).label).toBeUndefined();
 	});
 
+	test("tree.get has get_tree's nodes, labels and leaf, without the tool output", async () => {
+		await omp.call("tree.label", { entryId: rootAnswer, label: "checkpoint" });
+		const command = "printf 'out%.0s' $(seq 2000)";
+		await omp.fake.enqueue([
+			{ steps: [{ toolCall: { name: "bash", arguments: { i: "Printing", command } } }] },
+			{ steps: [{ text: "printed" }] },
+		]);
+		const since = omp.mark();
+		const response = await omp.command({ type: "prompt", message: "print it" });
+		expect(response.success).toBe(true);
+		await omp.waitFor(frame => frame.type === "prompt_result" && frame.id === response.id, { since });
+
+		type Tree = { tree: TreeNode[]; leafId: string | null };
+		const full = (await omp.command({ type: "get_tree" })).data as Tree;
+		const slim = (await omp.call("tree.get")) as Tree;
+		const outline = (nodes: TreeNode[]): string[] =>
+			nodes.flatMap(node => [`${node.entry.id} ${node.label ?? ""} [`, ...outline(node.children), "]"]);
+		expect(outline(slim.tree)).toEqual(outline(full.tree));
+		expect(slim.leafId).toBe(full.leafId);
+		expect(findNode(slim.tree, rootAnswer)?.label).toBe("checkpoint");
+
+		const result = (await entries()).find(entry => entry.message?.role === "toolResult");
+		expect(text(findNode(full.tree, result!.id)!.entry)).toContain("outout");
+		const slimResult = findNode(slim.tree, result!.id)?.entry.message;
+		expect(slimResult).toMatchObject({ role: "toolResult", toolName: "bash" });
+		expect(slimResult).not.toHaveProperty("content");
+		await omp.call("tree.label", { entryId: rootAnswer, label: null });
+	});
+
 	test("unknown entries are not_found; a missing label is bad_request", async () => {
 		expect((await omp.callError("tree.navigate", { entryId: "no-such-entry" })).code).toBe("not_found");
 		expect((await omp.callError("tree.label", { entryId: "no-such-entry", label: "x" })).code).toBe("not_found");

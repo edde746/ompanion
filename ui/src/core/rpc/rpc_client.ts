@@ -34,6 +34,7 @@ import {
   rpcModelFromJson,
   rpcSessionStateFromJson,
   rpcSlashCommandFromJson,
+  rpcTreeFromJson,
   subagentSubscriptions,
   type InterruptMode,
   type QueueMode,
@@ -284,7 +285,7 @@ export class RpcClient {
   }
 
   getTree(): Promise<RpcTree> {
-    return this.call("get_tree", {}, (json) => ({ tree: objects(json, "tree"), leafId: optString(json, "leafId") }));
+    return this.call("get_tree", {}, rpcTreeFromJson);
   }
 
   /** Replaces the session's todo phases; returns them normalized. */

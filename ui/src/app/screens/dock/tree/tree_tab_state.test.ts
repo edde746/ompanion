@@ -4,9 +4,10 @@ import { afterEach, expect, jest, test } from "bun:test";
 import { createRoot } from "solid-js";
 import type { JsonObject } from "../../../../core/rpc/json_fields";
 import { type LinkState, linkLive, type LiveSession } from "../../../../core/session/live_session";
-import { sessionView } from "../../../../core/store/session_view";
+import { type SessionView, sessionView } from "../../../../core/store/session_view";
+import { userItem } from "../../../../core/store/transcript";
 import { Emitter } from "../../../../core/util/stream";
-import { fakeLiveSession } from "../../../../test/fake_live_session";
+import { type FakeLiveSession, fakeLiveSession } from "../../../../test/fake_live_session";
 import { pumpEventQueue } from "../../../../test/scripted_channel";
 import { TurnExpansion } from "../../../sessions/turn_expansion";
 import type { TreeEntry } from "./session_tree";
@@ -113,8 +114,8 @@ test("the leaf offers no navigation and only a user message branches", async () 
   expect(treeActionsFor(entry(state, "u"), "a2")).toEqual(["navigate", "summarize", "label", "branch", "copy"]);
 });
 
-test("a transcript change while the link is down reloads the tree once the link is back", async () => {
-  const fake = await omp(true);
+/** [fake]'s session with a link the test drops and restores. */
+function withLink(fake: FakeLiveSession) {
   const states = new Emitter<LinkState>();
   let link: LinkState = linkLive;
   const session = new Proxy(fake.session, {
@@ -125,19 +126,59 @@ test("a transcript change while the link is down reloads the tree once the link 
     link = state;
     states.add(state);
   };
-  const gets = () => fake.channel.sent.filter((command) => command.type === "get_tree").length;
-  await loadedState(session, recordingUi());
-  expect(gets()).toBe(1);
+  return { session, setLink };
+}
 
-  setLink({ kind: "LinkReconnecting", attempt: 1, nextTryAt: 0 });
+const gets = (fake: FakeLiveSession) => fake.channel.sent.filter((command) => command.type === "get_tree").length;
+
+/** A view whose transcript names entries [ids], in rows built anew on every call. */
+function viewOf(...ids: string[]): SessionView {
+  return sessionView({ transcript: ids.map((entryId, i) => userItem({ entryId, timestamp: i, content: [] })) });
+}
+
+/** Emits [view] and lets the tree's reload delay pass. */
+async function emitSettled(fake: FakeLiveSession, view: SessionView): Promise<void> {
   jest.useFakeTimers();
-  fake.views.add(sessionView({ transcript: [] }));
+  fake.views.add(view);
   jest.advanceTimersByTime(1000);
   jest.useRealTimers();
   await pumpEventQueue();
-  expect(gets()).toBe(1);
+}
+
+test("a new entry while the link is down reloads the tree once the link is back", async () => {
+  const fake = await omp(true);
+  const { session, setLink } = withLink(fake);
+  await loadedState(session, recordingUi());
+  expect(gets(fake)).toBe(1);
+
+  setLink({ kind: "LinkReconnecting", attempt: 1, nextTryAt: 0 });
+  await emitSettled(fake, viewOf("u3"));
+  expect(gets(fake)).toBe(1);
 
   setLink(linkLive);
   await pumpEventQueue();
-  expect(gets()).toBe(2);
+  expect(gets(fake)).toBe(2);
+});
+
+test("a reattach that rebuilds the transcript of the same branch does not read the tree again", async () => {
+  // Each read of a large session's tree rotated the run's log under this device, whose reattach read the tree again.
+  const fake = await fakeLiveSession({
+    withCompanion: true,
+    view: viewOf("u", "a"),
+    answers: { get_tree: () => ({ tree, leafId: "a2" }) },
+  });
+  const { session, setLink } = withLink(fake);
+  await loadedState(session, recordingUi());
+  expect(gets(fake)).toBe(1);
+
+  setLink({ kind: "LinkReconnecting", attempt: 1, nextTryAt: 0 });
+  await emitSettled(fake, viewOf("u", "a"));
+  setLink(linkLive);
+  await pumpEventQueue();
+  await emitSettled(fake, viewOf("u", "a"));
+  expect(gets(fake)).toBe(1);
+
+  // A settled run's rows get their entry ids.
+  await emitSettled(fake, viewOf("u", "a", "u2"));
+  expect(gets(fake)).toBe(2);
 });

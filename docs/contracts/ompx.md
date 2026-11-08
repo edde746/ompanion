@@ -357,6 +357,17 @@ user bash or user Python runs. Emits `session.changed {reason: "clear"}`.
   `busy` while streaming; `failed` when an extension cancelled the new session or the file survived. Emits
   `session.changed {reason: "delete"}`.
 
+### tree.get
+
+`args: {}` → `result: {tree: TreeNode[], leafId: string | null}`: RPC `get_tree` with every entry reduced to what
+the app's tree rows read. `TreeNode` is omp's `SessionTreeNode`, `{entry, children: TreeNode[], label?: string}`.
+An entry keeps its string, number, boolean and null fields; a message entry its `message` with the same fields and,
+except for a `toolResult`, its `content`: a string, or its `text` blocks and its `toolCall` blocks with their
+`arguments`; a `custom_message` entry its `content` likewise and its `details.notes` with their scalar fields. Every
+string is cut to 1,024 characters. Everything else goes: tool output, images, thinking, usage, `details` and `data`.
+For a 26 MB session file `get_tree` is 30 MB, which goes through `out.jsonl` and rotates it under every attached
+device; `tree.get` is 3.6 MB. A field the tree rows start reading must be kept here first.
+
 ### tree.navigate
 
 `args: {entryId: string, summarize?: boolean, customInstructions?: string}`; `customInstructions` needs

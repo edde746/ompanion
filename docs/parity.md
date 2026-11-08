@@ -117,7 +117,7 @@ what stock lacks.
 | Clear context in place | `/clear` | CE `resetSessionContext` | menu | M4 |
 | Fork | `/fork` | CE `session.fork()` | menu | M4 |
 | Branch from a message | `/branch`, double-Esc | RPC `get_branch_messages`, `branch` | message actions | M4 |
-| Tree view | `/tree` | RPC `get_tree`, `get_entries` | tree panel | M4 |
+| Tree view | `/tree` | CE `sessionManager.getTree()` reduced to the rows (companion `tree.get`), else RPC `get_tree`; RPC `get_entries` | tree panel | M4 |
 | Reset to a message (same session file) | `/tree`, double-Esc | CE `navigateTree(id, {summarize})` (companion `tree.navigate`) | message actions, tree panel | M4 |
 | Navigate tree with summary | `/tree` | CE `navigateTree(id, {summarize})` | tree panel | M4 |
 | Labels | `/tree` | CE `sessionManager.appendLabelChange` | tree panel | M4 |
