@@ -1,5 +1,6 @@
 /* An inline chip in the text (design.md, File mention and Model mention), centred on the line like a WidgetSpan with
-   PlaceholderAlignment.middle. */
+   PlaceholderAlignment.middle: its label shares the text's font and line height, so its baseline on the text's centres
+   it. `vertical-align: middle` would centre it on the x-height and set the label about 2 px below the text. */
 .mention-spans-chip {
   position: relative;
   display: inline-flex;
@@ -13,7 +14,7 @@
   color: inherit;
   font: inherit;
   letter-spacing: inherit;
-  vertical-align: middle;
+  vertical-align: baseline;
   isolation: isolate;
 }
 
@@ -23,6 +24,8 @@
 }
 
 .mention-spans-label {
+  /* The chip's baseline, which the icon before it would give otherwise. */
+  align-self: baseline;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
