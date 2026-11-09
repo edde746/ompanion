@@ -11,7 +11,7 @@ export interface PageTheme {
   readonly variables: Readonly<Record<string, string>>;
 }
 
-export type FrameMessage = FrameReady | FrameLoaded | FrameHeight | FrameLink | FrameTouch | FrameScroll;
+export type FrameMessage = FrameReady | FrameLoaded | FrameHeight | FrameLink | FrameImage | FrameTouch | FrameScroll;
 
 /** frame.html loaded and waits for the page. */
 export interface FrameReady {
@@ -35,6 +35,12 @@ export interface FrameLink {
   readonly url: string;
 }
 
+/** The reader clicked an image of the page: its bytes, of the type the page's response gave them. */
+export interface FrameImage {
+  readonly kind: "FrameImage";
+  readonly image: Blob;
+}
+
 /** The reader's finger landed on the page (`touching`), or the last one left it. */
 export interface FrameTouch {
   readonly kind: "FrameTouch";
@@ -50,7 +56,8 @@ export interface FrameScroll {
 /**
  * A message of the frame, or undefined for anything else. The page's own scripts post from the same window, so every
  * field is checked: a height must be a finite number, at least 0 (clamped to {@link maxPageHeight}); a link must be
- * an http, https or mailto URL, the only links a page may open.
+ * an http, https or mailto URL, the only links a page may open; an image must be a Blob, never a URL for the app to
+ * load.
  */
 export function readFrameMessage(data: unknown): FrameMessage | undefined {
   if (!isJsonObject(data)) return undefined;
@@ -70,6 +77,8 @@ export function readFrameMessage(data: unknown): FrameMessage | undefined {
       const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(url)?.[1]?.toLowerCase();
       return scheme === "http" || scheme === "https" || scheme === "mailto" ? { kind: "FrameLink", url } : undefined;
     }
+    case "ompanion-frame-image":
+      return data.image instanceof Blob ? { kind: "FrameImage", image: data.image } : undefined;
     case "ompanion-frame-touch":
       return typeof data.touching === "boolean" ? { kind: "FrameTouch", touching: data.touching } : undefined;
     case "ompanion-frame-scroll":

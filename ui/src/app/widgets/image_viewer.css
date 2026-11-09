@@ -1,0 +1,73 @@
+/* The viewer covers the dialog layer and its padding: the image alone on the scrim, zoomable across the window. */
+.image-viewer {
+  position: fixed;
+  inset: 0;
+}
+
+.image-viewer-area {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 24 px inside the window; at the bottom clear of the zoom bar, so the fitted image is never under it. */
+.image-viewer-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--inset-top) + 24px) calc(var(--inset-right) + 24px) calc(var(--inset-bottom) + 72px)
+    calc(var(--inset-left) + 24px);
+  transform-origin: 0 0;
+}
+
+/* Never larger than its pixels. */
+.image-viewer-image {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  cursor: zoom-in;
+}
+
+.image-viewer-zoomed .image-viewer-image {
+  cursor: grab;
+}
+
+.image-viewer-close {
+  position: absolute;
+  top: calc(var(--inset-top) + 8px);
+  right: calc(var(--inset-right) + 8px);
+}
+
+/* The zoom bar: one pill in the close button's tone, centred at the bottom, its buttons in the tone's text colour. */
+.image-viewer-bar {
+  position: absolute;
+  bottom: calc(var(--inset-bottom) + 12px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 24px;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  transform: translateX(-50%);
+}
+
+.image-viewer-bar .icon-button:not(:disabled) {
+  color: inherit;
+}
+
+/* Wide enough for the most it shows (800 %), so the bar keeps its width while a pinch changes the figure. */
+.image-viewer-percent {
+  min-width: 56px;
+  text-align: center;
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+  font-variant-numeric: tabular-nums;
+}

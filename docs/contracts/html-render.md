@@ -62,11 +62,11 @@ page can load the app's files too, but cannot read them (opaque origin, no CORS 
 `nosniff`), and a frame's `postMessage` never reaches the core (the smoke `html` check). The smoke `html` check
 exercises the policy without a real network connection (`docs/contracts/bridge.md`, Smoke runs).
 
-On its first page message, the frame writes the doctype, UTF-8 charset, viewport, `<style id="ompanion-theme">`,
-helper script and then the supplied HTML, in that order, before `document.close()`. The helper and theme therefore
-exist before page scripts run. The app checks that incoming messages came from that frame's window; the frame checks
-that page and theme messages came from its parent. The app validates message fields, because scripts in the page can
-post messages from the same window (`page_frame_protocol.ts`). Messages use `postMessage`:
+On its first page message, the frame writes the doctype, UTF-8 charset, viewport, `<style id="ompanion-theme">`, the
+image cursor sheet, the helper script and then the supplied HTML, in that order, before `document.close()`. The helper
+and theme therefore exist before page scripts run. The app checks that incoming messages came from that frame's
+window; the frame checks that page and theme messages came from its parent. The app validates message fields, because
+scripts in the page can post messages from the same window (`page_frame_protocol.ts`). Messages use `postMessage`:
 
 | Direction | Message | Meaning |
 |---|---|---|
@@ -75,6 +75,7 @@ post messages from the same window (`page_frame_protocol.ts`). Messages use `pos
 | App → frame | `{type: "ompanion-frame-page", html: string, theme: PageTheme}` | The page and initial theme; accepted once per frame load. |
 | Frame → app | `{type: "ompanion-frame-height", height: number}` | Root border-box height in CSS pixels, rounded up and reported on change. The app accepts finite nonnegative values, clamped to 20,000. |
 | Frame → app | `{type: "ompanion-frame-link", url: string}` | An absolute link URL; the app accepts only `http:`, `https:` and `mailto:`. |
+| Frame → app | `{type: "ompanion-frame-image", image: Blob}` | The bytes of an image the reader clicked, typed as the frame's fetch of it returned them. The app accepts only a `Blob`. |
 | App → frame | `{type: "ompanion-frame-theme", theme: PageTheme}` | Replace the theme sheet when the app palette changes. |
 | Frame → app | `{type: "ompanion-frame-touch", touching: boolean}` | A trusted touch starts or the last touch ends or is cancelled. |
 | Frame → app | `{type: "ompanion-frame-scroll", up: boolean}` | A trusted vertical wheel or scroll key moves toward the top (`true`) or bottom (`false`). |
@@ -89,6 +90,16 @@ frame; other links are cancelled. Only trusted clicks to a URL outside the app's
 accepted page link, `openPageLink` (`ui/src/app/screens/external_links.tsx`) shows the full URL and the body “A page in
 the chat wants to open this link.”; only confirmation calls `shell.openUrl`. A frame drops further link messages while
 its confirmation is open. Shell navigation and new-window handlers do not open the system browser.
+
+A trusted click on an `<img>` that the page did not cancel (`preventDefault` on the image, an ancestor or the
+document) and that is not inside, or itself, a link with `href`, button, label, summary, `role=button` or
+`role=link` element, or element with an `onclick` attribute, opens the app's image viewer
+(`ui/src/app/widgets/image_viewer.tsx`). Those images keep their control's cursor; every other image shows
+`zoom-in`, and `pointer` on a touch screen (`hover: none`): iOS WebKit delivers a tap's click only to an element it
+takes as clickable, which a listener on the window does not make an image. The helper fetches the image's
+`currentSrc` and posts the response body as a `Blob`, so an SVG keeps its `image/svg+xml` type. The app never loads a
+page's URL: its own policy has no `https:` images, and a page's `blob:` URL belongs to the frame's document. A frame
+drops further image messages while its viewer is open.
 
 `PageTheme` is `{appearance: "light" | "dark", variables: Record<string, string>}`. The app resolves its custom
 properties where the frame sits, including Custom theme choices; bundled web-font families are removed because the
@@ -142,3 +153,6 @@ With omp 18.12.6 streaming 1,000 characters per second, each delta resends the a
 The pump coalesces updates, not the model's context. In Chromium/WebView2, the first large wheel notch over a page at
 the transcript's very bottom can still snap back. A real HTTPS load from the frame and a real file save have not been
 run; the smoke frame check requests a non-resolving HTTPS host and checks for CSP violations, not a successful load.
+An `https:` image whose server sends no `Access-Control-Allow-Origin` cannot be read from the opaque origin: its
+click shows `zoom-in` and opens nothing (the frame's console logs the failed fetch). A listener the page adds on its
+window after the helper's runs after it, so it cannot cancel the viewer.

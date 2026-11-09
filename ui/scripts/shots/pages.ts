@@ -1,10 +1,10 @@
 // The companion's html_render pages in the chat. In the transcript's dev gallery (src/app/screens/chat/transcript/
 // gallery_pages.ts): every state of a page row; a row scrolled out and back keeps its height while its page loads
-// again; a page's run record (page_runs.ts) is there while the page loads and goes a second after; a page whose record
-// a frozen app left shows paused until Run. Against a real omp (OMP=1): a turn whose model reads a file and calls
-// html_render with a chart, then replies; the page while the turn works, the settled turn keeping it, saving it, full
-// screen, the confirmation a link in the page asks for, the page taking a theme change, and a call the tool refuses
-// for its viewport units.
+// again; a page's screenshot opening in the image viewer, which zooms it; a page's run record (page_runs.ts) is there
+// while the page loads and goes a second after; a page whose record a frozen app left shows paused until Run. Against
+// a real omp (OMP=1): a turn whose model reads a file and calls html_render with a chart, then replies; the page while
+// the turn works, the settled turn keeping it, saving it, full screen, the confirmation a link in the page asks for,
+// the page taking a theme change, and a call the tool refuses for its viewport units.
 import type { Page } from "playwright-core";
 import { TITLE_REQUEST, type Step, type Turn } from "../../../harness/fake-provider/client.ts";
 import { chartPage } from "../../src/app/screens/chat/transcript/gallery_pages.ts";
@@ -303,6 +303,60 @@ async function chartFlow(context: ShotContext): Promise<void> {
   await page.getByRole("button", { name: "Send", exact: true }).waitFor({ timeout });
 }
 
+/** The zoom bar's figure: the viewer's image against its own pixels, in percent. */
+async function zoomPercent(page: Page): Promise<number> {
+  const text = await page.locator(".image-viewer-percent").textContent({ timeout });
+  const value = Number(/^(\d+)%$/.exec(text ?? "")?.[1]);
+  if (!Number.isFinite(value)) throw new Error(`the zoom bar shows ${String(text)}`);
+  return value;
+}
+
+/**
+ * Waits until the zoom bar shows `expected` %, give or take 2 %: `expected` scales a rounded figure, and the bar rounds
+ * its own. Throws when it does not.
+ */
+async function zoomShows(page: Page, expected: number, step: string): Promise<void> {
+  for (let tries = 0; tries < 50; tries++) {
+    if (Math.abs((await zoomPercent(page)) - expected) <= 2) return;
+    await page.waitForTimeout(100);
+  }
+  throw new Error(`${step}: the zoom bar shows ${await zoomPercent(page)} %, not ${expected} %`);
+}
+
+/**
+ * A click on a page's screenshot opens it in the image viewer, fitted below its own pixels (the 1600 px SVG); the zoom
+ * bar zooms in by 1.5×, a double click fits it again, and the + key twice zooms to 2.25×, the screen's picture. A
+ * click on the page's link still asks to open the link. Throws, failing the shot, when not; `image-fitted` is the
+ * picture of the viewer as it opens.
+ */
+async function pageImage(context: ShotContext): Promise<void> {
+  const { page } = context;
+  await pageShown(page, "Settings, before and after");
+  const frame = page.frameLocator(".transcript-row iframe.page-frame");
+
+  await frame.getByRole("link", { name: "Design file" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByText("https://example.com/design/settings").waitFor({ timeout });
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await dialog.waitFor({ state: "detached", timeout });
+  if ((await page.locator(".image-viewer").count()) > 0) throw new Error("the link opened the image viewer");
+
+  await frame.getByRole("img", { name: "Settings after" }).click();
+  const viewer = page.locator(".image-viewer");
+  await viewer.waitFor({ timeout });
+  const fitted = await zoomPercent(page);
+  if (fitted <= 0 || fitted >= 100) throw new Error(`the fitted screenshot shows at ${fitted} % of its pixels`);
+  await context.snap("image-fitted");
+
+  await viewer.getByRole("button", { name: "Zoom in" }).click();
+  await zoomShows(page, fitted * 1.5, "zoom in");
+  await viewer.locator(".image-viewer-image").dblclick();
+  await zoomShows(page, fitted, "double click");
+  await page.keyboard.press("+");
+  await page.keyboard.press("+");
+  await zoomShows(page, fitted * 2.25, "the + key");
+}
+
 export const screens: Screen[] = [
   { name: "gallery", query: gallery("fixture=pages"), reach: galleryRows },
   {
@@ -315,6 +369,7 @@ export const screens: Screen[] = [
     },
   },
   { name: "scroll", query: gallery("fixture=pages"), reach: keepsHeight },
+  { name: "image", query: gallery("fixture=page-images"), reach: pageImage },
   { name: "run", query: gallery("fixture=pages"), reach: pausedChart },
   { name: "flow", omp: true, reach: chartFlow },
 ];

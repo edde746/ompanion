@@ -534,6 +534,11 @@ export type Translations = {
     readonly pageBody: string;
     readonly open: string;
   };
+  readonly imageViewer: {
+    readonly zoomIn: string;
+    readonly zoomOut: string;
+    readonly fit: string;
+  };
   readonly prompt: {
     readonly passwordTitle: (args: { hop: Param }) => string;
     readonly signInTitle: (args: { hop: Param }) => string;

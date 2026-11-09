@@ -565,6 +565,11 @@
     "pageBody": "A page in the chat wants to open this link.",
     "open": "Open"
   },
+  "imageViewer": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to window"
+  },
   "prompt": {
     "passwordTitle": "Password for $hop",
     "signInTitle": "Sign in to $hop",

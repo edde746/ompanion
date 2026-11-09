@@ -1,6 +1,7 @@
 // A transcript for the screenshot gallery (`?gallery=transcript&fixture=pages`): the companion's html_render pages in
 // every state. Two settled turns, each with a shown page (a chart drawn in the theme's variables, a long page), then
-// the turn at work: a call the tool refused for its viewport units, and the retry still streaming its page.
+// the turn at work: a call the tool refused for its viewport units, and the retry still streaming its page. Apart:
+// a page whose script never ends (`fixture=busy`) and a page of screenshots (`fixture=page-images`).
 import type { JsonObject } from "../../../../core/rpc/json_fields";
 import { decodeMessage, type TranscriptItem } from "../../../../core/store/transcript";
 
@@ -223,5 +224,73 @@ export function busyPageGallery(): TranscriptItem[] {
     assistant(1000, [page("busy-1", "Busy page", busyPage)]),
     result(2000, "busy-1", shown, { title: "Busy page" }),
     assistant(3000, [{ type: "text", text: "The page counts." }], { stopReason: "stop", usage }),
+  ];
+}
+
+/**
+ * A settings screen as a 1600 × 1000 SVG screenshot in fixed greys (an image cannot read the page's variables): a
+ * sidebar and eight rows with switches, grouped into two cards once `cards`.
+ */
+function settingsScreenshot(cards: boolean): string {
+  const nav = Array.from({ length: 6 }, (_, index) => {
+    const width = 200 + (index % 3) * 40;
+    return `<rect x="40" y="${80 + index * 64}" width="${width}" height="20" rx="10" fill="#5f6368"/>`;
+  });
+  const rows = Array.from({ length: 8 }, (_, index) => {
+    const y = 190 + index * 92 + (cards && index >= 4 ? 40 : 0);
+    return (
+      `<rect x="460" y="${y}" width="${420 + (index % 4) * 60}" height="22" rx="11" fill="#9aa0a6"/>` +
+      `<rect x="1420" y="${y - 9}" width="80" height="40" rx="20" fill="${index % 3 === 0 ? "#5f6368" : "#8ab4f8"}"/>`
+    );
+  });
+  const groups = cards
+    ? '<rect x="420" y="160" width="1120" height="360" rx="28" fill="#303134"/>' +
+      '<rect x="420" y="560" width="1120" height="360" rx="28" fill="#303134"/>'
+    : "";
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">' +
+    '<rect width="1600" height="1000" fill="#202124"/><rect width="360" height="1000" fill="#2b2c2f"/>' +
+    nav.join("") +
+    '<rect x="460" y="80" width="360" height="36" rx="18" fill="#e8eaed"/>' +
+    groups +
+    rows.join("") +
+    "</svg>";
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+/** Two screenshots side by side, each opening in the image viewer, and a link to the design. */
+const imagePage = `<!doctype html>
+<html>
+<head>
+<style>
+  h1 { margin: 0 0 4px; font-size: 15px; }
+  p { margin: 0 0 12px; color: var(--muted-foreground); font-size: 13px; }
+  a { color: var(--accent); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  figure { margin: 0; }
+  img { display: block; width: 100%; height: auto; border-radius: var(--radius); }
+  figcaption { margin-top: 6px; color: var(--muted-foreground); font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Settings, before and after</h1>
+<p>The switches move into two cards. <a href="https://example.com/design/settings">Design file</a></p>
+<div class="pair">
+  <figure><img src="${settingsScreenshot(false)}" alt="Settings before"><figcaption>Before</figcaption></figure>
+  <figure><img src="${settingsScreenshot(true)}" alt="Settings after"><figcaption>After</figcaption></figure>
+</div>
+</body>
+</html>`;
+
+/** One settled turn whose page is `imagePage`. */
+export function imagePageGallery(): TranscriptItem[] {
+  return [
+    user(0, "Show the settings screen before and after the redesign."),
+    assistant(1000, [page("images-1", "Settings, before and after", imagePage)]),
+    result(2000, "images-1", shown, { title: "Settings, before and after" }),
+    assistant(3000, [{ type: "text", text: "The cards leave room for an account section." }], {
+      stopReason: "stop",
+      usage,
+    }),
   ];
 }

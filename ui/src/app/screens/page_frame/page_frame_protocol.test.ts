@@ -40,6 +40,16 @@ test("a link opens only as http, https or mailto", () => {
   }
 });
 
+test("an image comes as its bytes in a Blob, never as a URL for the app to load", () => {
+  const image = (value: unknown) => readFrameMessage({ type: "ompanion-frame-image", image: value });
+  const blob = new Blob(["<svg xmlns='http://www.w3.org/2000/svg'/>"], { type: "image/svg+xml" });
+  expect(image(blob)).toEqual({ kind: "FrameImage", image: blob });
+  const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+  for (const invalid of ["https://example.com/a.png", "data:image/png;base64,AA==", bytes, bytes.buffer, {}, null]) {
+    expect(image(invalid)).toBeUndefined();
+  }
+});
+
 test("a touch says whether the reader's finger is on the page", () => {
   const touch = (touching: unknown) => readFrameMessage({ type: "ompanion-frame-touch", touching });
   expect(touch(true)).toEqual({ kind: "FrameTouch", touching: true });

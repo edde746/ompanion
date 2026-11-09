@@ -7,13 +7,14 @@
 // like any other document and carries only its own policy (a meta tag): https:, wss:, data: and blob: sources, never
 // http:. Once it reports ready, the app posts the page and its theme; frame.html document.write()s a helper and then
 // the page into itself, so the document, and with it the policy, stays the same. The helper reports the page's height,
-// the links the reader clicks, whether the reader's finger is on the page and the reader's wheels and scroll keys, and
-// takes theme changes.
+// the links and images the reader clicks, whether the reader's finger is on the page and the reader's wheels and scroll
+// keys, and takes theme changes.
 //
 // The app page's policy (index.html) stays strict: scripts only from the bundle, frame-src 'self'. frame-src also
 // covers the frame's own navigations, so a page cannot move its frame to an outside URL that has no policy. Not
 // covered by any CSP directive: WebRTC (RTCPeerConnection) from inside the frame.
 import { createEffect, createMemo, createSignal, onSettled } from "solid-js";
+import { showImageViewer } from "../../widgets/image_viewer";
 import { openPageLink } from "../external_links";
 import "./page_frame.css";
 import { type PageTheme, pageTheme, readFrameMessage, unquoted } from "./page_frame_protocol";
@@ -51,8 +52,10 @@ export function PageFrame(props: PageFrameProps) {
   const html = createMemo(() => props.html);
 
   onSettled(() => {
-    // One confirmation at a time per frame: a page that keeps posting links while one is shown is not heard.
+    // One link confirmation and one image viewer at a time per frame: a page that keeps posting links or images while
+    // one is shown is not heard.
     let linkOpen = false;
+    let imageOpen = false;
     let postedTheme = "";
     const onMessage = (event: MessageEvent<unknown>) => {
       // Only this frame's window speaks for it; every other window's messages are not ours.
@@ -76,6 +79,11 @@ export function PageFrame(props: PageFrameProps) {
           if (linkOpen) break;
           linkOpen = true;
           void openPageLink(message.url).finally(() => (linkOpen = false));
+          break;
+        case "FrameImage":
+          if (imageOpen) break;
+          imageOpen = true;
+          void showImageViewer(message.image).finally(() => (imageOpen = false));
           break;
         case "FrameTouch":
           frame.dispatchEvent(new CustomEvent(pageTouchEvent, { bubbles: true, detail: message.touching }));

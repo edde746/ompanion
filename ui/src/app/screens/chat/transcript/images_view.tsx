@@ -1,5 +1,5 @@
-// The widgets of lib/screens/chat/transcript/images.dart: thumbnails, the zoomable viewer, fitted images and images
-// loaded from the session's machine. Their logic is images.ts.
+// The widgets of lib/screens/chat/transcript/images.dart: thumbnails, fitted images and images loaded from the
+// session's machine, which open in the image viewer (widgets/image_viewer.tsx). Their logic is images.ts.
 import {
   type Accessor,
   createEffect,
@@ -8,7 +8,6 @@ import {
   For,
   Match,
   onCleanup,
-  onSettled,
   Show,
   Switch,
   untrack,
@@ -22,9 +21,9 @@ import { ImageLoadAbandoned } from "../../../sessions/machine_images";
 import { appLogger } from "../../../utils/app_logger";
 import { formatBytes } from "../../../utils/byte_size";
 import { ActivityMark } from "../../../widgets/activity_mark";
-import { IconButton, TextButton } from "../../../widgets/button";
-import { showDialog } from "../../../widgets/dialog";
+import { TextButton } from "../../../widgets/button";
 import { Icon } from "../../../widgets/icon";
+import { showImageViewer } from "../../../widgets/image_viewer";
 import * as Symbols from "../../../widgets/symbols";
 import { bytesSize, imageBytes, imageCaption, imageName, imageProblemText } from "./images";
 import "./images_view.css";
@@ -51,7 +50,7 @@ function BrokenImage() {
 
 /**
  * A thumbnail of `image` at most 240 px tall and 480 px wide, sized from its header before it decodes; tapping it
- * opens a zoomable view. An image in omp's blob store loads from the session's machine ({@link MachineImage}).
+ * opens the image viewer. An image in omp's blob store loads from the session's machine ({@link MachineImage}).
  */
 export function TranscriptImage(props: { image: ImageBlock }) {
   return (
@@ -84,160 +83,13 @@ function Thumbnail(props: { bytes: Uint8Array }) {
       type="button"
       class="images-view-thumbnail"
       style={{ width: `${box().width}px`, "aspect-ratio": `${box().width} / ${box().height}` }}
-      onClick={() => void showZoomedImage(props.bytes)}
+      onClick={() => void showImageViewer(props.bytes)}
     >
       <Show when={!broken()} fallback={<BrokenImage />}>
         <img class="images-view-picture" src={url()} alt={t.transcript.image} onError={() => setBroken(true)} />
       </Show>
     </button>
   );
-}
-
-/** The most a pinch or a scroll magnifies the zoomed image. */
-const maxScale = 8;
-
-/** How far a pointer may move and still tap (Flutter's touch slop). */
-const tapSlop = 18;
-
-/**
- * `bytes` on the dialog scrim with no surface, zoomable across the window, a close button in the top right; the viewer
- * for images in the chat and the composer. A pinch or a scroll zooms, a drag pans, a tap beside the image closes it
- * (Escape and back close it through the dialog).
- */
-export function ZoomedImage(props: { bytes: Uint8Array; onClose: () => void }) {
-  const url = objectUrl(() => props.bytes);
-  let area!: HTMLDivElement;
-  let content!: HTMLDivElement;
-  let image: HTMLImageElement | undefined;
-  // Applied straight to the content's style: every pointer move changes it.
-  let view = { x: 0, y: 0, scale: 1 };
-  const pointers = new Map<number, { x: number; y: number }>();
-  let tap: { id: number; x: number; y: number } | undefined;
-
-  /**
-   * Shows the content at `scale` (1 to `maxScale`) with its point under `from` moved to `to`, the window always
-   * covered, as Flutter's InteractiveViewer keeps it.
-   */
-  function place(scale: number, from: { x: number; y: number }, to: { x: number; y: number }): void {
-    const next = Math.min(Math.max(scale, 1), maxScale);
-    const applied = next / view.scale;
-    const width = area.clientWidth;
-    const height = area.clientHeight;
-    view = {
-      scale: next,
-      x: Math.min(Math.max(to.x - (from.x - view.x) * applied, width - width * next), 0),
-      y: Math.min(Math.max(to.y - (from.y - view.y) * applied, height - height * next), 0),
-    };
-    content.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
-  }
-
-  function local(event: { clientX: number; clientY: number }): { x: number; y: number } {
-    const rect = area.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  }
-
-  function onPointerDown(event: PointerEvent): void {
-    area.setPointerCapture(event.pointerId);
-    pointers.set(event.pointerId, local(event));
-    // A tap on the image does nothing; beside it, it closes the viewer.
-    tap = pointers.size === 1 && event.target !== image ? { id: event.pointerId, ...local(event) } : undefined;
-  }
-
-  function onPointerMove(event: PointerEvent): void {
-    const before = pointers.get(event.pointerId);
-    if (!before) return;
-    const after = local(event);
-    pointers.set(event.pointerId, after);
-    if (tap && Math.hypot(after.x - tap.x, after.y - tap.y) > tapSlop) tap = undefined;
-    const other = [...pointers].find(([id]) => id !== event.pointerId)?.[1];
-    if (!other) {
-      place(view.scale, before, after);
-      return;
-    }
-    const centre = (a: { x: number; y: number }) => ({ x: (a.x + other.x) / 2, y: (a.y + other.y) / 2 });
-    const spread = (a: { x: number; y: number }) => Math.hypot(a.x - other.x, a.y - other.y);
-    if (spread(before) > 0) place((view.scale * spread(after)) / spread(before), centre(before), centre(after));
-  }
-
-  function onPointerUp(event: PointerEvent): void {
-    const tapped = tap?.id === event.pointerId && pointers.size === 1;
-    pointers.delete(event.pointerId);
-    tap = undefined;
-    if (tapped) props.onClose();
-  }
-
-  function onPointerCancel(event: PointerEvent): void {
-    pointers.delete(event.pointerId);
-    tap = undefined;
-  }
-
-  onSettled(() => {
-    const wheel = (event: WheelEvent) => {
-      event.preventDefault();
-      const pixels = event.deltaY * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1);
-      // A trackpad pinch arrives as a wheel with Ctrl and small deltas; a scroll scales as Flutter's viewer does.
-      const at = local(event);
-      place(view.scale * Math.exp(-pixels / (event.ctrlKey ? 50 : 200)), at, at);
-    };
-    // Safari's trackpad pinch: WebKit's GestureEvent (not in the DOM types), its scale relative to the gesture's start.
-    let gestureScale = 1;
-    const gestureStart = (event: Event) => {
-      event.preventDefault();
-      gestureScale = 1;
-    };
-    const gestureChange = (event: Event) => {
-      event.preventDefault();
-      // A touch pinch is two pointers, handled above.
-      if (pointers.size >= 2) return;
-      const gesture = event as Event & { scale: number; clientX: number; clientY: number };
-      const at = local(gesture);
-      place((view.scale * gesture.scale) / gestureScale, at, at);
-      gestureScale = gesture.scale;
-    };
-    area.addEventListener("wheel", wheel, { passive: false });
-    area.addEventListener("gesturestart", gestureStart);
-    area.addEventListener("gesturechange", gestureChange);
-    return () => {
-      area.removeEventListener("wheel", wheel);
-      area.removeEventListener("gesturestart", gestureStart);
-      area.removeEventListener("gesturechange", gestureChange);
-    };
-  });
-
-  return (
-    <div class="images-view-zoom">
-      <div
-        class="images-view-zoom-area"
-        ref={area}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-      >
-        <div class="images-view-zoom-content" ref={content}>
-          <img
-            class="images-view-zoom-image"
-            ref={(element) => (image = element)}
-            src={url()}
-            alt={t.transcript.image}
-            draggable="false"
-          />
-        </div>
-      </div>
-      <IconButton
-        class="images-view-zoom-close"
-        variant="tonal"
-        icon={Symbols.close}
-        tooltip={t.common.close}
-        onClick={() => props.onClose()}
-      />
-    </div>
-  );
-}
-
-/** Opens {@link ZoomedImage} over the app. */
-export function showZoomedImage(bytes: Uint8Array): Promise<void> {
-  return showDialog<void>((close) => <ZoomedImage bytes={bytes} onClose={() => close()} />).then(() => undefined);
 }
 
 /** `images` as a wrapping row of thumbnails. */
@@ -251,7 +103,7 @@ export function ImageStrip(props: { images: readonly ImageBlock[] }) {
 
 /**
  * Image `bytes` as wide as the space it gets and at most `maxHeight` (360) tall, never larger than its own pixels,
- * sized from its header before it decodes; tapping it opens a zoomable view.
+ * sized from its header before it decodes; tapping it opens the image viewer.
  */
 export function FittedImage(props: { bytes: Uint8Array; maxHeight?: number }) {
   const url = objectUrl(() => props.bytes);
@@ -270,7 +122,7 @@ export function FittedImage(props: { bytes: Uint8Array; maxHeight?: number }) {
       type="button"
       class="images-view-fitted"
       style={style()}
-      onClick={() => void showZoomedImage(props.bytes)}
+      onClick={() => void showImageViewer(props.bytes)}
     >
       <Show when={!broken()} fallback={<BrokenImage />}>
         <img class="images-view-picture" src={url()} alt={t.transcript.image} onError={() => setBroken(true)} />

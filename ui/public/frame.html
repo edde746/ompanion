@@ -34,8 +34,18 @@
         );
       }
 
+      // What an image can be part of: a click on it acts on that control and never opens the viewer, and it keeps the
+      // control's cursor instead of zoom-in, which every other image shows.
+      var imageControls = "a[href],button,label,summary,[role=button],[role=link],[onclick]";
+      // The images' cursors. On a touch screen, which shows none, a pointer: iOS WebKit sends a tap's click only to an
+      // element it takes as clickable, which the helper's listener on the window does not make an image, and a
+      // pointer cursor does.
+      var imageSheet =
+        "img{cursor:zoom-in}@media (hover:none){img{cursor:pointer}}" +
+        (":is(" + imageControls + ") img,img:is(" + imageControls + "){cursor:inherit}");
+
       // Runs in the page's document ahead of the page's HTML, so before any of its scripts.
-      function helper(themeSheet) {
+      function helper(themeSheet, imageControls) {
         // Taken now: the page's scripts may shadow `parent`.
         var host = parent;
         var style = document.getElementById("ompanion-theme");
@@ -79,6 +89,29 @@
           },
           true,
         );
+
+        // A click of the reader's on an image goes to the app's image viewer, unless the page handled it
+        // (preventDefault) or the image is part of a control. The app gets the image's bytes as a Blob of the
+        // response's type (an SVG shows only as image/svg+xml): it cannot load the page's URLs itself, as its policy
+        // allows no https: image and a blob: URL belongs to this document. An https: image whose server sends no
+        // CORS header cannot be read from this opaque origin, and its click opens nothing.
+        addEventListener("click", function (event) {
+          var image = event.composedPath()[0];
+          if (!event.isTrusted || event.defaultPrevented || !(image instanceof HTMLImageElement)) return;
+          var source = image.currentSrc || image.src;
+          if (source === "" || image.closest(imageControls) !== null) return;
+          fetch(source)
+            .then(function (response) {
+              if (!response.ok) throw new Error("HTTP " + response.status);
+              return response.blob();
+            })
+            .then(function (blob) {
+              host.postMessage({ type: "ompanion-frame-image", image: blob }, "*");
+            })
+            .catch(function (error) {
+              console.warn("ompanion: could not read the image " + source + " for the viewer", error);
+            });
+        });
 
         // Whether the reader's finger is on the page: a drag that starts here scrolls the app's transcript, whose
         // document never sees this document's touches, and the transcript must know the scroll is the reader's.
@@ -139,10 +172,14 @@
           '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
             '<style id="ompanion-theme">' +
             themeSheet(data.theme) +
+            "</style><style>" +
+            imageSheet +
             "</style><script>(" +
             helper +
             ")(" +
             themeSheet +
+            "," +
+            JSON.stringify(imageControls) +
             ");<\/script>",
         );
         document.write(data.html);

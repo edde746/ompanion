@@ -1,7 +1,7 @@
 // Port of the logic cases of test/transcript/chat_images_test.dart: the session's images resolved and loaded as a
 // MachineImage loads them (SessionImages over a fake machine), what the lines beside a machine image say, and the size
 // read from an image's header; plus the header formats sniffImageSize reads. Skipped as markup: the fitted picture,
-// the zoom viewer opening, "Open in Files" opening the path; the fling case needs a scrolling list (the view's
+// the image viewer opening, "Open in Files" opening the path; the fling case needs a scrolling list (the view's
 // `request`). The tool cards' cases are TrTools'.
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";

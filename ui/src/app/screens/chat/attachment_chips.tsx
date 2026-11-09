@@ -13,9 +13,9 @@ import { formatBytes } from "../../utils/byte_size";
 import { TextButton, TonalButton } from "../../widgets/button";
 import { Dialog, showDialog } from "../../widgets/dialog";
 import { Icon } from "../../widgets/icon";
+import { showImageViewer } from "../../widgets/image_viewer";
 import * as Symbols from "../../widgets/symbols";
 import { tooltip } from "../../widgets/tooltip";
-import { showZoomedImage } from "./transcript/images_view";
 import "./attachment_chips.css";
 
 export interface AttachmentChipsProps {
@@ -26,7 +26,7 @@ export interface AttachmentChipsProps {
 }
 
 /**
- * The draft's attachments above the composer's text, in the order they came: image thumbnails that open the zoom
+ * The draft's attachments above the composer's text, in the order they came: image thumbnails that open the image
  * viewer, files and folders by name and size, pasted texts by line count, which open a preview. Every chip has a
  * remove button, and Tab reaches every chip that acts and every remove button.
  */
@@ -67,7 +67,7 @@ function ImageChip(props: { readonly attachment: ImageAttachment; readonly onRem
         data-ripple
         class="attachment-chips-thumbnail"
         ref={tooltip(label)}
-        onClick={() => void showZoomedImage(base64Decode(props.attachment.image.data))}
+        onClick={() => void showImageViewer(base64Decode(props.attachment.image.data))}
       >
         <img
           src={`data:${props.attachment.image.mimeType};base64,${props.attachment.image.data}`}
