@@ -62,6 +62,8 @@ final class Shell: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUID
     /// Counts the pages the core has served: each has its own listener, and what an older one still has queued for
     /// the page (core messages, shell answers) never reaches a newer page, whose request ids start over.
     private var generation = 0
+    /// Whether the core was started for the page that commits next: at launch, and after the web content process ended.
+    private var coreIsFresh = false
 
     override init() {
         guard let root = Bundle.main.url(forResource: "ui", withExtension: nil) else {
@@ -159,6 +161,7 @@ final class Shell: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUID
     /// bindings).
     private func startCore() {
         generation += 1
+        coreIsFresh = true
         OmpcoreStart(PageListener(shell: self, generation: generation))
     }
 
@@ -316,6 +319,11 @@ final class Shell: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUID
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         timing.mark("commitMs")
         pageReady = false
+        // A page that commits over another one (its own reload, the context menu's Reload): Start again makes the core
+        // release what the old page opened, and the new generation drops what is still queued for it, whose ids the new
+        // page reuses (docs/contracts/bridge.md, Core bindings). At commit the old document has stopped running.
+        if !coreIsFresh { startCore() }
+        coreIsFresh = false
     }
 
     func webView(

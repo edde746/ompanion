@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -98,6 +99,9 @@ class MainActivity : ComponentActivity() {
 
     // Counts Ompcore.start calls; a message of an earlier listener still queued for the UI thread is the dead page's.
     private var coreListener = 0
+
+    // Whether the core was started for the page that starts next: at launch, and after the renderer was lost.
+    private var coreIsFresh = false
 
     // Made with the activity: its shell mark is the shell's first code.
     private val timing = StartupTiming()
@@ -282,6 +286,7 @@ class MainActivity : ComponentActivity() {
 
     // On a thread of its own: Start may close the previous page's SSH connections.
     private fun startCore() {
+        coreIsFresh = true
         val started = CountDownLatch(1)
         coreStarted = started
         val listener = ++coreListener
@@ -656,6 +661,17 @@ class MainActivity : ComponentActivity() {
     private inner class Client : WebViewClient() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
             assetLoader.shouldInterceptRequest(request.url)
+
+        // A page that starts over another one (the page's own reload): Start again makes the core release what the old
+        // page opened and drop what it still has for it, whose ids the new page reuses (docs/contracts/bridge.md, Core
+        // bindings).
+        override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+            if (!coreIsFresh) {
+                replyProxy = null
+                startCore()
+            }
+            coreIsFresh = false
+        }
 
         // Links open only through shell.openUrl, which the page calls after asking the user: the main frame never
         // leaves the app, and no navigation is handed to the browser. Subframes (the agent-HTML frame and what its page

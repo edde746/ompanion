@@ -16,6 +16,12 @@
     "chooseFile": "Choose file…",
     "cancelled": "Cancelled."
   },
+  "failure": {
+    "title": "ompanion stopped responding",
+    "message": "The interface hit an error and no longer follows what you do. Sessions keep running on their machines. Reload to continue.",
+    "copyDetails": "Copy details",
+    "reload": "Reload"
+  },
   "shell": {
     "showSidebar": "Show sidebar",
     "hideSidebar": "Hide sidebar",

@@ -13,7 +13,7 @@ README.md, "Building from Source". How to run the tests: AGENTS.md, "Tests".
 |`bridge.ts`|The page's only transport (`docs/contracts/bridge.md`): the shell's message handler, the dev bridge's WebSocket (`?devbridge=`), or, in dev builds only, the in-page mock core (`mock.ts`). `call` for requests, `openStream` for streams.|
 |`deferred.ts`|`deferred()`, the one place that makes a promise from its resolvers.|
 |`core/`|The client core, one folder per area: `rpc/` (omp's RPC frames, the client, JSON guards), `store/` (the session reducer and the transcript items), `session/` (live sessions on a machine), `channel/` (attached and detached runs of omp, the run log), `companion/` (the companion extension's calls), `host/` (probing a machine, installing omp, session listings, uploads), `ssh/` (`SshLink` over `ssh.connect`), `transport/` (`HostLink`, line channels over core streams), `util/`.|
-|`app/`|The app: `screens/` (one folder per area: `chat/`, `config/`, `dock/`, `keys/`, `machines/`, `sessions/`, `settings/`, `shell/`, `usage/`, …), `widgets/` (shared controls), `providers/`, `sessions/`, `config/`, `files/`, `terminal/`, `notifications/`, `models/`, `services/`, `database/` (the tables as `store.*` documents), `i18n/`, `utils/`, plus the app's frame: `app_state.ts`, `boot.ts`, `theme.css`, `base.css`, `platform.ts`, `preload.ts`, `first_frame.ts`.|
+|`app/`|The app: `screens/` (one folder per area: `chat/`, `config/`, `dock/`, `keys/`, `machines/`, `sessions/`, `settings/`, `shell/`, `usage/`, …), `widgets/` (shared controls), `providers/`, `sessions/`, `config/`, `files/`, `terminal/`, `notifications/`, `models/`, `services/`, `database/` (the tables as `store.*` documents), `i18n/`, `utils/`, plus the app's frame: `app_state.ts`, `boot.ts`, `theme.css`, `base.css`, `platform.ts`, `preload.ts`, `first_frame.ts`, `failure.ts`.|
 |`markdown/`|The transcript's markdown: markdown-it blocks and KaTeX math. Code highlighting (Shiki) is in `app/screens/chat/transcript/highlighter.ts`.|
 |`test/`|Test helpers: fakes of the core and of hosts, recorded fixtures, the tested omp and the harness's SSH servers.|
 |`smoke.tsx`, `bridge_measure.ts`, `term.ts`, `Markdown.tsx`, `styles.css`|Smoke mode (`docs/contracts/bridge.md`, Smoke runs): its page and checks. The `html` check uses the agent page's `app/screens/page_frame/` and `public/frame.html`.|
@@ -49,6 +49,13 @@ real-omp page scenario; `?gallery=transcript&fixture=pages` and `fixture=busy` s
   equal value too: a callback that must run only on a change (a toggle's motion) reads a `createMemo`, which compares.
   A write that derives from a signal's value uses the updater form (`set((current) => …)`): a read, `untrack` too,
   returns the value of the last flush, so two writes in one tick built from reads keep only the second.
+- An error thrown in an effect's callback or its cleanup outside an `<Errored>` boundary halts Solid for good
+  (`@solidjs/signals`, `haltReactivity`): no effect runs again, so the page takes clicks and keys and shows nothing
+  of them, and Solid only writes `[REACTIVITY_HALTED]` to the console. `app/failure.ts` (started first by `main.tsx`)
+  logs every uncaught error through `appLogger.w`, checks every 5 s and after each uncaught error that an effect of
+  its own still runs, and otherwise shows a report over the app, built without Solid: the last errors with their
+  stacks, Copy details and Reload. A callback that can throw catches at its boundary and says so (a snack bar,
+  `appLogger.w`).
 - State lives in providers (`app/providers/`, `app/sessions/sessions_provider.ts`): a class that
   owns its state in signals or a store and exposes accessors. The app creates one of each at boot (`app/app_state.ts`)
   and hands them down through Solid contexts (`useSettings()`, `useMachines()`, …).

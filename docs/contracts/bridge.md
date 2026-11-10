@@ -142,9 +142,11 @@ replaces the listener, and the core then releases everything the old page held, 
 knew: it kills every stream (PTYs, `local.exec`, `ssh.exec`, `net.connect`), stops every `core.flood`, closes every
 `net.forward` and every SSH machine, and fails every waiting `ssh.prompt`, all without an event to the next page. A
 request of the old page still running gets no response (it would reach the next page under an id of its own) and what
-it opens is released too; its `core.exit` does not exit. A shell that reloads its page without `Start` (a crashed web
-content process, a fresh WebView) calls `Start` again first, or the old page's streams and machines stay open. Detached
-omp runs live on their machines, not in streams, so a reloaded page reattaches to them over new connections.
+it opens is released too; its `core.exit` does not exit. A shell calls `Start` again for every page after the first,
+or the old page's streams and machines stay open: before a page it loads itself (a crashed web content process, a
+fresh WebView), and when a page loads over another one (the page's own reload, as from the report of
+`ui/src/app/failure.ts`, or a webview's Reload menu). Detached omp runs live on their machines, not in streams, so a
+reloaded page reattaches to them over new connections.
 
 **gomobile** (`core/ompcore`, iOS, macOS, Android): `gomobile bind` of package `ompcore` (module `ompanion.app/core`).
 Every build of a binding or the dev bridge passes `-ldflags "-X ompanion.app/core.Version=<VERSION>"`

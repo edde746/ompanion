@@ -1,0 +1,18 @@
+/* The report of failure.ts, a dialog built without Solid. Over every other layer: nothing under it works anymore. */
+.failure-layer {
+  z-index: 200;
+}
+
+/* The errors, to read and copy: code text on the field's tone. */
+.failure-details {
+  margin: 16px 0 0;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  font: var(--code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}

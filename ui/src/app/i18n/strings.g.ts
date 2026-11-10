@@ -21,6 +21,12 @@ export type Translations = {
     readonly chooseFile: string;
     readonly cancelled: string;
   };
+  readonly failure: {
+    readonly title: string;
+    readonly message: string;
+    readonly copyDetails: string;
+    readonly reload: string;
+  };
   readonly shell: {
     readonly showSidebar: string;
     readonly hideSidebar: string;

@@ -16,6 +16,12 @@
     "chooseFile": "Datei wählen…",
     "cancelled": "Abgebrochen."
   },
+  "failure": {
+    "title": "ompanion reagiert nicht mehr",
+    "message": "In der Oberfläche ist ein Fehler aufgetreten; sie folgt Eingaben nicht mehr. Sitzungen laufen auf ihren Rechnern weiter. Zum Fortfahren neu laden.",
+    "copyDetails": "Details kopieren",
+    "reload": "Neu laden"
+  },
   "shell": {
     "showSidebar": "Seitenleiste einblenden",
     "hideSidebar": "Seitenleiste ausblenden",

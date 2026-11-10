@@ -11,6 +11,7 @@ import { type Component, flush } from "solid-js";
 import { App } from "./App";
 import { createAppState } from "./app/app_state";
 import { bootApp } from "./app/boot";
+import { watchFailures } from "./app/failure";
 import { clearFirstFrame, takeFirstFrame } from "./app/first_frame";
 import { applyLanguage } from "./app/language";
 import { startPreloads } from "./app/preload";
@@ -20,6 +21,8 @@ import { call, type CoreInfo } from "./bridge";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("index.html has no #root");
+
+watchFailures();
 
 const state = createAppState();
 
