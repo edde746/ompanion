@@ -1118,6 +1118,18 @@ export type Translations = {
     readonly otherHint: string;
     readonly note: string;
     readonly chat: string;
+    readonly errors: {
+      readonly required: string;
+      readonly chooseOne: string;
+      readonly number: string;
+      readonly min: (args: { min: Param }) => string;
+      readonly max: (args: { max: Param }) => string;
+      readonly minLength: (args: { n: number }) => string;
+      readonly maxLength: (args: { n: number }) => string;
+      readonly email: string;
+      readonly url: string;
+      readonly pattern: (args: { pattern: Param }) => string;
+    };
   };
   readonly transcript: {
     readonly jumpToLatest: string;

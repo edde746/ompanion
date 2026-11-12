@@ -9,6 +9,7 @@ import {
 } from "../../../core/store/session_view";
 import { t } from "../../i18n/i18n";
 import type { AskDraft } from "./ask";
+import type { FieldDraft } from "./html_form";
 
 /** A one-line title for `request`. */
 export function requestTitle(request: UiRequest): string {
@@ -25,7 +26,7 @@ export function requestTitle(request: UiRequest): string {
     case "OpenUrlRequest":
       return t.requests.openUrlTitle;
     case "CompanionRequest":
-      return request.method === "ask" ? t.ask.title : request.method;
+      return request.method === "ask" || request.method === "form" ? t.ask.title : request.method;
   }
 }
 
@@ -35,10 +36,12 @@ export interface RequestDraft {
   text: string;
   /** The `ask` form's answers, one per question; filled when the form first shows. */
   ask: readonly AskDraft[];
+  /** The `form` request's answers, one per field; filled when the form first shows. */
+  form: readonly FieldDraft[];
 }
 
 export function requestDraft(request: UiRequest): RequestDraft {
-  return { text: request.kind === "EditorRequest" ? (request.prefill ?? "") : "", ask: [] };
+  return { text: request.kind === "EditorRequest" ? (request.prefill ?? "") : "", ask: [], form: [] };
 }
 
 /** The requests the panel lists and the one it shows. */

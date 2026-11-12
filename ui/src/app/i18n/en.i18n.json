@@ -1160,7 +1160,25 @@
     },
     "otherHint": "Other: type your own answer",
     "note": "Note (optional)",
-    "chat": "Chat about this"
+    "chat": "Chat about this",
+    "errors": {
+      "required": "Required",
+      "chooseOne": "Select at least one",
+      "number": "Enter a number",
+      "min": "Must be at least $min",
+      "max": "Must be at most $max",
+      "minLength": {
+        "one": "Needs at least $n character",
+        "other": "Needs at least $n characters"
+      },
+      "maxLength": {
+        "one": "At most $n character",
+        "other": "At most $n characters"
+      },
+      "email": "Enter an email address",
+      "url": "Enter a full URL",
+      "pattern": "Must match $pattern"
+    }
   },
   "transcript": {
     "jumpToLatest": "Jump to latest",

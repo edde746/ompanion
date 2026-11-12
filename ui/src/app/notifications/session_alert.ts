@@ -105,7 +105,7 @@ function asks(request: UiRequest): boolean {
     case "EditorRequest":
       return true;
     case "CompanionRequest":
-      return request.method === "ask";
+      return request.method === "ask" || request.method === "form";
     case "EditorTextRequest":
     case "OpenUrlRequest":
       return false;
@@ -122,15 +122,35 @@ function question(request: UiRequest): string {
     case "EditorRequest":
       return request.title;
     case "CompanionRequest": {
-      const questions = request.params.questions;
-      const first: unknown = Array.isArray(questions) ? questions[0] : undefined;
-      const text = typeof first === "object" && first !== null && "question" in first ? first.question : undefined;
-      return typeof text === "string" && text.trim() !== "" ? text.trim() : t.ask.title;
+      const text = request.method === "form" ? formQuestion(request.params) : askQuestion(request.params);
+      return text !== undefined && text.trim() !== "" ? text.trim() : t.ask.title;
     }
     case "EditorTextRequest":
     case "OpenUrlRequest":
       throw new Error(`${request.kind} asks nothing`);
   }
+}
+
+/** The first question of an `ask` request's params, unchecked: a notification shows what it can. */
+function askQuestion(params: { readonly [key: string]: unknown }): string | undefined {
+  const questions = params.questions;
+  const first: unknown = Array.isArray(questions) ? questions[0] : undefined;
+  const text = typeof first === "object" && first !== null && "question" in first ? first.question : undefined;
+  return typeof text === "string" ? text : undefined;
+}
+
+/** The question of a `form` request's first field, unchecked, as the companion's push names it. */
+function formQuestion(params: { readonly [key: string]: unknown }): string | undefined {
+  const sections = Array.isArray(params.sections) ? (params.sections as unknown[]) : [];
+  for (const section of sections) {
+    const blocks = typeof section === "object" && section !== null && "blocks" in section ? section.blocks : undefined;
+    if (!Array.isArray(blocks)) continue;
+    for (const block of blocks as unknown[]) {
+      if (typeof block !== "object" || block === null || !("question" in block)) continue;
+      if (typeof block.question === "string") return block.question;
+    }
+  }
+  return undefined;
 }
 
 /** An active goal continues after the run; so does a loop that is on, not suspended and has its prompt. */

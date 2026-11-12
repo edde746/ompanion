@@ -2,6 +2,7 @@ import type { AgentSession, ExtensionAPI, ExtensionCommandContext, ExtensionCont
 import { CallParseError, parseCall } from "./args.ts";
 import { askDialog } from "./ask.ts";
 import { bindChannel, type Channel, channel, errorFrame, eventFrame, replyFrame } from "./channel.ts";
+import { formDialog } from "./form.ts";
 import { registerHtmlRender } from "./html-render.ts";
 import { IDLE_EXIT_EVENT, idleRun, installIdleExit, tracked } from "./idle.ts";
 import { installKeepAwake } from "./keep-awake.ts";
@@ -47,14 +48,17 @@ async function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> 
 	if (mainBound || !ctx.hasUI) return;
 	const session = mainSession(pi);
 	if (!session || ctx.sessionManager !== session.sessionManager) return;
-	// The raw UI object, not the per-handler proxy in `ctx.ui`: omp's tools read `askDialog` from it.
+	// The raw UI object, not the per-handler proxy in `ctx.ui`: omp's tools read `askDialog` and `formDialog` from it.
 	const ui = session.extensionRunner?.getUIContext();
 	if (!ui) return;
 	mainBound = true;
 	// omp 18.4.9+ declares `askDialog` as a getter without a setter on the RPC UI class (its own ask dialog, off until a
 	// host sends `set_ask_dialog`), so assigning it throws in this strict module; an own property shadows the getter.
+	// omp's `ask` calls `askDialog` up to 18.18.2 and `formDialog` (absent from the RPC UI) from 18.18.3.
 	if (bindChannel(ui).kind === "output") {
 		Object.defineProperty(ui, "askDialog", { value: askDialog, writable: true, configurable: true });
+		const cwd = () => mainSession(pi)?.sessionManager.getCwd() ?? process.cwd();
+		Object.defineProperty(ui, "formDialog", { value: formDialog(cwd), writable: true, configurable: true });
 	}
 	watchCore(session);
 	await installSessionHooks(pi, session);

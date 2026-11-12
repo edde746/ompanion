@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import type { Turn } from "../../harness/fake-provider/client.ts";
-import { type Frame, OmpDriver, type ReplyFrame } from "./driver.ts";
+import { type Frame, OMP_VERSION, OmpDriver, type ReplyFrame } from "./driver.ts";
 
 setDefaultTimeout(60_000);
 
@@ -211,9 +211,24 @@ async function replyAs(deviceId: string, verb: string, driver = omp): Promise<Re
 	return frame as unknown as ReplyFrame;
 }
 
+/** omp's `ask` takes one HTML form from 18.18.3 (form.e2e.test.ts), questions before (ask.e2e.test.ts). */
+const formAsk = Bun.semver.order(OMP_VERSION, "18.18.3") >= 0;
 const color = { id: "color", question: "Which color?", options: [{ label: "Red" }, { label: "Blue" }] };
+const colorForm = `<form><fieldset><legend>Which color?</legend>
+  <label><input type="radio" name="color" value="red"> Red</label>
+  <label><input type="radio" name="color" value="blue"> Blue</label>
+</fieldset></form>`;
 const askTurns: Turn[] = [
-	{ steps: [{ toolCall: { name: "ask", arguments: { i: "Asking the user", questions: [color] } } }] },
+	{
+		steps: [
+			{
+				toolCall: {
+					name: "ask",
+					arguments: formAsk ? { i: "Asking the user", html: colorForm } : { i: "Asking the user", questions: [color] },
+				},
+			},
+		],
+	},
 	{ steps: [{ text: "thanks" }] },
 ];
 
@@ -255,11 +270,14 @@ describe("run notifications", () => {
 		const device = await register(omp.home);
 		await omp.fake.enqueue(askTurns);
 		const since = await prompt("ask me something");
-		const request = await omp.waitRequest("ask", { since });
+		const request = await omp.waitRequest(formAsk ? "form" : "ask", { since });
 		const input = await open(await relay.wait(1), device);
 		expect(input).toMatchObject({ kind: "input", subtitle: "devbox · Needs input", body: "Which color?" });
 
-		omp.answer(request.id, { kind: "submit", results: [{ id: "color", selectedOptions: ["Blue"] }] });
+		const answer = formAsk
+			? { kind: "submit", data: { color: "blue" } }
+			: { kind: "submit", results: [{ id: "color", selectedOptions: ["Blue"] }] };
+		omp.answer(request.id, answer);
 		expect(await open(await relay.wait(2), device)).toMatchObject({ kind: "done", body: "thanks" });
 	});
 

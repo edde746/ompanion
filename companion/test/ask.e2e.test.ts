@@ -1,22 +1,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import type { Turn } from "../../harness/fake-provider/client.ts";
-import { type Frame, OmpDriver } from "./driver.ts";
+import { type Frame, OMP_VERSION, OmpDriver } from "./driver.ts";
 
 setDefaultTimeout(60_000);
 
+/** omp's `ask` takes questions and calls `askDialog` up to 18.18.2; from 18.18.3 it takes a form (form.e2e.test.ts). */
+const questionAsk = Bun.semver.order(OMP_VERSION, "18.18.3") < 0;
+
 let omp: OmpDriver;
-
-beforeAll(async () => {
-	omp = await OmpDriver.start();
-});
-
-afterEach(async () => {
-	await omp.fake.reset();
-});
-
-afterAll(async () => {
-	await omp?.close();
-});
 
 const color = {
 	id: "color",
@@ -54,7 +45,19 @@ const settledEvent = (since: number, id: string): Promise<unknown> =>
 const settled = (since: number): Promise<Frame> =>
 	omp.waitFor(frame => frame.type === "session_settled", { since });
 
-describe("ask", () => {
+describe.skipIf(!questionAsk)("ask", () => {
+	beforeAll(async () => {
+		omp = await OmpDriver.start();
+	});
+
+	afterEach(async () => {
+		await omp.fake.reset();
+	});
+
+	afterAll(async () => {
+		await omp?.close();
+	});
+
 	test("the ask tool asks through the companion; the first answer reaches the model", async () => {
 		await omp.fake.enqueue(askTurns());
 		const { since, id, params } = await askRun();

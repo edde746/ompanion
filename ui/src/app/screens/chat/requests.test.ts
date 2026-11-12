@@ -185,6 +185,6 @@ test("titles, and the drafts a request starts with", () => {
   expect(requestTitle({ kind: "CompanionRequest", id: "q1", method: "ask", params: {} })).toBe("Question");
   expect(requestTitle({ kind: "CompanionRequest", id: "q1", method: "pick", params: {} })).toBe("pick");
   const editor: UiRequest = { kind: "EditorRequest", id: "e1", title: "Edit", prefill: "draft", promptStyle: false };
-  expect(requestDraft(editor)).toEqual({ text: "draft", ask: [] });
-  expect(requestDraft(input)).toEqual({ text: "", ask: [] });
+  expect(requestDraft(editor)).toEqual({ text: "draft", ask: [], form: [] });
+  expect(requestDraft(input)).toEqual({ text: "", ask: [], form: [] });
 });

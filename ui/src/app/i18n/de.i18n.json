@@ -1181,7 +1181,25 @@
     },
     "otherHint": "Sonstiges: eigene Antwort eingeben",
     "note": "Notiz (optional)",
-    "chat": "Dazu chatten"
+    "chat": "Dazu chatten",
+    "errors": {
+      "required": "Pflichtfeld",
+      "chooseOne": "Wähle mindestens eine Antwort",
+      "number": "Gib eine Zahl ein",
+      "min": "Mindestens $min",
+      "max": "Höchstens $max",
+      "minLength": {
+        "one": "Mindestens $n Zeichen",
+        "other": "Mindestens $n Zeichen"
+      },
+      "maxLength": {
+        "one": "Höchstens $n Zeichen",
+        "other": "Höchstens $n Zeichen"
+      },
+      "email": "Gib eine E-Mail-Adresse ein",
+      "url": "Gib eine vollständige URL ein",
+      "pattern": "Muss $pattern entsprechen"
+    }
   },
   "transcript": {
     "jumpToLatest": "Zum Neuesten springen",

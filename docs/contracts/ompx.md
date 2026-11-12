@@ -803,11 +803,11 @@ ends in "No active goal.", as in the TUI.
 
 ### ask
 
-Sent when omp's `ask` tool (or any extension) calls `ctx.ui.askDialog`, which the companion installs in rpc-ui as an
-own property of omp's RPC UI object. omp 18.3.1's RPC UI object has no `askDialog`; from 18.4.9 its class declares a
-getter without a setter that returns omp's own RPC ask dialog (`extension_ui_request` method `ask`) only after a host
-sent `set_ask_dialog`. The companion's own property shadows that getter, and it never sends `set_ask_dialog`.
-Without the companion's dialog omp degrades `ask` to one `select`/`editor` dialog per question.
+Sent when omp's `ask` tool up to 18.18.2 (or any extension) calls `ctx.ui.askDialog`, which the companion installs in
+rpc-ui as an own property of omp's RPC UI object. omp 18.3.1's RPC UI object has no `askDialog`; from 18.4.9 its class
+declares a getter without a setter that returns omp's own RPC ask dialog (`extension_ui_request` method `ask`) only
+after a host sent `set_ask_dialog`. The companion's own property shadows that getter, and it never sends
+`set_ask_dialog`. Without the companion's dialog omp degrades `ask` to one `select`/`editor` dialog per question.
 
 ```ts
 type AskParams = {
@@ -832,3 +832,50 @@ type AskAnswer =
   answers every question with its recommended option (else the first), marked timed out.
 - RPC `abort` while the question is open settles the request; later answers are ignored.
 - An answer that does not fit the questions fails the tool call with an error the model sees.
+
+### form
+
+Sent when omp's `ask` tool from 18.18.3 (or any extension) calls `ctx.ui.formDialog(html, options)`: the model asks
+with one HTML `<form>`. The companion installs `formDialog` on omp's RPC UI object as it installs `askDialog`; omp's
+RPC UI has none of its own, and without it omp walks the form one `select`/`input`/`editor` dialog per field. The
+companion parses the form with omp's own parser (`@oh-my-pi/pi-tui/html-form/parse`, loaded on the first form so an
+older omp still loads the companion) and sends what the TUI draws:
+
+```ts
+type Span = { text: string; style?: "code" | "strong" | "em" }; // "\n" in text is a hard line break
+type Block =
+  | { kind: "text"; spans: Span[]; heading: boolean }
+  | { kind: "list"; items: Span[][]; ordered: boolean }
+  | { kind: "pre"; text: string }
+  | { kind: "table"; rows: Span[][][]; headerRows: number }
+  | { kind: "image"; alt: string; uri: string | null } // `data:` URI, null when the picture did not load
+  | { kind: "choice"; name: string; question: string; label: Span[]; multi: boolean; select: boolean;
+      other: boolean; required: boolean;
+      options: { value: string; label: Span[]; checked: boolean; disabled: boolean }[] }
+  | { kind: "input"; name: string; question: string; label: Span[]; type: string; multiline: boolean;
+      value: string; placeholder: string; required: boolean; rows: number;
+      min?: number; max?: number; pattern?: string; minLength?: number; maxLength?: number };
+type FormParams = {
+  sections: { title: Span[]; blocks: Block[] }[]; // a `<fieldset>` each, its legend the title
+  timeout?: number; // ms; from the `ask.timeout` setting, absent when 0 or in plan mode
+  deadline?: number; // host epoch ms at which the timeout fires
+};
+type FormAnswer = { kind: "submit"; data: Record<string, string | number | string[]> };
+```
+
+- Fields without a `name` submit nothing and are left out. `question` is what the field answers: its label, the text
+  right before it, its section's title, else its name. `checked` options and `value` are the form's preselection.
+- `choice`: a radio group (`multi: false`), a checkbox group or multi-select (`multi: true`), a `<select>`
+  (`select: true`). `other`: the UI adds a typed "Other" answer to the group.
+- Pictures (`<img src>`: a URL, a `data:` URI, a path relative to the session's directory; inline `<svg>`) load on the
+  host, as the TUI loads them, so the app fetches and reads nothing for them.
+- `data` maps a field's `name` to its value: a radio's or single select's value, absent when none is chosen; a
+  checkbox group's or multi-select's values, `[]` when none; an input's text, or a number for a `number` or `range`
+  input. "Other" text takes the place of a radio's value, or comes after a group's values.
+- The companion adds the form's hidden inputs, then checks every value with omp's own `fieldError` (`required`,
+  `min`/`max`, `minlength`/`maxlength`, `email`, `url`, `pattern`), as the TUI does before it submits. An answer that
+  names an unknown field, a value no option has, or a value that fails a rule fails the tool call with an error the
+  model sees.
+- `cancelled: true` aborts the turn, like Esc in the TUI. RPC `abort` while the form is open settles the request.
+- The companion enforces the timeout itself: like the TUI it then submits the form's preselected values, marked timed
+  out.

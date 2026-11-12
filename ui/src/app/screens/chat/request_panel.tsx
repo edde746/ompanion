@@ -13,6 +13,7 @@ import * as Symbols from "../../widgets/symbols";
 import { TextField } from "../../widgets/text_field";
 import { isWebLink, openWebLink } from "../external_links";
 import { AskForm } from "./ask_form";
+import { AskHtmlForm } from "./ask_html_form";
 import { RequestFrame } from "./request_frame";
 import "./request_panel.css";
 import {
@@ -317,6 +318,19 @@ function RequestContent(props: {
       if (request.method === "ask") {
         return (
           <AskForm
+            params={request.params}
+            draft={draft}
+            busy={busy()}
+            error={error()}
+            navigation={props.navigation}
+            onSubmit={(value) => void answer(() => session.companion.respond(request.id, value))}
+            onCancel={() => void answer(() => session.companion.cancel(request.id))}
+          />
+        );
+      }
+      if (request.method === "form") {
+        return (
+          <AskHtmlForm
             params={request.params}
             draft={draft}
             busy={busy()}

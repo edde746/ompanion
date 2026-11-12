@@ -100,6 +100,34 @@ test("an ask waiting for its answer shows one line, and the answer once it came"
   expect(question?.answered).toBe(true);
 });
 
+test("an ask with a form (omp 18.18.3+) shows each field's question with omp's answer text", () => {
+  const call = called(
+    "ask",
+    { i: "Asking about the store", html: "<form>…</form>" },
+    {
+      state: "done",
+      content: [textBlock("User answers:\n{}")],
+      details: {
+        answers: [
+          { name: "store", question: "Session store", answer: "SQLite" },
+          { name: "notes", question: "Anything else?", answer: "" },
+        ],
+        timedOut: true,
+      },
+    },
+  );
+  const shown = askQuestions(call).map(({ question, answer, answered, timedOut }) => ({
+    question,
+    answer,
+    answered,
+    timedOut,
+  }));
+  expect(shown).toEqual([
+    { question: "Session store", answer: "SQLite", answered: true, timedOut: true },
+    { question: "Anything else?", answer: "", answered: true, timedOut: true },
+  ]);
+});
+
 describe("tool output footers", () => {
   const output = (text: string, details: JsonObject) =>
     bashCall(called("bash", { command: "timed" }, { state: "done", content: [textBlock(text)], details })).output;

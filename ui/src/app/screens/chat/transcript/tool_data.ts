@@ -542,7 +542,10 @@ export function askWaits(data: ToolData): boolean {
   return data.status === "pending" || data.status === "running";
 }
 
-/** A question of an `ask` call with its answer (`QuestionResult`, `tui/src/tools/ask.ts`). */
+/**
+ * A question of an `ask` call with its answer: up to omp 18.18.2 a `QuestionResult` (`tui/src/tools/ask.ts`), from
+ * 18.18.3 a form field's `FormAnswer` (`tui/src/html-form/data.ts`), whose answer is text and which has no options.
+ */
 export interface AskQuestion {
   readonly question: string;
   readonly header?: string;
@@ -554,10 +557,23 @@ export interface AskQuestion {
   readonly note?: string;
   readonly timedOut: boolean;
   readonly answered: boolean;
+  /** A form field's answer as omp words it: option labels joined, a typed text, `Other: …`. */
+  readonly answer?: string;
 }
 
 export const askQuestions = once((data): readonly AskQuestion[] => {
   const details = obj(data.details);
+  const answers = objects(details?.answers);
+  if (answers.length > 0) {
+    return answers.map((answer) => ({
+      question: str(answer.question) ?? str(answer.name) ?? "",
+      options: [],
+      selected: [],
+      timedOut: details?.timedOut === true,
+      answered: true,
+      answer: str(answer.answer),
+    }));
+  }
   const results = objects(details?.results);
   if (details !== undefined && typeof details.question === "string") results.push(details);
   const asked = objects(data.args.questions);

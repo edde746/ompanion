@@ -51,7 +51,7 @@ what stock lacks.
 | Agent pages | — | CE `html_render` tool; RPC tool calls and results | transcript page at the call, full screen, save as HTML | M2 |
 | `@` file mentions | `@` | FS file index | composer | M7 |
 | Tool approvals | inline | RPC `extension_ui_request select` "Allow tool: …" Approve/Deny | inline request panel | M2 |
-| `ask` tool | ask dialog | CE `ctx.ui.askDialog` (headers, previews, notes, multi-select); RPC select/editor fallback | inline question form | M2 |
+| `ask` tool | ask dialog; from omp 18.18.3 an HTML form | CE `ctx.ui.askDialog` (headers, previews, notes, multi-select), from 18.18.3 `ctx.ui.formDialog` (one HTML form); RPC select/input/editor fallback | inline question form; the HTML form inline | M2 |
 | Extension dialogs | — | RPC `select/confirm/input/editor/cancel` | inline request panel | M2 |
 | Extension status, widgets, notify | — | RPC `setStatus`, `setWidget` (`string[]`), `notify` | status bar, toasts | M2 |
 | Todos | HUD, `/todo` | RPC `todoPhases`, `set_todos`; TXT `/todo …` | todo panel | M4 |

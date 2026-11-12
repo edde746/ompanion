@@ -544,9 +544,13 @@ function AskBody(props: { data: ToolData }) {
 }
 
 function QuestionView(props: { question: AskQuestion }) {
-  // Shown once the call finished: an answered question without a choice was cancelled.
+  // Shown once the call finished: an answered question without a choice was cancelled. A form field always has an
+  // answer, blank when left empty.
   const cancelled = () =>
-    props.question.answered && props.question.selected.length === 0 && props.question.custom === undefined;
+    props.question.answered &&
+    props.question.answer === undefined &&
+    props.question.selected.length === 0 &&
+    props.question.custom === undefined;
   return (
     <div class="tool-bodies-question">
       <Show when={props.question.header}>
@@ -574,6 +578,16 @@ function QuestionView(props: { question: AskQuestion }) {
           );
         }}
       </For>
+      <Show when={props.question.answer}>
+        {(answer) => (
+          <div class="tool-bodies-option">
+            <span class="tool-bodies-option-icon tool-bodies-option-selected">
+              <Icon icon={Symbols.check_circle_fill} size={16} />
+            </span>
+            <div class="tool-bodies-option-text tool-bodies-option-chosen">{answer()}</div>
+          </div>
+        )}
+      </Show>
       <Show when={props.question.custom}>
         {(custom) => (
           <div class="tool-bodies-option">

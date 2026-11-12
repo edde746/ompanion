@@ -1,0 +1,160 @@
+/* The question-based form's rhythm (ask_form.css): 20 px between sections, 8 px between a section's blocks. */
+.ask-html-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ask-html-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+/* Spans keep the form's hard line breaks (`<br>`); their whitespace is already collapsed. */
+.ask-html-form-spans {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* A fieldset's legend is its question: bodyLarge, as the question-based form's questions. */
+.ask-html-form-title {
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+}
+
+.ask-html-form-text {
+  margin: 0;
+}
+
+.ask-html-form-heading {
+  font: var(--title-small);
+  letter-spacing: var(--title-small-tracking);
+}
+
+.ask-html-form-missing {
+  color: var(--on-surface-variant);
+  font-style: italic;
+}
+
+.ask-html-form-code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgb(var(--on-surface-rgb) / 0.08);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  font-variant-ligatures: none;
+}
+
+.ask-html-form-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+/* A code surface inside a card (docs/design.md, "Code block"). */
+.ask-html-form-pre {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.ask-html-form-table-scroll {
+  overflow-x: auto;
+}
+
+/* The transcript's tables, a tone up inside the card: striped rows, no lines. */
+.ask-html-form-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.ask-html-form-table th,
+.ask-html-form-table td {
+  padding: 6px 12px;
+  text-align: start;
+  vertical-align: top;
+}
+
+.ask-html-form-table th {
+  color: var(--on-surface-variant);
+  font-weight: 600;
+}
+
+.ask-html-form-table tr:nth-child(odd) > * {
+  background: var(--surface-container-high);
+}
+
+.ask-html-form-table tr > :first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.ask-html-form-table tr > :last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.ask-html-form-picture {
+  align-self: flex-start;
+  max-width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.ask-html-form-image {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+.ask-html-form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+/* A field's own label above it, as LabeledField draws one. */
+.ask-html-form-label {
+  margin-bottom: 4px;
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}
+
+.ask-html-form-select {
+  display: flex;
+}
+
+/* The theme's filled field (TextField), several lines tall. */
+.ask-html-form-textarea {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  font: var(--body-large);
+  letter-spacing: var(--body-large-tracking);
+  resize: none;
+}
+
+.ask-html-form-textarea:focus {
+  background: var(--surface-container-highest);
+}
+
+.ask-html-form-textarea:disabled {
+  background: rgb(var(--field-rgb) / 0.5);
+  color: rgb(var(--on-surface-rgb) / 0.38);
+}
+
+.ask-html-form-error {
+  margin-top: 4px;
+  color: var(--error);
+  font: var(--body-small);
+  letter-spacing: var(--body-small-tracking);
+}
