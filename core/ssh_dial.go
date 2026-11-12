@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -176,6 +177,7 @@ type dialer struct {
 	tag          json.RawMessage
 	timeout      time.Duration
 	proxyCommand string
+	heard        atomic.Int64 // when a connection to the target last read anything (heardConn)
 }
 
 type hopState struct {
@@ -267,6 +269,9 @@ func (d *dialer) dial(index int, via *ssh.Client) (*ssh.Client, error) {
 			return nil, withCode("unreachable", fmt.Errorf("cannot connect to %s: %w", address, err))
 		}
 	}
+	if index == len(d.hops)-1 {
+		conn = heardConn{Conn: conn, heard: &d.heard}
+	}
 	a := &attempt{dialer: d, state: state, conn: conn, phase: "key exchange"}
 	config := &ssh.ClientConfig{
 		User:              state.hop.User,
@@ -286,6 +291,21 @@ func (d *dialer) dial(index int, via *ssh.Client) (*ssh.Client, error) {
 		return nil, a.classify(err, expired) // NewClientConn closed conn
 	}
 	return ssh.NewClient(clientConn, channels, requests), nil
+}
+
+// heardConn is a connection to the target that notes in heard when it last read anything, on monotonicNow's clock:
+// any byte the target sends shows that it is still there (machine.check).
+type heardConn struct {
+	net.Conn
+	heard *atomic.Int64
+}
+
+func (c heardConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	if n > 0 {
+		c.heard.Store(int64(monotonicNow()))
+	}
+	return n, err
 }
 
 // expandProxyCommand replaces ssh_config's tokens %h, %p, %r and %% with the hop's.

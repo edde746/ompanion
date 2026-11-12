@@ -261,6 +261,8 @@ func (c *Core) dispatch(page uint64, method string, params json.RawMessage) (res
 		return c.sshExec(params)
 	case "ssh.close":
 		return noAfter(c.sshClose(params))
+	case "ssh.check":
+		return noAfter(c.sshCheck(params))
 	case "stream.write":
 		return noAfter(c.streamWrite(params))
 	case "stream.closeStdin":

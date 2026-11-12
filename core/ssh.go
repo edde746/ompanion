@@ -24,6 +24,16 @@ var (
 	idleClose     = 30 * time.Second
 )
 
+// checkQuiet is ssh.check's default quietSec.
+const checkQuiet = 5 * time.Second
+
+// clockStart anchors monotonicNow.
+var clockStart = time.Now()
+
+// monotonicNow is the time since the core started on the monotonic clock, which a change of the wall clock leaves
+// alone.
+func monotonicNow() time.Duration { return time.Since(clockStart) }
+
 // machine is one SSH connection to a target, possibly through jump hosts. Session channels (exec, PTY, SFTP) spread
 // over extra connections to the target when sshd's MaxSessions (default 10) refuses one, as SshLink does.
 type machine struct {
@@ -257,6 +267,58 @@ func (m *machine) keepalive(every time.Duration, maxMissed int) {
 			}
 			unanswered.Store(0)
 		}()
+	}
+}
+
+func (c *Core) sshCheck(params json.RawMessage) (any, error) {
+	p, err := decode[struct {
+		Machine  string  `json:"machine"`
+		QuietSec float64 `json:"quietSec"`
+	}](params)
+	if err != nil {
+		return nil, err
+	}
+	m, err := c.machine(p.Machine)
+	if err != nil {
+		return nil, err
+	}
+	quiet := checkQuiet
+	if p.QuietSec > 0 {
+		quiet = time.Duration(p.QuietSec * float64(time.Second))
+	}
+	return map[string]bool{"alive": m.check(quiet)}, nil
+}
+
+// check sends the target a keepalive and reports whether it answered. A target that sends nothing at all for quiet is
+// dead, and the machine closes as when its keepalives go unanswered. Anything the target sends counts, not only the
+// answer: that waits behind what the target sent before it, which a slow link may take longer than quiet to carry.
+func (m *machine) check(quiet time.Duration) bool {
+	answered := make(chan error, 1)
+	go func() {
+		_, _, err := m.primary.client.SendRequest("keepalive@openssh.com", true, nil)
+		answered <- err
+	}()
+	timer := time.NewTimer(quiet)
+	defer timer.Stop()
+	for {
+		select {
+		case err := <-answered:
+			if err != nil {
+				m.close(fmt.Errorf("%s: connection lost: %w", m.label, err), false)
+				return false
+			}
+			return true
+		case <-m.closed:
+			return false
+		case <-timer.C:
+		}
+		if silent := monotonicNow() - time.Duration(m.dialer.heard.Load()); silent < quiet {
+			timer.Reset(quiet - silent)
+			continue
+		}
+		m.core.writeLog(fmt.Sprintf("ssh: %s sent nothing for %v", m.id, quiet))
+		m.close(fmt.Errorf("%s sent nothing for %v", m.label, quiet), false)
+		return false
 	}
 }
 

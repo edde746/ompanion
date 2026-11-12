@@ -430,6 +430,17 @@ export class MachineRuntime {
   }
 
   /**
+   * After the app was away (in the background, the computer asleep): sessions waiting to reconnect try again now, and
+   * the link is checked ([BridgeLink.check]), so one that died meanwhile ends now and its sessions reconnect, instead
+   * of showing what they had until its keepalives run out.
+   */
+  async checkLink(): Promise<void> {
+    for (const session of this.sessions) session.reconnectNow();
+    this.controlSession?.reconnectNow();
+    await this.connection?.link.check();
+  }
+
+  /**
    * Detaches every session (their runs keep going on the machine), ends the control process, closes forwards and the
    * link.
    */

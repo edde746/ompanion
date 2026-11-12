@@ -163,6 +163,23 @@ export class BridgeLink implements HostLink {
     }
   }
 
+  /**
+   * Whether the machine still answers (`ssh.check`), asked when the app comes back to the front: one that sent nothing
+   * for the core's quiet time is closed as dead, and this link ends ([done]) then, not only once its keepalives ran
+   * out. This computer always answers.
+   */
+  async check(): Promise<boolean> {
+    if (this.machine === "local") return true;
+    if (this.closed) return false;
+    try {
+      return boolean(asObject(await call("ssh.check", { machine: this.machine }), "ssh.check"), "alive");
+    } catch (error) {
+      // Closed meanwhile: `ssh.closed` ends the link.
+      if (error instanceof BridgeError && error.code === "closed") return false;
+      throw linkError(this.label, "check failed", error);
+    }
+  }
+
   async close(): Promise<void> {
     if (this.closed) return this.done;
     this.closed = true;

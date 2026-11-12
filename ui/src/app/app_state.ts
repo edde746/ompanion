@@ -4,7 +4,7 @@ import { type Accessor, createContext, createSignal, useContext } from "solid-js
 import { AppDatabase } from "./database/app_database";
 import type { PushService } from "./notifications/push_service";
 import type { UsageReminders } from "./notifications/usage_reminders";
-import { isDesktop, shellInfo } from "./platform";
+import { appResumes, isDesktop, shellInfo } from "./platform";
 import { KeysProvider } from "./providers/keys_provider";
 import { MachinesProvider } from "./providers/machines_provider";
 import { Prefs, SettingsProvider } from "./providers/settings_provider";
@@ -73,6 +73,8 @@ export function createAppState(): AppState {
     deviceId: () => settings.get(Prefs.deviceId),
     companionBytes: bundledCompanion,
   });
+  // For the page's life, as the providers.
+  appResumes.listen(() => sessions.checkLinks());
   const [usageReminders, setUsageReminders] = createSignal<UsageReminders | undefined>(undefined);
   const [push, setPush] = createSignal<PushService | undefined>(undefined);
   return {

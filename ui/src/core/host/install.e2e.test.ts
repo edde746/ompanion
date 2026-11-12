@@ -227,16 +227,16 @@ class FailingUpload extends BridgeLink {
   }
 
   override async exec(command: string, options: ExecOptions = {}): Promise<HostProcess> {
-    this.check();
+    this.throwIfDropped();
     return super.exec(command, options);
   }
 
   override async files(): Promise<HostFiles> {
-    this.check();
-    return droppingFiles(await super.files(), () => this.check());
+    this.throwIfDropped();
+    return droppingFiles(await super.files(), () => this.throwIfDropped());
   }
 
-  private check() {
+  private throwIfDropped() {
     if (this.dropped()) throw new HostLinkException("the link dropped");
   }
 }

@@ -168,7 +168,10 @@ Windows the OpenSSH default shell and PowerShell version.
 
 Liveness: the core sends the target a keepalive every 15 s and closes it as dead after 3 unanswered in a row
 (`ssh.closed`); a session then reconnects with jittered backoff (1 s doubling to 30 s) and stops on auth failure.
-Nothing probes on app resume or network change.
+When the app comes back to the front (`shell.appState`), every connected machine is checked (`ssh.check`): one that
+sent nothing for 5 s is closed at once, and sessions waiting out a backoff try again. A phone's link often dies while
+the app is suspended (another network, sockets reclaimed) without either end noticing, and the keepalives alone take
+30 to 60 s to see it, while the chat shows what it had and nothing new. Nothing probes on a network change.
 
 Session listing is one exec round trip (a PowerShell script on Windows): a script prints `{path, size, mtime,
 profile, title, header, first}` for every `*.jsonl` under the default agent directory's `sessions/`,

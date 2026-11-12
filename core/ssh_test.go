@@ -529,6 +529,42 @@ func TestSSHClosed(t *testing.T) {
 	}
 }
 
+func TestSSHCheck(t *testing.T) {
+	server := startServer(t, serverOptions{password: "pw"})
+	h := newHarness(t)
+	machine := h.connect(hop(server, map[string]any{"password": "pw"}), answering(t)).machine(t)
+	type checked struct {
+		Alive bool `json:"alive"`
+	}
+	params := map[string]any{"machine": machine, "quietSec": 0.5}
+
+	if !okInto[checked](h, "ssh.check", params).Alive {
+		t.Fatal("a target that answers keepalives was not alive")
+	}
+
+	// A target that answers no keepalive stays open while it sends anything else, and is closed as dead once it sent
+	// nothing for quietSec.
+	server.muteKeepalives.Store(true)
+	ticks := h.open("ssh.exec", map[string]any{"machine": machine,
+		"command": "for i in 1 2 3 4 5 6 7 8; do echo $i; sleep 0.2; done"})
+	start := time.Now()
+	if okInto[checked](h, "ssh.check", params).Alive {
+		t.Fatal("a target that answers no keepalive was alive")
+	}
+	if waited := time.Since(start); waited < 1400*time.Millisecond {
+		t.Fatalf("closed after %v while the output still came", waited)
+	}
+	if o := h.drain(ticks); o.stdout.String() != "1\n2\n3\n4\n5\n6\n7\n8\n" || o.exit.Params.Code == nil ||
+		*o.exit.Params.Code != 0 {
+		t.Fatalf("the output was cut short: %q, %s", o.stdout.String(), o.exit.raw)
+	}
+	if closed := h.event(); closed.Event != "ssh.closed" || closed.params["machine"] != machine ||
+		!strings.Contains(fmt.Sprint(closed.params["error"]), "sent nothing for 500ms") {
+		t.Fatalf("got %s", closed.raw)
+	}
+	h.fails("ssh.check", params, "closed")
+}
+
 // TestSSHClosedAfterConnect checks that a machine whose server hangs up right after the handshake is closed only once
 // the response that names it went out: the page listens for a machine's ssh.closed once it knows its id.
 func TestSSHClosedAfterConnect(t *testing.T) {

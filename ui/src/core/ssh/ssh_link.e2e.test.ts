@@ -312,6 +312,20 @@ test("done settles when the peer stops answering keepalives", async () => {
   }
 }, 30_000);
 
+test("check ends the link of a peer that stopped answering, long before its keepalives would", async () => {
+  // The default liveness: the keepalives give up after 45 s.
+  const link = await SshLink.open(throughBastion(), { verifyHostKey: knownHostsVerifier([]) });
+  expect(await link.check()).toBe(true);
+  const sessions = `$(for p in $(pgrep -P "$(cat '${dir}/bastion/sshd.pid')"); do echo "$p"; pgrep -P "$p"; done)`;
+  await signal(`kill -STOP ${sessions}`);
+  try {
+    expect(await withTimeout(link.check(), 10_000)).toBe(false);
+    await withTimeout(link.done, 1_000);
+  } finally {
+    await signal(`kill -KILL ${sessions}`);
+  }
+}, 30_000);
+
 async function signal(command: string): Promise<void> {
   const child = Bun.spawn(["sh", "-c", command]);
   expect(await child.exited).toBe(0);

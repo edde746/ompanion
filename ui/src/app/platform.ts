@@ -146,6 +146,9 @@ const latest: { shell: ShellInfo; insets: Insets; titleBar: TitleBar | null } = 
   titleBar: titleBar(),
 };
 const [appActive, setAppActive] = createSignal(true);
+/** The last `shell.appState`, as received: a signal's read shows a write only after Solid's next flush. */
+let inFront = true;
+const resumes = new Emitter<void>();
 const taps = new Emitter<NotificationTap>({ buffered: true });
 const [fileDrag, setFileDrag] = createSignal(false);
 const drops = new Emitter<readonly string[]>();
@@ -175,7 +178,12 @@ onEvent<unknown>("shell.titleBar", (params) => {
   setTitleBar(latest.titleBar);
   saveSnapshot();
 });
-onEvent<unknown>("shell.appState", (params) => setAppActive(boolean(asJsonObject(params, "shell.appState"), "active")));
+onEvent<unknown>("shell.appState", (params) => {
+  const active = boolean(asJsonObject(params, "shell.appState"), "active");
+  if (active && !inFront) resumes.add();
+  inFront = active;
+  setAppActive(active);
+});
 onEvent<unknown>("shell.notificationTap", (params) => {
   const json = asJsonObject(params, "shell.notificationTap");
   taps.add({ id: string(json, "id"), data: json.data });
@@ -289,6 +297,9 @@ export { titleBar };
 
 /** Whether the app is in front (`shell.appState`). */
 export { appActive };
+
+/** The app came back to the front (`shell.appState`) after it left it. */
+export const appResumes: EventStream<void> = resumes.stream;
 
 /** Taps on the app's system notifications, the one that launched the app first. One listener. */
 export const notificationTaps: EventStream<NotificationTap> = taps.stream;

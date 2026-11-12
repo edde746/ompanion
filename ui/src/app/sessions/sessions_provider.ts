@@ -10,6 +10,7 @@ import { Emitter, type EventStream, type Subscription } from "../../core/util/st
 import type { Machine } from "../models/machine";
 import type { MachinesProvider } from "../providers/machines_provider";
 import type { MachineConnector } from "../services/machine_connector";
+import { appLogger } from "../utils/app_logger";
 import type { ComposerAttachment } from "./composer_attachments";
 import { ComposerDraft } from "./composer_draft";
 import { ConnectPromptQueue } from "./connect_prompt_queue";
@@ -368,6 +369,16 @@ export class SessionsProvider {
     } catch (error) {
       if (stale()) return;
       this.setListing(machine.id, { ...current(), loading: false, error });
+    }
+  }
+
+  /**
+   * The app is in front again: each machine checks its link ({@link MachineRuntime.checkLink}), so a link that died
+   * while the app was away (a phone's sockets reclaimed, another network) reconnects now.
+   */
+  checkLinks(): void {
+    for (const [id, runtime] of this.runtimes) {
+      runtime.checkLink().catch((error: unknown) => appLogger.w(`checking the link of machine ${id} failed`, { error }));
     }
   }
 
