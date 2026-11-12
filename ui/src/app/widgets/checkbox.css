@@ -50,9 +50,13 @@
   transform: none;
 }
 
-/* The box as _CheckboxPainter draws it: fill, a 2 px border inside the edge, the check mark in the surface tone. */
+/*
+ * The box as _CheckboxPainter draws it: fill, a 2 px border inside the edge, the check mark in the surface tone. Fill
+ * and border take currentColor, which the control (or a row that draws the mark) sets.
+ */
 .checkbox-box {
   display: block;
+  flex: none;
   overflow: visible;
 }
 
@@ -61,13 +65,13 @@
 }
 
 .checkbox-fill {
-  fill: var(--on-surface);
+  fill: currentColor;
   fill-opacity: 0;
 }
 
 .checkbox-frame {
   fill: none;
-  stroke: var(--on-surface-variant);
+  stroke: currentColor;
   stroke-width: 2;
 }
 
@@ -79,28 +83,23 @@
   stroke-dashoffset: 1;
 }
 
-.checkbox-checked .checkbox-fill {
+.checkbox-box-checked .checkbox-fill {
   fill-opacity: 1;
 }
 
-.checkbox-checked .checkbox-frame {
+.checkbox-box-checked .checkbox-frame {
   stroke-width: 0;
   stroke-opacity: 0;
 }
 
-.checkbox-checked .checkbox-check {
+.checkbox-box-checked .checkbox-check {
   stroke-dashoffset: 0;
-}
-
-.checkbox:disabled .checkbox-fill,
-.checkbox:disabled .checkbox-frame {
-  fill: rgb(var(--on-surface-rgb) / 0.38);
-  stroke: rgb(var(--on-surface-rgb) / 0.38);
 }
 
 /* The radio's dot grows from the centre (_RadioPainter: innerRadius × position). */
 .radio-ring {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   width: 20px;
@@ -118,7 +117,7 @@
   transform: scale(0);
 }
 
-.radio-selected .radio-ring::after {
+.radio-ring-selected::after {
   transform: none;
 }
 

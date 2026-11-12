@@ -1112,7 +1112,9 @@ export type Translations = {
     readonly titleMany: (args: { n: Param }) => string;
     readonly invalid: (args: { error: Param }) => string;
     readonly recommended: string;
+    readonly single: string;
     readonly multi: string;
+    readonly chosen: (args: { n: number }) => string;
     readonly otherHint: string;
     readonly note: string;
     readonly chat: string;

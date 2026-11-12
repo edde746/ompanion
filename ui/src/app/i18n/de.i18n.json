@@ -1173,7 +1173,12 @@
     "titleMany": "$n Fragen",
     "invalid": "Die Frage konnte nicht gelesen werden: $error",
     "recommended": "Empfohlen",
-    "multi": "Wähle beliebig viele.",
+    "single": "Wähle eine Antwort",
+    "multi": "Wähle beliebig viele",
+    "chosen": {
+      "one": "$n ausgewählt",
+      "other": "$n ausgewählt"
+    },
     "otherHint": "Sonstiges: eigene Antwort eingeben",
     "note": "Notiz (optional)",
     "chat": "Dazu chatten"

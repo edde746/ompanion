@@ -1152,7 +1152,12 @@
     "titleMany": "$n questions",
     "invalid": "The question could not be read: $error",
     "recommended": "Recommended",
-    "multi": "Choose any number.",
+    "single": "Choose one",
+    "multi": "Choose any number",
+    "chosen": {
+      "one": "$n selected",
+      "other": "$n selected"
+    },
     "otherHint": "Other: type your own answer",
     "note": "Note (optional)",
     "chat": "Chat about this"

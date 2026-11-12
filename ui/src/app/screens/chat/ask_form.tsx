@@ -4,7 +4,7 @@ import { createSignal, For, Show, untrack } from "solid-js";
 import { FormatException, type JsonObject } from "../../../core/rpc/json_fields";
 import { t } from "../../i18n/i18n";
 import { FilledButton, TextButton } from "../../widgets/button";
-import { Checkbox, Radio } from "../../widgets/checkbox";
+import { CheckboxMark, RadioMark } from "../../widgets/checkbox";
 import { TextField } from "../../widgets/text_field";
 import {
   type AskDraft,
@@ -29,6 +29,9 @@ import { TranscriptMarkdown } from "./transcript/markdown";
 /**
  * The companion's full-fidelity `ask` form, inline: every question with its header, options with descriptions,
  * previews and the recommended mark, multi-select, an "Other" answer and a note, plus "chat about this".
+ *
+ * A single-choice question's options sit in one track, the chosen one a pill in it, as a segmented control's; a
+ * multi-choice question's are separate tiles with check boxes, each chosen one lit, and its hint counts them.
  */
 export function AskForm(props: {
   readonly params: { readonly [key: string]: unknown };
@@ -120,15 +123,33 @@ function QuestionForm(props: {
   readonly enabled: boolean;
   readonly onChange: (update: (question: AskQuestion, answer: AskDraft) => AskDraft) => void;
 }) {
+  let otherInput: HTMLInputElement | undefined;
+  const chosenCount = () =>
+    props.answer.selected.length + (props.answer.other && props.answer.custom.trim().length > 0 ? 1 : 0);
+  const chooseOther = () => {
+    const choosing = props.question.multi ? !props.answer.other : true;
+    props.onChange(askChooseOther);
+    // Choosing "Other" means typing it next.
+    if (choosing) otherInput?.focus();
+  };
   return (
     <div class="ask-form-question">
       <Show when={props.question.header}>{(header) => <span class="ask-form-header">{header()}</span>}</Show>
       {/* Markdown, as omp's ask dialog renders the question; its links open. */}
       <TranscriptMarkdown text={props.question.question} class="ask-form-question-text" />
-      <Show when={props.question.multi}>
-        <span class="ask-form-secondary">{t.ask.multi}</span>
-      </Show>
-      <div class="ask-form-options" role={props.question.multi ? undefined : "radiogroup"}>
+      <span class="ask-form-hint">
+        <Show when={props.question.multi} fallback={t.ask.single}>
+          {t.ask.multi}
+          <Show when={chosenCount() > 0}>
+            <span class="ask-form-hint-dot">{" · "}</span>
+            <span class="ask-form-hint-count">{t.ask.chosen({ n: chosenCount() })}</span>
+          </Show>
+        </Show>
+      </span>
+      <div
+        class={["ask-form-options", props.question.multi ? "ask-form-options-multi" : "ask-form-options-single"]}
+        role={props.question.multi ? "group" : "radiogroup"}
+      >
         <For each={props.question.options}>
           {(option, index) => (
             <OptionTile
@@ -142,32 +163,42 @@ function QuestionForm(props: {
           )}
         </For>
         {/*
-          Beside its control, not inside a tile: a tile takes Space and Enter as a tap, so a field inside one would
-          never get a space typed on a keyboard.
+          "Other" is an option whose label is a field. Not a button like the others: a button takes Space and Enter as
+          a press, so a field inside one would never get a space typed on a keyboard.
         */}
-        <div class="ask-form-other">
-          <Show
-            when={props.question.multi}
-            fallback={
-              <Radio
-                selected={props.answer.other}
-                label={t.ask.otherHint}
-                onSelected={props.enabled ? () => props.onChange(askChooseOther) : undefined}
-              />
-            }
-          >
-            <Checkbox
-              value={props.answer.other}
-              label={t.ask.otherHint}
-              onChanged={props.enabled ? () => props.onChange(askChooseOther) : undefined}
-            />
-          </Show>
-          <TextField
-            class="ask-form-field"
-            value={props.answer.custom}
-            hint={t.ask.otherHint}
+        <div
+          class={[
+            "ask-form-option",
+            "ask-form-other",
+            { "ask-form-option-chosen": props.answer.other, "ask-form-option-disabled": !props.enabled },
+          ]}
+        >
+          <button
+            type="button"
+            role={props.question.multi ? "checkbox" : "radio"}
+            aria-checked={props.answer.other ? "true" : "false"}
+            aria-label={t.ask.otherHint}
+            class="ask-form-other-mark"
             disabled={!props.enabled}
-            onInput={(text) => props.onChange((question, answer) => askTypeOther(question, answer, text))}
+            onClick={chooseOther}
+          >
+            <OptionMark multi={props.question.multi} chosen={props.answer.other} />
+          </button>
+          <input
+            ref={(element) => {
+              otherInput = element;
+            }}
+            class="ask-form-other-input"
+            type="text"
+            value={props.answer.custom}
+            placeholder={t.ask.otherHint}
+            disabled={!props.enabled}
+            spellcheck="false"
+            autocomplete="off"
+            onInput={(event) => {
+              const text = event.currentTarget.value;
+              props.onChange((question, answer) => askTypeOther(question, answer, text));
+            }}
           />
         </div>
       </div>
@@ -182,7 +213,7 @@ function QuestionForm(props: {
   );
 }
 
-/** An option as Flutter's RadioListTile or CheckboxListTile: a click anywhere on it chooses it. */
+/** An option as a control of its own: a press anywhere on it chooses it, or toggles it in a multi-choice question. */
 function OptionTile(props: {
   readonly option: AskOption;
   readonly multi: boolean;
@@ -192,34 +223,16 @@ function OptionTile(props: {
   readonly onChoose: () => void;
 }) {
   return (
-    // A label forwards a click on its text to the control inside it.
-    <label
+    <button
+      type="button"
+      role={props.multi ? "checkbox" : "radio"}
+      aria-checked={props.chosen ? "true" : "false"}
       data-ripple={props.enabled}
-      class={[
-        "ask-form-option",
-        {
-          "ask-form-option-disabled": !props.enabled,
-          "ask-form-option-two-line":
-            props.option.description !== undefined || (props.option.preview !== undefined && props.chosen),
-        },
-      ]}
+      class={["ask-form-option", { "ask-form-option-chosen": props.chosen }]}
+      disabled={!props.enabled}
+      onClick={() => props.onChoose()}
     >
-      <Show
-        when={props.multi}
-        fallback={
-          <Radio
-            selected={props.chosen}
-            label={props.option.label}
-            onSelected={props.enabled ? props.onChoose : undefined}
-          />
-        }
-      >
-        <Checkbox
-          value={props.chosen}
-          label={props.option.label}
-          onChanged={props.enabled ? props.onChoose : undefined}
-        />
-      </Show>
+      <OptionMark multi={props.multi} chosen={props.chosen} />
       <span class="ask-form-option-text">
         <span class="ask-form-option-title">
           <span>{props.option.label}</span>
@@ -234,6 +247,16 @@ function OptionTile(props: {
           {(preview) => <span class="ask-form-preview code-style">{preview()}</span>}
         </Show>
       </span>
-    </label>
+    </button>
+  );
+}
+
+function OptionMark(props: { readonly multi: boolean; readonly chosen: boolean }) {
+  return (
+    <span class="ask-form-mark">
+      <Show when={props.multi} fallback={<RadioMark selected={props.chosen} />}>
+        <CheckboxMark checked={props.chosen} />
+      </Show>
+    </span>
   );
 }
