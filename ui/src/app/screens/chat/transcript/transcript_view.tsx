@@ -33,6 +33,12 @@ const overscan = 800;
 /** How long after a wheel, touch, key or press, or after the last scroll event of its momentum, scrolls are the reader's. */
 const readerWindowMs = 150;
 
+/**
+ * How late the check for the end of the reader's scroll may run and still count. One later than that ran after a long
+ * task (rows being built), ahead of the scroll events the momentum sent meanwhile.
+ */
+const lateCheckMs = 50;
+
 /** Keys that scroll the transcript while the focus is in it, or on <body> after the reader last pressed in it. */
 const scrollKeys = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "]);
 
@@ -304,10 +310,11 @@ export function TranscriptView(props: TranscriptViewProps) {
   /** A mouse or pen button is down in the transcript: a scrollbar drag, or a selection scrolling past an edge. */
   let pressing = false;
   /**
-   * Until when (performance.now()) a scroll event counts as the reader's: a wheel, touch, key or press, and the
-   * momentum after it, which keeps extending it. Any other scroll event is the browser's or the view's own.
+   * When the check for the end of the reader's scroll is due (performance.now()): a wheel, touch, key or press, and each
+   * scroll event of the momentum after it, put it `readerWindowMs` ahead. While it is pending, and while a touch or press
+   * holds, scroll events are the reader's; any other is the browser's or the view's own.
    */
-  let readerUntil = 0;
+  let stopDue = 0;
   /** jumpToLatest's smooth scroll is under way: its scroll events are not to be corrected. */
   let jumping: number | undefined;
   /** The row at the top edge, and its top in the column's coordinates (offsetTop) when it was taken. */
@@ -323,22 +330,38 @@ export function TranscriptView(props: TranscriptViewProps) {
     setSlackHeight(value);
   };
   let stopTimer: number | undefined;
+  /** The pending check was put off once for running late, and no scroll event came since. */
+  let putOff = false;
 
-  const reading = () => touching || pressing || performance.now() < readerUntil;
+  const reading = () => touching || pressing || stopTimer !== undefined;
   const readerScrolls = () => {
-    readerUntil = performance.now() + readerWindowMs;
+    stopDue = performance.now() + readerWindowMs;
+    putOff = false;
     clearTimeout(stopTimer);
-    stopTimer = window.setTimeout(readerStopped, readerWindowMs + 20);
+    stopTimer = window.setTimeout(readerStopped, readerWindowMs);
+  };
+  /** Ends the reader's scroll at once: a jump asked for, a finger landing. */
+  const readerDone = () => {
+    clearTimeout(stopTimer);
+    stopTimer = undefined;
   };
 
-  /** The reader's scroll ended: the offset takes the spacer's slack over, and a view left within `pinDistance` of the bottom is put back on it. */
+  /**
+   * The reader's scroll ended: the offset takes the spacer's slack over, and a view left within `pinDistance` of the
+   * bottom is put back on it. A check that runs late is put off once: the momentum's scroll events may wait behind it,
+   * and a written offset stops a momentum, on iOS throwing the rows back by what it scrolled since the page last heard
+   * of it. Once only, so a page kept busy (a reply streaming in) still gets a pinned view back to the bottom.
+   */
   function readerStopped() {
     stopTimer = undefined;
     // A held touch or press schedules this again when it lets go.
     if (touching || pressing) return;
-    const left = readerUntil - performance.now();
-    if (left > 0) stopTimer = window.setTimeout(readerStopped, left + 20);
-    else if (slack !== 0 || pinned) settle();
+    if (!putOff && performance.now() - stopDue > lateCheckMs) {
+      readerScrolls();
+      putOff = true;
+    } else if (slack !== 0 || pinned) {
+      settle();
+    }
   }
 
   const [atBottom, setAtBottom] = createSignal(true, { ownedWrite: true });
@@ -348,16 +371,22 @@ export function TranscriptView(props: TranscriptViewProps) {
 
   const maxScroll = (element: HTMLElement) => element.scrollHeight - element.clientHeight;
 
-  /** The first built row whose bottom is below the top edge. */
+  /**
+   * The first built row that starts on screen, at or below the top edge, else the row across it. A row the top edge
+   * cuts then lies above the anchor, so its growing or shrinking above the edge (an image or math loading, an estimate
+   * replaced by the height it lays out at) moves nothing on screen.
+   */
   function captureAnchor(element: HTMLElement) {
     const top = element.scrollTop;
+    const bottom = top + element.clientHeight;
     anchor = undefined;
     for (const entry of entries()) {
       const row = built.get(entry.row.key);
-      if (row && row.offsetTop + row.offsetHeight > top) {
-        anchor = { key: entry.row.key, top: row.offsetTop };
-        return;
-      }
+      if (!row || row.offsetTop + row.offsetHeight <= top) continue;
+      // The row across the top edge fills the screen.
+      if (anchor !== undefined && row.offsetTop >= bottom) return;
+      anchor = { key: entry.row.key, top: row.offsetTop };
+      if (row.offsetTop >= top) return;
     }
   }
 
@@ -460,7 +489,7 @@ export function TranscriptView(props: TranscriptViewProps) {
     const element = scroller;
     if (!element) return;
     const bottom = element.scrollTop >= maxScroll(element) - pinDistance;
-    if (touching || pressing || performance.now() < readerUntil) {
+    if (reading()) {
       readerScrolls();
       pinned = bottom;
     } else if (bottom) {
@@ -480,7 +509,7 @@ export function TranscriptView(props: TranscriptViewProps) {
     // A finger landing stops any momentum, so a written offset interrupts nothing: the offset takes the slack over,
     // and rows a fling lifted out of reach above the top come back for this drag.
     if (slack !== 0) {
-      readerUntil = 0;
+      readerDone();
       settle();
     }
     touching = true;
@@ -523,7 +552,7 @@ export function TranscriptView(props: TranscriptViewProps) {
     // navigation, the button), so it overrides the reader's scroll still under way, as a finger landing does in
     // touchStarted; settle would otherwise keep their place and the next scroll event unpin again.
     if (distance > element.clientHeight * 2) {
-      readerUntil = 0;
+      readerDone();
       settle();
       return;
     }

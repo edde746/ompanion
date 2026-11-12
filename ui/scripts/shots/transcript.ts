@@ -106,7 +106,7 @@ async function pinning({ page }: { page: Page }): Promise<void> {
           },
         });
         scroller.dispatchEvent(new Event("touchstart", { bubbles: true }));
-        scroller.dispatchEvent(new Event("touchend", { bubbles: true }));
+        scroller.dispatchEvent(Object.assign(new Event("touchend", { bubbles: true }), { touches: [] }));
         const height = scroller.scrollHeight;
         let left = 50;
         const move = () => {
@@ -130,7 +130,7 @@ async function pinning({ page }: { page: Page }): Promise<void> {
         new Promise<void>((resolve) => {
           const scroller = document.querySelector<HTMLElement>(".transcript-scroll")!;
           scroller.dispatchEvent(new Event("touchstart", { bubbles: true }));
-          scroller.dispatchEvent(new Event("touchend", { bubbles: true }));
+          scroller.dispatchEvent(Object.assign(new Event("touchend", { bubbles: true }), { touches: [] }));
           let left = frames;
           const move = () => {
             scroller.scrollTop -= step;
@@ -151,7 +151,7 @@ async function pinning({ page }: { page: Page }): Promise<void> {
       new Promise<number>((resolve) => {
         const scroller = document.querySelector<HTMLElement>(".transcript-scroll")!;
         scroller.dispatchEvent(new Event("touchstart", { bubbles: true }));
-        scroller.dispatchEvent(new Event("touchend", { bubbles: true }));
+        scroller.dispatchEvent(Object.assign(new Event("touchend", { bubbles: true }), { touches: [] }));
         let left = 40;
         const move = () => {
           scroller.scrollTop -= left > 0 ? 60 : 5;
