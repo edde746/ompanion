@@ -221,14 +221,17 @@ Run directory `~/.ompanion/run/<runId>/`, mode 0700:
   instead of continuing on another model; the app then asks which model the conversation continues on (Continue on
   another model) and launches again with that `--model`, or leaves the session closed.
 - Attach: `in.jsonl` through `tail -F` from its saved offset; `out.jsonl` through the follow script (`followScript`,
-  uploaded next to the companion and run by the probe's Bun, the same script on Windows hosts), which sends what the log
-  holds with a plain read, then follows it with `tail -F` (BSD `tail -F` copies byte by byte; on macOS it delivers an
-  append in 0.6 ms, Bun's `fs.watch` in 18 ms), and sends each image once. The generation is the one the log's first
-  line names (`ompanion_rotate`), else 1, read before and after the size and the replay so a rotation in between is
-  seen; an empty log is waited on for up to 300 ms, as the pump leaves a rotated one empty for 250 ms. omp writes
-  one image into up to five frames (`tool_execution_end`, `message_start`, `message_end`, `turn_end`, `agent_end`). A
-  frame holding image blocks of 1 KiB or more is rewritten: each image not sent yet goes first as an `ompanion_image`
-  line, and the frame names it by id; an `ompanion_span` line ahead of the rewritten lines gives the frame's size in
+  uploaded next to the companion and run by the probe's Bun, the same script on Windows hosts), which reads the log
+  itself in 1 MiB blocks as it grows, woken by `tail -F` on POSIX hosts (on macOS 0.6 ms after an append; Bun's
+  `fs.watch`, 18 ms, on Windows) and every 50 ms, and sends each image once. It sees a rotation by the log shrinking or
+  its first line naming another generation. `tail -F` cannot carry the data: blocked behind a device that stopped
+  reading (an app iOS suspended), it misses the pump's empty log and goes on mid-line at its old offset in the new
+  generation. The generation is the one the log's first line names (`ompanion_rotate`), else 1, read before and after
+  the size and the replay so a rotation in between is seen; an empty log is waited on for up to 300 ms, as the pump
+  leaves a rotated one empty for 250 ms. omp writes one image into up to five frames (`tool_execution_end`,
+  `message_start`, `message_end`, `turn_end`, `agent_end`). A frame holding image blocks of 1 KiB or more is
+  rewritten: each image not sent yet goes first as an `ompanion_image` line, and the frame names it by id; an
+  `ompanion_span` line ahead of the rewritten lines gives the frame's size in
   `out.jsonl`, so offsets stay file offsets. The stream keeps the last 64 images (`imageRefWindow`) and names each one
   it drops; `RpcFrameDecoder` puts the data back. A fresh attach to a turn with a pasted screenshot and a `read` of a
   3840×2160 PNG sent 469,094 bytes for a 1,551,960-byte log. The stream goes out as raw deflate, flushed after every

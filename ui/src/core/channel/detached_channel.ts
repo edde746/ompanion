@@ -28,7 +28,7 @@ export function framedLine(line: string): Uint8Array {
 }
 
 /**
- * A [RunChannel] to a run on a POSIX machine, over exec channels: [followScript] for [lines] (with `tail -F`),
+ * A [RunChannel] to a run on a POSIX machine, over exec channels: [followScript] for [lines] (woken by `tail -F`),
  * `tail -F in.jsonl` for [inbox] (started on listen), and a long-running appender that adds each sent line to
  * `in.jsonl` under the `in.lock` `mkdir` lock (started with the attach). Each script ends when its stdin closes, so
  * nothing outlives the channel on the machine, even when the connection drops.

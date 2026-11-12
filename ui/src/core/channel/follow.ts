@@ -31,9 +31,9 @@ export interface AttachTools {
 export const imageRefWindow = 64;
 
 /**
- * How [followScript] learns that `out.jsonl` grew. `tail`: `tail -F`, on POSIX hosts (kqueue or inotify; on macOS
- * 0.6 ms from another process's append to the read, where Bun's `fs.watch` took 18 ms). `poll`: `fs.watch` and a
- * size check every 50 ms, on Windows, which has no `tail`.
+ * How [followScript] learns that `out.jsonl` grew; it reads the log itself either way. `tail`: `tail -F`, on POSIX hosts
+ * (kqueue or inotify; on macOS 0.6 ms from another process's append to the wake, where Bun's `fs.watch` took 18 ms).
+ * `poll`: `fs.watch`, on Windows, which has no `tail`. Both look every 50 ms besides.
  */
 export type FollowSource = "tail" | "poll";
 
@@ -43,17 +43,16 @@ export type FollowSource = "tail" | "poll";
  * the image window ([imageRefWindow]), the [FollowSource] and, for `tail`, its flags (`$tailpoll`).
  *
  * Output: the header `<generation> <start offset> <exit code or -> <out.jsonl size> <preamble bytes>`, the preamble
- * (the replay of a log over `w` bytes, when no offset applies), then the log from the start offset: what it holds is
- * read directly, then the source follows it (BSD `tail -F` copies byte by byte). The generation is the one the log's
- * first line names (`ompanion_rotate`), else 1; it is read before and after the size, so a rotation in between is
- * seen and the reading starts over. A log one generation past the one resumed from, whose marker carried the old log
- * from the resumed offset or before, goes out from its start under a header naming the resumed generation and offset:
- * the attach follows that rotation as if it had stayed attached. A log the pump rotated is read again from its start,
- * as `tail -F` does; polling sees the rotation by the log shrinking or its first line naming another generation, so a
- * follower that was slow to look does not read the new log from the old offset. The size comes from the open file:
- * NTFS directory entries lag for a file another process writes. The exit file is read before the size, so a run that
- * ended is never cut short. It ends when its stdin closes, or, for a run that had ended with nothing left to send,
- * after the header.
+ * (the replay of a log over `w` bytes, when no offset applies), then the log from the start offset, read as it grows.
+ * The generation is the one the log's first line names (`ompanion_rotate`), else 1; it is read before and after the
+ * size, so a rotation in between is seen and the reading starts over. A log one generation past the one resumed from,
+ * whose marker carried the old log from the resumed offset or before, goes out from its start under a header naming
+ * the resumed generation and offset: the attach follows that rotation as if it had stayed attached. A log the pump
+ * rotated is read again from its start: the reading sees the rotation by the log shrinking or its first line naming
+ * another generation, so a follower a slow device held back does not read the new log from the old offset. The size
+ * comes from the open file: NTFS directory entries lag for a file another process writes. The exit file is read before
+ * the size, so a run that ended is never cut short. It ends when its stdin closes, or, for a run that had ended with
+ * nothing left to send, after the header.
  *
  * A frame (a line, or a whole `rpc_chunk` sequence) holding image blocks (`"type":"image"` with a `data` string of
  * 1 KiB or more) is rewritten: each image not defined yet is sent first as an `ompanion_image` line (`id`, `data`,
@@ -376,37 +375,32 @@ async function main() {
     return;
   }
 
-  if (source === "poll") {
-    await poll(offset, generation);
-    return;
-  }
-  const fd = openSync(log, "r");
-  const block = Buffer.allocUnsafe(1 << 20);
-  for (let position = offset; position < end; ) {
-    const n = readSync(fd, block, 0, Math.min(block.length, end - position), position);
-    if (n === 0) break;
-    await write(transform(Buffer.from(block.subarray(0, n)), true));
-    position += n;
-  }
-  closeSync(fd);
-
-  tail = spawn("tail", [...tailFlags, "-c", \`+\${Math.max(offset, end) + 1}\`, "-F", log], { stdio: ["ignore", "pipe", "inherit"] });
-  tail.on("exit", (code, signal) => {
-    if (stopping) return;
-    process.stderr.write(\`tail ended: \${code ?? signal}\n\`);
-    stop(5);
-  });
-  for await (const data of tail.stdout) await write(transform(data, true));
+  await follow(offset, generation);
 }
 
-async function poll(from, generation) {
+// Reads the log from \`from\` on as it grows. A rotation is seen by the log shrinking or its first line naming another
+// generation, however long a slow device held the reading back. \`tail -F\` only wakes the reading; it cannot carry the
+// data: blocked behind a slow device it misses the pump's empty log, then goes on at its old offset in the new log or
+// past its marker.
+async function follow(from, generation) {
   const fd = openSync(log, "r");
   const block = Buffer.allocUnsafe(1 << 20);
   let wake;
-  try {
-    watch(log, () => wake?.());
-  } catch (error) {
-    process.stderr.write(\`not watching \${log}, polling only: \${error}\n\`);
+  if (source === "tail") {
+    tail = spawn("tail", [...tailFlags, "-n", "0", "-F", log], { stdio: ["ignore", "pipe", "inherit"] });
+    tail.on("exit", (code, signal) => {
+      if (stopping) return;
+      process.stderr.write(\`tail ended: \${code ?? signal}\n\`);
+      stop(5);
+    });
+    // Flowing, so tail never waits for this script.
+    tail.stdout.on("data", () => wake?.());
+  } else {
+    try {
+      watch(log, () => wake?.());
+    } catch (error) {
+      process.stderr.write(\`not watching \${log}, polling only: \${error}\n\`);
+    }
   }
   // A null generation is one the log did not name yet when it was found rotated: the next one it names is taken on.
   for (let position = from; ; ) {

@@ -21,7 +21,7 @@ import { DetachedChannel, inlineAppendLimit } from "./detached_channel";
 import { pumpArguments, runMetaToJson } from "./detached_run";
 import { type AttachTools, imageRefWindow } from "./follow";
 import { attachWindow, logLimits } from "./log_script";
-import type { InboxLine, RunChannel } from "./run_log";
+import { RunLogGap, type InboxLine, type RunChannel } from "./run_log";
 import { WindowsRunChannel } from "./windows_channel";
 
 useCore();
@@ -275,6 +275,65 @@ for (const kind of ["exec", "windows"] as const) {
       // About 40 KB through 16 KiB generations.
       expect(channel.generation).toBeGreaterThan(2);
       await channel.close();
+    }, 90_000);
+
+    test("a follower held back over two rotations sends what it read in order, then ends with the gap", async () => {
+      const channel = await attach();
+      const frames = new Frames(channel.lines);
+      const pump = Bun.spawn(
+        [
+          tools.bun,
+          tools.log,
+          "pump",
+          dir,
+          ...pumpArguments({
+            rotateAt: 256 << 10,
+            carry: 4096,
+            holdMs: 0,
+            markEvery: 64 << 10,
+            progressRate: logLimits.progressRate,
+          }).split(" "),
+        ],
+        { stdin: "pipe", stdout: "ignore", stderr: "pipe", env: { BUN_BE_BUN: "1" } },
+      );
+      const pumpErrors = new Response(pump.stderr).text();
+      let written = 0;
+      const write = async (count: number) => {
+        for (let i = 0; i < count; i++) {
+          pump.stdin.write(`{"type":"line","n":${written++},"pad":"${"p".repeat(1000)}"}\n`);
+        }
+        await pump.stdin.flush();
+      };
+      const generation = () => {
+        const head = fs.readFileSync(`${dir}/out.jsonl`, "latin1").slice(0, 80);
+        return Number(/^\{"type":"ompanion_rotate","generation":(\d+)/.exec(head)?.[1] ?? 1);
+      };
+      await write(10);
+      await frames.next((f) => f["n"] === 9);
+      // As a device that stopped reading (an app iOS suspended): the follow script stops, and the `tail -F` that wakes
+      // it fills its pipe and blocks before the pump's rotations.
+      const followers = splitLines(Bun.spawnSync(["ps", "-A", "-o", "pid=,command="]).stdout.toString())
+        .filter((line) => line.includes(tools.follow))
+        .map((line) => Number.parseInt(line.trim(), 10));
+      expect(followers.length).toBeGreaterThan(0);
+      for (const pid of followers) process.kill(pid, "SIGSTOP");
+      try {
+        const deadline = Date.now() + 30_000;
+        while (generation() < 3) {
+          if (Date.now() > deadline) throw new Error(`still generation ${generation()} after ${written} lines`);
+          await write(50);
+          await delay(50);
+        }
+      } finally {
+        for (const pid of followers) process.kill(pid, "SIGCONT");
+      }
+      await frames.ended();
+      expect(frames.error).toBeInstanceOf(RunLogGap);
+      expect(frames.frames.map((f) => f["n"])).toEqual(Array.from({ length: frames.frames.length }, (_, i) => i));
+      await channel.close();
+      await pump.stdin.end();
+      const code = await pump.exited;
+      if (code !== 0) throw new Error(`pump exited ${code}: ${await pumpErrors}`);
     }, 90_000);
 
     test("a first attach to a long log gets a compacted replay and follows the log from its end", async () => {
