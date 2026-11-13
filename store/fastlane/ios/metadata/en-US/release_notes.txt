@@ -1,19 +1,18 @@
-ompanion 2.0.1 polishes the 2.0 app after a review of every screen, and fixes races in sessions, goals and connections. It works with omp 18.3.1 and later and installs omp 18.16.0 on a machine that lacks it.
+ompanion 2.1.0 answers omp's form questions in the chat, opens an agent page's pictures in a zoomable image viewer, and reconnects at once when the app comes back to the front. It works with omp 18.3.1 and later and installs omp 18.16.0 on a machine that lacks it.
+
+New
+- Form questions: from omp 18.18.3 the ask tool can ask with one form, and the chat shows the whole form in place: choices, menus, text fields, lists, tables and pictures. Submit checks your answers and names the problem under each field
+- Single-choice and multiple-choice questions look apart: one choice is a pill in a shared track, several are separate tiles with check boxes and a count of the chosen ones
+- Agent pages: a tap on a picture opens it in the image viewer
+- The image viewer zooms: a bar with zoom out, actual size, zoom in and fit, and double tap for the image's pixels and back
+- When the interface hits an error it cannot recover from, it says so with Copy details and Reload, instead of a screen that no longer reacts
 
 Changed
-- Animations play faster, and menus fade in instead of unrolling row by row
-- A run waiting for your answer says so: "Needs your input" in the chat header, and a mark on the tool call waiting for approval
-- Approvals: approve once is the one filled button; buttons that do not fit in one row stack into a column, and a long request scrolls above them
-- The usage page is tidier: one toolbar line, a row only for the limits an account reports, and machines listed only when they need attention
-- A machine without sessions offers a new one, the home page offers to install omp on a machine that lacks it, and the terminal tab offers a new terminal
-- Files: a breadcrumb shows the current folder, wrapped lines start past their own indent, and a diff starts at its first hunk
-- The session tree marks the current position and dims the branches off its path
-- Message actions take a line of their own on iPhone instead of narrowing the message
-- Notices sit above the composer and stay under open dialogs
-- German: the strings added in 2.0.0 read consistently
+- Following a running session takes far less data: a run's log arrives compressed
 
 Fixed
-- Scrolling up in a chat while a reply streams is no longer pulled back to the bottom, and keeps its momentum
-- The context meter shows the figure omp's own footer shows
-- Goals continue after a compaction instead of waiting for you
-- A result that arrives after you moved on (another session, a closed dialog) no longer lands on the wrong screen, and syntax highlighting that failed to load loads again
+- When the app comes back to the front it checks every machine's connection, so one that died in the background reconnects within seconds instead of the chat showing nothing new for up to a minute
+- A chat that fell behind while the app was suspended no longer stays at an old message until the app restarts
+- Large sessions no longer reconnect with "channel failed" every few seconds
+- A fling through a long task keeps its place and its momentum instead of jumping back
+- Mention chips sit on the text's baseline
