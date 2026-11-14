@@ -579,7 +579,7 @@ jobs:
           persist-credentials: false
 
       - name: Download the builds
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: windows-build
           path: build
@@ -677,20 +677,20 @@ jobs:
           persist-credentials: false
 
       - name: Download the builds
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: windows-build
           path: build
 
       - name: Download the package
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: windows-package
           path: build/windows-package
 
       # The x64 seed, emulated: it writes the same data an arm64 build would.
       - name: Download the Flutter seed
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: flutter-seed-windows
           path: ${{ runner.temp }}/seed
