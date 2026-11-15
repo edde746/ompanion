@@ -1,5 +1,5 @@
 // Port of lib/screens/dock/agents/agent_hub_tab.dart.
-import { createEffect, createMemo, createSignal, For, Match, onSettled, Show, Switch } from "solid-js";
+import { createEffect, createMemo, createSignal, flush, For, Match, onSettled, Show, Switch } from "solid-js";
 import { call } from "../../../../bridge";
 import type { LiveSession } from "../../../../core/session/live_session";
 import { useDock, useImages, useSessions } from "../../../app_state";
@@ -103,7 +103,13 @@ function Roster(props: {
   readonly onToggleTree: () => void;
   readonly onSelect: (id: string) => void;
 }) {
-  const sections = createMemo(() => rosterSections(props.roster, { tree: props.tree }));
+  const items = createMemo(() => {
+    const { active, inactive } = rosterSections(props.roster, { tree: props.tree });
+    return [
+      ...sectionItems("active", t.dock.hub.active, active),
+      ...sectionItems("inactive", t.dock.hub.inactive, inactive),
+    ];
+  });
   return (
     <Show
       when={props.roster.length > 0}
@@ -124,29 +130,143 @@ function Roster(props: {
             onClick={() => props.onToggleTree()}
           />
         </div>
-        <div class="agent-hub-list">
-          <Section label={t.dock.hub.active} rows={sections().active} onSelect={props.onSelect} />
-          <Section label={t.dock.hub.inactive} rows={sections().inactive} onSelect={props.onSelect} />
-        </div>
+        <RosterList items={items()} onSelect={props.onSelect} />
       </div>
     </Show>
   );
 }
 
+/** How far beyond each edge of the list's view, in px, items are rendered, so a fast scroll shows no blank space. */
+const overscan = 600;
+/** An unmeasured tile's height: a name, a two-line subtitle and a usage line, as most agents have. */
+const tileEstimate = 84;
+/** An unmeasured section label's height. */
+const sectionEstimate = 28;
+
+/** A line of the roster list: a section's label, or an agent's tile. */
+type RosterItem =
+  | { readonly kind: "section"; readonly key: string; readonly label: string }
+  | { readonly kind: "tile"; readonly key: string; readonly row: RosterRow };
+
 /** "Active" or "Inactive" over its part of the roster, in line with the tiles' status icons; nothing without rows. */
-function Section(props: {
-  readonly label: string;
-  readonly rows: readonly RosterRow[];
+function sectionItems(name: string, label: string, rows: readonly RosterRow[]): RosterItem[] {
+  if (rows.length === 0) return [];
+  return [
+    { kind: "section", key: `section:${name}`, label },
+    ...rows.map((row): RosterItem => ({ kind: "tile", key: `agent:${row.agent.id}`, row })),
+  ];
+}
+
+/**
+ * The roster items in view of the scrolling list. A session keeps every subagent it ever ran (1,718 in one measured
+ * session), and a tile for each made every layout and hit test of the page slower: the chat dropped frames while it
+ * scrolled in WebKit. Tiles differ in height (a subtitle of one or two lines, a usage line or none), so an item counts
+ * the height it had when last rendered, else an estimate.
+ */
+function RosterList(props: { readonly items: readonly RosterItem[]; readonly onSelect: (id: string) => void }) {
+  const [scrollTop, setScrollTop] = createSignal(0);
+  const [height, setHeight] = createSignal(0);
+  const heights = new Map<string, number>();
+  const [measures, setMeasures] = createSignal(0);
+  let list!: HTMLDivElement;
+  const heightOf = (item: RosterItem) =>
+    heights.get(item.key) ?? (item.kind === "section" ? sectionEstimate : tileEstimate);
+  /** offsets[i] is the top of item i in the list, offsets[items.length] the list's height. */
+  const offsets = createMemo(() => {
+    measures();
+    const result = new Float64Array(props.items.length + 1);
+    props.items.forEach((item, index) => (result[index + 1] = result[index]! + heightOf(item)));
+    return result;
+  });
+  const indexes = createMemo(() => new Map(props.items.map((item, index) => [item.key, index])));
+  const range = createMemo(() => {
+    const starts = offsets();
+    return {
+      first: Math.max(0, firstAbove(starts, scrollTop() - overscan) - 1),
+      last: Math.min(props.items.length, firstAbove(starts, scrollTop() + height() + overscan)),
+    };
+  });
+  const measure = new ResizeObserver((records) => {
+    // The item at the top edge stays in place: items above it that measure other than they counted move the offset by
+    // the difference.
+    const top = firstAbove(offsets(), list.scrollTop) - 1;
+    let shift = 0;
+    let changed = false;
+    for (const record of records) {
+      const element = record.target as HTMLElement;
+      const index = indexes().get(element.dataset.key ?? "");
+      const item = index === undefined ? undefined : props.items[index];
+      // A removed element reports a size of zero.
+      if (index === undefined || item === undefined || !element.isConnected) continue;
+      const size = record.borderBoxSize[0]?.blockSize ?? element.getBoundingClientRect().height;
+      const counted = heightOf(item);
+      if (size === counted) continue;
+      heights.set(item.key, size);
+      changed = true;
+      if (index < top) shift += size - counted;
+    }
+    if (!changed) return;
+    setMeasures((value) => value + 1);
+    // The list's new height is laid out before the offset moves within it.
+    flush();
+    if (shift !== 0) list.scrollTop += shift;
+  });
+  onSettled(() => {
+    const observer = new ResizeObserver(() => setHeight(list.clientHeight));
+    observer.observe(list);
+    return () => {
+      observer.disconnect();
+      measure.disconnect();
+    };
+  });
+  return (
+    <div class="agent-hub-list" ref={list} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
+      <div style={{ height: `${offsets()[props.items.length]!}px` }}>
+        <div style={{ transform: `translateY(${offsets()[range().first]!}px)` }}>
+          <For each={props.items.slice(range().first, range().last)} keyed={(item) => item.key}>
+            {(item) => <RosterItemView item={item()} measure={measure} onSelect={props.onSelect} />}
+          </For>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** One item of the roster list, measured while it is rendered. */
+function RosterItemView(props: {
+  readonly item: RosterItem;
+  readonly measure: ResizeObserver;
   readonly onSelect: (id: string) => void;
 }) {
+  let element!: HTMLDivElement;
+  onSettled(() => {
+    props.measure.observe(element);
+    return () => props.measure.unobserve(element);
+  });
   return (
-    <Show when={props.rows.length > 0}>
-      <div class="agent-hub-section">{props.label}</div>
-      <For each={props.rows} keyed={(row) => row.agent.id}>
-        {(row) => <RosterTile row={row()} onSelect={props.onSelect} />}
-      </For>
-    </Show>
+    <div data-key={props.item.key} ref={element}>
+      <Switch>
+        <Match when={props.item.kind === "section" ? props.item : undefined}>
+          {(section) => <div class="agent-hub-section">{section().label}</div>}
+        </Match>
+        <Match when={props.item.kind === "tile" ? props.item : undefined}>
+          {(tile) => <RosterTile row={tile().row} onSelect={props.onSelect} />}
+        </Match>
+      </Switch>
+    </div>
   );
+}
+
+/** The first index whose value in the ascending `values` is above `target` (or values.length). */
+function firstAbove(values: Float64Array, target: number): number {
+  let low = 0;
+  let high = values.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (values[middle]! <= target) low = middle + 1;
+    else high = middle;
+  }
+  return low;
 }
 
 function RosterTile(props: { readonly row: RosterRow; readonly onSelect: (id: string) => void }) {

@@ -31,6 +31,8 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* The list keeps the item at the top edge in place itself; the browser's own anchoring would correct twice. */
+  overflow-anchor: none;
 }
 
 /* In line with the tiles' status icons. */
