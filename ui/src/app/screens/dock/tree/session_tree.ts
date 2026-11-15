@@ -4,6 +4,7 @@
  * into rows the way omp's `/tree` selector shows it (`tui/src/overlays/tree-selector.ts`).
  */
 import { describeJson, FormatException, isJsonObject, type JsonObject } from "../../../../core/rpc/json_fields";
+import { advisorTreeNotes } from "../../chat/transcript/advisor_notes";
 
 /** What an entry is, for its icon and prefix. */
 export type TreeEntryKind =
@@ -336,7 +337,7 @@ function decodeNode(node: JsonObject, toolCalls: ReadonlyMap<string, ToolCall>):
       const customType = stringOr(entry.customType, "");
       const text = joinText(entry.content);
       if (customType === "advisor") {
-        const { tags, notes } = advisorNotes(entry.details);
+        const { tags, notes } = advisorTreeNotes(entry.details);
         return make("advisor", notes, { advisorTags: tags });
       }
       return make("custom", `[${customType}]: ${text.replace(systemTag, "")}`, {
@@ -439,28 +440,6 @@ function decodeMessage(
     default:
       return make("other", `[${dartString(role)}] ${joinText(message.content)}`);
   }
-}
-
-/** The advisor's notes and their tags (`advisorTreeDisplay`, which shows `advisor (<tags>): <notes>`). */
-function advisorNotes(details: unknown): { tags: string; notes: string } {
-  const notes: string[] = [];
-  const advisors: string[] = [];
-  const severities: string[] = [];
-  if (isJsonObject(details) && Array.isArray(details.notes)) {
-    for (const note of details.notes) {
-      if (!isJsonObject(note)) continue;
-      if (typeof note.note === "string") notes.push(note.note);
-      const name = note.advisor;
-      if (typeof name === "string" && name.length > 0 && name !== "default" && !advisors.includes(name)) {
-        advisors.push(name);
-      }
-      const severity = note.severity;
-      if (typeof severity === "string" && severity.length > 0 && !severities.includes(severity)) {
-        severities.push(severity);
-      }
-    }
-  }
-  return { tags: [...advisors, ...severities].join(", "), notes: notes.join(" ") };
 }
 
 /**

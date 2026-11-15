@@ -1257,6 +1257,12 @@ export type Translations = {
     readonly skippedBinary: string;
     readonly backgroundResult: string;
     readonly delegated: string;
+    readonly advisor: string;
+    readonly advisorNotes: (args: { n: number }) => string;
+    readonly advisorBlockers: (args: { n: number }) => string;
+    readonly advisorNit: string;
+    readonly advisorConcern: string;
+    readonly advisorBlocker: string;
     readonly turn: {
       readonly workedFor: (args: { duration: Param }) => string;
       readonly worked: string;

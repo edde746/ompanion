@@ -27,6 +27,7 @@ import * as Symbols from "../../../widgets/symbols";
 import { tooltip } from "../../../widgets/tooltip";
 import type { TreeEntryKind } from "../../dock/tree/session_tree";
 import { mentionSpans } from "../mention_spans";
+import { type AdvisorNote, type AdvisorSeverity, resolveAdvisorNotes } from "./advisor_notes";
 import "./code_style.css";
 import { ImageStrip, TranscriptImage } from "./images_view";
 import { TranscriptMarkdown } from "./markdown";
@@ -575,6 +576,63 @@ function jobLabels(details: unknown): string[] {
   );
 }
 
+function advisorCardTitle(notes: readonly AdvisorNote[]): string {
+  const blockers = notes.filter((note) => note.severity === "blocker").length;
+  const meta = [t.transcript.advisorNotes({ n: notes.length })];
+  if (blockers > 0) meta.push(t.transcript.advisorBlockers({ n: blockers }));
+  return `${t.transcript.advisor} ${meta.join(" · ")}`;
+}
+
+function advisorSeverityLabel(severity: AdvisorSeverity | undefined): string {
+  switch (severity) {
+    case "blocker":
+      return t.transcript.advisorBlocker;
+    case "concern":
+      return t.transcript.advisorConcern;
+    default:
+      return t.transcript.advisorNit;
+  }
+}
+
+function advisorSource(note: AdvisorNote): string | undefined {
+  return note.advisor !== undefined && note.advisor !== "default" ? note.advisor : undefined;
+}
+
+function AdvisorMessage(props: { item: CustomItem }) {
+  const notes = createMemo(() => resolveAdvisorNotes(props.item.details, textOf(props.item.content)));
+  const expanded = createMemo(() => {
+    const list = notes();
+    if (list.some((note) => note.severity === "blocker")) return true;
+    return list.reduce((sum, note) => sum + note.note.length, 0) < 400;
+  });
+  return (
+    <Collapsible
+      storageKey={props.item.key}
+      icon={Symbols.rate_review}
+      title={advisorCardTitle(notes())}
+      initiallyExpanded={expanded()}
+    >
+      <div class="message-rows-advisor">
+        <For each={notes()}>
+          {(note) => (
+            <div class="message-rows-advisor-note">
+              <div class="message-rows-advisor-meta">
+                <span class={`message-rows-advisor-severity message-rows-advisor-${note.severity ?? "nit"}`}>
+                  {advisorSeverityLabel(note.severity)}
+                </span>
+                <Show when={advisorSource(note)}>
+                  {(name) => <span class="message-rows-advisor-who">{name()}</span>}
+                </Show>
+              </div>
+              <TranscriptMarkdown text={note.note} />
+            </div>
+          )}
+        </For>
+      </div>
+    </Collapsible>
+  );
+}
+
 function CustomMessage(props: { item: CustomItem }) {
   const text = createMemo(() => textOf(props.item.content));
   const images = createMemo(() => props.item.content.filter(isImageBlock));
@@ -598,6 +656,9 @@ function CustomMessage(props: { item: CustomItem }) {
         </Collapsible>
       }
     >
+      <Match when={props.item.customType === "advisor"}>
+        <AdvisorMessage item={props.item} />
+      </Match>
       <Match when={props.item.customType === "live-delegation"}>
         <TranscriptCard>
           <div class="message-rows-card-body">
