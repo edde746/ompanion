@@ -140,6 +140,7 @@ export type SidebarRowData =
   | ProjectRowData
   | SessionRowData
   | ShowMoreRowData
+  | HiddenOlderRowData
   | GapRowData;
 
 /** "Pinned", above the pinned sessions. */
@@ -203,6 +204,13 @@ export interface ShowMoreRowData {
   readonly hidden: number;
 }
 
+/** Sessions omitted by the age filter; a click reveals them for this view. */
+export interface HiddenOlderRowData {
+  readonly kind: "HiddenOlderRowData";
+  readonly hidden: number;
+  readonly revealing: boolean;
+}
+
 /** Space after the pinned sessions and after each machine's rows. */
 export interface GapRowData {
   readonly kind: "GapRowData";
@@ -228,6 +236,8 @@ export function sidebarRowKey(row: SidebarRowData): string {
       return `session:${row.machine.machine.id}:${row.entry.summary?.path ?? `open:${row.entry.session?.runId}`}`;
     case "ShowMoreRowData":
       return `more:${row.machine.machine.id}${row.cwd === undefined ? "" : `:${row.cwd}`}`;
+    case "HiddenOlderRowData":
+      return "older";
     case "GapRowData":
       return `gap:${row.machineId}`;
   }
@@ -252,6 +262,10 @@ export const shortListCount = 5;
  * With a `query` (case-insensitive, trimmed): only sessions whose `title` or project path holds it, every one of
  * them, under their machine row and their project's whatever the collapsed states; machines and projects without one
  * are left out, and so are notices. Pinned sessions stay when their title holds it.
+ *
+ * `hideEntry` omits those sessions from projects and lists (the age filter); pinned rows stay. `revealingOlder` lists
+ * them anyway. When any non-pinned session matches, a HiddenOlderRowData row follows the machines. A search ignores
+ * the age filter, so an old session is still findable.
  */
 export function sidebarRows(
   machines: readonly SidebarMachine[],
@@ -261,10 +275,16 @@ export function sidebarRows(
     showAll: (machineId: string, cwd: string | undefined) => boolean;
     title: (entry: SidebarEntry) => string;
     query?: string;
+    /** When true, `entry` is omitted from projects and session lists (an old idle session). */
+    hideEntry?: (entry: SidebarEntry) => boolean;
+    /** List sessions `hideEntry` would omit, and mark the older-hidden row as revealing them. */
+    revealingOlder?: boolean;
   },
 ): SidebarRowData[] {
   const { collapsed, showAll, title } = options;
+  const revealingOlder = options.revealingOlder === true;
   const needle = (options.query ?? "").trim().toLowerCase();
+  const hideEntry = needle === "" ? options.hideEntry : undefined;
   const rows: SidebarRowData[] = [];
   const byId = new Map(machines.map((machine) => [machine.machine.id, machine]));
   const pinned = new Set<string>();
@@ -293,6 +313,7 @@ export function sidebarRows(
     for (const entry of machine.entries) {
       const sessionId = sidebarEntrySessionId(entry);
       if (sessionId !== undefined && pinned.has(pinKey(id, sessionId))) continue;
+      if (hideEntry?.(entry) === true && !revealingOlder) continue;
       const cwd = sidebarEntryCwd(entry);
       if (scratchDirs.includes(cwd)) {
         unfiled.push(entry);
@@ -343,6 +364,20 @@ export function sidebarRows(
       if (!isCollapsed) rows.push(...sessionRows(machine, cwd, entries, showAll(id, cwd)));
     }
     rows.push({ kind: "GapRowData", machineId: id });
+  }
+  if (hideEntry !== undefined) {
+    let hiddenOlder = 0;
+    for (const machine of machines) {
+      const id = machine.machine.id;
+      for (const entry of machine.entries) {
+        const sessionId = sidebarEntrySessionId(entry);
+        if (sessionId !== undefined && pinned.has(pinKey(id, sessionId))) continue;
+        if (hideEntry(entry)) hiddenOlder++;
+      }
+    }
+    if (hiddenOlder > 0) {
+      rows.push({ kind: "HiddenOlderRowData", hidden: hiddenOlder, revealing: revealingOlder });
+    }
   }
   return rows;
 }

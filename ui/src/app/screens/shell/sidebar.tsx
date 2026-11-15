@@ -14,6 +14,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import type { LiveSession } from "../../../core/session/live_session";
 import type { MachineRuntime } from "../../../core/session/machine_runtime";
 import { useMachines, useSessionPins, useSessionReads, useSessions, useSettings, useShell } from "../../app_state";
 import { t } from "../../i18n/i18n";
@@ -29,6 +30,7 @@ import { Icon } from "../../widgets/icon";
 import { ListRow } from "../../widgets/list_row";
 import { showMenu } from "../../widgets/popup_menu";
 import { showSnackBar } from "../../widgets/snackbar";
+import { tooltip } from "../../widgets/tooltip";
 import * as Symbols from "../../widgets/symbols";
 import { describeConnectError } from "../machines/connect_dialogs";
 import {
@@ -42,6 +44,7 @@ import {
   ShowMoreRow,
 } from "../sessions/machine_sessions";
 import "./sidebar.css";
+import { sessionAgeMaxAgeMs, sessionHiddenByAge } from "./sidebar_age";
 import {
   entryUnread,
   markEntriesRead,
@@ -52,6 +55,7 @@ import {
   type SidebarEntry,
   sidebarEntries,
   sidebarEntryPath,
+  sidebarEntrySessionId,
   sidebarEntryTitle,
   sidebarMachineHome,
   type SidebarRowData,
@@ -90,6 +94,16 @@ function placeKey(machineId: string, cwd: string | undefined): string {
   return JSON.stringify([machineId, cwd ?? null]);
 }
 
+/** Whether `entry` is the session the center pane shows. */
+function entryIsSelected(entry: SidebarEntry, active: LiveSession | undefined): boolean {
+  if (active === undefined) return false;
+  if (entry.session === active) return true;
+  const sessionId = sidebarEntrySessionId(entry);
+  if (sessionId !== undefined && active.view.config.sessionId === sessionId) return true;
+  const path = sidebarEntryPath(entry);
+  return path !== undefined && active.sessionPath === path;
+}
+
 export function Sidebar(props: SidebarProps) {
   const shell = useShell();
   const machines = useMachines();
@@ -107,6 +121,14 @@ export function Sidebar(props: SidebarProps) {
   const [starting, setStarting] = createSignal<ReadonlySet<string>>(new Set());
   /** Session lists (`placeKey`) shown whole. */
   const [showAll, setShowAll] = createSignal<ReadonlySet<string>>(new Set());
+  /** List idle sessions the age filter would hide, until the setting changes or the user hides them again. */
+  const [showOlder, setShowOlder] = createSignal(false);
+  createEffect(
+    () => settings.get(Prefs.hideSessionsOlderThan),
+    () => {
+      setShowOlder(false);
+    },
+  );
   /** Counts the status changes of the machines' runtimes, which decide the machines' notices. */
   const [statusChanges, setStatusChanges] = createSignal(0);
   /** Runtimes whose first listing was asked for: an edit of a machine's route replaces its runtime and its listing. */
@@ -199,6 +221,10 @@ export function Sidebar(props: SidebarProps) {
   const tree = createMemo(() => {
     statusChanges();
     const open = sessions.openSessions();
+    const nowMs = Date.now();
+    const maxAgeMs = sessionAgeMaxAgeMs(settings.get(Prefs.hideSessionsOlderThan));
+    const revealingOlder = maxAgeMs !== undefined && showOlder();
+    const active = shell.selection().kind === "SessionSelection" ? sessions.active() : undefined;
     const rows = sidebarRows(
       machines.machines().map((machine) => {
         const listing = sessions.listingOf(machine);
@@ -219,9 +245,14 @@ export function Sidebar(props: SidebarProps) {
         showAll: (machineId, cwd) => showAll().has(placeKey(machineId, cwd)),
         title: sidebarEntryTitle,
         query: query(),
+        hideEntry:
+          maxAgeMs === undefined
+            ? undefined
+            : (entry) => sessionHiddenByAge(entry, { nowMs, maxAgeMs, selected: entryIsSelected(entry, active) }),
+        revealingOlder,
       },
     );
-    return { rows, nowMs: Date.now() };
+    return { rows, nowMs };
   });
 
   async function openEntry(machine: Machine, entry: SidebarEntry) {
@@ -507,6 +538,22 @@ export function Sidebar(props: SidebarProps) {
                           setShowAll((before) => new Set(before).add(placeKey(data().machine.machine.id, data().cwd)))
                         }
                       />
+                    )}
+                  </Match>
+                  <Match when={rowOf(row(), "HiddenOlderRowData")}>
+                    {(data) => (
+                      <ListRow onClick={() => setShowOlder(!data().revealing)}>
+                        <span
+                          class="sidebar-older"
+                          ref={tooltip(() =>
+                            data().revealing ? t.sidebar.hideOlderSessions : t.sidebar.showOlderSessions,
+                          )}
+                        >
+                          {data().revealing
+                            ? t.sidebar.hideOlderSessions
+                            : t.sidebar.olderHidden({ n: data().hidden })}
+                        </span>
+                      </ListRow>
                     )}
                   </Match>
                   <Match when={row().kind === "GapRowData"}>

@@ -409,6 +409,9 @@ export type Translations = {
     readonly searchHint: string;
     readonly noMatches: string;
     readonly pinned: string;
+    readonly olderHidden: (args: { n: Param }) => string;
+    readonly showOlderSessions: string;
+    readonly hideOlderSessions: string;
   };
   readonly machines: {
     readonly thisComputer: string;
@@ -615,6 +618,10 @@ export type Translations = {
     readonly editColors: string;
     readonly language: string;
     readonly languageSystem: string;
+    readonly sessions: string;
+    readonly hideSessionsOlderThan: string;
+    readonly sessionAgeOff: string;
+    readonly sessionAgeDays: (args: { n: Param }) => string;
     readonly customBase: (args: { base: Param }) => string;
     readonly customPicked: (args: { base: Param; count: Param }) => string;
     readonly buildChannel: string;

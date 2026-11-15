@@ -71,3 +71,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Age filter: how many idle sessions the list left out, or the control that puts them back. */
+.sidebar-older {
+  color: var(--on-surface-variant);
+  font: var(--label-medium);
+  letter-spacing: var(--label-medium-tracking);
+}

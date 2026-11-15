@@ -106,6 +106,10 @@ function fail(key: string, message: string): never {
   throw new FormatException(`setting ${key}: ${message}`);
 }
 
+/** How far back the sidebar lists idle sessions; `off` shows every one. */
+export const sessionAgeFilters = ["off", "7", "30", "60", "90", "365"] as const;
+export type SessionAgeFilter = (typeof sessionAgeFilters)[number];
+
 /** The key prefix of machine `machineId`'s `projectCollapsed` settings, which go with the machine. */
 function projectCollapsedPrefix(machineId: string): string {
   return `project_collapsed:${machineId}:`;
@@ -121,6 +125,12 @@ export const Prefs = {
   customTheme: palettePref("custom_theme", darkPalette),
 
   sidebarOpen: boolPref("sidebar_open", true),
+
+  /**
+   * Sidebar sessions older than this many days are hidden. `off` lists every session. Display-only: the files stay.
+   */
+  hideSessionsOlderThan: enumPref<SessionAgeFilter>("hide_sessions_older_than", "off", sessionAgeFilters),
+
   dockOpen: boolPref("dock_open", true),
   dockTab: enumPref<DockTab>("dock_tab", "agents", dockTabs),
 

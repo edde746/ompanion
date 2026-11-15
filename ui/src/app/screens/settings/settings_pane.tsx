@@ -13,6 +13,7 @@ import { KeysSection } from "../keys/keys_section";
 import { appShortcuts } from "../shell/shortcuts";
 import { AboutSection } from "./about_section";
 import { NotificationsSection } from "./notifications_section";
+import { SessionsSection } from "./sessions_section";
 import { SettingsCard, SettingsLinkRow } from "./settings_card";
 import "./settings_pane.css";
 import { shortcutList } from "./shortcut_list";
@@ -71,6 +72,7 @@ export function SettingsPane() {
           applyLanguage(language);
         }}
       />
+      <SessionsSection />
       <KeysSection />
       <div class="settings-pane-section" />
       <NotificationsSection />

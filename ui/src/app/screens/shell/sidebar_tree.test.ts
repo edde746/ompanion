@@ -111,6 +111,8 @@ function describeRows(rows: readonly SidebarRowData[]): string[] {
         return `session:${title(row.entry)}`;
       case "ShowMoreRowData":
         return `more:${row.hidden}`;
+      case "HiddenOlderRowData":
+        return `older:${row.hidden}${row.revealing ? " shown" : ""}`;
       case "GapRowData":
         return "gap";
     }

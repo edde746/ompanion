@@ -460,7 +460,10 @@
     "search": "Sitzungen durchsuchen",
     "searchHint": "Suchen",
     "noMatches": "Keine passenden Sitzungen.",
-    "pinned": "Angeheftet"
+    "pinned": "Angeheftet",
+    "olderHidden": "$n ältere ausgeblendet",
+    "showOlderSessions": "Ältere Sitzungen anzeigen",
+    "hideOlderSessions": "Ältere Sitzungen ausblenden"
   },
   "machines": {
     "thisComputer": "Dieser Computer",
@@ -670,6 +673,10 @@
     "editColors": "Farben bearbeiten",
     "language": "Sprache",
     "languageSystem": "System",
+    "sessions": "Sitzungen",
+    "hideSessionsOlderThan": "Sitzungen ausblenden, die älter sind als",
+    "sessionAgeOff": "Aus",
+    "sessionAgeDays": "$n Tage",
     "customBase": "$base (Basis)",
     "customPicked": "$base (Basis) · $count geändert",
     "buildChannel": "Build-Kanal",

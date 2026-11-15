@@ -439,7 +439,10 @@
     "search": "Search sessions",
     "searchHint": "Search",
     "noMatches": "No matching sessions.",
-    "pinned": "Pinned"
+    "pinned": "Pinned",
+    "olderHidden": "$n older hidden",
+    "showOlderSessions": "Show older sessions",
+    "hideOlderSessions": "Hide older sessions"
   },
   "machines": {
     "thisComputer": "This computer",
@@ -649,6 +652,10 @@
     "editColors": "Edit colors",
     "language": "Language",
     "languageSystem": "System",
+    "sessions": "Sessions",
+    "hideSessionsOlderThan": "Hide sessions older than",
+    "sessionAgeOff": "Off",
+    "sessionAgeDays": "$n days",
     "customBase": "$base base",
     "customPicked": "$base base · $count changed",
     "buildChannel": "Build channel",
