@@ -53,7 +53,13 @@ export function AppSearchField(props: AppSearchFieldProps) {
         queries.now(value);
         props.onSubmitted?.(value);
       }}
-      onKeyDown={(event) => props.onKeyDown?.(event)}
+      onKeyDown={(event) => {
+        props.onKeyDown?.(event);
+        if (event.defaultPrevented || event.key !== "Escape" || text() === "") return;
+        event.preventDefault();
+        setText("");
+        queries.now("");
+      }}
       onBlur={(event) => props.onBlur?.(event)}
       ref={(element) => {
         input = element;

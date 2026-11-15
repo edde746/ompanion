@@ -34,6 +34,7 @@ import { type DiffLine, parseUnifiedDiff } from "../../chat/transcript/diff";
 import { DiffView } from "../../chat/transcript/diff_view";
 import { syntaxHighlighting } from "./editor_syntax";
 import "./file_editor_view.css";
+import { confirmDiscardIfDirty } from "./discard_edits";
 import { findPanel } from "./find_panel";
 import { wrappedLines } from "./wrapped_indent";
 
@@ -51,7 +52,12 @@ type EditorAction = "find" | "wrap" | "reload" | "copyPath" | "close";
  * One open document: the editor (read-only for large, binary or non-UTF-8 files), save with a conflict check, and the
  * file's `git diff` against HEAD.
  */
-export function FileEditorView(props: { readonly workspace: FileWorkspace; readonly document: FileDocument }) {
+export function FileEditorView(props: {
+  readonly workspace: FileWorkspace;
+  readonly document: FileDocument;
+  /** When false, the document pills stay off: the Files tab's tab strip is showing them. Default true. */
+  readonly documentPills?: boolean;
+}) {
   const strings = () => t.dock.fileBrowser;
   const settings = useSettings();
   const [showDiff, setShowDiff] = createSignal(false);
@@ -133,22 +139,7 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
 
   const close = async () => {
     const document = props.document;
-    if (document.dirty()) {
-      const discard = await showDialog<boolean>((close) => (
-        <Dialog
-          title={strings().discardTitle({ name: baseName(document.path()) })}
-          actions={
-            <>
-              <TextButton onClick={() => close(false)}>{t.common.cancel}</TextButton>
-              <FilledButton onClick={() => close(true)}>{strings().discard}</FilledButton>
-            </>
-          }
-        >
-          {strings().discardBody}
-        </Dialog>
-      ));
-      if (discard !== true) return;
-    }
+    if (!(await confirmDiscardIfDirty(document))) return;
     props.workspace.closeDocument(document);
   };
 
@@ -251,7 +242,7 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
           onClick={() => void menu()}
         />
       </div>
-      <Show when={props.workspace.documents().length > 1}>
+      <Show when={(props.documentPills ?? true) && props.workspace.documents().length > 1}>
         <div class="file-editor-documents">
           <PillTabs
             value={props.document}

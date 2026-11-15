@@ -131,6 +131,18 @@ export const Prefs = {
   /** The file editor wraps long lines, so the dock's narrow pane and a phone show a whole line without scrolling. */
   editorWrapLines: boolPref("editor_wrap_lines", true),
 
+  /** The Files tab hides directories whose names start with `.`. Off at first, so listings stay complete. */
+  hideDotFolders: boolPref("hide_dot_folders", false),
+
+  /** The Files tab hides files whose names start with `.`. Off at first, so listings stay complete. */
+  hideDotFiles: boolPref("hide_dotfiles", false),
+
+  /**
+   * Open files are a tab strip (filename, close, dirty mark) instead of the open-files control and the editor's
+   * document pills. Off at first.
+   */
+  openFilesAsTabs: boolPref("open_files_as_tabs", false),
+
   /** The usage pane covers account emails, ids and organizations with a random mosaic, for screenshots. */
   usageHideIdentities: boolPref("usage_hide_identities", false),
 

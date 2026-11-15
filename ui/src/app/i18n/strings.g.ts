@@ -336,6 +336,8 @@ export type Translations = {
       readonly deleteLinkBody: string;
       readonly link: string;
       readonly emptyFolder: string;
+      readonly filterHint: string;
+      readonly filterEmpty: string;
       readonly listFailed: (args: { error: Param }) => string;
       readonly openDocuments: (args: { n: number }) => string;
       readonly openFailed: (args: { error: Param }) => string;
@@ -615,6 +617,11 @@ export type Translations = {
     readonly editColors: string;
     readonly language: string;
     readonly languageSystem: string;
+    readonly files: string;
+    readonly hideDotFolders: string;
+    readonly hideDotFiles: string;
+    readonly openFilesAsTabs: string;
+    readonly openFilesAsTabsDetail: string;
     readonly customBase: (args: { base: Param }) => string;
     readonly customPicked: (args: { base: Param; count: Param }) => string;
     readonly buildChannel: string;

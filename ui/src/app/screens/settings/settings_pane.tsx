@@ -13,7 +13,7 @@ import { KeysSection } from "../keys/keys_section";
 import { appShortcuts } from "../shell/shortcuts";
 import { AboutSection } from "./about_section";
 import { NotificationsSection } from "./notifications_section";
-import { SettingsCard, SettingsLinkRow } from "./settings_card";
+import { SettingsCard, SettingsLinkRow, SettingsSwitchRow } from "./settings_card";
 import "./settings_pane.css";
 import { shortcutList } from "./shortcut_list";
 import { openThemeEditor } from "./theme_editor_screen";
@@ -71,6 +71,25 @@ export function SettingsPane() {
           applyLanguage(language);
         }}
       />
+      <h2 class="settings-pane-heading settings-pane-section">{t.settings.files}</h2>
+      <SettingsCard>
+        <SettingsSwitchRow
+          label={t.settings.hideDotFolders}
+          value={settings.get(Prefs.hideDotFolders)}
+          onChanged={(value) => void settings.set(Prefs.hideDotFolders, value)}
+        />
+        <SettingsSwitchRow
+          label={t.settings.hideDotFiles}
+          value={settings.get(Prefs.hideDotFiles)}
+          onChanged={(value) => void settings.set(Prefs.hideDotFiles, value)}
+        />
+        <SettingsSwitchRow
+          label={t.settings.openFilesAsTabs}
+          detail={t.settings.openFilesAsTabsDetail}
+          value={settings.get(Prefs.openFilesAsTabs)}
+          onChanged={(value) => void settings.set(Prefs.openFilesAsTabs, value)}
+        />
+      </SettingsCard>
       <KeysSection />
       <div class="settings-pane-section" />
       <NotificationsSection />
