@@ -12,15 +12,11 @@
   padding: 4px 4px 0;
 }
 
-.file-editor-title {
+.file-editor-header .file-editor-crumbs {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  color: var(--on-surface);
-  font: var(--title-small);
-  letter-spacing: var(--title-small-tracking);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  height: auto;
+  padding: 0 4px;
 }
 
 .file-editor-dirty {

@@ -6,7 +6,7 @@ import type { LiveSession } from "../../../../core/session/live_session";
 import { HostFileExists } from "../../../../core/transport/host_link";
 import { useDock, useSessions, useSettings } from "../../../app_state";
 import type { FileDocument } from "../../../files/file_document";
-import { baseName, breadcrumbs, checkName, extensionOf, isRootPath, type NameProblem, parentPath } from "../../../files/file_paths";
+import { baseName, checkName, extensionOf, isRootPath, type NameProblem, parentPath } from "../../../files/file_paths";
 import type { BrowserRow, EntryRow, FileWorkspace } from "../../../files/file_workspace";
 import { type GitChange, gitStatusChangeOf } from "../../../files/git_status";
 import { t } from "../../../i18n/i18n";
@@ -30,6 +30,7 @@ import { DockEmptyState } from "../dock_empty_state";
 import { machineAccess } from "../machine_access";
 import { confirmDiscardIfDirty } from "./discard_edits";
 import { fileBrowserNoMatches, filterBrowserRows } from "./file_browser_filter";
+import { FileCrumbs } from "./file_crumbs_view";
 import "./files_tab.css";
 
 // CodeMirror comes with the editor, when a document opens.
@@ -275,7 +276,7 @@ function Browser(props: {
     >
       {(root) => (
         <div class="files-tab">
-          <Breadcrumbs
+          <FileCrumbs
             path={root()}
             home={props.workspace.homeDir()}
             onOpen={(dir) => void props.workspace.openDir(dir)}
@@ -567,40 +568,6 @@ function fileIcon(name: string): string {
     default:
       return Symbols.draft;
   }
-}
-
-/** The directories from `/`, or from `~` inside the home, down to `path`, the deepest one in view at the end. */
-function Breadcrumbs(props: {
-  readonly path: string;
-  readonly home: string | undefined;
-  readonly onOpen: (dir: string) => void;
-}) {
-  let strip!: HTMLDivElement;
-  const crumbs = createMemo(() => breadcrumbs(props.path, props.home));
-  createEffect(crumbs, () => {
-    strip.scrollLeft = strip.scrollWidth;
-  });
-  return (
-    <div class="files-tab-crumbs" ref={strip}>
-      <For each={crumbs()}>
-        {(crumb, index) => (
-          <>
-            <Show when={index() > 0}>
-              <Icon icon={Symbols.chevron_right} size={16} class="files-tab-crumb-separator" />
-            </Show>
-            <Show
-              when={index() < crumbs().length - 1}
-              fallback={<span class="files-tab-crumb files-tab-crumb-last">{crumb.label}</span>}
-            >
-              <button type="button" data-ripple class="files-tab-crumb" onClick={() => props.onOpen(crumb.path)}>
-                {crumb.label}
-              </button>
-            </Show>
-          </>
-        )}
-      </For>
-    </div>
-  );
 }
 
 /** Asks for a new name; undefined when cancelled. With `initial`, its stem is selected, as file managers do. */

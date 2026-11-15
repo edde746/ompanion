@@ -29,12 +29,12 @@ import { showMenu } from "../../../widgets/popup_menu";
 import { showSnackBar } from "../../../widgets/snackbar";
 import * as Symbols from "../../../widgets/symbols";
 import { PillTabs } from "../../../widgets/tabs";
-import { tooltip } from "../../../widgets/tooltip";
 import { type DiffLine, parseUnifiedDiff } from "../../chat/transcript/diff";
 import { DiffView } from "../../chat/transcript/diff_view";
 import { syntaxHighlighting } from "./editor_syntax";
 import "./file_editor_view.css";
 import { confirmDiscardIfDirty } from "./discard_edits";
+import { FileCrumbs } from "./file_crumbs_view";
 import { findPanel } from "./find_panel";
 import { wrappedLines } from "./wrapped_indent";
 
@@ -204,13 +204,22 @@ export function FileEditorView(props: {
       }}
     >
       <div class="file-editor-header">
-        <IconButton icon={Symbols.arrow_back} tooltip={strings().backToFiles} onClick={() => props.workspace.showBrowser()} />
-        <span class="file-editor-title" ref={tooltip(() => hostPath(props.document.path()))}>
-          {baseName(props.document.path())}
-          <Show when={props.document.dirty()}>
-            <span class="file-editor-dirty"> ●</span>
-          </Show>
-        </span>
+        <IconButton
+          icon={Symbols.arrow_back}
+          tooltip={strings().backToFiles}
+          onClick={() => props.workspace.showBrowser()}
+        />
+        <FileCrumbs
+          class="file-editor-crumbs"
+          path={props.document.path()}
+          home={props.workspace.homeDir()}
+          onOpen={(dir) => void props.workspace.openDir(dir)}
+          onRoot={() => props.workspace.showBrowser()}
+          rootTooltip={strings().backToFiles}
+        />
+        <Show when={props.document.dirty()}>
+          <span class="file-editor-dirty"> ●</span>
+        </Show>
         <Show when={canDiff()}>
           <IconButton
             icon={showDiff() ? Symbols.difference_fill : Symbols.difference}
