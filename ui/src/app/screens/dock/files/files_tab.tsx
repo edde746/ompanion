@@ -80,7 +80,12 @@ export function FilesTab(props: { readonly machine: Machine; readonly session: L
             </div>
           }
         >
-          <FileEditorView workspace={workspace()} document={document} />
+          <FileEditorView
+            workspace={workspace()}
+            document={document}
+            machine={props.machine}
+            session={props.session}
+          />
         </Loading>
       )}
     </Show>

@@ -347,6 +347,25 @@ export type Translations = {
       readonly find: string;
       readonly reload: string;
       readonly wrapLines: string;
+      readonly preview: string;
+      readonly showPreview: string;
+      readonly showSource: string;
+      readonly aliases: string;
+      readonly callout: {
+        readonly note: string;
+        readonly abstract: string;
+        readonly info: string;
+        readonly todo: string;
+        readonly tip: string;
+        readonly success: string;
+        readonly question: string;
+        readonly warning: string;
+        readonly failure: string;
+        readonly danger: string;
+        readonly bug: string;
+        readonly example: string;
+        readonly quote: string;
+      };
       readonly showDiff: string;
       readonly showFile: string;
       readonly conflictTitle: (args: { name: Param }) => string;

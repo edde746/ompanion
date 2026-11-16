@@ -11,9 +11,23 @@ import {
   keymap,
   lineNumbers,
 } from "@codemirror/view";
-import { createEffect, createMemo, createSignal, flush, Match, onSettled, Show, Switch, untrack } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  flush,
+  lazy,
+  Loading,
+  Match,
+  onSettled,
+  Show,
+  Switch,
+  untrack,
+} from "solid-js";
 import { call } from "../../../../bridge";
 import { hostPath } from "../../../../core/host/scripts";
+import type { LiveSession } from "../../../../core/session/live_session";
+import { isMarkdownPreviewFile } from "../../../../markdown/wikilink";
 import { useSettings } from "../../../app_state";
 import { FileChangedOnDisk, type FileDocument, maxEditableBytes } from "../../../files/file_document";
 import { languageFor } from "../../../files/file_language";
@@ -21,6 +35,7 @@ import { baseName } from "../../../files/file_paths";
 import type { FileWorkspace } from "../../../files/file_workspace";
 import { gitStatusChangeOf } from "../../../files/git_status";
 import { t } from "../../../i18n/i18n";
+import type { Machine } from "../../../models/machine";
 import { Prefs } from "../../../providers/settings_provider";
 import { ActivityMark } from "../../../widgets/activity_mark";
 import { FilledButton, IconButton, TextButton } from "../../../widgets/button";
@@ -37,6 +52,8 @@ import "./file_editor_view.css";
 import { findPanel } from "./find_panel";
 import { wrappedLines } from "./wrapped_indent";
 
+const FilePreview = lazy(() => import("./file_preview"), { export: "FilePreview" });
+
 /** Caps the rows a diff builds; DiffView lays out every row. */
 const maxDiffLines = 4000;
 
@@ -45,16 +62,24 @@ type GitDiffState =
   | { readonly kind: "loaded"; readonly lines: readonly DiffLine[] }
   | { readonly kind: "failed"; readonly error: unknown };
 
-type EditorAction = "find" | "wrap" | "reload" | "copyPath" | "close";
+type EditorAction = "find" | "wrap" | "preview" | "reload" | "copyPath" | "close";
 
 /**
  * One open document: the editor (read-only for large, binary or non-UTF-8 files), save with a conflict check, and the
- * file's `git diff` against HEAD.
+ * file's `git diff` against HEAD. Markdown files open in Preview.
  */
-export function FileEditorView(props: { readonly workspace: FileWorkspace; readonly document: FileDocument }) {
+export function FileEditorView(props: {
+  readonly workspace: FileWorkspace;
+  readonly document: FileDocument;
+  readonly machine: Machine;
+  readonly session: LiveSession | undefined;
+}) {
   const strings = () => t.dock.fileBrowser;
   const settings = useSettings();
   const [showDiff, setShowDiff] = createSignal(false);
+  const [showPreview, setShowPreview] = createSignal(
+    isMarkdownPreviewFile(baseName(untrack(() => props.document.path()))),
+  );
   const [diff, setDiff] = createSignal<GitDiffState>({ kind: "loading" });
   const [editor, setEditor] = createSignal<EditorView>();
   let diffRequest = 0;
@@ -66,6 +91,18 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
     return change !== undefined && change !== "untracked" && change !== "ignored";
   });
   const diffShown = () => showDiff() && canDiff();
+  const canPreview = () =>
+    isMarkdownPreviewFile(baseName(props.document.path())) && props.document.readOnlyReason() !== "binary";
+  const previewShown = () => canPreview() && showPreview() && !diffShown();
+
+  const togglePreview = () => {
+    if (previewShown()) {
+      setShowPreview(false);
+      return;
+    }
+    setShowDiff(false);
+    setShowPreview(true);
+  };
 
   const loadDiff = () => {
     const request = ++diffRequest;
@@ -158,6 +195,9 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
       items: [
         { value: "find", label: strings().find },
         { value: "wrap", label: strings().wrapLines, checked: settings.get(Prefs.editorWrapLines) },
+        ...(canPreview()
+          ? [{ value: "preview" as const, label: strings().preview, checked: previewShown() }]
+          : []),
         { value: "reload", label: strings().reload },
         { value: "copyPath", label: strings().copyPath },
         { value: "close", label: t.common.close },
@@ -166,6 +206,7 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
     switch (action) {
       case "find": {
         setShowDiff(false);
+        setShowPreview(false);
         // The editor must be on screen for the find field to take the focus.
         flush();
         const view = editor();
@@ -174,6 +215,9 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
       }
       case "wrap":
         void settings.set(Prefs.editorWrapLines, !settings.get(Prefs.editorWrapLines));
+        break;
+      case "preview":
+        togglePreview();
         break;
       case "reload":
         await reload();
@@ -220,6 +264,13 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
             <span class="file-editor-dirty"> ●</span>
           </Show>
         </span>
+        <Show when={canPreview()}>
+          <IconButton
+            icon={previewShown() ? Symbols.code : Symbols.visibility}
+            tooltip={previewShown() ? strings().showSource : strings().showPreview}
+            onClick={togglePreview}
+          />
+        </Show>
         <Show when={canDiff()}>
           <IconButton
             icon={showDiff() ? Symbols.difference_fill : Symbols.difference}
@@ -268,8 +319,23 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
         <Show when={diffShown()}>
           <GitDiff state={diff()} onRetry={loadDiff} />
         </Show>
+        <Show when={previewShown()}>
+          <Loading fallback={<div class="file-editor-center"><ActivityMark size={20} /></div>}>
+            <FilePreview
+              workspace={props.workspace}
+              document={props.document}
+              machine={props.machine}
+              session={props.session}
+            />
+          </Loading>
+        </Show>
         <Show when={props.document.readOnlyReason() !== "binary"}>
-          <Editor workspace={props.workspace} document={props.document} hidden={diffShown()} onView={setEditor} />
+          <Editor
+            workspace={props.workspace}
+            document={props.document}
+            hidden={diffShown() || previewShown()}
+            onView={setEditor}
+          />
         </Show>
       </div>
     </div>

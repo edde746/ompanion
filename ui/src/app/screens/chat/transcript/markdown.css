@@ -310,3 +310,119 @@
 .markdown-remote-image-failed {
   color: var(--error);
 }
+
+/* File preview Obsidian marks (docs/design.md, File editor). Chat never emits these classes. */
+.markdown-mark {
+  background: rgb(var(--on-surface-rgb) / 0.16);
+  color: inherit;
+  border-radius: 2px;
+}
+
+.markdown-tag {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--surface-container-high);
+  color: var(--on-surface-variant);
+  font: var(--label-small);
+  letter-spacing: var(--label-small-tracking);
+  white-space: nowrap;
+}
+
+.markdown-wikilink-missing {
+  color: var(--on-surface-variant);
+  text-decoration: none;
+  cursor: default;
+  opacity: 0.7;
+}
+
+.markdown-embed-image {
+  display: block;
+  max-width: 100%;
+}
+
+.markdown-embed-image .markdown-image {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-embed-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin: 4px 0;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--surface-container);
+  color: var(--on-surface);
+  font: var(--body-medium);
+  letter-spacing: var(--body-medium-tracking);
+  text-align: left;
+  cursor: pointer;
+}
+
+.markdown-embed-card > .icon {
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.markdown-embed-card.markdown-wikilink-missing {
+  cursor: default;
+  color: var(--on-surface-variant);
+}
+
+.markdown-callout {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: rgb(var(--on-surface-rgb) / 0.08);
+}
+
+.markdown-callout-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  font: var(--label-large);
+  letter-spacing: var(--label-large-tracking);
+  font-weight: 600;
+}
+
+.markdown-callout-head::-webkit-details-marker {
+  display: none;
+}
+
+.markdown-callout summary.markdown-callout-head {
+  cursor: pointer;
+  outline: none;
+}
+
+.markdown-callout-icon {
+  display: flex;
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.markdown-callout-warning .markdown-callout-icon,
+.markdown-callout-question .markdown-callout-icon {
+  color: var(--warning);
+}
+
+.markdown-callout-danger .markdown-callout-icon,
+.markdown-callout-failure .markdown-callout-icon,
+.markdown-callout-bug .markdown-callout-icon {
+  color: var(--error);
+}
+
+.markdown-callout-success .markdown-callout-icon {
+  color: var(--success);
+}
+
+.markdown-callout-body > *:first-child {
+  margin-top: 8px;
+}
+
+.markdown-callout-body > * + * {
+  margin-top: 8px;
+}

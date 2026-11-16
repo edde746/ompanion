@@ -22,18 +22,45 @@ import { tooltip } from "../app/widgets/tooltip";
 import { call } from "../bridge";
 import { asJsonObject, string } from "../core/rpc/json_fields";
 import { fitColumns, machineImagePath, type MarkdownBlock, type MarkdownTable, type TextAlign } from "./blocks";
+import { type Callout, isKnownCalloutType, parseCalloutLine } from "./callout";
 import type * as MathModule from "./math";
+import { applyObsidian } from "./obsidian_md";
+import { FilePreviewScope, requestPreviewHeading } from "./preview_scope";
+import {
+  headingId,
+  isImageFile,
+  type WikiLink,
+  wikiLinkLabel,
+} from "./wikilink";
 
 // `html: false`: text from a model never becomes markup in the app's page.
-const md = new MarkdownIt("default", { html: false, linkify: true });
-// gpt_markdown knows no indented code, setext headings or link reference definitions: such lines stay text.
-md.disable(["code", "lheading", "reference"]);
-// Links and images reach their handlers as written (machine paths with backslashes and spaces); the page never
-// navigates to them, so only scripts are refused.
-md.normalizeLink = (url) => url;
-md.validateLink = (url) => !/^\s*(?:javascript|vbscript):/i.test(url);
-md.inline.ruler.before("escape", "math_inline", mathInline);
-md.block.ruler.before("fence", "math_block", mathBlock, { alt: ["paragraph", "blockquote", "list"] });
+type Markdown = InstanceType<typeof MarkdownIt>;
+
+function createMd(): Markdown {
+  const instance = new MarkdownIt("default", { html: false, linkify: true });
+  // gpt_markdown knows no indented code, setext headings or link reference definitions: such lines stay text.
+  instance.disable(["code", "lheading", "reference"]);
+  // Links and images reach their handlers as written (machine paths with backslashes and spaces); the page never
+  // navigates to them, so only scripts are refused.
+  instance.normalizeLink = (url) => url;
+  instance.validateLink = (url) => !/^\s*(?:javascript|vbscript):/i.test(url);
+  instance.inline.ruler.before("escape", "math_inline", mathInline);
+  instance.block.ruler.before("fence", "math_block", mathBlock, { alt: ["paragraph", "blockquote", "list"] });
+  return instance;
+}
+
+const md = createMd();
+let fileMd: Markdown | undefined;
+
+function activeParser(): Markdown {
+  if (useContext(FilePreviewScope) == null) return md;
+  fileMd ??= (() => {
+    const instance = createMd();
+    applyObsidian(instance);
+    return instance;
+  })();
+  return fileMd;
+}
 
 /**
  * `\(…\)` inline and `\[…\]` display maths inside a line, as `rewriteDollarMath` writes `$` maths and as gpt_markdown
@@ -99,12 +126,12 @@ export function renderBlock(block: MarkdownBlock): JSX.Element {
       </TaskRow>
     );
   }
-  return renderBlocks(md.parse(block.text, {}), block.text.split("\n"));
+  return renderBlocks(activeParser().parse(block.text, {}), block.text.split("\n"));
 }
 
 /** Inline markdown `text`, as in a table cell or a task. */
 function renderInline(text: string): JSX.Element {
-  return renderInlines(md.parseInline(text, {})[0]?.children ?? []);
+  return renderInlines(activeParser().parseInline(text, {})[0]?.children ?? []);
 }
 
 /** The index of the token closing the one opened at `open`. */
@@ -118,27 +145,45 @@ function closing(tokens: readonly Token[], open: number): number {
 }
 
 /** Block tokens `from` to `to` (exclusive) of a block whose source has `lines`. */
-function renderBlocks(tokens: readonly Token[], lines: readonly string[], from = 0, to = tokens.length): JSX.Element[] {
+function renderBlocks(
+  tokens: readonly Token[],
+  lines: readonly string[],
+  from = 0,
+  to = tokens.length,
+  inHeading = false,
+): JSX.Element[] {
   const out: JSX.Element[] = [];
   for (let i = from; i < to; i++) {
     const token = tokens[i]!;
     if (token.nesting !== 1) {
-      out.push(renderLeaf(token, lines));
+      out.push(renderLeaf(token, lines, inHeading));
       continue;
     }
     const end = closing(tokens, i);
-    const inner = () => renderBlocks(tokens, lines, i + 1, end);
+    const inner = () => renderBlocks(tokens, lines, i + 1, end, inHeading || token.type === "heading_open");
     switch (token.type) {
       case "paragraph_open":
         // A tight list's paragraphs are hidden: their text sits in the item itself.
         out.push(token.hidden ? inner() : <p>{inner()}</p>);
         break;
       case "heading_open":
-        out.push(<Dynamic component={token.tag}>{inner()}</Dynamic>);
+        out.push(
+          <Dynamic component={token.tag} id={token.attrGet("id") || undefined}>
+            {inner()}
+          </Dynamic>,
+        );
         break;
-      case "blockquote_open":
-        out.push(<blockquote class="markdown-quote">{inner()}</blockquote>);
+      case "blockquote_open": {
+        const callout = fileCallout(tokens, i + 1, end);
+        out.push(
+          callout === undefined ? (
+            <blockquote class="markdown-quote">{inner()}</blockquote>
+          ) : (
+            <CalloutView callout={callout.callout}>{callout.body(tokens, lines)}</CalloutView>
+          ),
+        );
         break;
+      }
       case "bullet_list_open":
         out.push(<ul class="markdown-list">{inner()}</ul>);
         break;
@@ -159,10 +204,12 @@ function renderBlocks(tokens: readonly Token[], lines: readonly string[], from =
   return out;
 }
 
-function renderLeaf(token: Token, lines: readonly string[]): JSX.Element {
+function renderLeaf(token: Token, lines: readonly string[], inHeading = false): JSX.Element {
   switch (token.type) {
     case "inline":
-      return renderInlines(token.children ?? []);
+      return renderInlines(token.children ?? [], 0, token.children?.length ?? 0, inHeading);
+    case "obsidian_comment":
+      return undefined;
     case "fence":
       return (
         <CodeBlock
@@ -217,13 +264,13 @@ function renderItem(token: Token, tokens: readonly Token[], lines: readonly stri
   );
 }
 
-function renderInlines(tokens: readonly Token[], from = 0, to = tokens.length): JSX.Element[] {
+function renderInlines(tokens: readonly Token[], from = 0, to = tokens.length, inHeading = false): JSX.Element[] {
   const out: JSX.Element[] = [];
   for (let i = from; i < to; i++) {
     const token = tokens[i]!;
     if (token.nesting === 1) {
       const end = closing(tokens, i);
-      const inner = renderInlines(tokens, i + 1, end);
+      const inner = renderInlines(tokens, i + 1, end, inHeading);
       switch (token.type) {
         case "strong_open":
           out.push(<strong>{inner}</strong>);
@@ -261,6 +308,17 @@ function renderInlines(tokens: readonly Token[], from = 0, to = tokens.length): 
       case "math":
         out.push(<MathView tex={token.content} display={token.info === "display"} />);
         break;
+      case "obsidian_wikilink":
+        out.push(<WikiLinkView link={token.meta as unknown as WikiLink} />);
+        break;
+      case "obsidian_mark":
+        out.push(<mark class="markdown-mark">{renderInline(token.content)}</mark>);
+        break;
+      case "obsidian_tag":
+        out.push(inHeading ? `#${token.content}` : <span class="markdown-tag">#{token.content}</span>);
+        break;
+      case "obsidian_comment":
+        break;
     }
   }
   return out;
@@ -268,16 +326,218 @@ function renderInlines(tokens: readonly Token[], from = 0, to = tokens.length): 
 
 function Link(props: { href: string; children: JSX.Element }) {
   const scope = useContext(TranscriptScope);
+  const preview = useContext(FilePreviewScope);
   return (
     <a
       class="markdown-link"
       href={props.href}
       onClick={(event) => {
         event.preventDefault();
-        void openTranscriptLink(scope(), props.href);
+        const href = props.href;
+        if (href.startsWith("#") && preview != null) {
+          preview().scrollToHeading(headingId(decodeHash(href.slice(1))));
+          return;
+        }
+        void openTranscriptLink(scope(), href);
       }}
     >
       {props.children}
+    </a>
+  );
+}
+
+function decodeHash(hash: string): string {
+  try {
+    return decodeURIComponent(hash);
+  } catch {
+    return hash;
+  }
+}
+
+const calloutIcons: Record<string, string> = {
+  note: Symbols.info,
+  abstract: Symbols.article,
+  info: Symbols.info,
+  todo: Symbols.checklist,
+  tip: Symbols.bolt,
+  success: Symbols.check_circle_fill,
+  question: Symbols.help_fill,
+  warning: Symbols.warning,
+  failure: Symbols.cancel_fill,
+  danger: Symbols.error,
+  bug: Symbols.error,
+  example: Symbols.school,
+  quote: Symbols.notes,
+};
+
+function fileCallout(
+  tokens: readonly Token[],
+  from: number,
+  to: number,
+): { callout: Callout; body: (tokens: readonly Token[], lines: readonly string[]) => JSX.Element } | undefined {
+  if (useContext(FilePreviewScope) == null) return undefined;
+  const inline = firstInline(tokens, from, to);
+  if (inline === undefined) return undefined;
+  const newline = inline.content.indexOf("\n");
+  const firstLine = newline === -1 ? inline.content : inline.content.slice(0, newline);
+  const callout = parseCalloutLine(firstLine);
+  if (callout === undefined) return undefined;
+  const rest = newline === -1 ? "" : inline.content.slice(newline + 1);
+  return {
+    callout,
+    body: (all, lines) => {
+      const nodes: JSX.Element[] = [];
+      if (rest.trim() !== "") nodes.push(<p>{renderInline(rest)}</p>);
+      const firstParagraph = all[from]?.type === "paragraph_open" ? closing(all, from) + 1 : from;
+      nodes.push(...renderBlocks(all, lines, firstParagraph, to));
+      return nodes;
+    },
+  };
+}
+
+function firstInline(tokens: readonly Token[], from: number, to: number): Token | undefined {
+  for (let i = from; i < to; i++) {
+    if (tokens[i]!.type === "inline") return tokens[i];
+  }
+  return undefined;
+}
+
+function calloutTitle(type: string, custom: string | undefined): string {
+  if (custom !== undefined) return custom;
+  const titles = t.dock.fileBrowser.callout;
+  switch (type) {
+    case "note":
+      return titles.note;
+    case "abstract":
+      return titles.abstract;
+    case "info":
+      return titles.info;
+    case "todo":
+      return titles.todo;
+    case "tip":
+      return titles.tip;
+    case "success":
+      return titles.success;
+    case "question":
+      return titles.question;
+    case "warning":
+      return titles.warning;
+    case "failure":
+      return titles.failure;
+    case "danger":
+      return titles.danger;
+    case "bug":
+      return titles.bug;
+    case "example":
+      return titles.example;
+    case "quote":
+      return titles.quote;
+    default:
+      return type.length === 0 ? type : type[0]!.toUpperCase() + type.slice(1);
+  }
+}
+
+function CalloutView(props: { callout: Callout; children: JSX.Element }) {
+  const type = isKnownCalloutType(props.callout.type) ? props.callout.type : "note";
+  const icon = calloutIcons[type] ?? Symbols.info;
+  const fold = props.callout.fold;
+  const head = (
+    <>
+      <span class="markdown-callout-icon">
+        <Icon icon={icon} size={18} />
+      </span>
+      <span class="markdown-callout-title">{calloutTitle(props.callout.type, props.callout.title)}</span>
+    </>
+  );
+  if (fold === "none") {
+    return (
+      <div class={`markdown-callout markdown-callout-${type}`}>
+        <div class="markdown-callout-head">{head}</div>
+        <div class="markdown-callout-body">{props.children}</div>
+      </div>
+    );
+  }
+  return (
+    <details class={`markdown-callout markdown-callout-${type}`} open={fold === "open"}>
+      <summary class="markdown-callout-head" data-ripple>
+        {head}
+      </summary>
+      <div class="markdown-callout-body">{props.children}</div>
+    </details>
+  );
+}
+
+function WikiLinkView(props: { link: WikiLink }) {
+  const scope = useContext(TranscriptScope);
+  const preview = useContext(FilePreviewScope);
+  const link = props.link;
+  const label = wikiLinkLabel(link);
+  const value = () => (preview == null ? undefined : preview());
+  const resolved = () => (link.target === "" ? undefined : value()?.resolved.get(link.target));
+  const missing = () =>
+    link.target !== "" && value()?.resolved.has(link.target) === true && resolved() === undefined;
+  const open = () => {
+    const here = value()?.path;
+    const path = link.target === "" ? here : resolved();
+    if (link.heading !== undefined && here !== undefined && (link.target === "" || path === here)) {
+      value()?.scrollToHeading(headingId(link.heading));
+      return;
+    }
+    if (path === undefined) return;
+    if (link.heading !== undefined) requestPreviewHeading(path, link.heading);
+    void openTranscriptLink(scope(), path);
+  };
+  if (link.embed && isImageFile(link.target)) {
+    const path = resolved();
+    if (path === undefined) {
+      return (
+        <span
+          class={["markdown-wikilink", { "markdown-wikilink-missing": missing() }]}
+          ref={tooltip(() => link.target)}
+        >
+          {label}
+        </span>
+      );
+    }
+    const width = link.width;
+    return (
+      <span class="markdown-embed-image" style={width === undefined ? undefined : { "max-width": `${width}px` }}>
+        <MarkdownImage url={path} alt={label} />
+      </span>
+    );
+  }
+  if (link.embed) {
+    return (
+      <button
+        type="button"
+        class={["markdown-embed-card", { "markdown-wikilink-missing": missing() }]}
+        disabled={missing()}
+        ref={tooltip(() => link.target)}
+        onClick={open}
+      >
+        <Icon icon={Symbols.article} size={18} />
+        <span>{label}</span>
+      </button>
+    );
+  }
+  if (missing()) {
+    return (
+      <span class="markdown-link markdown-wikilink markdown-wikilink-missing" ref={tooltip(() => link.target)}>
+        {label}
+      </span>
+    );
+  }
+  return (
+    <a
+      class="markdown-link markdown-wikilink"
+      href="#"
+      ref={tooltip(() => link.target)}
+      onClick={(event) => {
+        event.preventDefault();
+        open();
+      }}
+    >
+      {label}
     </a>
   );
 }

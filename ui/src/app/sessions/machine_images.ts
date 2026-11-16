@@ -216,6 +216,21 @@ export class MachineImages {
     this.clock = options.clock ?? Date.now;
   }
 
+  /** Images of `machine` resolved against `cwd` (a markdown file's folder in the Files preview). */
+  forCwd(
+    machine: { readonly id: string },
+    runtime: MachineRuntime,
+    options: { cwd: string | undefined; sessionPath: string | undefined },
+  ): SessionImages {
+    let host = this.hosts.get(machine.id);
+    if (host === undefined || host.runtime !== runtime) {
+      host?.close();
+      host = new RuntimeImageHost(machine.id, runtime);
+      this.hosts.set(machine.id, host);
+    }
+    return new SessionImages(this, host, options);
+  }
+
   /** The images of `session`'s transcript, or undefined while its machine is unknown. */
   forSession<S extends { readonly cwd?: string; readonly sessionPath?: string }, M extends { readonly id: string }>(
     sessions: { machineOf(session: S): M | undefined; runtimeFor(machine: M): MachineRuntime },
@@ -223,14 +238,10 @@ export class MachineImages {
   ): SessionImages | undefined {
     const machine = sessions.machineOf(session);
     if (machine === undefined) return undefined;
-    const runtime = sessions.runtimeFor(machine);
-    let host = this.hosts.get(machine.id);
-    if (host === undefined || host.runtime !== runtime) {
-      host?.close();
-      host = new RuntimeImageHost(machine.id, runtime);
-      this.hosts.set(machine.id, host);
-    }
-    return new SessionImages(this, host, { cwd: session.cwd, sessionPath: session.sessionPath });
+    return this.forCwd(machine, sessions.runtimeFor(machine), {
+      cwd: session.cwd,
+      sessionPath: session.sessionPath,
+    });
   }
 
   /** The image last loaded for `path` (SFTP) on `host`, from memory only: the original when one was loaded. */
