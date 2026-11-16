@@ -319,7 +319,7 @@
   gap: 10px;
 }
 
-.message-rows-advisor-note {
+.message-rows-advisor-entry {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -336,6 +336,7 @@
   letter-spacing: var(--label-small-tracking);
 }
 
+.message-rows-advisor-note,
 .message-rows-advisor-nit {
   color: var(--on-surface-variant);
 }
@@ -348,6 +349,7 @@
   color: var(--error);
 }
 
+.message-rows-advisor-age,
 .message-rows-advisor-who {
   color: var(--on-surface-variant);
   font: 400 var(--chat-body-small-size, 12px) / 1.3333 var(--font-sans);

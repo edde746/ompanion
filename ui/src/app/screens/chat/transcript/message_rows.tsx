@@ -27,7 +27,7 @@ import * as Symbols from "../../../widgets/symbols";
 import { tooltip } from "../../../widgets/tooltip";
 import type { TreeEntryKind } from "../../dock/tree/session_tree";
 import { mentionSpans } from "../mention_spans";
-import { type AdvisorNote, type AdvisorSeverity, resolveAdvisorNotes } from "./advisor_notes";
+import { type AdvisorNote, type AdvisorSeverity, advisorNotesFromDetails } from "./advisor_notes";
 import "./code_style.css";
 import { ImageStrip, TranscriptImage } from "./images_view";
 import { TranscriptMarkdown } from "./markdown";
@@ -580,17 +580,23 @@ function advisorCardTitle(notes: readonly AdvisorNote[]): string {
   const blockers = notes.filter((note) => note.severity === "blocker").length;
   const meta = [t.transcript.advisorNotes({ n: notes.length })];
   if (blockers > 0) meta.push(t.transcript.advisorBlockers({ n: blockers }));
-  return `${t.transcript.advisor} ${meta.join(" · ")}`;
+  return [t.transcript.advisor, ...meta].join(" · ");
+}
+
+function advisorRank(severity: AdvisorSeverity | undefined): AdvisorSeverity {
+  return severity ?? "note";
 }
 
 function advisorSeverityLabel(severity: AdvisorSeverity | undefined): string {
-  switch (severity) {
+  switch (advisorRank(severity)) {
     case "blocker":
       return t.transcript.advisorBlocker;
     case "concern":
       return t.transcript.advisorConcern;
-    default:
+    case "nit":
       return t.transcript.advisorNit;
+    case "note":
+      return t.transcript.advisorNote;
   }
 }
 
@@ -598,10 +604,9 @@ function advisorSource(note: AdvisorNote): string | undefined {
   return note.advisor !== undefined && note.advisor !== "default" ? note.advisor : undefined;
 }
 
-function AdvisorMessage(props: { item: CustomItem }) {
-  const notes = createMemo(() => resolveAdvisorNotes(props.item.details, textOf(props.item.content)));
+function AdvisorMessage(props: { item: CustomItem; notes: readonly AdvisorNote[] }) {
   const expanded = createMemo(() => {
-    const list = notes();
+    const list = props.notes;
     if (list.some((note) => note.severity === "blocker")) return true;
     return list.reduce((sum, note) => sum + note.note.length, 0) < 400;
   });
@@ -609,17 +614,20 @@ function AdvisorMessage(props: { item: CustomItem }) {
     <Collapsible
       storageKey={props.item.key}
       icon={Symbols.rate_review}
-      title={advisorCardTitle(notes())}
+      title={advisorCardTitle(props.notes)}
       initiallyExpanded={expanded()}
     >
       <div class="message-rows-advisor">
-        <For each={notes()}>
+        <For each={props.notes}>
           {(note) => (
-            <div class="message-rows-advisor-note">
+            <div class="message-rows-advisor-entry">
               <div class="message-rows-advisor-meta">
-                <span class={`message-rows-advisor-severity message-rows-advisor-${note.severity ?? "nit"}`}>
+                <span class={`message-rows-advisor-severity message-rows-advisor-${advisorRank(note.severity)}`}>
                   {advisorSeverityLabel(note.severity)}
                 </span>
+                <Show when={typeof note.turnsAgo === "number"}>
+                  <span class="message-rows-advisor-age">{t.transcript.advisorTurnsAgo({ n: note.turnsAgo ?? 0 })}</span>
+                </Show>
                 <Show when={advisorSource(note)}>
                   {(name) => <span class="message-rows-advisor-who">{name()}</span>}
                 </Show>
@@ -636,6 +644,9 @@ function AdvisorMessage(props: { item: CustomItem }) {
 function CustomMessage(props: { item: CustomItem }) {
   const text = createMemo(() => textOf(props.item.content));
   const images = createMemo(() => props.item.content.filter(isImageBlock));
+  const advisorNotes = createMemo(() =>
+    props.item.customType === "advisor" ? advisorNotesFromDetails(props.item.details) : [],
+  );
   return (
     <Switch
       fallback={
@@ -656,8 +667,8 @@ function CustomMessage(props: { item: CustomItem }) {
         </Collapsible>
       }
     >
-      <Match when={props.item.customType === "advisor"}>
-        <AdvisorMessage item={props.item} />
+      <Match when={advisorNotes().length > 0 ? advisorNotes() : undefined}>
+        {(notes) => <AdvisorMessage item={props.item} notes={notes()} />}
       </Match>
       <Match when={props.item.customType === "live-delegation"}>
         <TranscriptCard>

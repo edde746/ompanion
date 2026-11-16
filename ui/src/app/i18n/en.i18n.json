@@ -1345,9 +1345,11 @@
       "one": "$n blocker",
       "other": "$n blockers"
     },
-    "advisorNit": "nit",
-    "advisorConcern": "concern",
-    "advisorBlocker": "blocker",
+    "advisorNote": "Note",
+    "advisorNit": "Nit",
+    "advisorConcern": "Concern",
+    "advisorBlocker": "Blocker",
+    "advisorTurnsAgo": "T-$n",
     "turn": {
       "workedFor": "Worked for $duration",
       "worked": "Worked",

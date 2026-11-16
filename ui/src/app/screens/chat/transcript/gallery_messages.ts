@@ -444,7 +444,7 @@ export function messageGallery(): TranscriptItem[] {
           {
             note: "The rate-limit tests cover the happy path; add a case for a full bucket.",
             advisor: "luna",
-            severity: "nit",
+            turnsAgo: 1,
           },
           {
             note: "p99 under load is asserted in comments, not in the k6 summary.",
