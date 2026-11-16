@@ -1,7 +1,7 @@
-ompanion 2.1.0 answers omp's form questions in the chat, opens an agent page's pictures in a zoomable image viewer, and uses far less data to follow a session. It works with omp 18.3.1 and later and installs omp 18.16.0 on a machine that lacks it.
+ompanion 2.2.0 previews Markdown files in the Files tab, shows omp's advisor notes as a card, and can hide projects that sat idle for a while. It works with omp 18.3.1 and later and installs omp 18.16.0 on a machine that lacks it.
 
-New: from omp 18.18.3 the ask tool can ask with one form, and the chat shows the whole form in place, with choices, menus, text fields, tables and pictures; Submit checks your answers and names the problem under each field. Single-choice and multiple-choice questions look apart. A click on a picture in an agent page opens it in the image viewer, which now zooms: a zoom bar, double click for the image's pixels, and the +, - and 0 keys. When the interface hits an error it cannot recover from, it says so with Copy details and Reload.
+New: a Markdown file in the Files tab opens as a preview, rendered as the chat renders replies, with front matter as a YAML block, relative links that open their files and relative images loaded from the machine; the preview button switches to the source and back. The Files toolbar hides or shows dotfiles, and Open folder in the editor's menu browses the open file's folder. omp's advisor notes show as a card instead of raw XML, each note with its severity, opened by itself when a note is a blocker. Settings → Hide idle projects (7, 30 or 90 days) clears projects whose sessions sat untouched that long from the sidebar; a row under each machine and the search still show them.
 
-Changed: a running session's log arrives compressed, 1.3 MB instead of 4.8 MB on a first open of a busy session.
+Changed: the chat no longer stutters while it scrolls during a reply in a session with many subagents.
 
-Fixed: when the window comes back to the front, the app checks every machine's connection, so one that died meanwhile reconnects within seconds. Large sessions no longer reconnect with "channel failed" every few seconds. Mention chips sit on the text's baseline.
+Fixed: a link to a heading in a file opens the file. The interface could halt with an error when a part of the screen closed while its data changed.
