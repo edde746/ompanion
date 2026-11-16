@@ -111,6 +111,10 @@ function projectCollapsedPrefix(machineId: string): string {
   return `project_collapsed:${machineId}:`;
 }
 
+/** The ages after which the sidebar leaves an idle project out (`projectIdle`), in days; `off` lists every project. */
+export const idleProjectDays = ["off", "7", "30", "90"] as const;
+export type IdleProjectDays = (typeof idleProjectDays)[number];
+
 export const Prefs = {
   themeMode: enumPref<AppThemeMode>("theme_mode", "system", appThemeModes),
 
@@ -121,6 +125,8 @@ export const Prefs = {
   customTheme: palettePref("custom_theme", darkPalette),
 
   sidebarOpen: boolPref("sidebar_open", true),
+  /** The sidebar leaves out projects whose sessions all sat untouched this long; a row under the machine shows them. */
+  hideIdleProjects: enumPref<IdleProjectDays>("hide_idle_projects", "off", idleProjectDays),
   dockOpen: boolPref("dock_open", true),
   dockTab: enumPref<DockTab>("dock_tab", "agents", dockTabs),
 

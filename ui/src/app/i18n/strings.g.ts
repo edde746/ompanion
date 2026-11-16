@@ -615,6 +615,10 @@ export type Translations = {
     readonly editColors: string;
     readonly language: string;
     readonly languageSystem: string;
+    readonly idleProjects: string;
+    readonly idleProjectsOff: string;
+    readonly idleProjectsDays: (args: { n: Param }) => string;
+    readonly idleProjectsDetail: string;
     readonly customBase: (args: { base: Param }) => string;
     readonly customPicked: (args: { base: Param; count: Param }) => string;
     readonly buildChannel: string;
@@ -863,6 +867,7 @@ export type Translations = {
     readonly untitled: string;
     readonly unknownDirectory: string;
     readonly showMore: (args: { n: Param }) => string;
+    readonly showIdleProjects: (args: { n: number }) => string;
     readonly working: string;
     readonly needsInput: string;
     readonly failed: string;

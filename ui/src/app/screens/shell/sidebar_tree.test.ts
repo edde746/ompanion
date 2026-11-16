@@ -16,6 +16,7 @@ import {
   liveSessionStatus,
   markEntriesRead,
   pinOf,
+  projectIdle,
   projectStatus,
   relativeTime,
   type SessionStatus,
@@ -26,6 +27,7 @@ import {
   sessionRowStates,
   shortListCount,
   sidebarEntries,
+  sidebarEntryCwd,
   sidebarEntryTitle,
   sidebarRowKey,
   sidebarRows,
@@ -111,6 +113,8 @@ function describeRows(rows: readonly SidebarRowData[]): string[] {
         return `session:${title(row.entry)}`;
       case "ShowMoreRowData":
         return `more:${row.hidden}`;
+      case "IdleProjectsRowData":
+        return `idle:${row.hidden}`;
       case "GapRowData":
         return "gap";
     }
@@ -119,13 +123,19 @@ function describeRows(rows: readonly SidebarRowData[]): string[] {
 
 function rows(
   machines: readonly SidebarMachine[],
-  options: { pins?: readonly PinnedSessionRow[]; collapsed?: readonly [string, string][]; query?: string } = {},
+  options: {
+    pins?: readonly PinnedSessionRow[];
+    collapsed?: readonly [string, string][];
+    idle?: readonly string[];
+    query?: string;
+  } = {},
 ): SidebarRowData[] {
   return sidebarRows(machines, {
     pins: options.pins,
     collapsed: (machineId, cwd) => (options.collapsed ?? []).some(([m, c]) => m === machineId && c === cwd),
     showAll: () => false,
     title,
+    idle: (_machineId, entries) => entries.every((entry) => (options.idle ?? []).includes(sidebarEntryCwd(entry))),
     query: options.query,
   });
 }
@@ -210,6 +220,43 @@ describe("sidebarRows", () => {
     // The row shows the path with the machine's home as ~.
     const project = found.find((row) => row.kind === "ProjectRowData");
     expect(project?.kind === "ProjectRowData" ? project.match : undefined).toEqual({ start: 0, end: 4 });
+  });
+
+  test("idle projects, collapsed or not, give way to one row after the machine's; a query still finds them", () => {
+    const box = machine("box", [
+      [app, "Fix the build"],
+      [lib, "Speed up the parser"],
+      ["/home/me/old", "Port to Rust"],
+    ]);
+    const idle = [lib, "/home/me/old"];
+    expect(describeRows(rows([box], { idle, collapsed: [["box", lib]] }))).toEqual([
+      "machine:box",
+      `project:${app}`,
+      "session:Fix the build",
+      "idle:2",
+      "gap",
+    ]);
+    expect(describeRows(rows([box], { idle: [app, ...idle] }))).toEqual(["machine:box", "idle:3", "gap"]);
+    expect(describeRows(rows([box], { idle, query: "rust" }))).toEqual([
+      "machine:box",
+      "project:/home/me/old",
+      "session:Port to Rust",
+      "gap",
+    ]);
+  });
+
+  test("a project is idle only while every session sat untouched past the age, none open, running or unread", () => {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const nowMs = september + 30 * dayMs;
+    const old: SidebarEntry = { summary: summary("box", app, "Old") };
+    const idle = (entries: readonly SidebarEntry[], unread = false) =>
+      projectIdle(entries, { nowMs, idleMs: 30 * dayMs - 1, unread: () => unread });
+    expect(idle([old])).toBe(true);
+    expect(projectIdle([old], { nowMs, idleMs: 30 * dayMs, unread: () => false })).toBe(false);
+    expect(idle([old, { summary: { ...summary("box", app, "New"), modifiedMs: nowMs } }])).toBe(false);
+    expect(idle([{ summary: { ...summary("box", app, "Running"), runId: "r" } }])).toBe(false);
+    expect(idle([{ ...old, session: openSession({}) }])).toBe(false);
+    expect(idle([old], true)).toBe(false);
   });
 
   test("a query without matches leaves no rows, and machines without matches go", () => {

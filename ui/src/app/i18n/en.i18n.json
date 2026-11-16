@@ -649,6 +649,10 @@
     "editColors": "Edit colors",
     "language": "Language",
     "languageSystem": "System",
+    "idleProjects": "Hide idle projects",
+    "idleProjectsOff": "Off",
+    "idleProjectsDays": "$n days",
+    "idleProjectsDetail": "Projects with no session active in that time leave the sidebar. A row under each machine and the search still show them.",
     "customBase": "$base base",
     "customPicked": "$base base · $count changed",
     "buildChannel": "Build channel",
@@ -897,6 +901,10 @@
     "untitled": "New session",
     "unknownDirectory": "Unknown directory",
     "showMore": "Show $n more",
+    "showIdleProjects": {
+      "one": "Show $n idle project",
+      "other": "Show $n idle projects"
+    },
     "working": "Working",
     "needsInput": "Needs your input",
     "failed": "The last run failed",

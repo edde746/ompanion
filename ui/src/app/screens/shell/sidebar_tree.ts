@@ -3,7 +3,7 @@
 // search filters it. Also the pure parts of lib/screens/sessions/machine_sessions.dart (`relativeTime`,
 // `SessionStatus`, `sidebarEntryTitle`, what a session row's mark says): bun tests cannot load a .tsx.
 import { hostProbeScratchDirs } from "../../../core/host/probe";
-import type { SessionSummary } from "../../../core/host/session_listing";
+import { type SessionSummary, sessionSummaryRunning } from "../../../core/host/session_listing";
 import type { LiveSession } from "../../../core/session/live_session";
 import type { MachineStatus } from "../../../core/session/machine_runtime";
 import { runStateStatus, type SessionView } from "../../../core/store/session_view";
@@ -140,6 +140,7 @@ export type SidebarRowData =
   | ProjectRowData
   | SessionRowData
   | ShowMoreRowData
+  | IdleProjectsRowData
   | GapRowData;
 
 /** "Pinned", above the pinned sessions. */
@@ -203,6 +204,13 @@ export interface ShowMoreRowData {
   readonly hidden: number;
 }
 
+/** "Show N idle projects" after a machine's projects, while `sidebarRows`'s `idle` leaves them out. */
+export interface IdleProjectsRowData {
+  readonly kind: "IdleProjectsRowData";
+  readonly machine: SidebarMachine;
+  readonly hidden: number;
+}
+
 /** Space after the pinned sessions and after each machine's rows. */
 export interface GapRowData {
   readonly kind: "GapRowData";
@@ -228,6 +236,8 @@ export function sidebarRowKey(row: SidebarRowData): string {
       return `session:${row.machine.machine.id}:${row.entry.summary?.path ?? `open:${row.entry.session?.runId}`}`;
     case "ShowMoreRowData":
       return `more:${row.machine.machine.id}${row.cwd === undefined ? "" : `:${row.cwd}`}`;
+    case "IdleProjectsRowData":
+      return `idle:${row.machine.machine.id}`;
     case "GapRowData":
       return `gap:${row.machineId}`;
   }
@@ -235,6 +245,24 @@ export function sidebarRowKey(row: SidebarRowData): string {
 
 /** Sessions listed per project before "Show more". */
 export const shortListCount = 5;
+
+/**
+ * Whether a project's sessions all sat untouched (their files' mtimes) for longer than `idleMs`, none of them open on
+ * this device, running on its machine or unread.
+ */
+export function projectIdle(
+  entries: readonly SidebarEntry[],
+  options: { readonly nowMs: number; readonly idleMs: number; readonly unread: (entry: SidebarEntry) => boolean },
+): boolean {
+  return entries.every(
+    (entry) =>
+      entry.session === undefined &&
+      entry.summary !== undefined &&
+      !sessionSummaryRunning(entry.summary) &&
+      options.nowMs - entry.summary.modifiedMs > options.idleMs &&
+      !options.unread(entry),
+  );
+}
 
 /**
  * The rows of `pins` and `machines` in order.
@@ -247,11 +275,12 @@ export const shortListCount = 5;
  * folder (those in one of `sidebarMachineScratchDirs`) and its projects (the other sessions grouped by working
  * directory, in order of their newest session); a project's sessions follow unless `collapsed` says so. Each list of
  * sessions holds the first `shortListCount` and every open one unless `showAll` has it (an undefined cwd for the
- * sessions without a folder), then "Show more".
+ * sessions without a folder), then "Show more". Projects `idle` says so for are left out; "Show N idle projects"
+ * follows the machine's projects instead.
  *
  * With a `query` (case-insensitive, trimmed): only sessions whose `title` or project path holds it, every one of
- * them, under their machine row and their project's whatever the collapsed states; machines and projects without one
- * are left out, and so are notices. Pinned sessions stay when their title holds it.
+ * them, under their machine row and their project's whatever the collapsed states and `idle`; machines and projects
+ * without one are left out, and so are notices. Pinned sessions stay when their title holds it.
  */
 export function sidebarRows(
   machines: readonly SidebarMachine[],
@@ -260,6 +289,8 @@ export function sidebarRows(
     collapsed: (machineId: string, cwd: string) => boolean;
     showAll: (machineId: string, cwd: string | undefined) => boolean;
     title: (entry: SidebarEntry) => string;
+    /** A project the sidebar leaves out unless a search finds it (`projectIdle`). */
+    idle?: (machineId: string, entries: readonly SidebarEntry[]) => boolean;
     query?: string;
   },
 ): SidebarRowData[] {
@@ -337,11 +368,17 @@ export function sidebarRows(
       rows.push({ kind: "EmptyRowData", machine });
     }
     rows.push(...sessionRows(machine, undefined, unfiled, showAll(id, undefined)));
+    let idle = 0;
     for (const [cwd, entries] of byCwd) {
+      if (options.idle?.(id, entries) === true) {
+        idle++;
+        continue;
+      }
       const isCollapsed = collapsed(id, cwd);
       rows.push({ kind: "ProjectRowData", machine, cwd, entries, collapsed: isCollapsed });
       if (!isCollapsed) rows.push(...sessionRows(machine, cwd, entries, showAll(id, cwd)));
     }
+    if (idle > 0) rows.push({ kind: "IdleProjectsRowData", machine, hidden: idle });
     rows.push({ kind: "GapRowData", machineId: id });
   }
   return rows;

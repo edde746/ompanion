@@ -334,6 +334,15 @@ export function ShowMoreRow(props: { readonly hidden: number; readonly onClick: 
   );
 }
 
+/** "Show N idle projects" after a machine's projects, at the projects' folder icons. */
+export function IdleProjectsRow(props: { readonly hidden: number; readonly onClick: () => void }) {
+  return (
+    <ListRow indent={projectIndent} onClick={() => props.onClick()}>
+      <span class="machine-sessions-more">{t.sessions.showIdleProjects({ n: props.hidden })}</span>
+    </ListRow>
+  );
+}
+
 /** `text` with the search `match` in it on a grey tone. */
 function MatchText(props: { readonly text: string; readonly match?: TextRange }) {
   return (

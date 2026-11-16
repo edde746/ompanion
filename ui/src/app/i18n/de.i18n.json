@@ -670,6 +670,10 @@
     "editColors": "Farben bearbeiten",
     "language": "Sprache",
     "languageSystem": "System",
+    "idleProjects": "Ruhende Projekte ausblenden",
+    "idleProjectsOff": "Aus",
+    "idleProjectsDays": "$n Tage",
+    "idleProjectsDetail": "Projekte ohne aktive Sitzung in dieser Zeit verschwinden aus der Seitenleiste. Eine Zeile unter jedem Rechner und die Suche zeigen sie weiter.",
     "customBase": "$base (Basis)",
     "customPicked": "$base (Basis) · $count geändert",
     "buildChannel": "Build-Kanal",
@@ -918,6 +922,10 @@
     "untitled": "Neue Sitzung",
     "unknownDirectory": "Unbekanntes Verzeichnis",
     "showMore": "$n weitere anzeigen",
+    "showIdleProjects": {
+      "one": "$n ruhendes Projekt anzeigen",
+      "other": "$n ruhende Projekte anzeigen"
+    },
     "working": "Arbeitet",
     "needsInput": "Braucht deine Eingabe",
     "failed": "Der letzte Lauf ist fehlgeschlagen",

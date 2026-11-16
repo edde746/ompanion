@@ -33,6 +33,7 @@ import * as Symbols from "../../widgets/symbols";
 import { describeConnectError } from "../machines/connect_dialogs";
 import {
   EmptyRow,
+  IdleProjectsRow,
   MachineHeader,
   NoticeRow,
   PinnedHeader,
@@ -48,6 +49,7 @@ import {
   type NoticeRowData,
   type PinnedRowData,
   pinOf,
+  projectIdle,
   type SessionRowData,
   type SidebarEntry,
   sidebarEntries,
@@ -107,6 +109,8 @@ export function Sidebar(props: SidebarProps) {
   const [starting, setStarting] = createSignal<ReadonlySet<string>>(new Set());
   /** Session lists (`placeKey`) shown whole. */
   const [showAll, setShowAll] = createSignal<ReadonlySet<string>>(new Set());
+  /** Machines whose idle projects the user asked to see. */
+  const [showIdle, setShowIdle] = createSignal<ReadonlySet<string>>(new Set());
   /** Counts the status changes of the machines' runtimes, which decide the machines' notices. */
   const [statusChanges, setStatusChanges] = createSignal(0);
   /** Runtimes whose first listing was asked for: an edit of a machine's route replaces its runtime and its listing. */
@@ -199,6 +203,9 @@ export function Sidebar(props: SidebarProps) {
   const tree = createMemo(() => {
     statusChanges();
     const open = sessions.openSessions();
+    const nowMs = Date.now();
+    const idleDays = settings.get(Prefs.hideIdleProjects);
+    const idleMs = idleDays === "off" ? undefined : Number(idleDays) * 24 * 60 * 60 * 1000;
     const rows = sidebarRows(
       machines.machines().map((machine) => {
         const listing = sessions.listingOf(machine);
@@ -218,10 +225,16 @@ export function Sidebar(props: SidebarProps) {
         collapsed: (machineId, cwd) => settings.get(Prefs.projectCollapsed(machineId, cwd)),
         showAll: (machineId, cwd) => showAll().has(placeKey(machineId, cwd)),
         title: sidebarEntryTitle,
+        idle:
+          idleMs === undefined
+            ? undefined
+            : (machineId, entries) =>
+                !showIdle().has(machineId) &&
+                projectIdle(entries, { nowMs, idleMs, unread: (entry) => entryUnread(reads, machineId, entry) }),
         query: query(),
       },
     );
-    return { rows, nowMs: Date.now() };
+    return { rows, nowMs };
   });
 
   async function openEntry(machine: Machine, entry: SidebarEntry) {
@@ -506,6 +519,14 @@ export function Sidebar(props: SidebarProps) {
                         onClick={() =>
                           setShowAll((before) => new Set(before).add(placeKey(data().machine.machine.id, data().cwd)))
                         }
+                      />
+                    )}
+                  </Match>
+                  <Match when={rowOf(row(), "IdleProjectsRowData")}>
+                    {(data) => (
+                      <IdleProjectsRow
+                        hidden={data().hidden}
+                        onClick={() => setShowIdle((before) => new Set(before).add(data().machine.machine.id))}
                       />
                     )}
                   </Match>

@@ -6,7 +6,7 @@ import { t, type Translations } from "../../i18n/i18n";
 import { type AppLanguage, appLanguages, applyLanguage, languageEndonyms } from "../../language";
 import { type AppPalette, type AppThemeMode, darkPalette, lightPalette } from "../../palette";
 import { isApple } from "../../platform";
-import { Prefs } from "../../providers/settings_provider";
+import { type IdleProjectDays, idleProjectDays, Prefs } from "../../providers/settings_provider";
 import { AppSegmented } from "../../widgets/app_segmented";
 import * as Symbols from "../../widgets/symbols";
 import { KeysSection } from "../keys/keys_section";
@@ -71,6 +71,17 @@ export function SettingsPane() {
           applyLanguage(language);
         }}
       />
+      <h2 class="settings-pane-heading settings-pane-section">{t.settings.idleProjects}</h2>
+      <AppSegmented<IdleProjectDays>
+        value={settings.get(Prefs.hideIdleProjects)}
+        segments={idleProjectDays.map((days) => ({
+          value: days,
+          label: days === "off" ? t.settings.idleProjectsOff : t.settings.idleProjectsDays({ n: days }),
+        }))}
+        onChanged={(days) => void settings.set(Prefs.hideIdleProjects, days)}
+      />
+      <div class="settings-pane-gap" />
+      <p class="settings-pane-muted">{t.settings.idleProjectsDetail}</p>
       <KeysSection />
       <div class="settings-pane-section" />
       <NotificationsSection />
