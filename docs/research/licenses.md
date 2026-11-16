@@ -54,9 +54,9 @@ TextMate bundle licence 2, BSD-3-Clause 1, BSD-2-Clause 1, ISC 1.
 - npm: CodeMirror, Lezer, Shiki, markdown-it, KaTeX, xterm.js, SolidJS and their dependencies (MIT, except `entities`
   BSD-2-Clause, `yaml` ISC, `@material-symbols/svg-400` Apache-2.0); `@fontsource-variable/jetbrains-mono` (OFL-1.1),
   now listed because its fonts are counted.
-- `solid-js` and `@solidjs/web` 2.0.0-rc.20 ship without a licence file: the MIT `LICENSE` sits at the root of the
+- `solid-js` and `@solidjs/web` 2.0.0-rc.22 ship without a licence file: the MIT `LICENSE` sits at the root of the
   `solidjs/solid` monorepo, and npm packs only `packages/solid` and `packages/web`. `ui/licenses/solid-js.txt` is that
-  file at tag `solid-js@2.0.0-rc.20`.
+  file at tag `solid-js@2.0.0-rc.22`.
 - Vendored: KaTeX's fonts (OFL-1.1: the name tables of all 20 fonts say "Copyright (c) 2009-2010, Design Science, Inc.
   … Copyright (c) 2014-2018 Khan Academy … licensed under the SIL Open Font License, Version 1.1"; the `katex` package
   itself is MIT), the `auto_awesome` glyph from google/material-design-icons (Apache-2.0), and `src/app/hct.ts`, a port

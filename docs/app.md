@@ -44,7 +44,7 @@ real-omp page scenario; `?gallery=transcript&fixture=pages` and `fixture=busy` s
 
 ## App conventions
 
-- Solid 2.0 (`solid-js@2.0.0-rc.20`). `ui/node_modules/solid-js/CHEATSHEET.md` (its end lists the 2.0 corrections)
+- Solid 2.0 (`solid-js@2.0.0-rc.22`). `ui/node_modules/solid-js/CHEATSHEET.md` (its end lists the 2.0 corrections)
   is the reference: it is not React and not Solid 1. An effect's callback runs every time its compute runs, with an
   equal value too: a callback that must run only on a change (a toggle's motion) reads a `createMemo`, which compares.
   A write that derives from a signal's value uses the updater form (`set((current) => …)`): a read, `untrack` too,
