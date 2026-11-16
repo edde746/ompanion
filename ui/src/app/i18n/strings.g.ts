@@ -347,7 +347,6 @@ export type Translations = {
       readonly find: string;
       readonly reload: string;
       readonly wrapLines: string;
-      readonly preview: string;
       readonly showPreview: string;
       readonly showSource: string;
       readonly aliases: string;

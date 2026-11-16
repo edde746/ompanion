@@ -199,6 +199,57 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: "markdown-toggle",
+    query: "gallery=files",
+    reach: async (context) => {
+      const { page, exec } = context;
+      await seedProject(context);
+      await browseProject(page);
+      await row(page, "README.md").click();
+      const preview = page.locator(".file-preview");
+      const source = page.locator(".cm-content");
+      const draft = "An unsaved Markdown paragraph.";
+      await preview.getByText("Uploads, rate limited per client.", { exact: true }).waitFor();
+
+      await page.getByRole("button", { name: "Source", exact: true }).click();
+      await source.click();
+      await page.keyboard.press("ControlOrMeta+End");
+      await page.keyboard.insertText(`\n${draft}\n`);
+      await page.locator(".file-editor-dirty").waitFor();
+      await page.getByRole("button", { name: "Preview", exact: true }).click();
+      await preview.getByText(draft, { exact: true }).waitFor();
+      const beforeSave = await exec('cat "$HOME/api-server/README.md"');
+      if (beforeSave.code !== 0 || beforeSave.stdout !== files["README.md"]) {
+        throw new Error("switching to preview wrote the draft to disk");
+      }
+
+      await preview.click({ button: "right" });
+      await page.getByRole("menuitem", { name: "Source", exact: true }).click();
+      await source.getByText(draft, { exact: true }).waitFor();
+      await source.click();
+      await page.keyboard.press("ControlOrMeta+z");
+      await page.locator(".file-editor-dirty").waitFor({ state: "detached" });
+      await source.click({ button: "right" });
+      await page.getByRole("menuitem", { name: "Preview", exact: true }).click();
+      await preview.getByText("Uploads, rate limited per client.", { exact: true }).waitFor();
+      if ((await preview.textContent())?.includes(draft)) throw new Error("preview kept the undone draft");
+
+      await page.getByRole("button", { name: "Source", exact: true }).click();
+      await source.click();
+      await page.keyboard.press("ControlOrMeta+End");
+      await page.keyboard.insertText(`\n${draft}\n`);
+      await source.click({ button: "right" });
+      await page.getByRole("menuitem", { name: "Preview", exact: true }).click();
+      await preview.getByText(draft, { exact: true }).waitFor();
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.locator(".file-editor-dirty").waitFor({ state: "detached" });
+      const saved = await exec('cat "$HOME/api-server/README.md"');
+      if (saved.code !== 0 || saved.stdout !== `${files["README.md"]}\n${draft}\n`) {
+        throw new Error(`README.md after saving from preview: ${JSON.stringify(saved.stdout)}`);
+      }
+    },
+  },
+  {
     name: "saved",
     query: "gallery=files",
     reach: async (context) => {

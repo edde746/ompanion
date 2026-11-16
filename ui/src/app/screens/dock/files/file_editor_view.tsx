@@ -189,14 +189,16 @@ export function FileEditorView(props: {
     props.workspace.closeDocument(document);
   };
 
-  const menu = async () => {
+  const previewLabel = () => (previewShown() ? strings().showSource : strings().showPreview);
+
+  const menu = async (anchor: HTMLElement | { readonly x: number; readonly y: number } = moreButton) => {
     const action = await showMenu<EditorAction>({
-      anchor: moreButton,
+      anchor,
       items: [
         { value: "find", label: strings().find },
         { value: "wrap", label: strings().wrapLines, checked: settings.get(Prefs.editorWrapLines) },
         ...(canPreview()
-          ? [{ value: "preview" as const, label: strings().preview, checked: previewShown() }]
+          ? [{ value: "preview" as const, label: previewLabel() }]
           : []),
         { value: "reload", label: strings().reload },
         { value: "copyPath", label: strings().copyPath },
@@ -267,7 +269,7 @@ export function FileEditorView(props: {
         <Show when={canPreview()}>
           <IconButton
             icon={previewShown() ? Symbols.code : Symbols.visibility}
-            tooltip={previewShown() ? strings().showSource : strings().showPreview}
+            tooltip={previewLabel()}
             onClick={togglePreview}
           />
         </Show>
@@ -315,7 +317,16 @@ export function FileEditorView(props: {
         </div>
       </Show>
       <Show when={readOnlyNotice()}>{(notice) => <p class="file-editor-notice">{notice()}</p>}</Show>
-      <div class="file-editor-body">
+      <div
+        class="file-editor-body"
+        onContextMenu={(event) => {
+          if (!canPreview()) return;
+          event.preventDefault();
+          void menu({ x: event.clientX, y: event.clientY }).catch((error: unknown) =>
+            showSnackBar(strings().failed({ error: String(error) })),
+          );
+        }}
+      >
         <Show when={diffShown()}>
           <GitDiff state={diff()} onRetry={loadDiff} />
         </Show>
