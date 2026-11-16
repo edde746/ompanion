@@ -586,16 +586,28 @@ function decoded(target: string): string {
 }
 
 /**
+ * A URL's fragment as markdown writes one (`#L12`, `#install`, `#über-uns`, GitHub's anchor alphabet). A `#` followed
+ * by anything else is part of a machine path the model wrote as is (`src/C#/Program.cs`, `notes#1.md`).
+ */
+const fragment = /#([\p{L}\p{N}_%-]*)$/u;
+
+/** `target` without its {@link fragment}. */
+function withoutFragment(target: string): string {
+  const hash = fragment.exec(target);
+  return hash === null ? target : target.substring(0, hash.index);
+}
+
+/**
  * The machine path a markdown image names: an absolute POSIX or Windows path, `~/…`, a path relative to the session's
  * directory, or a `file:` URL (its host ignored). Undefined for `data:`, web and any other URL. Percent-escapes are
- * decoded, since a markdown image URL cannot hold a space.
+ * decoded, since a markdown image URL cannot hold a space; a fragment (`logo.png#gh-dark-mode-only`) goes.
  */
 export function machineImagePath(src: string): string | undefined {
   const target = src.trim();
   if (target === "") return undefined;
-  if (windowsPath.test(target)) return decoded(target);
+  if (windowsPath.test(target)) return decoded(withoutFragment(target));
   const scheme = uriScheme.exec(target)?.[1]?.toLowerCase();
-  if (scheme === undefined) return decoded(target);
+  if (scheme === undefined) return decoded(withoutFragment(target));
   if (scheme !== "file") return undefined;
   // `file:///C:/x` names the Windows path `C:/x`.
   const path = decoded(target.replace(/^file:(?:\/\/[^/]*)?/i, "").replace(/[?#][^]*$/, ""));
@@ -611,17 +623,17 @@ export type LinkTarget =
 
 /**
  * A path (no scheme, `file:`, or `name.ext:12`, which parses as a scheme) opens as a file of the session's machine,
- * with a `#L12` or `:12` suffix as the line; anything else is an external link. A `#` starts the URL's fragment, so any
- * other fragment (a heading) goes and `%23` stays in a name. Undefined when there is nothing to open (`#heading`).
+ * with a `#L12` or `:12` suffix as the line; anything else is an external link. Any other {@link fragment} (a heading)
+ * goes before percent-decoding, so `%23` stays in a name. Undefined when there is nothing to open (`#heading`).
  */
 export function transcriptLinkTarget(url: string): LinkTarget | undefined {
   const target = url.trim();
   const scheme = uriScheme.exec(target)?.[1] ?? "";
   if (scheme === "" || scheme.toLowerCase() === "file" || scheme.includes(".") || scheme.length === 1) {
-    const hash = target.indexOf("#");
-    const match = fileLink.exec(decoded(hash < 0 ? target : target.substring(0, hash)));
+    const hash = fragment.exec(target);
+    const match = fileLink.exec(decoded(hash === null ? target : target.substring(0, hash.index)));
     if (!match) return undefined;
-    const line = (hash < 0 ? undefined : /^L(\d+)(?:-L?\d+)?$/.exec(target.substring(hash + 1))?.[1]) ?? match[2];
+    const line = (hash === null ? undefined : /^L(\d+)(?:-L?\d+)?$/.exec(hash[1]!)?.[1]) ?? match[2];
     return { kind: "file", path: match[1]!, line: line === undefined ? undefined : Number(line) };
   }
   return { kind: "external", url: target };

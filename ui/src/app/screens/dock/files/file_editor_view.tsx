@@ -52,7 +52,7 @@ type GitDiffState =
   | { readonly kind: "loaded"; readonly lines: readonly DiffLine[] }
   | { readonly kind: "failed"; readonly error: unknown };
 
-type EditorAction = "find" | "wrap" | "reload" | "showInFolder" | "copyPath" | "close";
+type EditorAction = "find" | "wrap" | "reload" | "openFolder" | "copyPath" | "close";
 
 /**
  * One open document: the editor (read-only for large, binary or non-UTF-8 files), save with a conflict check, the
@@ -66,19 +66,22 @@ export function FileEditorView(props: {
   const strings = () => t.dock.fileBrowser;
   const settings = useSettings();
   const [showDiff, setShowDiff] = createSignal(false);
+  // A truncated prefix (too large) or a binary file has no preview.
   const previewable = createMemo(
     () =>
       ["md", "markdown"].includes(extensionOf(baseName(props.document.path()))) &&
-      props.document.readOnlyReason() !== "binary",
+      props.document.readOnlyReason() !== "binary" &&
+      props.document.readOnlyReason() !== "tooLarge",
   );
+  // A new or empty file, a line asked for, or unsaved edits (the view comes back when the dock or the file switches)
+  // open in the source.
   const [showPreview, setShowPreview] = createSignal(
-    untrack(
-      () =>
-        previewable() &&
-        props.document.pendingLine === undefined &&
-        !props.document.readOnly() &&
-        props.document.text().length <= maxPreviewChars,
-    ),
+    untrack(() => {
+      const document = props.document;
+      if (!previewable() || document.pendingLine !== undefined || document.readOnly() || document.dirty()) return false;
+      const text = document.text();
+      return text.trim() !== "" && text.length <= maxPreviewChars;
+    }),
   );
   const [diff, setDiff] = createSignal<GitDiffState>({ kind: "loading" });
   const [editor, setEditor] = createSignal<EditorView>();
@@ -190,7 +193,7 @@ export function FileEditorView(props: {
         { value: "find", label: strings().find },
         { value: "wrap", label: strings().wrapLines, checked: settings.get(Prefs.editorWrapLines) },
         { value: "reload", label: strings().reload },
-        { value: "showInFolder", label: strings().showInFolder },
+        { value: "openFolder", label: strings().openFolder },
         { value: "copyPath", label: strings().copyPath },
         { value: "close", label: t.common.close },
       ],
@@ -211,7 +214,7 @@ export function FileEditorView(props: {
       case "reload":
         await reload();
         break;
-      case "showInFolder":
+      case "openFolder":
         await props.workspace.openDir(parentPath(props.document.path()));
         break;
       case "copyPath":
@@ -360,8 +363,9 @@ const editorTheme = EditorView.theme({
 });
 
 /**
- * A Markdown file rendered as the transcript renders Markdown: relative links open beside it in the Files tab, relative
- * images load from its folder, web images wait for a tap. It follows a reload; an edit shows once it is shown again.
+ * A Markdown file rendered as the transcript renders Markdown, but with a paragraph's lines joined as CommonMark joins
+ * them: relative links open beside it in the Files tab, relative images load from its folder, web images wait for a
+ * tap. It follows a reload; an edit shows once it is shown again.
  */
 function MarkdownPreview(props: {
   readonly workspace: FileWorkspace;
@@ -372,7 +376,7 @@ function MarkdownPreview(props: {
   const images = useImages();
   const text = createMemo(() => {
     props.document.revision();
-    return frontMatterAsCode(untrack(() => props.document.text()));
+    return frontMatterAsCode(props.document.text());
   });
   const actions = createMemo((): TranscriptActions => {
     const workspace = props.workspace;
@@ -398,7 +402,7 @@ function MarkdownPreview(props: {
   return (
     <div class="file-editor-preview">
       <TranscriptScope value={actions}>
-        <TranscriptMarkdown text={text()} />
+        <TranscriptMarkdown text={text()} joinLines />
       </TranscriptScope>
     </div>
   );

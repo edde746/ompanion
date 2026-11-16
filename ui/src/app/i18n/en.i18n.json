@@ -364,6 +364,10 @@
       "deleteLinkBody": "The symbolic link is deleted from the machine. What it points to stays.",
       "link": "Symbolic link",
       "emptyFolder": "Empty folder",
+      "onlyDotfiles": {
+        "one": "$n hidden dotfile",
+        "other": "$n hidden dotfiles"
+      },
       "listFailed": "Could not list: $error",
       "openDocuments": {
         "one": "$n open file",
@@ -382,7 +386,7 @@
       "showFile": "Show file",
       "showPreview": "Show preview",
       "showSource": "Show source",
-      "showInFolder": "Show in folder",
+      "openFolder": "Open folder",
       "showDotfiles": "Show dotfiles",
       "hideDotfiles": "Hide dotfiles",
       "conflictTitle": "$name changed on the machine",

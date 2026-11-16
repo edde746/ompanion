@@ -194,6 +194,7 @@ describe("images", () => {
     expect(machineImagePath("https://example.com/a.png")).toBeUndefined();
     expect(machineImagePath("ftp://example.com/a.png")).toBeUndefined();
     expect(machineImagePath("")).toBeUndefined();
+    expect(machineImagePath("docs/logo.png#gh-dark-mode-only")).toBe("docs/logo.png");
   });
 });
 
@@ -278,9 +279,11 @@ describe("links", () => {
     expect(transcriptLinkTarget("100%.md")).toEqual({ kind: "file", path: "100%.md", line: undefined });
   });
 
-  test("any other fragment (a heading) goes, before percent-decoding; a link to a heading alone opens nothing", () => {
-    expect(transcriptLinkTarget("docs/api.md#api/v1")).toEqual({ kind: "file", path: "docs/api.md", line: undefined });
+  test("an anchor fragment (a heading) goes before percent-decoding; any other # stays in the path", () => {
+    expect(transcriptLinkTarget("docs/a.md#über-uns")).toEqual({ kind: "file", path: "docs/a.md", line: undefined });
     expect(transcriptLinkTarget("issue%2312.md#notes")).toEqual({ kind: "file", path: "issue#12.md", line: undefined });
+    expect(transcriptLinkTarget("src/C#/Program.cs:12")).toEqual({ kind: "file", path: "src/C#/Program.cs", line: 12 });
+    expect(transcriptLinkTarget("notes#1.md")).toEqual({ kind: "file", path: "notes#1.md", line: undefined });
     expect(transcriptLinkTarget("#installation")).toBeUndefined();
   });
 });

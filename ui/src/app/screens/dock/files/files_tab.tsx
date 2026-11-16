@@ -235,15 +235,17 @@ function Browser(props: { readonly workspace: FileWorkspace; readonly onOpen: (p
             />
             <span class="files-tab-spacer" />
             <Show when={props.workspace.documents().length > 0}>
+              {/* The count alone, so the toolbar fits the dock's narrowest width in every language. */}
               <TextButton
                 icon={Symbols.description}
+                tooltip={strings().openDocuments({ n: props.workspace.documents().length })}
                 onClick={() => {
                   const documents = props.workspace.documents();
                   const last = documents[documents.length - 1];
                   if (last !== undefined) props.workspace.show(last);
                 }}
               >
-                {strings().openDocuments({ n: props.workspace.documents().length })}
+                {props.workspace.documents().length}
               </TextButton>
             </Show>
           </div>
@@ -326,10 +328,12 @@ function BrowserLine(props: {
           <ActivityMark />
         </div>
       </Show>
-      <Show when={props.row.kind === "EmptyRow"}>
-        <div class="files-tab-status files-tab-muted" style={{ "padding-left": statusIndent() }}>
-          {strings().emptyFolder}
-        </div>
+      <Show when={props.row.kind === "EmptyRow" && props.row} keyed>
+        {(row) => (
+          <div class="files-tab-status files-tab-muted" style={{ "padding-left": statusIndent() }}>
+            {row.hidden === 0 ? strings().emptyFolder : strings().onlyDotfiles({ n: row.hidden })}
+          </div>
+        )}
       </Show>
       <Show when={props.row.kind === "FailedRow" && props.row} keyed>
         {(row) => (

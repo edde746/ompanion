@@ -10,7 +10,7 @@ import { t } from "../app/i18n/i18n";
 import { CodeBlock, SideScrollView } from "../app/screens/chat/transcript/code_block";
 import { languageForFence } from "../app/screens/chat/transcript/highlighter";
 import { MachineImage } from "../app/screens/chat/transcript/images_view";
-import { openTranscriptLink } from "../app/screens/chat/transcript/markdown";
+import { MarkdownJoinsLines, openTranscriptLink } from "../app/screens/chat/transcript/markdown";
 import { TranscriptScope } from "../app/screens/chat/transcript/transcript_actions";
 import { isWebLink } from "../app/screens/external_links";
 import { appLogger } from "../app/utils/app_logger";
@@ -248,8 +248,10 @@ function renderInlines(tokens: readonly Token[], from = 0, to = tokens.length): 
         out.push(token.content);
         break;
       case "softbreak":
-      case "hardbreak":
         // gpt_markdown keeps a paragraph's line breaks.
+        out.push(useContext(MarkdownJoinsLines) ? " " : <br />);
+        break;
+      case "hardbreak":
         out.push(<br />);
         break;
       case "code_inline":

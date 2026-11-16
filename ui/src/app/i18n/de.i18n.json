@@ -385,6 +385,10 @@
       "deleteLinkBody": "Der symbolische Link wird vom Rechner gelöscht. Worauf er zeigt, bleibt.",
       "link": "Symbolischer Link",
       "emptyFolder": "Leerer Ordner",
+      "onlyDotfiles": {
+        "one": "$n ausgeblendete Punktdatei",
+        "other": "$n ausgeblendete Punktdateien"
+      },
       "listFailed": "Konnte nicht auflisten: $error",
       "openDocuments": {
         "one": "$n geöffnete Datei",
@@ -403,7 +407,7 @@
       "showFile": "Datei anzeigen",
       "showPreview": "Vorschau anzeigen",
       "showSource": "Quelltext anzeigen",
-      "showInFolder": "Im Ordner zeigen",
+      "openFolder": "Ordner öffnen",
       "showDotfiles": "Punktdateien anzeigen",
       "hideDotfiles": "Punktdateien ausblenden",
       "conflictTitle": "$name wurde auf dem Rechner geändert",

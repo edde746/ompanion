@@ -53,6 +53,7 @@ Or build it yourself: [Building from Source](#building-from-source).
 - Attached images go to the model as images; a pasted text chip goes into the message after the typed text, and one over 256 KB into the session's `local://` store as `local://paste-N.md`; files, 100 MB at most each, reach omp as `@` mentions it reads itself (text, images, videos as a contact sheet): on this computer where they are, on another machine uploaded over SSH into the session's `local://` directory with progress, deleted with the session; folders attach on this computer only, as a listing
 - Images the agent reads show in the read card; images a reply names by a path on the machine load on their own, as previews ffmpeg makes on the machine when it has ffmpeg (WebP, or JPEG and PNG), cached in memory and on disk; web images still wait for a tap
 - Agent-created HTML pages show in the transcript in a sandboxed frame, with full-screen view and save as HTML; links out ask before opening, and a page whose running record remains after the app stops waits for you to run it again
+- Advisor notes show as a card with each note's severity
 - Copy messages, code and tool output; branch from any of your messages
 
 ### <img src="assets/readme_icons/tools.svg" height="20" alt="" align="center" /> Tools & approvals
@@ -66,6 +67,7 @@ Or build it yourself: [Building from Source](#building-from-source).
 - Every session on a machine, grouped by project and across omp profiles, marked working, waiting for input or unread; a project stays collapsed across restarts and shows on its row when a session in it waits for input or works
 - Pin sessions from any machine above the machines in the sidebar (right-click or long-press a session, or the chat's menu); pins are kept on this device and show before their machine connects. omp's own `/pin` list is separate
 - Search the listed sessions of every machine by title or project path from the sidebar (Cmd/Ctrl+F)
+- Optionally hide projects idle for 7, 30 or 90 days; a row under each machine and the search still show them
 - Resume any session on the machine, including ones started in omp's terminal UI
 - On macOS and Linux machines, a session another omp process is writing (omp's terminal UI, `omp -p`, another client) is read, never written: ompanion follows the session file live, refuses to send into it, and names the terminal that holds it when omp left a breadcrumb for one. Take over starts the app's own omp for the file once that process has exited (`docs/contracts/session-writer.md`)
 - Session tree: search, filters, labels, branch into a new session, and navigate with an optional summary
@@ -94,7 +96,7 @@ Or build it yourself: [Building from Source](#building-from-source).
 - Agent Hub: subagent roster with progress, tokens and cost, each agent's transcript, and steer, kill and revive
 - Todos by phase
 - Session tree
-- Files: browse, create, rename and delete; an editor with find and replace; git status and diffs against HEAD
+- Files: browse, create, rename and delete, with dotfiles shown or hidden; an editor with find and replace; Markdown files open as a preview with front matter, relative links and images; git status and diffs against HEAD
 - Terminal tabs on the machine, over SSH or locally[^desktop]
 
 ### <img src="assets/readme_icons/configuration.svg" height="20" alt="" align="center" /> Configuration

@@ -601,10 +601,16 @@ function AdvisorMessage(props: { item: CustomItem; notes: readonly AdvisorNote[]
           {(note) => (
             <div class="message-rows-advisor-note">
               <Show when={note.severity !== undefined || note.turnsAgo !== undefined || note.advisor !== undefined}>
-                <div class="message-rows-advisor-meta">
+                <div class="message-rows-label message-rows-advisor-meta">
                   <Show when={note.severity}>
                     {(severity) => (
-                      <span class={`message-rows-advisor-${severity()}`}>
+                      // omp's advisor card: a concern in the warning tone, a blocker in the error tone, the rest muted.
+                      <span
+                        class={{
+                          "message-rows-warning": severity() === "concern",
+                          "message-rows-failed": severity() === "blocker",
+                        }}
+                      >
                         {t.transcript.advisorSeverity[severity()]}
                       </span>
                     )}

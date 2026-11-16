@@ -2,7 +2,7 @@
 // transcript's rhythm and opens its links. A fenced code block renders right away; every other block renders through
 // src/markdown/render.tsx, which holds markdown-it and loads with import() when the first TranscriptMarkdown mounts.
 // Until it is there a block shows its source as plain text in the block's font: the first paint never waits for it.
-import { createMemo, createSignal, For, Show, untrack } from "solid-js";
+import { createContext, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import {
   blockGap,
   type MarkdownBlock,
@@ -35,13 +35,19 @@ function loadRenderer(): void {
 }
 
 /**
+ * Whether a paragraph's lines join with a space, as CommonMark joins them and a hard-wrapped Markdown file needs,
+ * instead of each line break showing, as gpt_markdown keeps them in model output.
+ */
+export const MarkdownJoinsLines = createContext(false);
+
+/**
  * Markdown text of the transcript in its vertical rhythm (docs/design.md, "Markdown"): one rendering per top-level
  * block, spaced by `blockGap`. A block keeps its DOM while its source stays the same, so a streaming message renders
  * only its growing last block again. `previous` is the markdown this text continues when a long text is cut into parts:
  * the first block keeps the gap it has below the last block of `previous` in one piece. `class` styles the text (colour,
- * size, weight), as Dart's `style` does.
+ * size, weight), as Dart's `style` does. `joinLines` is {@link MarkdownJoinsLines}.
  */
-export function TranscriptMarkdown(props: { text: string; previous?: string; class?: string }) {
+export function TranscriptMarkdown(props: { text: string; previous?: string; class?: string; joinLines?: boolean }) {
   loadRenderer();
   const blocks = createMemo(() => markdownBlocks(rewriteDollarMath(props.text)));
   const above = createMemo(() =>
@@ -55,17 +61,19 @@ export function TranscriptMarkdown(props: { text: string; previous?: string; cla
   );
   return (
     <div class={["markdown", props.class]}>
-      <For each={laidOut()} keyed={(entry) => entry.key}>
-        {(entry) => {
-          // The key holds the source: a block that is still here renders the same.
-          const block = untrack(() => entry().block);
-          return (
-            <div class="markdown-block" style={{ "padding-top": `${entry().gap}px` }}>
-              {blockView(block)}
-            </div>
-          );
-        }}
-      </For>
+      <MarkdownJoinsLines value={untrack(() => props.joinLines ?? false)}>
+        <For each={laidOut()} keyed={(entry) => entry.key}>
+          {(entry) => {
+            // The key holds the source: a block that is still here renders the same.
+            const block = untrack(() => entry().block);
+            return (
+              <div class="markdown-block" style={{ "padding-top": `${entry().gap}px` }}>
+                {blockView(block)}
+              </div>
+            );
+          }}
+        </For>
+      </MarkdownJoinsLines>
     </div>
   );
 }

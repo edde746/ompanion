@@ -336,6 +336,7 @@ export type Translations = {
       readonly deleteLinkBody: string;
       readonly link: string;
       readonly emptyFolder: string;
+      readonly onlyDotfiles: (args: { n: number }) => string;
       readonly listFailed: (args: { error: Param }) => string;
       readonly openDocuments: (args: { n: number }) => string;
       readonly openFailed: (args: { error: Param }) => string;
@@ -351,7 +352,7 @@ export type Translations = {
       readonly showFile: string;
       readonly showPreview: string;
       readonly showSource: string;
-      readonly showInFolder: string;
+      readonly openFolder: string;
       readonly showDotfiles: string;
       readonly hideDotfiles: string;
       readonly conflictTitle: (args: { name: Param }) => string;

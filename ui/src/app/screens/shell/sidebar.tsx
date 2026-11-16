@@ -152,6 +152,14 @@ export function Sidebar(props: SidebarProps) {
     return () => window.removeEventListener("pointerdown", outside, true);
   });
 
+  // A new age decides afresh which projects are idle, so those the user revealed at the old one hide again.
+  createEffect(
+    () => settings.get(Prefs.hideIdleProjects),
+    () => {
+      setShowIdle(new Set<string>());
+    },
+  );
+
   onSettled(() => {
     props.ref?.({ focusSearch });
   });

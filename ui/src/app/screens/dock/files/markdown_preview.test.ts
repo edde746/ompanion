@@ -10,4 +10,5 @@ test("front matter shows as a yaml code block; anything else stays as written", 
   expect(frontMatterAsCode("---\n---\nBody")).toBe("Body");
   expect(frontMatterAsCode("---\nnever closed\n")).toBe("---\nnever closed\n");
   expect(frontMatterAsCode("Intro\n\n---\nnot front matter\n---\n")).toBe("Intro\n\n---\nnot front matter\n---\n");
+  expect(frontMatterAsCode("---\n\n# Title\n\n---\nmore")).toBe("---\n\n# Title\n\n---\nmore");
 });

@@ -46,9 +46,11 @@ export interface FailedRow {
   readonly error: unknown;
 }
 
+/** A folder that lists nothing: empty, or holding only the `hidden` dotfiles the browser leaves out. */
 export interface EmptyRow {
   readonly kind: "EmptyRow";
   readonly depth: number;
+  readonly hidden: number;
 }
 
 /** The machine's link and probe, connecting first when needed. */
@@ -246,7 +248,7 @@ export class FileWorkspace {
 
   /**
    * The browser's rows: the browsed directory's entries and, under each expanded folder, its own. Without `dotfiles`
-   * the names that start with a dot are left out, and a folder holding nothing else shows as empty.
+   * the names that start with a dot are left out, and a folder holding nothing else counts them in its empty row.
    */
   rows(options: { readonly dotfiles?: boolean } = {}): BrowserRow[] {
     this.changed();
@@ -270,7 +272,7 @@ export class FileWorkspace {
       } else {
         const entries =
           options.dotfiles === false ? listing.entries.filter((entry) => !entry.name.startsWith(".")) : listing.entries;
-        if (entries.length === 0) children.push({ kind: "EmptyRow", depth });
+        if (entries.length === 0) children.push({ kind: "EmptyRow", depth, hidden: listing.entries.length });
         for (const entry of entries) {
           const path = joinPath(dir, entry.name);
           const expanded = entry.stat.isDirectory && this.expanded.has(path);

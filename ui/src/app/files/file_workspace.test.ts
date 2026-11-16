@@ -71,14 +71,18 @@ test("a file that opens late does not replace what the user chose to show meanwh
   expect(workspace.documents().map((document) => document.path())).toEqual(["/w/quick.txt", "/w/slow.txt"]);
 });
 
-test("without dotfiles the rows leave out dot names, and a folder of only those reads as empty", async () => {
+test("without dotfiles, dot names go, also in expanded folders, and an empty row counts them", async () => {
   const files = new MemoryFiles({ "/w/.env": "x", "/w/.git/HEAD": "x", "/w/only/.keep": "", "/w/src/a.ts": "x" });
   const workspace = new FileWorkspace();
   workspace.connect = memoryAccess(files);
   await workspace.openDir("/w");
   await workspace.toggle("/w/only");
+  await workspace.toggle("/w/.git");
   const names = (dotfiles: boolean) =>
-    workspace.rows({ dotfiles }).map((row) => (row.kind === "EntryRow" ? row.entry.name : row.kind));
-  expect(names(true)).toEqual([".git", "only", ".keep", "src", ".env"]);
-  expect(names(false)).toEqual(["only", "EmptyRow", "src"]);
+    workspace.rows({ dotfiles }).map((row) => {
+      if (row.kind === "EntryRow") return row.entry.name;
+      return row.kind === "EmptyRow" ? `empty, ${row.hidden} hidden` : row.kind;
+    });
+  expect(names(true)).toEqual([".git", "HEAD", "only", ".keep", "src", ".env"]);
+  expect(names(false)).toEqual(["only", "empty, 1 hidden", "src"]);
 });
