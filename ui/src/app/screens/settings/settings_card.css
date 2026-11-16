@@ -1,5 +1,6 @@
 .settings-link-row,
-.settings-switch-row {
+.settings-switch-row,
+.settings-select-row {
   display: flex;
   align-items: center;
   gap: var(--gap);

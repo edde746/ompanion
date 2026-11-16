@@ -17,7 +17,7 @@ export function SessionsSection() {
     <div class="sessions-section">
       <h2 class="settings-pane-heading settings-pane-section">{t.settings.sessions}</h2>
       <SettingsCard>
-        <div class="sessions-section-row">
+        <div class="settings-select-row">
           <span class="settings-row-text">
             <span class="settings-row-label">{t.settings.hideSessionsOlderThan}</span>
           </span>

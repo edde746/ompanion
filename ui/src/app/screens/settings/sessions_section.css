@@ -3,11 +3,3 @@
   flex-direction: column;
   align-self: stretch;
 }
-
-.sessions-section-row {
-  display: flex;
-  align-items: center;
-  gap: var(--gap);
-  min-height: calc(var(--control) + 8px);
-  padding: 4px 8px 4px 16px;
-}
