@@ -27,6 +27,7 @@ import * as Symbols from "../../../widgets/symbols";
 import { tooltip } from "../../../widgets/tooltip";
 import type { TreeEntryKind } from "../../dock/tree/session_tree";
 import { mentionSpans } from "../mention_spans";
+import { type AdvisorNote, decodeAdvisorNotes } from "./advisor_notes";
 import "./code_style.css";
 import { ImageStrip, TranscriptImage } from "./images_view";
 import { TranscriptMarkdown } from "./markdown";
@@ -575,9 +576,61 @@ function jobLabels(details: unknown): string[] {
   );
 }
 
+/** `Advisor · 2 notes · 1 blocker`, as omp's advisor card heads its notes. */
+function advisorTitle(notes: readonly AdvisorNote[]): string {
+  const blockers = notes.filter((note) => note.severity === "blocker").length;
+  const parts = [t.transcript.advisor, t.transcript.advisorNotes({ n: notes.length })];
+  if (blockers > 0) parts.push(t.transcript.advisorBlockers({ n: blockers }));
+  return parts.join(" · ");
+}
+
+/** The notes of omp's advisor: open at first while one is a blocker or all of them are short. */
+function AdvisorMessage(props: { item: CustomItem; notes: readonly AdvisorNote[] }) {
+  return (
+    <Collapsible
+      storageKey={props.item.key}
+      icon={Symbols.rate_review}
+      title={advisorTitle(props.notes)}
+      initiallyExpanded={
+        props.notes.some((note) => note.severity === "blocker") ||
+        props.notes.reduce((length, note) => length + note.note.length, 0) < 400
+      }
+    >
+      <div class="message-rows-advisor">
+        <For each={props.notes}>
+          {(note) => (
+            <div class="message-rows-advisor-note">
+              <Show when={note.severity !== undefined || note.turnsAgo !== undefined || note.advisor !== undefined}>
+                <div class="message-rows-advisor-meta">
+                  <Show when={note.severity}>
+                    {(severity) => (
+                      <span class={`message-rows-advisor-${severity()}`}>
+                        {t.transcript.advisorSeverity[severity()]}
+                      </span>
+                    )}
+                  </Show>
+                  <Show when={note.turnsAgo}>
+                    {(turns) => <span>{t.transcript.advisorTurnsAgo({ n: turns() })}</span>}
+                  </Show>
+                  <Show when={note.advisor}>{(advisor) => <span>{advisor()}</span>}</Show>
+                </div>
+              </Show>
+              <TranscriptMarkdown text={note.note} />
+            </div>
+          )}
+        </For>
+      </div>
+    </Collapsible>
+  );
+}
+
 function CustomMessage(props: { item: CustomItem }) {
   const text = createMemo(() => textOf(props.item.content));
   const images = createMemo(() => props.item.content.filter(isImageBlock));
+  // Without notes (an older or changed omp) the message shows as any other: its content is omp's `<advisory>` XML.
+  const advisorNotes = createMemo(() =>
+    props.item.customType === "advisor" ? decodeAdvisorNotes(props.item.details) : [],
+  );
   return (
     <Switch
       fallback={
@@ -598,6 +651,9 @@ function CustomMessage(props: { item: CustomItem }) {
         </Collapsible>
       }
     >
+      <Match when={advisorNotes().length > 0}>
+        <AdvisorMessage item={props.item} notes={advisorNotes()} />
+      </Match>
       <Match when={props.item.customType === "live-delegation"}>
         <TranscriptCard>
           <div class="message-rows-card-body">

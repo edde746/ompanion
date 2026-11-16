@@ -313,6 +313,37 @@
   flex-direction: column;
 }
 
+.message-rows-advisor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message-rows-advisor-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.message-rows-advisor-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--on-surface-variant);
+  font: 500 var(--chat-label-small-size, 11px) / 1.4545 var(--font-sans);
+  letter-spacing: var(--label-small-tracking);
+}
+
+/* omp's advisor card: a concern in the warning tone, a blocker in the error tone, a nit muted. */
+.message-rows-advisor-concern {
+  color: var(--warning);
+}
+
+.message-rows-advisor-blocker {
+  color: var(--error);
+}
+
 .message-rows-collapsible-head {
   display: flex;
   box-sizing: border-box;

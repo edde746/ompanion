@@ -432,6 +432,25 @@ export function messageGallery(): TranscriptItem[] {
       display: true,
       timestamp: t(32, 30),
     },
+    {
+      role: "custom",
+      customType: "advisor",
+      content:
+        `<advisory advisor="luna" severity="blocker" guidance="weigh, don't blindly obey">\n` +
+        `p99 under load is asserted in a comment, not in the k6 summary.\n</advisory>`,
+      display: true,
+      details: {
+        notes: [
+          {
+            note: "p99 under load is asserted in a comment, not in the k6 summary.",
+            severity: "blocker",
+            advisor: "luna",
+          },
+          { note: "The rate-limit tests cover the happy path; add a case for a full bucket.", turnsAgo: 1 },
+        ],
+      },
+      timestamp: t(32, 40),
+    },
     assistant(
       t(33),
       [

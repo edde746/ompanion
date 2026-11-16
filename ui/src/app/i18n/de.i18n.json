@@ -1357,6 +1357,21 @@
     "skippedBinary": "binär",
     "backgroundResult": "Ergebnis aus dem Hintergrund",
     "delegated": "Weitergeleitete Anfrage",
+    "advisor": "Berater",
+    "advisorNotes": {
+      "one": "$n Hinweis",
+      "other": "$n Hinweise"
+    },
+    "advisorBlockers": {
+      "one": "$n Blocker",
+      "other": "$n Blocker"
+    },
+    "advisorSeverity": {
+      "nit": "Kleinigkeit",
+      "concern": "Bedenken",
+      "blocker": "Blocker"
+    },
+    "advisorTurnsAgo": "T-$n",
     "turn": {
       "workedFor": "$duration gearbeitet",
       "worked": "Gearbeitet",
