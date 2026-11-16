@@ -112,6 +112,8 @@ export { default as play_arrow_fill } from "@material-symbols/svg-400/outlined/p
 export { default as play_circle } from "@material-symbols/svg-400/outlined/play_circle.svg?raw";
 export { default as power } from "@material-symbols/svg-400/outlined/power.svg?raw";
 export { default as power_settings_new } from "@material-symbols/svg-400/outlined/power_settings_new.svg?raw";
+export { default as preview } from "@material-symbols/svg-400/outlined/preview.svg?raw";
+export { default as preview_fill } from "@material-symbols/svg-400/outlined/preview-fill.svg?raw";
 export { default as psychology_alt } from "@material-symbols/svg-400/outlined/psychology_alt.svg?raw";
 export { default as public } from "@material-symbols/svg-400/outlined/public.svg?raw";
 // The package names this glyph only by its other catalog name.

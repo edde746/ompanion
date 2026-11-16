@@ -14,13 +14,14 @@ import {
 import { createEffect, createMemo, createSignal, flush, Match, onSettled, Show, Switch, untrack } from "solid-js";
 import { call } from "../../../../bridge";
 import { hostPath } from "../../../../core/host/scripts";
-import { useSettings } from "../../../app_state";
+import { useImages, useSessions, useSettings } from "../../../app_state";
 import { FileChangedOnDisk, type FileDocument, maxEditableBytes } from "../../../files/file_document";
 import { languageFor } from "../../../files/file_language";
-import { baseName } from "../../../files/file_paths";
+import { baseName, extensionOf, parentPath } from "../../../files/file_paths";
 import type { FileWorkspace } from "../../../files/file_workspace";
 import { gitStatusChangeOf } from "../../../files/git_status";
 import { t } from "../../../i18n/i18n";
+import type { Machine } from "../../../models/machine";
 import { Prefs } from "../../../providers/settings_provider";
 import { ActivityMark } from "../../../widgets/activity_mark";
 import { FilledButton, IconButton, TextButton } from "../../../widgets/button";
@@ -32,13 +33,19 @@ import { PillTabs } from "../../../widgets/tabs";
 import { tooltip } from "../../../widgets/tooltip";
 import { type DiffLine, parseUnifiedDiff } from "../../chat/transcript/diff";
 import { DiffView } from "../../chat/transcript/diff_view";
+import { TranscriptMarkdown } from "../../chat/transcript/markdown";
+import { type TranscriptActions, TranscriptScope } from "../../chat/transcript/transcript_actions";
 import { syntaxHighlighting } from "./editor_syntax";
 import "./file_editor_view.css";
 import { findPanel } from "./find_panel";
+import { frontMatterAsCode } from "./markdown_preview";
 import { wrappedLines } from "./wrapped_indent";
 
 /** Caps the rows a diff builds; DiffView lays out every row. */
 const maxDiffLines = 4000;
+
+/** Opens a Markdown file in its preview up to this many characters: the preview renders every block at once. */
+const maxPreviewChars = 200_000;
 
 type GitDiffState =
   | { readonly kind: "loading" }
@@ -48,13 +55,31 @@ type GitDiffState =
 type EditorAction = "find" | "wrap" | "reload" | "copyPath" | "close";
 
 /**
- * One open document: the editor (read-only for large, binary or non-UTF-8 files), save with a conflict check, and the
- * file's `git diff` against HEAD.
+ * One open document: the editor (read-only for large, binary or non-UTF-8 files), save with a conflict check, the
+ * file's `git diff` against HEAD, and a Markdown file's preview, which it opens in unless a line was asked for.
  */
-export function FileEditorView(props: { readonly workspace: FileWorkspace; readonly document: FileDocument }) {
+export function FileEditorView(props: {
+  readonly workspace: FileWorkspace;
+  readonly document: FileDocument;
+  readonly machine: Machine;
+}) {
   const strings = () => t.dock.fileBrowser;
   const settings = useSettings();
   const [showDiff, setShowDiff] = createSignal(false);
+  const previewable = createMemo(
+    () =>
+      ["md", "markdown"].includes(extensionOf(baseName(props.document.path()))) &&
+      props.document.readOnlyReason() !== "binary",
+  );
+  const [showPreview, setShowPreview] = createSignal(
+    untrack(
+      () =>
+        previewable() &&
+        props.document.pendingLine === undefined &&
+        !props.document.readOnly() &&
+        props.document.text().length <= maxPreviewChars,
+    ),
+  );
   const [diff, setDiff] = createSignal<GitDiffState>({ kind: "loading" });
   const [editor, setEditor] = createSignal<EditorView>();
   let diffRequest = 0;
@@ -66,6 +91,12 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
     return change !== undefined && change !== "untracked" && change !== "ignored";
   });
   const diffShown = () => showDiff() && canDiff();
+  const previewShown = () => showPreview() && previewable() && !diffShown();
+
+  const togglePreview = () => {
+    setShowDiff(false);
+    setShowPreview(!previewShown());
+  };
 
   const loadDiff = () => {
     const request = ++diffRequest;
@@ -166,6 +197,7 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
     switch (action) {
       case "find": {
         setShowDiff(false);
+        setShowPreview(false);
         // The editor must be on screen for the find field to take the focus.
         flush();
         const view = editor();
@@ -220,6 +252,13 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
             <span class="file-editor-dirty"> ●</span>
           </Show>
         </span>
+        <Show when={previewable()}>
+          <IconButton
+            icon={previewShown() ? Symbols.preview_fill : Symbols.preview}
+            tooltip={previewShown() ? strings().showSource : strings().showPreview}
+            onClick={togglePreview}
+          />
+        </Show>
         <Show when={canDiff()}>
           <IconButton
             icon={showDiff() ? Symbols.difference_fill : Symbols.difference}
@@ -268,8 +307,17 @@ export function FileEditorView(props: { readonly workspace: FileWorkspace; reado
         <Show when={diffShown()}>
           <GitDiff state={diff()} onRetry={loadDiff} />
         </Show>
+        <Show when={previewShown()}>
+          <MarkdownPreview workspace={props.workspace} document={props.document} machine={props.machine} />
+        </Show>
         <Show when={props.document.readOnlyReason() !== "binary"}>
-          <Editor workspace={props.workspace} document={props.document} hidden={diffShown()} onView={setEditor} />
+          <Editor
+            workspace={props.workspace}
+            document={props.document}
+            hidden={diffShown() || previewShown()}
+            onView={setEditor}
+            onRevealLine={() => setShowPreview(false)}
+          />
         </Show>
       </div>
     </div>
@@ -304,6 +352,55 @@ const editorTheme = EditorView.theme({
   ".cm-panels.cm-panels-top": { borderBottom: "none" },
 });
 
+/**
+ * A Markdown file rendered as the transcript renders Markdown: relative links open beside it in the Files tab, relative
+ * images load from its folder, web images wait for a tap. It follows a reload; an edit shows once it is shown again.
+ */
+function MarkdownPreview(props: {
+  readonly workspace: FileWorkspace;
+  readonly document: FileDocument;
+  readonly machine: Machine;
+}) {
+  const sessions = useSessions();
+  const images = useImages();
+  const text = createMemo(() => {
+    props.document.revision();
+    return frontMatterAsCode(untrack(() => props.document.text()));
+  });
+  const actions = createMemo((): TranscriptActions => {
+    const workspace = props.workspace;
+    const cwd = parentPath(props.document.path());
+    return {
+      canReset: false,
+      onCopy: (text) =>
+        void call("shell.clipboardWrite", { text }).then(() => showSnackBar(t.common.copied, { durationMs: 1000 })),
+      onOpenFile: (path, options) => {
+        // `#heading` and `notes.md#heading` name a heading; the preview opens the file, not the heading.
+        const file = path.replace(/#[^/]*$/, "");
+        if (file === "") return;
+        workspace
+          .resolve(file, { cwd })
+          .then((resolved) => workspace.open(resolved, options))
+          .catch((error: unknown) => showSnackBar(t.dock.fileBrowser.openFailed({ error: String(error) })));
+      },
+      onOpenSubagent: (id) => {
+        throw new Error(`A file has no subagent ${id}`);
+      },
+      images: images.forSession(
+        { machineOf: () => props.machine, runtimeFor: (machine: Machine) => sessions.runtimeFor(machine) },
+        { cwd },
+      ),
+    };
+  });
+  return (
+    <div class="file-editor-preview">
+      <TranscriptScope value={actions}>
+        <TranscriptMarkdown text={text()} />
+      </TranscriptScope>
+    </div>
+  );
+}
+
 /** Selects line `line` (1-based) and centres it unless it is on screen already. */
 function reveal(view: EditorView, line: number): void {
   const doc = view.state.doc;
@@ -326,6 +423,8 @@ function Editor(props: {
   readonly document: FileDocument;
   readonly hidden: boolean;
   readonly onView: (view: EditorView | undefined) => void;
+  /** A line asked for with the file is about to show: whatever covers the editor gives way. */
+  readonly onRevealLine: () => void;
 }) {
   let host!: HTMLDivElement;
   const [view, setView] = createSignal<EditorView>();
@@ -400,6 +499,7 @@ function Editor(props: {
       const line = document.pendingLine;
       if (editor === undefined || line === undefined) return;
       document.pendingLine = undefined;
+      props.onRevealLine();
       reveal(editor, line);
     },
   );

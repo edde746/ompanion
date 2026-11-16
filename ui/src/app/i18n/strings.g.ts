@@ -349,6 +349,8 @@ export type Translations = {
       readonly wrapLines: string;
       readonly showDiff: string;
       readonly showFile: string;
+      readonly showPreview: string;
+      readonly showSource: string;
       readonly conflictTitle: (args: { name: Param }) => string;
       readonly conflictChanged: string;
       readonly conflictDeleted: string;

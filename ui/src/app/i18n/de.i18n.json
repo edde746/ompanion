@@ -401,6 +401,8 @@
       "wrapLines": "Zeilen umbrechen",
       "showDiff": "git diff anzeigen",
       "showFile": "Datei anzeigen",
+      "showPreview": "Vorschau anzeigen",
+      "showSource": "Quelltext anzeigen",
       "conflictTitle": "$name wurde auf dem Rechner geändert",
       "conflictChanged": "Die Datei wurde auf dem Rechner geändert, seit du sie geöffnet hast. Mit deiner Version überschreiben oder deine Änderungen verwerfen und die Version des Rechners laden?",
       "conflictDeleted": "Die Datei wurde auf dem Rechner gelöscht, seit du sie geöffnet hast. Überschreiben legt sie neu an.",

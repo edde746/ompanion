@@ -380,6 +380,8 @@
       "wrapLines": "Wrap lines",
       "showDiff": "Show git diff",
       "showFile": "Show file",
+      "showPreview": "Show preview",
+      "showSource": "Show source",
       "conflictTitle": "$name changed on the machine",
       "conflictChanged": "The file changed on the machine since you opened it. Overwrite it with your version, or discard your edits and load the machine's?",
       "conflictDeleted": "The file was deleted on the machine since you opened it. Overwrite recreates it.",

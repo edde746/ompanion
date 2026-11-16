@@ -78,6 +78,14 @@
   overflow-y: auto;
 }
 
+/* A Markdown file's preview: the transcript's markdown, scrolled in the editor's place. */
+.file-editor-preview {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 12px 16px;
+  overflow-y: auto;
+}
+
 .file-editor-truncated {
   padding: 12px;
   font: var(--body-medium);
