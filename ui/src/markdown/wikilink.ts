@@ -11,7 +11,6 @@ export interface WikiLink {
   readonly alias: string | undefined;
   readonly embed: boolean;
   readonly width: number | undefined;
-  readonly height: number | undefined;
 }
 
 const markdownExtensions = ["md", "markdown", "mdx"] as const;
@@ -27,7 +26,7 @@ export function isMarkdownPreviewFile(name: string): boolean {
   return isMarkdownExtension(extensionOf(name));
 }
 
-export function isImageExtension(ext: string): boolean {
+function isImageExtension(ext: string): boolean {
   return imageExtensions.has(ext);
 }
 
@@ -50,7 +49,7 @@ export function parseWikiLink(
   else if (src.startsWith("[[", i)) i += 2;
   else return undefined;
   const close = src.indexOf("]]", i);
-  if (close === -1 || close > posMax) return undefined;
+  if (close === -1 || close + 2 > posMax) return undefined;
   if (src.indexOf("\n", i) !== -1 && src.indexOf("\n", i) < close) return undefined;
   const inner = src.slice(i, close).trim();
   if (inner === "") return undefined;
@@ -77,16 +76,14 @@ function wikiLinkOf(inner: string, embed: boolean): WikiLink | undefined {
   }
   if (dest === "" && heading === undefined) return undefined;
   let width: number | undefined;
-  let height: number | undefined;
   if (embed && alias !== undefined) {
-    const size = /^(\d+)(?:x(\d+))?$/.exec(alias);
+    const size = /^(\d+)$/.exec(alias);
     if (size) {
       width = Number(size[1]);
-      height = size[2] === undefined ? undefined : Number(size[2]);
       alias = undefined;
     }
   }
-  return { target: dest, heading, alias, embed, width, height };
+  return { target: dest, heading, alias, embed, width };
 }
 
 /** Label a wikilink shows: the alias, else the heading, else the note's base name. */
@@ -207,7 +204,7 @@ export function collectWikiTargets(source: string): string[] {
 const fenceLine = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 
 /** Calls `visit` with each run of `source` that is not a fenced code block or an inline code span. */
-export function forEachOutsideCode(
+function forEachOutsideCode(
   source: string,
   visit: (text: string, from: number, to: number) => void,
 ): void {

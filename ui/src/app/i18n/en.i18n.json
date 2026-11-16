@@ -381,6 +381,7 @@
       "showPreview": "Preview",
       "showSource": "Source",
       "aliases": "Aliases",
+      "invalidFrontmatter": "Could not read the YAML properties: $error",
       "callout": {
         "note": "Note",
         "abstract": "Abstract",

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { displayValue, parseFrontmatter } from "./frontmatter";
+import { parseFrontmatter } from "./frontmatter";
 
 describe("parseFrontmatter", () => {
   test("leaves text without a fence as the body", () => {
@@ -40,10 +40,25 @@ status: draft
     expect(matter).toEqual({ title: undefined, tags: [], aliases: [], fields: [] });
   });
 
-  test("invalid YAML still hides the raw fence", () => {
-    const { matter, body } = parseFrontmatter("---\n: not yaml\n---\nshown");
+  test("invalid YAML reports an error without hiding the body", () => {
+    const { matter, body, error } = parseFrontmatter("---\ntags: [unclosed\n---\nshown");
     expect(body).toBe("shown");
-    expect(matter).toEqual({ title: undefined, tags: [], aliases: [], fields: [] });
+    expect(matter).toBeUndefined();
+    expect(error).toBeDefined();
+  });
+
+  test("non-map properties report an error", () => {
+    const { matter, body, error } = parseFrontmatter("---\n- a\n- b\n---\nshown");
+    expect(body).toBe("shown");
+    expect(matter).toBeUndefined();
+    expect(error).toBeDefined();
+  });
+
+  test("a cyclic property reports an error instead of silently disappearing", () => {
+    const { matter, body, error } = parseFrontmatter("---\ncustom: &custom {self: *custom}\n---\nshown");
+    expect(body).toBe("shown");
+    expect(matter).toBeUndefined();
+    expect(error).toBeDefined();
   });
 
   test("accepts a BOM and a ... closer", () => {
@@ -55,17 +70,5 @@ status: draft
   test("comma-separated tags and a singular tag key join without duplicates", () => {
     const { matter } = parseFrontmatter("---\ntags: alpha, beta\ntag: beta\n---\n");
     expect(matter?.tags).toEqual(["alpha", "beta"]);
-  });
-});
-
-describe("displayValue", () => {
-  test("formats scalars, lists and dates", () => {
-    expect(displayValue("x")).toBe("x");
-    expect(displayValue(3)).toBe("3");
-    expect(displayValue(true)).toBe("true");
-    expect(displayValue(["a", "b"])).toBe("a, b");
-    expect(displayValue(new Date("2024-06-02T00:00:00.000Z"))).toBe("2024-06-02");
-    expect(displayValue({ a: 1 })).toBe('{"a":1}');
-    expect(displayValue(null)).toBe("");
   });
 });

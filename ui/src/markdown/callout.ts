@@ -11,7 +11,7 @@ export interface Callout {
 }
 
 /** Canonical types the preview has an icon and colour for. */
-export const calloutTypes = [
+const calloutTypes = [
   "note",
   "abstract",
   "info",
@@ -27,7 +27,7 @@ export const calloutTypes = [
   "quote",
 ] as const;
 
-export type CalloutType = (typeof calloutTypes)[number];
+type CalloutType = (typeof calloutTypes)[number];
 
 const known = new Set<string>(calloutTypes);
 

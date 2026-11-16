@@ -350,6 +350,7 @@ export type Translations = {
       readonly showPreview: string;
       readonly showSource: string;
       readonly aliases: string;
+      readonly invalidFrontmatter: (args: { error: Param }) => string;
       readonly callout: {
         readonly note: string;
         readonly abstract: string;

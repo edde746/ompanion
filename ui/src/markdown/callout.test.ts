@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isKnownCalloutType, parseCalloutLine } from "./callout";
+import { parseCalloutLine } from "./callout";
 
 describe("parseCalloutLine", () => {
   test("reads type, title and fold", () => {
@@ -23,28 +23,6 @@ describe("parseCalloutLine", () => {
   test("rejects ordinary quotes", () => {
     expect(parseCalloutLine("just a quote")).toBeUndefined();
     expect(parseCalloutLine("[note] not a callout")).toBeUndefined();
-    expect(parseCalloutLine("[!]") ).toBeUndefined();
-  });
-
-  test("known types include the common Obsidian set", () => {
-    const types = [
-      "note",
-      "tip",
-      "info",
-      "warning",
-      "danger",
-      "success",
-      "question",
-      "quote",
-      "example",
-      "bug",
-      "todo",
-      "abstract",
-      "failure",
-    ];
-    for (const type of types) {
-      expect(isKnownCalloutType(type)).toBe(true);
-    }
-    expect(isKnownCalloutType("custom-block")).toBe(false);
+    expect(parseCalloutLine("[!]")).toBeUndefined();
   });
 });

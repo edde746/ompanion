@@ -5,7 +5,7 @@
 import type { JSX } from "@solidjs/web";
 import { Dynamic } from "@solidjs/web";
 import MarkdownIt, { type StateBlock, type StateInline, type Token } from "markdown-it";
-import { createSignal, For, Match, onSettled, Switch, useContext } from "solid-js";
+import { createSignal, For, Match, onSettled, Show, Switch, useContext } from "solid-js";
 import { t } from "../app/i18n/i18n";
 import { CodeBlock, SideScrollView } from "../app/screens/chat/transcript/code_block";
 import { languageForFence } from "../app/screens/chat/transcript/highlighter";
@@ -488,22 +488,27 @@ function WikiLinkView(props: { link: WikiLink }) {
     void openTranscriptLink(scope(), path);
   };
   if (link.embed && isImageFile(link.target)) {
-    const path = resolved();
-    if (path === undefined) {
-      return (
-        <span
-          class={["markdown-wikilink", { "markdown-wikilink-missing": missing() }]}
-          ref={tooltip(() => link.target)}
-        >
-          {label}
-        </span>
-      );
-    }
-    const width = link.width;
     return (
-      <span class="markdown-embed-image" style={width === undefined ? undefined : { "max-width": `${width}px` }}>
-        <MarkdownImage url={path} alt={label} />
-      </span>
+      <Show
+        when={resolved()}
+        fallback={
+          <span
+            class={["markdown-wikilink", { "markdown-wikilink-missing": missing() }]}
+            ref={tooltip(() => link.target)}
+          >
+            {label}
+          </span>
+        }
+      >
+        {(path) => (
+          <span
+            class="markdown-embed-image"
+            style={link.width === undefined ? undefined : { "max-width": `${link.width}px` }}
+          >
+            <MarkdownImage url={path()} alt={label} />
+          </span>
+        )}
+      </Show>
     );
   }
   if (link.embed) {
@@ -520,25 +525,27 @@ function WikiLinkView(props: { link: WikiLink }) {
       </button>
     );
   }
-  if (missing()) {
-    return (
-      <span class="markdown-link markdown-wikilink markdown-wikilink-missing" ref={tooltip(() => link.target)}>
-        {label}
-      </span>
-    );
-  }
   return (
-    <a
-      class="markdown-link markdown-wikilink"
-      href="#"
-      ref={tooltip(() => link.target)}
-      onClick={(event) => {
-        event.preventDefault();
-        open();
-      }}
+    <Show
+      when={!missing()}
+      fallback={
+        <span class="markdown-link markdown-wikilink markdown-wikilink-missing" ref={tooltip(() => link.target)}>
+          {label}
+        </span>
+      }
     >
-      {label}
-    </a>
+      <a
+        class="markdown-link markdown-wikilink"
+        href="#"
+        ref={tooltip(() => link.target)}
+        onClick={(event) => {
+          event.preventDefault();
+          open();
+        }}
+      >
+        {label}
+      </a>
+    </Show>
   );
 }
 

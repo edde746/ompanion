@@ -199,6 +199,54 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: "markdown-preview",
+    query: "gallery=files",
+    reach: async (context) => {
+      const { page, exec, home } = context;
+      await seedProject(context);
+      const written = await exec(`cd "$HOME/api-server" && ${writeFiles({
+        "README.md": [
+          "---",
+          "title: Project notes",
+          "tags: [work]",
+          "---",
+          "",
+          "![[preview.png]]",
+          "",
+          "[[docs/limits]] and [[Missing note]]",
+          "",
+          "> [!warning]- Rate limits",
+          "> Check the allowance before uploading.",
+          "",
+        ].join("\n"),
+      })}`);
+      if (written.code !== 0) throw new Error(`writing preview note: ${written.stderr}`);
+      await context.call("fs.write", {
+        machine: "local",
+        path: `${home}/api-server/preview.png`,
+        data: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEUlEQVR4nGP4z8DA8B+MgBgAHfAD/dPQfSYAAAAASUVORK5CYII=",
+      });
+      await browseProject(page);
+      await row(page, "README.md").click();
+      const preview = page.locator(".file-preview");
+      await preview.getByRole("heading", { name: "Project notes", exact: true }).waitFor();
+      await preview.locator(".markdown-embed-image img").waitFor();
+      await page.waitForFunction(() => {
+        const image = document.querySelector<HTMLImageElement>(".markdown-embed-image img");
+        return image?.complete && image.naturalWidth === 2;
+      });
+      await preview.locator("span.markdown-wikilink-missing", { hasText: "Missing note" }).waitFor();
+      const warning = preview.locator("details", { hasText: "Rate limits" });
+      if (await warning.getByText("Check the allowance before uploading.").isVisible()) {
+        throw new Error("a folded callout started open");
+      }
+      await warning.locator("summary").click();
+      await warning.getByText("Check the allowance before uploading.").waitFor();
+      await preview.getByRole("link", { name: "limits", exact: true }).click();
+      await preview.getByText("60 requests a minute per client.", { exact: true }).waitFor();
+    },
+  },
+  {
     name: "markdown-toggle",
     query: "gallery=files",
     reach: async (context) => {

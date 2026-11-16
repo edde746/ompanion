@@ -138,6 +138,9 @@ export function FilePreview(props: {
         <h1 class="file-preview-title" id={headingId(title())}>
           {title()}
         </h1>
+        <Show when={parsed().error}>
+          {(error) => <p role="alert">{t.dock.fileBrowser.invalidFrontmatter({ error: error() })}</p>}
+        </Show>
         <Show when={properties()}>
           {(shown) => (
             <div class="file-preview-properties">

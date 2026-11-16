@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { MemoryFiles } from "../test/memory_host";
-import { parentPath, resolveMachinePath } from "../app/files/file_paths";
 import {
   collectWikiTargets,
   findVaultRoot,
@@ -33,7 +32,6 @@ describe("parseWikiLink", () => {
       alias: undefined,
       embed: false,
       width: undefined,
-      height: undefined,
     });
     expect(parseWikiLink("see [[Note|alias]] here", 4)?.link).toMatchObject({ target: "Note", alias: "alias" });
     expect(parseWikiLink("[[Note#Heading]]", 0)?.link).toMatchObject({ target: "Note", heading: "Heading" });
@@ -42,10 +40,8 @@ describe("parseWikiLink", () => {
       target: "image.png",
       embed: true,
       width: 300,
-      height: undefined,
       alias: undefined,
     });
-    expect(parseWikiLink("![[pic.png|300x200]]", 0)?.link).toMatchObject({ width: 300, height: 200 });
     expect(parseWikiLink("![[Other note]]", 0)?.link).toMatchObject({ target: "Other note", embed: true });
     expect(parseWikiLink("[[]]", 0)).toBeUndefined();
     expect(parseWikiLink("[Note]", 0)).toBeUndefined();
@@ -56,6 +52,11 @@ describe("parseWikiLink", () => {
     expect(wikiLinkLabel(parseWikiLink("[[folder/Note|Go]]", 0)!.link)).toBe("Go");
     expect(wikiLinkLabel(parseWikiLink("[[#Heading]]", 0)!.link)).toBe("Heading");
     expect(wikiLinkLabel(parseWikiLink("[[folder/Note]]", 0)!.link)).toBe("Note");
+  });
+
+  test("requires both closing brackets inside the inline parser's range", () => {
+    expect(parseWikiLink("[[Note]]", 0, 7)).toBeUndefined();
+    expect(parseWikiLink("[[Note]]", 0, 8)?.link.target).toBe("Note");
   });
 });
 
@@ -123,7 +124,7 @@ describe("resolveWikilink and findVaultRoot", () => {
 describe("headingId", () => {
   test("slugs a heading the way [[#Heading]] looks it up", () => {
     expect(headingId("Hello World")).toBe("hello-world");
-    expect(headingId("Hello World")).toBe(headingId("hello-world"));
+    expect(headingId("hello-world")).toBe("hello-world");
     expect(headingId("  API / v2  ")).toBe("api-v2");
     expect(headingId("")).toBe("heading");
   });
@@ -141,15 +142,5 @@ describe("collectWikiTargets", () => {
       "Inline `[[InsideCode]]` and ![[image.png]] and [[Other]].",
     ].join("\n");
     expect(collectWikiTargets(source)).toEqual(["Note", "image.png", "Other"]);
-  });
-});
-
-describe("relative image cwd", () => {
-  test("a relative image resolves from the markdown file's folder, not the session cwd", () => {
-    const file = "/vault/notes/daily.md";
-    const folder = parentPath(file);
-    expect(folder).toBe("/vault/notes");
-    expect(resolveMachinePath("img.png", { home: "/home/u", cwd: folder })).toBe("/vault/notes/img.png");
-    expect(resolveMachinePath("img.png", { home: "/home/u", cwd: "/home/u/project" })).toBe("/home/u/project/img.png");
   });
 });

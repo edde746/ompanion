@@ -1,5 +1,5 @@
 // Inline Obsidian marks used by the file preview's markdown-it rules: `==highlight==`, `%%comments%%`, `#tags`.
-// Each looks at `src` from `pos` and does not search inside code; the plugin is registered after backticks and links.
+// Each looks at `src` from `pos`; markdown-it consumes code spans before invoking rules inside them.
 
 /** `==highlight==` on one line, opening at `pos`. */
 export function parseHighlight(
@@ -9,8 +9,8 @@ export function parseHighlight(
 ): { content: string; end: number } | undefined {
   if (src.charCodeAt(pos) !== 0x3d || src.charCodeAt(pos + 1) !== 0x3d) return undefined;
   if (pos + 2 >= posMax) return undefined;
-  const close = indexOfPair(src, "==", pos + 2, posMax);
-  if (close === -1 || close === pos + 2) return undefined;
+  const close = src.indexOf("==", pos + 2);
+  if (close === -1 || close === pos + 2 || close + 2 > posMax) return undefined;
   const content = src.slice(pos + 2, close);
   if (content.includes("\n")) return undefined;
   return { content, end: close + 2 };
@@ -37,16 +37,6 @@ export function parseTag(src: string, pos: number, posMax = src.length): { tag: 
   while (i < posMax && isTagChar(src.charCodeAt(i))) i++;
   if (src.charCodeAt(i - 1) === 0x2f) return undefined;
   return { tag: src.slice(pos + 1, i), end: i };
-}
-
-function indexOfPair(src: string, pair: string, from: number, posMax: number): number {
-  let at = src.indexOf(pair, from);
-  while (at !== -1 && at + pair.length <= posMax) {
-    const line = src.indexOf("\n", from);
-    if (line !== -1 && line < at) return -1;
-    return at;
-  }
-  return -1;
 }
 
 function isTagBoundary(unit: number): boolean {

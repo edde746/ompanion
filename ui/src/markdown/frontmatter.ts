@@ -1,5 +1,5 @@
 // YAML frontmatter of a markdown file: the opening `---` fence, a map of properties, and the body after the closer.
-// Invalid YAML still consumes the fences so the raw block is never printed; the properties are then empty.
+// Invalid properties leave the body readable and return an error for the preview to show.
 
 import { parse } from "yaml";
 
@@ -23,7 +23,11 @@ const reserved = new Set(["title", "tags", "tag", "aliases", "alias"]);
  * allowed), a closer `---` or `...` on its own line, and a map of keys. No fence, or a fence that never closes, leaves
  * the text as the body.
  */
-export function parseFrontmatter(text: string): { matter: Frontmatter | undefined; body: string } {
+export function parseFrontmatter(text: string): {
+  matter: Frontmatter | undefined;
+  body: string;
+  error?: string;
+} {
   const start = text.startsWith("\uFEFF") ? 1 : 0;
   if (!startsFence(text, start)) return { matter: undefined, body: text };
   const firstBreak = text.indexOf("\n", start);
@@ -33,7 +37,11 @@ export function parseFrontmatter(text: string): { matter: Frontmatter | undefine
   const yaml = text.slice(firstBreak + 1, closer.start);
   const after = closer.end < text.length && text[closer.end] === "\n" ? closer.end + 1 : closer.end;
   const body = text.slice(after);
-  return { matter: matterOf(yaml), body };
+  try {
+    return { matter: matterOf(yaml), body };
+  } catch (error) {
+    return { matter: undefined, body, error: String(error) };
+  }
 }
 
 function startsFence(text: string, start: number): boolean {
@@ -59,14 +67,9 @@ function matterOf(yaml: string): Frontmatter {
   const empty: Frontmatter = { title: undefined, tags: [], aliases: [], fields: [] };
   const trimmed = yaml.trim();
   if (trimmed === "") return empty;
-  let parsed: unknown;
-  try {
-    parsed = parse(trimmed);
-  } catch {
-    return empty;
-  }
+  const parsed: unknown = parse(trimmed);
   if (parsed === null || parsed === undefined) return empty;
-  if (typeof parsed !== "object" || Array.isArray(parsed)) return empty;
+  if (typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("frontmatter must hold a map");
   const map = parsed as Record<string, unknown>;
   const title = typeof map.title === "string" && map.title.trim() !== "" ? map.title.trim() : undefined;
   const tags = unique([...stringList(map.tags), ...stringList(map.tag)]);
@@ -103,19 +106,12 @@ function unique(values: readonly string[]): string[] {
   return out;
 }
 
-/** A frontmatter value as a short line: dates as YYYY-MM-DD, lists joined, maps as JSON. */
-export function displayValue(value: unknown): string {
+/** A frontmatter value as a short line: lists joined, maps as JSON. */
+function displayValue(value: unknown): string {
   if (value === null || value === undefined) return "";
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   if (Array.isArray(value)) return value.map((item) => displayValue(item)).filter((item) => item !== "").join(", ");
-  if (typeof value === "object") {
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "";
-    }
-  }
+  if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
