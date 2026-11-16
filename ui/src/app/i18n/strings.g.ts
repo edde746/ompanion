@@ -409,7 +409,7 @@ export type Translations = {
     readonly searchHint: string;
     readonly noMatches: string;
     readonly pinned: string;
-    readonly olderHidden: (args: { n: Param }) => string;
+    readonly olderHidden: (args: { n: number }) => string;
     readonly showOlderSessions: string;
     readonly hideOlderSessions: string;
   };

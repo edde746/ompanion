@@ -11,34 +11,27 @@ export function sessionAgeMaxAgeMs(filter: SessionAgeFilter): number | undefined
   return Number(filter) * sessionAgeDayMs;
 }
 
-/**
- * Last activity of a listed session: the file's mtime, or its created time when no mtime is present. Undefined when
- * the sidebar has no timestamp for it (an open session whose file is not listed yet).
- */
-export function sessionActivityMs(
-  summary: { modifiedMs?: number; createdMs?: number } | undefined,
-): number | undefined {
-  return summary?.modifiedMs ?? summary?.createdMs;
-}
-
 export interface SessionAgeHideOptions {
   /** Absent or undefined: the filter is off and nothing is hidden. */
   readonly maxAgeMs?: number;
   readonly nowMs: number;
   /** The session the center pane shows; never hidden, even when it is old and listed without a live run here. */
   readonly selected?: boolean;
+  /** Unread news the user has not seen; never hidden, like a running session. */
+  readonly unread?: boolean;
 }
 
 /**
- * Whether the sidebar should omit `entry` as older than the threshold. Running on the machine, attached on this
- * device, selected, or lacking any timestamp stay listed.
+ * Whether the sidebar should omit `entry`'s session row as older than the threshold. Running on the machine, attached
+ * on this device, selected, unread, or with no mtime stay listed.
  */
 export function sessionHiddenByAge(entry: SidebarEntry, options: SessionAgeHideOptions): boolean {
   if (options.maxAgeMs === undefined) return false;
   if (entry.session !== undefined) return false;
   if (entry.summary !== undefined && sessionSummaryRunning(entry.summary)) return false;
   if (options.selected) return false;
-  const activityMs = sessionActivityMs(entry.summary);
+  if (options.unread) return false;
+  const activityMs = entry.summary?.modifiedMs;
   if (activityMs === undefined) return false;
   return options.nowMs - activityMs > options.maxAgeMs;
 }

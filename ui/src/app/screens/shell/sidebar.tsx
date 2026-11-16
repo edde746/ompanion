@@ -224,7 +224,19 @@ export function Sidebar(props: SidebarProps) {
     const nowMs = Date.now();
     const maxAgeMs = sessionAgeMaxAgeMs(settings.get(Prefs.hideSessionsOlderThan));
     const revealingOlder = maxAgeMs !== undefined && showOlder();
-    const active = shell.selection().kind === "SessionSelection" ? sessions.active() : undefined;
+    const hideEntry =
+      maxAgeMs === undefined
+        ? undefined
+        : (() => {
+            const active = shell.selection().kind === "SessionSelection" ? sessions.active() : undefined;
+            return (entry: SidebarEntry, machineId: string) =>
+              sessionHiddenByAge(entry, {
+                nowMs,
+                maxAgeMs,
+                selected: entryIsSelected(entry, active),
+                unread: entryUnread(reads, machineId, entry),
+              });
+          })();
     const rows = sidebarRows(
       machines.machines().map((machine) => {
         const listing = sessions.listingOf(machine);
@@ -245,10 +257,7 @@ export function Sidebar(props: SidebarProps) {
         showAll: (machineId, cwd) => showAll().has(placeKey(machineId, cwd)),
         title: sidebarEntryTitle,
         query: query(),
-        hideEntry:
-          maxAgeMs === undefined
-            ? undefined
-            : (entry) => sessionHiddenByAge(entry, { nowMs, maxAgeMs, selected: entryIsSelected(entry, active) }),
+        hideEntry,
         revealingOlder,
       },
     );
@@ -543,16 +552,14 @@ export function Sidebar(props: SidebarProps) {
                   <Match when={rowOf(row(), "HiddenOlderRowData")}>
                     {(data) => (
                       <ListRow onClick={() => setShowOlder(!data().revealing)}>
-                        <span
-                          class="sidebar-older"
-                          ref={tooltip(() =>
-                            data().revealing ? t.sidebar.hideOlderSessions : t.sidebar.showOlderSessions,
-                          )}
+                        <Show
+                          when={!data().revealing}
+                          fallback={<span class="sidebar-older">{t.sidebar.hideOlderSessions}</span>}
                         >
-                          {data().revealing
-                            ? t.sidebar.hideOlderSessions
-                            : t.sidebar.olderHidden({ n: data().hidden })}
-                        </span>
+                          <span class="sidebar-older" ref={tooltip(() => t.sidebar.showOlderSessions)}>
+                            {t.sidebar.olderHidden({ n: data().hidden })}
+                          </span>
+                        </Show>
                       </ListRow>
                     )}
                   </Match>

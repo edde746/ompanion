@@ -461,7 +461,10 @@
     "searchHint": "Suchen",
     "noMatches": "Keine passenden Sitzungen.",
     "pinned": "Angeheftet",
-    "olderHidden": "$n ältere ausgeblendet",
+    "olderHidden": {
+      "one": "$n ältere Sitzung ausgeblendet",
+      "other": "$n ältere Sitzungen ausgeblendet"
+    },
     "showOlderSessions": "Ältere Sitzungen anzeigen",
     "hideOlderSessions": "Ältere Sitzungen ausblenden"
   },

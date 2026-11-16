@@ -440,7 +440,10 @@
     "searchHint": "Search",
     "noMatches": "No matching sessions.",
     "pinned": "Pinned",
-    "olderHidden": "$n older hidden",
+    "olderHidden": {
+      "one": "$n older hidden",
+      "other": "$n older hidden"
+    },
     "showOlderSessions": "Show older sessions",
     "hideOlderSessions": "Hide older sessions"
   },
