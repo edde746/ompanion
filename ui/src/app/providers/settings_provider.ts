@@ -137,6 +137,9 @@ export const Prefs = {
   /** The file editor wraps long lines, so the dock's narrow pane and a phone show a whole line without scrolling. */
   editorWrapLines: boolPref("editor_wrap_lines", true),
 
+  /** The Files tab lists the names that start with a dot (`.git`, `.env`). */
+  filesDotfiles: boolPref("files_dotfiles", true),
+
   /** The usage pane covers account emails, ids and organizations with a random mosaic, for screenshots. */
   usageHideIdentities: boolPref("usage_hide_identities", false),
 

@@ -52,7 +52,7 @@ type GitDiffState =
   | { readonly kind: "loaded"; readonly lines: readonly DiffLine[] }
   | { readonly kind: "failed"; readonly error: unknown };
 
-type EditorAction = "find" | "wrap" | "reload" | "copyPath" | "close";
+type EditorAction = "find" | "wrap" | "reload" | "showInFolder" | "copyPath" | "close";
 
 /**
  * One open document: the editor (read-only for large, binary or non-UTF-8 files), save with a conflict check, the
@@ -190,6 +190,7 @@ export function FileEditorView(props: {
         { value: "find", label: strings().find },
         { value: "wrap", label: strings().wrapLines, checked: settings.get(Prefs.editorWrapLines) },
         { value: "reload", label: strings().reload },
+        { value: "showInFolder", label: strings().showInFolder },
         { value: "copyPath", label: strings().copyPath },
         { value: "close", label: t.common.close },
       ],
@@ -209,6 +210,9 @@ export function FileEditorView(props: {
         break;
       case "reload":
         await reload();
+        break;
+      case "showInFolder":
+        await props.workspace.openDir(parentPath(props.document.path()));
         break;
       case "copyPath":
         await call("shell.clipboardWrite", { text: hostPath(props.document.path()) });

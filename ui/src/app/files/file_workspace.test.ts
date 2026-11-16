@@ -1,4 +1,5 @@
-// The workspace's ordering of late results over files in memory; the rest is file_workspace.e2e.test.ts.
+// The workspace over files in memory: the ordering of late results and the dotfile filter; the rest is
+// file_workspace.e2e.test.ts.
 import { expect, test } from "bun:test";
 import type { HostFileStat, HostProcess } from "../../core/transport/host_link";
 import { type Deferred, deferred } from "../../deferred";
@@ -68,4 +69,16 @@ test("a file that opens late does not replace what the user chose to show meanwh
 
   expect(workspace.current()?.path()).toBe("/w/quick.txt");
   expect(workspace.documents().map((document) => document.path())).toEqual(["/w/quick.txt", "/w/slow.txt"]);
+});
+
+test("without dotfiles the rows leave out dot names, and a folder of only those reads as empty", async () => {
+  const files = new MemoryFiles({ "/w/.env": "x", "/w/.git/HEAD": "x", "/w/only/.keep": "", "/w/src/a.ts": "x" });
+  const workspace = new FileWorkspace();
+  workspace.connect = memoryAccess(files);
+  await workspace.openDir("/w");
+  await workspace.toggle("/w/only");
+  const names = (dotfiles: boolean) =>
+    workspace.rows({ dotfiles }).map((row) => (row.kind === "EntryRow" ? row.entry.name : row.kind));
+  expect(names(true)).toEqual([".git", "only", ".keep", "src", ".env"]);
+  expect(names(false)).toEqual(["only", "EmptyRow", "src"]);
 });

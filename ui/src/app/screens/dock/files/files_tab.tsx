@@ -4,13 +4,14 @@ import { call } from "../../../../bridge";
 import { hostPath } from "../../../../core/host/scripts";
 import type { LiveSession } from "../../../../core/session/live_session";
 import { HostFileExists } from "../../../../core/transport/host_link";
-import { useDock, useSessions } from "../../../app_state";
+import { useDock, useSessions, useSettings } from "../../../app_state";
 import { baseName, breadcrumbs, checkName, extensionOf, isRootPath, type NameProblem, parentPath } from "../../../files/file_paths";
 import type { BrowserRow, EntryRow, FileWorkspace } from "../../../files/file_workspace";
 import { type GitChange, gitStatusChangeOf } from "../../../files/git_status";
 import { t } from "../../../i18n/i18n";
 import type { Machine } from "../../../models/machine";
 import { isTouch } from "../../../platform";
+import { Prefs } from "../../../providers/settings_provider";
 import { formatBytes } from "../../../utils/byte_size";
 import { ActivityMark } from "../../../widgets/activity_mark";
 import { FilledButton, IconButton, TextButton } from "../../../widgets/button";
@@ -94,6 +95,8 @@ const overscanRows = 10;
 
 function Browser(props: { readonly workspace: FileWorkspace; readonly onOpen: (path: string) => void }) {
   const strings = () => t.dock.fileBrowser;
+  const settings = useSettings();
+  const dotfiles = () => settings.get(Prefs.filesDotfiles);
   const failed = (error: unknown) => showSnackBar(strings().failed({ error: String(error) }));
 
   const create = async (dir: string, folder: boolean) => {
@@ -224,6 +227,12 @@ function Browser(props: { readonly workspace: FileWorkspace; readonly onOpen: (p
               iconSize={20}
               onClick={() => void create(root(), true)}
             />
+            <IconButton
+              icon={dotfiles() ? Symbols.visibility : Symbols.visibility_off}
+              tooltip={dotfiles() ? strings().hideDotfiles : strings().showDotfiles}
+              iconSize={20}
+              onClick={() => void settings.set(Prefs.filesDotfiles, !dotfiles())}
+            />
             <span class="files-tab-spacer" />
             <Show when={props.workspace.documents().length > 0}>
               <TextButton
@@ -240,6 +249,7 @@ function Browser(props: { readonly workspace: FileWorkspace; readonly onOpen: (p
           </div>
           <BrowserList
             workspace={props.workspace}
+            dotfiles={dotfiles()}
             onOpen={props.onOpen}
             onMenu={(entry, point) => void menu(entry, point)}
           />
@@ -252,13 +262,14 @@ function Browser(props: { readonly workspace: FileWorkspace; readonly onOpen: (p
 /** The rows in view and no more: every row is one height, as ListView's itemExtent. */
 function BrowserList(props: {
   readonly workspace: FileWorkspace;
+  readonly dotfiles: boolean;
   readonly onOpen: (path: string) => void;
   readonly onMenu: (row: EntryRow, point: { x: number; y: number }) => void;
 }) {
   const [scrollTop, setScrollTop] = createSignal(0);
   const [viewHeight, setViewHeight] = createSignal(0);
   const rowHeight = () => (isTouch() ? 44 : 32);
-  const rows = createMemo(() => props.workspace.rows());
+  const rows = createMemo(() => props.workspace.rows({ dotfiles: props.dotfiles }));
   const visible = createMemo(() => {
     const height = rowHeight();
     const first = Math.max(0, Math.floor(scrollTop() / height) - overscanRows);

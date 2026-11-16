@@ -244,8 +244,11 @@ export class FileWorkspace {
     await Promise.all([...dirs.map((dir) => this.load(dir)), this.refreshGit()]);
   }
 
-  /** The browser's rows: the browsed directory's entries and, under each expanded folder, its own. */
-  rows(): BrowserRow[] {
+  /**
+   * The browser's rows: the browsed directory's entries and, under each expanded folder, its own. Without `dotfiles`
+   * the names that start with a dot are left out, and a folder holding nothing else shows as empty.
+   */
+  rows(options: { readonly dotfiles?: boolean } = {}): BrowserRow[] {
     this.changed();
     const root = this.rootDir;
     if (root === undefined) return [];
@@ -264,10 +267,11 @@ export class FileWorkspace {
         children.push({ kind: "LoadingRow", depth });
       } else if (listing.kind === "DirFailed") {
         children.push({ kind: "FailedRow", depth, dir, error: listing.error });
-      } else if (listing.entries.length === 0) {
-        children.push({ kind: "EmptyRow", depth });
       } else {
-        for (const entry of listing.entries) {
+        const entries =
+          options.dotfiles === false ? listing.entries.filter((entry) => !entry.name.startsWith(".")) : listing.entries;
+        if (entries.length === 0) children.push({ kind: "EmptyRow", depth });
+        for (const entry of entries) {
           const path = joinPath(dir, entry.name);
           const expanded = entry.stat.isDirectory && this.expanded.has(path);
           children.push({ kind: "EntryRow", depth, path, entry, expanded });

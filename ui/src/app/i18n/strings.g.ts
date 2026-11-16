@@ -351,6 +351,9 @@ export type Translations = {
       readonly showFile: string;
       readonly showPreview: string;
       readonly showSource: string;
+      readonly showInFolder: string;
+      readonly showDotfiles: string;
+      readonly hideDotfiles: string;
       readonly conflictTitle: (args: { name: Param }) => string;
       readonly conflictChanged: string;
       readonly conflictDeleted: string;
