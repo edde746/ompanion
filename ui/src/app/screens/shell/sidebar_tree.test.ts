@@ -119,12 +119,13 @@ function describeRows(rows: readonly SidebarRowData[]): string[] {
 
 function rows(
   machines: readonly SidebarMachine[],
-  options: { pins?: readonly PinnedSessionRow[]; collapsed?: readonly [string, string][]; query?: string } = {},
+  options: { pins?: readonly PinnedSessionRow[]; collapsed?: readonly [string, string][]; hidden?: readonly string[]; query?: string } = {},
 ): SidebarRowData[] {
   return sidebarRows(machines, {
     pins: options.pins,
     collapsed: (machineId, cwd) => (options.collapsed ?? []).some(([m, c]) => m === machineId && c === cwd),
     showAll: () => false,
+    hidden: (_machineId, sessionId) => (options.hidden ?? []).includes(sessionId),
     title,
     query: options.query,
   });
@@ -193,6 +194,18 @@ describe("sidebarRows", () => {
     expect(found.every((row) => row.kind !== "MachineRowData" || row.expanded)).toBe(true);
     const session = found.find((row) => row.kind === "SessionRowData");
     expect(textInside("Build docs", session?.kind === "SessionRowData" ? session.match : undefined)).toBe("docs");
+  });
+
+  test("hidden sessions leave the rows, and a query still finds them", () => {
+    const hidden = ["Speed up the parser"];
+    expect(describeRows(rows([build], { hidden })).includes("session:Speed up the parser")).toBe(false);
+    expect(describeRows(rows([build], { hidden })).some((row) => row.startsWith(`project:${lib}`))).toBe(false);
+    expect(describeRows(rows([build], { hidden, query: "parser" }))).toEqual([
+      "machine:build",
+      `project:${lib}`,
+      "session:Speed up the parser",
+      "gap",
+    ]);
   });
 
   test("a query matching a project path keeps all of its sessions and marks the path", () => {

@@ -889,6 +889,8 @@
     "machinePage": "Machine settings",
     "pin": "Pin to top",
     "unpin": "Unpin",
+    "hide": "Hide",
+    "unhide": "Unhide",
     "markRead": "Mark as read",
     "newSession": "New session",
     "newSessionHere": "New session in this directory",

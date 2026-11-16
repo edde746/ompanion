@@ -111,6 +111,11 @@ function projectCollapsedPrefix(machineId: string): string {
   return `project_collapsed:${machineId}:`;
 }
 
+/** The key prefix of machine `machineId`'s `sessionHidden` settings, which go with the machine. */
+function sessionHiddenPrefix(machineId: string): string {
+  return `session_hidden:${machineId}:`;
+}
+
 export const Prefs = {
   themeMode: enumPref<AppThemeMode>("theme_mode", "system", appThemeModes),
 
@@ -139,6 +144,12 @@ export const Prefs = {
     boolPref(`${projectCollapsedPrefix(machineId)}${cwd}`, false),
 
   projectCollapsedPrefix,
+
+  /** Whether the sidebar leaves out omp session `sessionId` on machine `machineId` until a search finds it. */
+  sessionHidden: (machineId: string, sessionId: string): Pref<boolean> =>
+    boolPref(`${sessionHiddenPrefix(machineId)}${sessionId}`, false),
+
+  sessionHiddenPrefix,
 
   /** Set once "this computer" was added automatically, so deleting it sticks. */
   localMachineSeeded: boolPref("local_machine_seeded", false),

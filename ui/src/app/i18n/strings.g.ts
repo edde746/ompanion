@@ -855,6 +855,8 @@ export type Translations = {
     readonly machinePage: string;
     readonly pin: string;
     readonly unpin: string;
+    readonly hide: string;
+    readonly unhide: string;
     readonly markRead: string;
     readonly newSession: string;
     readonly newSessionHere: string;

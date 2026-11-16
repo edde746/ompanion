@@ -910,6 +910,8 @@
     "machinePage": "Rechnereinstellungen",
     "pin": "Oben anheften",
     "unpin": "Anheften aufheben",
+    "hide": "Ausblenden",
+    "unhide": "Einblenden",
     "markRead": "Als gelesen markieren",
     "newSession": "Neue Sitzung",
     "newSessionHere": "Neue Sitzung in diesem Verzeichnis",

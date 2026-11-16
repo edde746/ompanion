@@ -48,6 +48,7 @@ import {
   type NoticeRowData,
   type PinnedRowData,
   pinOf,
+  sidebarEntrySessionId,
   type SessionRowData,
   type SidebarEntry,
   sidebarEntries,
@@ -217,6 +218,7 @@ export function Sidebar(props: SidebarProps) {
         pins: pins.pins(),
         collapsed: (machineId, cwd) => settings.get(Prefs.projectCollapsed(machineId, cwd)),
         showAll: (machineId, cwd) => showAll().has(placeKey(machineId, cwd)),
+        hidden: (machineId, sessionId) => settings.get(Prefs.sessionHidden(machineId, sessionId)),
         title: sidebarEntryTitle,
         query: query(),
       },
@@ -266,9 +268,11 @@ export function Sidebar(props: SidebarProps) {
     }
   }
 
-  /** A session row's context menu: pin or unpin it, mark it read. */
+  /** A session row's context menu: pin or unpin it, hide or unhide it, mark it read. */
   async function sessionMenu(machine: Machine, entry: SidebarEntry, point: MenuPoint) {
     const pin = pinOf(machine.id, entry, Date.now());
+    const sessionId = sidebarEntrySessionId(entry);
+    const hidden = sessionId !== undefined && settings.get(Prefs.sessionHidden(machine.id, sessionId));
     const chosen = await showMenu({
       anchor: point,
       items: [
@@ -277,10 +281,12 @@ export function Sidebar(props: SidebarProps) {
           label: pin !== undefined && pins.isPinned(pin.machineId, pin.sessionId) ? t.sessions.unpin : t.sessions.pin,
           disabled: pin === undefined,
         },
+        { value: "hide", label: hidden ? t.sessions.unhide : t.sessions.hide, disabled: sessionId === undefined },
         { value: "read", label: t.sessions.markRead, disabled: !entryUnread(reads, machine.id, entry) },
       ],
     });
     if (chosen === "pin" && pin !== undefined) void pins.toggle(pin);
+    if (chosen === "hide" && sessionId !== undefined) void settings.set(Prefs.sessionHidden(machine.id, sessionId), !hidden);
     if (chosen === "read") markEntriesRead(reads, machine.id, [entry]);
   }
 

@@ -159,6 +159,7 @@ export class MachinesProvider {
     await this.write(this.list.filter((m) => m.id !== machine.id));
     this.deletedEmitter.add(machine.id);
     await this.settings.removePrefix(Prefs.projectCollapsedPrefix(machine.id));
+    await this.settings.removePrefix(Prefs.sessionHiddenPrefix(machine.id));
     await this.knownHosts.forgetWhere((row) => unused.has(`${row.host}\u0000${row.port}`));
     for (const hop of hops) await this.secrets.deletePassword(hop.id);
     await this.images?.forget(machine.id);

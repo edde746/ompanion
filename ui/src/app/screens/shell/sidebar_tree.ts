@@ -252,6 +252,9 @@ export const shortListCount = 5;
  * With a `query` (case-insensitive, trimmed): only sessions whose `title` or project path holds it, every one of
  * them, under their machine row and their project's whatever the collapsed states; machines and projects without one
  * are left out, and so are notices. Pinned sessions stay when their title holds it.
+ *
+ * A session `hidden` says so is left out of its machine's rows unless it is open here or a `query` is given, which
+ * finds it like any other.
  */
 export function sidebarRows(
   machines: readonly SidebarMachine[],
@@ -259,6 +262,7 @@ export function sidebarRows(
     pins?: readonly PinnedSessionRow[];
     collapsed: (machineId: string, cwd: string) => boolean;
     showAll: (machineId: string, cwd: string | undefined) => boolean;
+    hidden?: (machineId: string, sessionId: string) => boolean;
     title: (entry: SidebarEntry) => string;
     query?: string;
   },
@@ -293,6 +297,9 @@ export function sidebarRows(
     for (const entry of machine.entries) {
       const sessionId = sidebarEntrySessionId(entry);
       if (sessionId !== undefined && pinned.has(pinKey(id, sessionId))) continue;
+      if (needle === "" && entry.session === undefined && sessionId !== undefined && options.hidden?.(id, sessionId)) {
+        continue;
+      }
       const cwd = sidebarEntryCwd(entry);
       if (scratchDirs.includes(cwd)) {
         unfiled.push(entry);
