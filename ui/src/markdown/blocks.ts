@@ -602,7 +602,7 @@ export function machineImagePath(src: string): string | undefined {
   return /^\/[A-Za-z]:\//.test(path) ? path.slice(1) : path;
 }
 
-const fileLink = /^(?:file:\/\/)?(.+?)(?:#L(\d+)(?:-L?\d+)?|:(\d+)(?::\d+)?)?$/;
+const fileLink = /^(?:file:\/\/)?(.+?)(?::(\d+)(?::\d+)?)?$/;
 
 /** Where a link of the transcript goes: a file of the session's machine (with a 1-based line) or an external URL. */
 export type LinkTarget =
@@ -611,16 +611,17 @@ export type LinkTarget =
 
 /**
  * A path (no scheme, `file:`, or `name.ext:12`, which parses as a scheme) opens as a file of the session's machine,
- * with a `#L12` or `:12` suffix as the line; anything else is an external link. Undefined when there is nothing to
- * open.
+ * with a `#L12` or `:12` suffix as the line; anything else is an external link. A `#` starts the URL's fragment, so any
+ * other fragment (a heading) goes and `%23` stays in a name. Undefined when there is nothing to open (`#heading`).
  */
 export function transcriptLinkTarget(url: string): LinkTarget | undefined {
   const target = url.trim();
   const scheme = uriScheme.exec(target)?.[1] ?? "";
   if (scheme === "" || scheme.toLowerCase() === "file" || scheme.includes(".") || scheme.length === 1) {
-    const match = fileLink.exec(decoded(target));
+    const hash = target.indexOf("#");
+    const match = fileLink.exec(decoded(hash < 0 ? target : target.substring(0, hash)));
     if (!match) return undefined;
-    const line = match[2] ?? match[3];
+    const line = (hash < 0 ? undefined : /^L(\d+)(?:-L?\d+)?$/.exec(target.substring(hash + 1))?.[1]) ?? match[2];
     return { kind: "file", path: match[1]!, line: line === undefined ? undefined : Number(line) };
   }
   return { kind: "external", url: target };

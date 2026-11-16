@@ -27,7 +27,6 @@ import {
   sessionRowStates,
   shortListCount,
   sidebarEntries,
-  sidebarEntryCwd,
   sidebarEntryTitle,
   sidebarRowKey,
   sidebarRows,
@@ -126,6 +125,7 @@ function rows(
   options: {
     pins?: readonly PinnedSessionRow[];
     collapsed?: readonly [string, string][];
+    /** Titles of the sessions that count as idle. */
     idle?: readonly string[];
     query?: string;
   } = {},
@@ -135,7 +135,7 @@ function rows(
     collapsed: (machineId, cwd) => (options.collapsed ?? []).some(([m, c]) => m === machineId && c === cwd),
     showAll: () => false,
     title,
-    idle: (_machineId, entries) => entries.every((entry) => (options.idle ?? []).includes(sidebarEntryCwd(entry))),
+    idle: (_machineId, entries) => entries.every((entry) => (options.idle ?? []).includes(title(entry))),
     query: options.query,
   });
 }
@@ -227,8 +227,9 @@ describe("sidebarRows", () => {
       [app, "Fix the build"],
       [lib, "Speed up the parser"],
       ["/home/me/old", "Port to Rust"],
+      [lib, "Plan the release"],
     ]);
-    const idle = [lib, "/home/me/old"];
+    const idle = ["Speed up the parser", "Port to Rust", "Plan the release"];
     expect(describeRows(rows([box], { idle, collapsed: [["box", lib]] }))).toEqual([
       "machine:box",
       `project:${app}`,
@@ -236,11 +237,24 @@ describe("sidebarRows", () => {
       "idle:2",
       "gap",
     ]);
-    expect(describeRows(rows([box], { idle: [app, ...idle] }))).toEqual(["machine:box", "idle:3", "gap"]);
+    expect(describeRows(rows([box], { idle: ["Fix the build", ...idle] }))).toEqual(["machine:box", "idle:3", "gap"]);
     expect(describeRows(rows([box], { idle, query: "rust" }))).toEqual([
       "machine:box",
       "project:/home/me/old",
       "session:Port to Rust",
+      "gap",
+    ]);
+    // A pinned session that is not idle keeps its project listed, though it shows on top.
+    expect(describeRows(rows([box], { idle: idle.slice(0, 2), pins: [pin("box", "Plan the release")] }))).toEqual([
+      "pinned",
+      "pinned:Plan the release",
+      "gap",
+      "machine:box",
+      `project:${app}`,
+      "session:Fix the build",
+      `project:${lib}`,
+      "session:Speed up the parser",
+      "idle:1",
       "gap",
     ]);
   });

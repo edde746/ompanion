@@ -277,4 +277,10 @@ describe("links", () => {
     expect(transcriptLinkTarget("C:/Users/u/a.txt")).toEqual({ kind: "file", path: "C:/Users/u/a.txt", line: undefined });
     expect(transcriptLinkTarget("100%.md")).toEqual({ kind: "file", path: "100%.md", line: undefined });
   });
+
+  test("any other fragment (a heading) goes, before percent-decoding; a link to a heading alone opens nothing", () => {
+    expect(transcriptLinkTarget("docs/api.md#api/v1")).toEqual({ kind: "file", path: "docs/api.md", line: undefined });
+    expect(transcriptLinkTarget("issue%2312.md#notes")).toEqual({ kind: "file", path: "issue#12.md", line: undefined });
+    expect(transcriptLinkTarget("#installation")).toBeUndefined();
+  });
 });

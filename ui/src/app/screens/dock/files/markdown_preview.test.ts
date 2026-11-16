@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { frontMatterAsCode } from "./markdown_preview";
 
 test("front matter shows as a yaml code block; anything else stays as written", () => {
-  expect(frontMatterAsCode("---\nname: review\ndescription: Reviews code\n---\n# Review\n")).toBe(
+  expect(frontMatterAsCode("\uFEFF---\nname: review\ndescription: Reviews code\n---\n# Review\n")).toBe(
     "```yaml\nname: review\ndescription: Reviews code\n```\n\n# Review\n",
   );
   // A fence inside the front matter gets a longer fence around it; `...` closes it too.

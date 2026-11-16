@@ -320,7 +320,10 @@ export function FileEditorView(props: {
             document={props.document}
             hidden={diffShown() || previewShown()}
             onView={setEditor}
-            onRevealLine={() => setShowPreview(false)}
+            onRevealLine={() => {
+              setShowDiff(false);
+              setShowPreview(false);
+            }}
           />
         </Show>
       </div>
@@ -378,15 +381,11 @@ function MarkdownPreview(props: {
       canReset: false,
       onCopy: (text) =>
         void call("shell.clipboardWrite", { text }).then(() => showSnackBar(t.common.copied, { durationMs: 1000 })),
-      onOpenFile: (path, options) => {
-        // `#heading` and `notes.md#heading` name a heading; the preview opens the file, not the heading.
-        const file = path.replace(/#[^/]*$/, "");
-        if (file === "") return;
-        workspace
-          .resolve(file, { cwd })
+      onOpenFile: (path, options) =>
+        void workspace
+          .resolve(path, { cwd })
           .then((resolved) => workspace.open(resolved, options))
-          .catch((error: unknown) => showSnackBar(t.dock.fileBrowser.openFailed({ error: String(error) })));
-      },
+          .catch((error: unknown) => showSnackBar(t.dock.fileBrowser.openFailed({ error: String(error) }))),
       onOpenSubagent: (id) => {
         throw new Error(`A file has no subagent ${id}`);
       },

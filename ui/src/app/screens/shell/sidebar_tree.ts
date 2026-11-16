@@ -321,15 +321,17 @@ export function sidebarRows(
     const scratchDirs = sidebarMachineScratchDirs(machine);
     const unfiled: SidebarEntry[] = [];
     const byCwd = new Map<string, SidebarEntry[]>();
+    // Pinned sessions list on top, yet still keep their project from going idle.
+    const pinnedByCwd = new Map<string, SidebarEntry[]>();
     for (const entry of machine.entries) {
       const sessionId = sidebarEntrySessionId(entry);
-      if (sessionId !== undefined && pinned.has(pinKey(id, sessionId))) continue;
       const cwd = sidebarEntryCwd(entry);
-      if (scratchDirs.includes(cwd)) {
+      const group = sessionId !== undefined && pinned.has(pinKey(id, sessionId)) ? pinnedByCwd : byCwd;
+      if (group === byCwd && scratchDirs.includes(cwd)) {
         unfiled.push(entry);
       } else {
-        const project = byCwd.get(cwd);
-        if (project === undefined) byCwd.set(cwd, [entry]);
+        const project = group.get(cwd);
+        if (project === undefined) group.set(cwd, [entry]);
         else project.push(entry);
       }
     }
@@ -370,7 +372,7 @@ export function sidebarRows(
     rows.push(...sessionRows(machine, undefined, unfiled, showAll(id, undefined)));
     let idle = 0;
     for (const [cwd, entries] of byCwd) {
-      if (options.idle?.(id, entries) === true) {
+      if (options.idle?.(id, pinnedByCwd.get(cwd)?.concat(entries) ?? entries) === true) {
         idle++;
         continue;
       }
