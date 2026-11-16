@@ -12,19 +12,18 @@ export interface FileBrowserFilter {
 
 export function filterBrowserRows(rows: readonly BrowserRow[], filter: FileBrowserFilter): readonly BrowserRow[] {
   const needle = filter.query.trim().toLowerCase();
-  const dots = filter.hideDotFolders || filter.hideDotFiles;
-  if (!dots && needle === "") return rows;
-  const afterDots = dots ? dropHiddenDotTrees(rows, filter) : rows;
-  return needle === "" ? afterDots : keepMatchesAndAncestors(afterDots, needle);
+  // A query searches every loaded row, including names the empty list would hide, as the sidebar search does.
+  if (needle !== "") return keepMatchesAndAncestors(rows, needle);
+  if (filter.hideDotFolders || filter.hideDotFiles) return dropHiddenDotTrees(rows, filter);
+  return rows;
 }
 
-/** True when a non-empty query left no file, folder, load or error to show. */
-export function fileBrowserNoMatches(rows: readonly BrowserRow[], query: string): boolean {
-  if (query.trim() === "") return false;
-  return !rows.some((row) => row.kind === "EntryRow" || row.kind === "LoadingRow" || row.kind === "FailedRow");
+/** True when the filters left nothing to list. */
+export function fileBrowserNoMatches(rows: readonly BrowserRow[]): boolean {
+  return rows.length === 0;
 }
 
-export function passesDotFilter(
+function passesDotFilter(
   entry: HostDirEntry,
   filter: Pick<FileBrowserFilter, "hideDotFolders" | "hideDotFiles">,
 ): boolean {

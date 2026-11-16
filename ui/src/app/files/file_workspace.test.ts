@@ -4,7 +4,7 @@ import type { HostFileStat, HostProcess } from "../../core/transport/host_link";
 import { type Deferred, deferred } from "../../deferred";
 import { settle } from "../../test/live_session";
 import { memoryAccess, MemoryFiles, MemoryLink, memoryProbe } from "../../test/memory_host";
-import { FileWorkspace, shownAfterClose } from "./file_workspace";
+import { FileWorkspace } from "./file_workspace";
 
 /** A link whose every command succeeds with no output, so git reports a clean repository at the browsed directory. */
 class CleanGitLink extends MemoryLink {
@@ -124,14 +124,4 @@ test("closing a file that is not shown leaves the shown file", async () => {
   workspace.closeDocument(a);
   expect(workspace.current()).toBe(c);
   expect(workspace.documents().map((document) => document.path())).toEqual(["/w/b.txt", "/w/c.txt"]);
-});
-
-test("shownAfterClose picks the neighbour of the active file and none when the last file closes", () => {
-  expect(shownAfterClose(1, 0, 0)).toBeUndefined();
-  expect(shownAfterClose(3, 0, 0)).toBe(0);
-  expect(shownAfterClose(3, 1, 1)).toBe(1);
-  expect(shownAfterClose(3, 2, 2)).toBe(1);
-  expect(shownAfterClose(3, 0, 2)).toBe(1);
-  expect(shownAfterClose(3, 2, 0)).toBe(0);
-  expect(shownAfterClose(3, 1, undefined)).toBeUndefined();
 });

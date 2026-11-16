@@ -1,12 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { HostDirEntry } from "../../../../core/transport/host_link";
 import type { BrowserRow, EntryRow } from "../../../files/file_workspace";
-import {
-  fileBrowserNoMatches,
-  filterBrowserRows,
-  type FileBrowserFilter,
-  passesDotFilter,
-} from "./file_browser_filter";
+import { fileBrowserNoMatches, filterBrowserRows, type FileBrowserFilter } from "./file_browser_filter";
 
 const off: FileBrowserFilter = { hideDotFolders: false, hideDotFiles: false, query: "" };
 
@@ -46,34 +41,8 @@ function tree(): BrowserRow[] {
   ];
 }
 
-describe("passesDotFilter", () => {
-  test("ordinary names pass both toggles", () => {
-    expect(passesDotFilter(file("README.md"), { hideDotFolders: true, hideDotFiles: true })).toBe(true);
-    expect(passesDotFilter(dir("src"), { hideDotFolders: true, hideDotFiles: true })).toBe(true);
-  });
-
-  test("dot-folders and dotfiles are independent", () => {
-    const git = dir(".git");
-    const ignore = file(".gitignore");
-    expect(passesDotFilter(git, { hideDotFolders: true, hideDotFiles: false })).toBe(false);
-    expect(passesDotFilter(ignore, { hideDotFolders: true, hideDotFiles: false })).toBe(true);
-    expect(passesDotFilter(git, { hideDotFolders: false, hideDotFiles: true })).toBe(true);
-    expect(passesDotFilter(ignore, { hideDotFolders: false, hideDotFiles: true })).toBe(false);
-  });
-
-  test("a symlink is a file for the dotfile toggle", () => {
-    expect(passesDotFilter(link(".env"), { hideDotFolders: false, hideDotFiles: true })).toBe(false);
-    expect(passesDotFilter(link(".env"), { hideDotFolders: true, hideDotFiles: false })).toBe(true);
-  });
-});
-
 describe("filterBrowserRows", () => {
-  test("defaults leave every loaded row", () => {
-    const rows = tree();
-    expect(filterBrowserRows(rows, off)).toBe(rows);
-  });
-
-  test("hide dot-folders drops the folder and everything loaded under it", () => {
+  test("hide dotfolders drops the folder and everything loaded under it", () => {
     expect(names(filterBrowserRows(tree(), { ...off, hideDotFolders: true }))).toEqual([
       "src",
       "foo.ts",
@@ -85,7 +54,7 @@ describe("filterBrowserRows", () => {
     ]);
   });
 
-  test("hide dotfiles drops files that start with a period and keeps dot-folders", () => {
+  test("hide dotfiles drops files that start with a period and keeps dotfolders", () => {
     expect(names(filterBrowserRows(tree(), { ...off, hideDotFiles: true }))).toEqual([
       "src",
       "foo.ts",
@@ -115,6 +84,11 @@ describe("filterBrowserRows", () => {
     expect(names(filterBrowserRows(rows, { ...off, hideDotFiles: true }))).toEqual(["foo.bar"]);
   });
 
+  test("a symlink is a file for the dotfile toggle", () => {
+    const rows = [entry("/w/.env", link(".env"), 0), entry("/w/README.md", file("README.md"), 0)];
+    expect(names(filterBrowserRows(rows, { ...off, hideDotFiles: true }))).toEqual(["README.md"]);
+  });
+
   test("the text filter is a case-insensitive substring of the name", () => {
     expect(names(filterBrowserRows(tree(), { ...off, query: "READ" }))).toEqual(["README.md"]);
     expect(names(filterBrowserRows(tree(), { ...off, query: "md" }))).toEqual(["README.md"]);
@@ -133,21 +107,31 @@ describe("filterBrowserRows", () => {
     expect(names(filterBrowserRows(tree(), { ...off, query: "foo" }))).toEqual(["src", "foo.ts"]);
   });
 
-  test("hide dot-folders still hides a match loaded under a hidden folder", () => {
-    const hidden = filterBrowserRows(tree(), { hideDotFolders: true, hideDotFiles: false, query: "config" });
-    expect(names(hidden)).toEqual([]);
+  test("a collapsed folder's children are not in the rows and do not match", () => {
+    const collapsed = [entry("/w/src", dir("src"), 0, false), entry("/w/README.md", file("README.md"), 0)];
+    expect(names(filterBrowserRows(collapsed, { ...off, query: "foo" }))).toEqual([]);
+    expect(names(filterBrowserRows(collapsed, { ...off, query: "src" }))).toEqual(["src"]);
   });
 
-  test("hide dotfiles hides a matching dotfile and still finds the same substring elsewhere", () => {
+  test("a query finds a match loaded under a folder the empty list would hide", () => {
+    expect(names(filterBrowserRows(tree(), { hideDotFolders: true, hideDotFiles: false, query: "config" }))).toEqual([
+      ".git",
+      "config",
+    ]);
+  });
+
+  test("a query finds matching names that start with a period even while they are hidden", () => {
     expect(names(filterBrowserRows(tree(), { hideDotFolders: false, hideDotFiles: true, query: "git" }))).toEqual([
       ".git",
+      ".gitignore",
     ]);
   });
 
   test("query plus both toggles", () => {
-    expect(
-      names(filterBrowserRows(tree(), { hideDotFolders: true, hideDotFiles: true, query: "HEAD" })),
-    ).toEqual([]);
+    expect(names(filterBrowserRows(tree(), { hideDotFolders: true, hideDotFiles: true, query: "HEAD" }))).toEqual([
+      ".git",
+      "HEAD",
+    ]);
     expect(names(filterBrowserRows(tree(), { hideDotFolders: true, hideDotFiles: true, query: "foo" }))).toEqual([
       "src",
       "foo.ts",
@@ -168,15 +152,14 @@ describe("filterBrowserRows", () => {
 });
 
 describe("fileBrowserNoMatches", () => {
-  test("an empty query is not a miss, even with no rows", () => {
-    expect(fileBrowserNoMatches([], "")).toBe(false);
-    expect(fileBrowserNoMatches([], "  ")).toBe(false);
+  test("no rows left is a miss, including when the query is empty", () => {
+    expect(fileBrowserNoMatches([])).toBe(true);
   });
 
-  test("a query with no files, folders, loads or errors is a miss", () => {
-    expect(fileBrowserNoMatches([], "bar")).toBe(true);
-    expect(fileBrowserNoMatches([{ kind: "EmptyRow", depth: 0 }], "bar")).toBe(true);
-    expect(fileBrowserNoMatches([entry("/w/src", dir("src"), 0)], "src")).toBe(false);
-    expect(fileBrowserNoMatches([{ kind: "LoadingRow", depth: 0 }], "src")).toBe(false);
+  test("a remaining file, load, error or empty-folder row is not a miss", () => {
+    expect(fileBrowserNoMatches([entry("/w/src", dir("src"), 0)])).toBe(false);
+    expect(fileBrowserNoMatches([{ kind: "LoadingRow", depth: 0 }])).toBe(false);
+    expect(fileBrowserNoMatches([{ kind: "FailedRow", depth: 0, dir: "/w", error: "no" }])).toBe(false);
+    expect(fileBrowserNoMatches([{ kind: "EmptyRow", depth: 0 }])).toBe(false);
   });
 });

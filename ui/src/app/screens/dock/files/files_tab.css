@@ -111,22 +111,17 @@
   color: var(--on-surface-variant);
   font: var(--label-large);
   letter-spacing: var(--label-large-tracking);
-  text-decoration: none;
-  transition: background-color 50ms linear, color 50ms linear;
+  transition: background-color 50ms linear;
 }
 
 @media (hover: hover) {
   button.files-tab-crumb:hover {
     background: rgb(var(--on-surface-rgb) / 0.08);
-    color: var(--on-surface);
-    text-decoration: underline;
   }
 }
 
 button.files-tab-crumb:focus-visible {
   background: rgb(var(--on-surface-rgb) / 0.1);
-  color: var(--on-surface);
-  text-decoration: underline;
 }
 
 @media (prefers-reduced-motion: reduce) {

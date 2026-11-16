@@ -13,31 +13,30 @@ describe("crumbKind", () => {
     expect(crumbKind(0, 1)).toBe("current");
   });
 
-  test("a single file-viewer crumb is still the list link", () => {
-    expect(crumbKind(0, 1, { fileViewer: true })).toBe("showBrowser");
-  });
-
-  test("in the file viewer the first segment returns to the list", () => {
+  test("in the file viewer the first segment opens that folder", () => {
     const crumbs = breadcrumbs("/Users/edde/code/api-server/src/upload.ts", "/Users/edde");
     expect(crumbs.map((crumb) => crumb.label)).toEqual(["~", "code", "api-server", "src", "upload.ts"]);
-    expect(crumbKind(0, crumbs.length, { fileViewer: true })).toBe("showBrowser");
-    expect(crumbKind(1, crumbs.length, { fileViewer: true })).toBe("openDir");
-    expect(crumbKind(3, crumbs.length, { fileViewer: true })).toBe("openDir");
-    expect(crumbKind(4, crumbs.length, { fileViewer: true })).toBe("current");
+    expect(crumbKind(0, crumbs.length)).toBe("openDir");
+    expect(crumbs[0]?.path).toBe("/Users/edde");
+    expect(crumbKind(1, crumbs.length)).toBe("openDir");
+    expect(crumbKind(3, crumbs.length)).toBe("openDir");
+    expect(crumbKind(4, crumbs.length)).toBe("current");
   });
 
-  test("a file in the home directory still makes ~ a link back to the list", () => {
+  test("a file in the home directory makes ~ open the home folder", () => {
     const crumbs = breadcrumbs("/Users/edde/README.md", "/Users/edde");
     expect(crumbs.map((crumb) => crumb.label)).toEqual(["~", "README.md"]);
-    expect(crumbKind(0, crumbs.length, { fileViewer: true })).toBe("showBrowser");
-    expect(crumbKind(1, crumbs.length, { fileViewer: true })).toBe("current");
+    expect(crumbKind(0, crumbs.length)).toBe("openDir");
+    expect(crumbs[0]?.path).toBe("/Users/edde");
+    expect(crumbKind(1, crumbs.length)).toBe("current");
   });
 
-  test("outside the home the first segment is still the list link", () => {
+  test("outside the home the first segment opens the root", () => {
     const crumbs = breadcrumbs("/etc/hosts");
     expect(crumbs[0]?.label).toBe("/");
-    expect(crumbKind(0, crumbs.length, { fileViewer: true })).toBe("showBrowser");
-    expect(crumbKind(1, crumbs.length, { fileViewer: true })).toBe("openDir");
-    expect(crumbKind(2, crumbs.length, { fileViewer: true })).toBe("current");
+    expect(crumbs[0]?.path).toBe("/");
+    expect(crumbKind(0, crumbs.length)).toBe("openDir");
+    expect(crumbKind(1, crumbs.length)).toBe("openDir");
+    expect(crumbKind(2, crumbs.length)).toBe("current");
   });
 });

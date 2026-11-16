@@ -214,8 +214,6 @@ export function FileEditorView(props: {
           path={props.document.path()}
           home={props.workspace.homeDir()}
           onOpen={(dir) => void props.workspace.openDir(dir)}
-          onRoot={() => props.workspace.showBrowser()}
-          rootTooltip={strings().backToFiles}
         />
         <Show when={props.document.dirty()}>
           <span class="file-editor-dirty"> ●</span>

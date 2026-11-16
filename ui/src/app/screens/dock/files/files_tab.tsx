@@ -75,15 +75,10 @@ export function FilesTab(props: { readonly machine: Machine; readonly session: L
     },
   );
 
-  const closeOpenFile = async (document: FileDocument) => {
-    if (!(await confirmDiscardIfDirty(document))) return;
-    workspace().closeDocument(document);
-  };
-
   return (
     <div class="files-tab-frame">
       <Show when={tabsMode() && workspace().documents().length > 0}>
-        <OpenFileTabs workspace={workspace()} onClose={(document) => void closeOpenFile(document)} />
+        <OpenFileTabs workspace={workspace()} />
       </Show>
       <div class="files-tab-stage">
         <Show
@@ -109,16 +104,16 @@ export function FilesTab(props: { readonly machine: Machine; readonly session: L
 }
 
 /** Open documents as a tab strip, shown instead of the open-files control when that setting is on. */
-function OpenFileTabs(props: {
-  readonly workspace: FileWorkspace;
-  readonly onClose: (document: FileDocument) => void;
-}) {
+function OpenFileTabs(props: { readonly workspace: FileWorkspace }) {
+  const close = async (document: FileDocument) => {
+    if (!(await confirmDiscardIfDirty(document))) return;
+    props.workspace.closeDocument(document);
+  };
   return (
     <div class="files-tab-open-tabs" role="tablist">
       <For each={props.workspace.documents()}>
         {(document) => {
           const selected = () => document === props.workspace.current();
-          const close = () => props.onClose(document);
           return (
             <div
               class={["files-tab-open-tab", { "files-tab-open-tab-selected": selected() }]}
@@ -128,14 +123,6 @@ function OpenFileTabs(props: {
               tabindex="0"
               ref={tooltip(() => hostPath(document.path()))}
               onClick={() => props.workspace.show(document)}
-              onMouseDown={(event) => {
-                if (event.button === 1) event.preventDefault();
-              }}
-              onAuxClick={(event) => {
-                if (event.button !== 1) return;
-                event.preventDefault();
-                close();
-              }}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
                 event.preventDefault();
@@ -154,7 +141,7 @@ function OpenFileTabs(props: {
                 tooltip={t.common.close}
                 onClick={(event) => {
                   event.stopPropagation();
-                  close();
+                  void close(document);
                 }}
               />
             </div>
@@ -177,6 +164,7 @@ function Browser(props: {
 }) {
   const strings = () => t.dock.fileBrowser;
   const [query, setQuery] = createSignal("");
+  const [filterEpoch, setFilterEpoch] = createSignal(1);
   const failed = (error: unknown) => showSnackBar(strings().failed({ error: String(error) }));
 
   const create = async (dir: string, folder: boolean) => {
@@ -321,7 +309,24 @@ function Browser(props: {
               </TextButton>
             </Show>
           </div>
-          <AppSearchField class="files-tab-filter" hint={strings().filterHint} onChanged={setQuery} />
+          <For each={[{ epoch: filterEpoch() }]} keyed={(item) => item.epoch}>
+            {(item) => (
+              <AppSearchField
+                class="files-tab-filter"
+                hint={strings().filterHint}
+                autofocus={item().epoch > 1}
+                onChanged={setQuery}
+                onKeyDown={(event) => {
+                  if (event.key !== "Escape") return;
+                  const field = event.target;
+                  if (!(field instanceof HTMLInputElement) || field.value === "") return;
+                  event.preventDefault();
+                  setQuery("");
+                  setFilterEpoch((n) => n + 1);
+                }}
+              />
+            )}
+          </For>
           <BrowserList
             workspace={props.workspace}
             query={query()}
@@ -352,7 +357,7 @@ function BrowserList(props: {
       query: props.query,
     }),
   );
-  const noMatches = () => fileBrowserNoMatches(rows(), props.query);
+  const noMatches = () => fileBrowserNoMatches(rows());
   const visible = createMemo(() => {
     const height = rowHeight();
     const first = Math.max(0, Math.floor(scrollTop() / height) - overscanRows);

@@ -340,10 +340,10 @@ export class FileWorkspace {
   closeDocument(document: FileDocument): void {
     const index = this.docs.indexOf(document);
     if (index < 0) return;
-    const shown = this.shown === undefined ? undefined : this.docs.indexOf(this.shown);
-    const next = shownAfterClose(this.docs.length, index, shown === -1 ? undefined : shown);
     this.docs.splice(index, 1);
-    this.shown = next === undefined ? undefined : this.docs[next];
+    if (this.shown === document) {
+      this.shown = this.docs.length === 0 ? undefined : this.docs[Math.min(index, this.docs.length - 1)];
+    }
     this.notify();
   }
 
@@ -496,17 +496,6 @@ async function deleteTree(files: HostFiles, root: string): Promise<void> {
     }
   }
   for (const dir of order.reverse()) await files.removeDir(dir);
-}
-
-/**
- * After removing the document at `closing`, which remaining index is shown. Closing the active file picks the neighbour
- * that takes its place (the next one, or the previous when it was last); closing the last file leaves none shown.
- */
-export function shownAfterClose(count: number, closing: number, shown: number | undefined): number | undefined {
-  if (shown === undefined || closing < 0 || closing >= count) return shown;
-  if (shown !== closing) return shown > closing ? shown - 1 : shown;
-  const remaining = count - 1;
-  return remaining === 0 ? undefined : Math.min(closing, remaining - 1);
 }
 
 /** Directories first, then by name, case-insensitively, in code unit order as Dart's `compareTo`. */

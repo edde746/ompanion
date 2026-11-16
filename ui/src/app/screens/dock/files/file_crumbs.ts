@@ -1,16 +1,8 @@
 /** What a breadcrumb does when activated. The last segment is the place already in view. */
-export type CrumbKind = "showBrowser" | "openDir" | "current";
+export type CrumbKind = "openDir" | "current";
 
-/**
- * In the file viewer the first segment (`~` or `/`) returns to the list, like Back. Other segments before the last
- * open that folder. In the browser only ancestors of the current folder are links.
- */
-export function crumbKind(
-  index: number,
-  count: number,
-  options: { readonly fileViewer?: boolean } = {},
-): CrumbKind {
+/** Ancestors of the current folder or file open that folder. The last segment is not a link. */
+export function crumbKind(index: number, count: number): CrumbKind {
   if (count <= 0 || index < 0 || index >= count) return "current";
-  if (options.fileViewer && index === 0) return "showBrowser";
   return index < count - 1 ? "openDir" : "current";
 }
