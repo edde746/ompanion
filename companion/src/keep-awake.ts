@@ -30,12 +30,14 @@ export function installKeepAwake(session: AgentSession): void {
 	let recheck: Timer | undefined;
 	const update = (): void => {
 		// What can still write into the transcript (omp 18.4's `isBusyForSnapshot`, which 18.3.1 lacks). `isStreaming`
-		// stays true until omp's last in-flight prompt ends, which omp's own assertion follows.
+		// stays true until omp's last in-flight prompt ends, which omp's own assertion follows. omp 19 writes a handoff
+		// as a background compaction; up to 18.22 `isGeneratingHandoff` tells.
 		const working =
 			session.isStreaming ||
 			session.isRetrying ||
 			session.isCompacting ||
-			session.isGeneratingHandoff ||
+			session.isBackgroundCompacting ||
+			Reflect.get(session, "isGeneratingHandoff") === true ||
 			session.isBashRunning ||
 			session.isEvalRunning;
 		const want = working && existsSync(file);

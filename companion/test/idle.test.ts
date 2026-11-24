@@ -39,14 +39,15 @@ function quietSession() {
 	return {
 		isStreaming: false,
 		isCompacting: false,
+		isBackgroundCompacting: false,
 		isRetrying: false,
-		isGeneratingHandoff: false,
 		isBashRunning: false,
 		hasPostPromptWork: false,
 		hasAdmittedSubmission: false,
 		isSessionTransitioning: false,
+		isRunActive: false,
+		wakeSources: undefined,
 		agent: { peekSteeringQueue: () => [], peekFollowUpQueue: () => [] },
-		hasPendingAsyncWork: () => false,
 		getGoalModeState: () => undefined,
 		subscribe: () => () => {},
 	};

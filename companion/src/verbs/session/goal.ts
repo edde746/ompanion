@@ -7,7 +7,7 @@ import type { Goal } from "@oh-my-pi/pi-tui/tools/goal";
 import { prompt, stableStringifyJson } from "@oh-my-pi/pi-utils";
 import { expectKeys, requireInteger, requireNullableString, requireString } from "../../args.ts";
 import { channel } from "../../channel.ts";
-import { notifyDone } from "../../notify.ts";
+import { endsRun, notifyDone } from "../../notify.ts";
 import { type CommandTable, Refusal, VerbError, type VerbTable } from "../../protocol.ts";
 import { loopEnabled, promptAsCompanion } from "./loop.ts";
 
@@ -174,10 +174,14 @@ async function exitDroppedGoal(session: AgentSession): Promise<void> {
 	await session.setActiveToolsByName(tools);
 }
 
-/** omp 18.4's `#goalOpenWorkAllBlocked`: a todo list whose open work is all blocked waits for the user, not a turn. */
+/**
+ * omp 18.4's `#goalOpenWorkAllBlocked`: a todo list whose open work is all blocked waits for the user, not a turn.
+ * omp 18.20.0 dropped the `blocked` status, so from then on no list holds the continuation this way.
+ */
 function openWorkAllBlocked(session: AgentSession): boolean {
 	const phases = session.getTodoPhases();
-	return !nextActionableTask(phases) && phases.some(phase => phase.tasks.some(task => task.status === "blocked"));
+	const isBlocked = (task: { status: string }): boolean => task.status === "blocked";
+	return !nextActionableTask(phases) && phases.some(phase => phase.tasks.some(isBlocked));
 }
 
 /** Model-visible tool activity of a continuation turn, without call ids and timestamps. */
@@ -307,9 +311,14 @@ function goalFromModeData(modeData: Record<string, unknown> | undefined): Goal |
  */
 async function reconcileGoal(session: AgentSession, preserveActiveGoal: boolean): Promise<void> {
 	if (ompGoalController) {
-		// omp's controller reconciles right after, from the tools as they are: only the companion's bookkeeping of the
-		// previous session's goal goes, so a later drop does not apply that session's tools.
+		// omp's controller reconciles right after, from the tools as they are, and from 18.22.1 removes only a `goal`
+		// tool it added itself (as the TUI's #removeGoalToolPreservingRoster). So the companion removes the one its own
+		// goal mode added and keeps the rest of the roster; its bookkeeping of the previous session's goal goes too, so a
+		// later drop does not apply that session's tools.
+		const added = previousTools !== undefined;
 		await exitGoalMode(session, false);
+		const live = session.getEnabledToolNames();
+		if (added && live.includes("goal")) await session.setActiveToolsByName(live.filter(name => name !== "goal"));
 		return;
 	}
 	if (goalRunning(session) || pausedGoal(session)) {
@@ -515,7 +524,7 @@ export async function installGoalMode(pi: ExtensionAPI, session: AgentSession): 
 				}
 				if (session.getGoalModeState()?.mode === "exiting") {
 					finishCompletedGoal(session).catch(error => channel().notify(errorText(error), "error"));
-				} else if (event.isTerminal !== false) {
+				} else if (endsRun(event)) {
 					scheduleContinuation(session);
 				}
 				return;

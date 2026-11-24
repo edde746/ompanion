@@ -32,7 +32,7 @@ export default function faults(pi: ExtensionAPI): void {
 			fault = next;
 			if (patched) return;
 			const session = pi.pi.AgentRegistry.global().get(pi.pi.MAIN_AGENT_ID)?.session;
-			if (!session) throw new Error("the main session is not registered");
+			if (!(session instanceof pi.pi.AgentSession)) throw new Error("the main session is not registered");
 			patched = true;
 			const registry = session.modelRegistry;
 			const getApiKey = registry.getApiKey.bind(registry);

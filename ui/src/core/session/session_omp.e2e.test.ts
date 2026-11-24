@@ -113,6 +113,14 @@ test("a session reattaches where it stopped after the bridge to the core drops, 
   expect(answers(done)).toEqual(["Before the drop.", "After the drop."]);
 }, 60_000);
 
+/** omp 18.18.3 and later show the `ask` tool's HTML form through the companion's `form` request, older omp `ask`. */
+const formAsk = compareOmpVersions(testedOmpVersion, "18.18.3") >= 0;
+
+const colorForm = `<form><fieldset><legend>Which color?</legend>
+  <label><input type="radio" name="color" value="Red"> Red</label>
+  <label><input type="radio" name="color" value="Blue" checked> Blue</label>
+</fieldset></form>`;
+
 test("a second device sees the prompt and the dialogs; an answer on either closes them on both", async () => {
   await fake.enqueue([
     {
@@ -124,12 +132,19 @@ test("a second device sees the prompt and the dialogs; an answer on either close
         {
           toolCall: {
             name: "ask",
-            arguments: {
-              i: "Asking the color",
-              questions: [
-                { id: "color", question: "Which color?", options: [{ label: "Red" }, { label: "Blue" }], recommended: 1 },
-              ],
-            },
+            arguments: formAsk
+              ? { i: "Asking the color", html: colorForm }
+              : {
+                  i: "Asking the color",
+                  questions: [
+                    {
+                      id: "color",
+                      question: "Which color?",
+                      options: [{ label: "Red" }, { label: "Blue" }],
+                      recommended: 1,
+                    },
+                  ],
+                },
           },
         },
       ],
@@ -161,9 +176,14 @@ test("a second device sees the prompt and the dialogs; an answer on either close
   expect(asks).toHaveLength(1);
   const ask = asks[0]!;
   if (ask.kind !== "CompanionRequest") throw new Error(`not a companion request: ${ask.kind}`);
-  expect(ask.method).toBe("ask");
+  expect(ask.method).toBe(formAsk ? "form" : "ask");
   await viewWhere(b, (view) => view.requests.some((request) => request.id === ask.id));
-  await a.companion.respond(ask.id, { kind: "submit", results: [{ id: "color", selectedOptions: ["Blue"] }] });
+  await a.companion.respond(
+    ask.id,
+    formAsk
+      ? { kind: "submit", data: { color: "Blue" } }
+      : { kind: "submit", results: [{ id: "color", selectedOptions: ["Blue"] }] },
+  );
   await viewWhere(b, (view) => view.requests.length === 0);
   await viewWhere(a, (view) => view.requests.length === 0);
   const done = await viewWhere(b, (view) => idle(view) && answers(view).includes("Blue it is."));

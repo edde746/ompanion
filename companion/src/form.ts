@@ -80,11 +80,11 @@ export interface HtmlForms {
  * first form: omp has these modules from 18.18.3, the first omp whose `ask` tool calls `formDialog`, and a static
  * import would stop the companion from loading in an older omp.
  */
-async function loadHtmlForms(): Promise<HtmlForms> {
+async function loadHtmlForms(ompVersion: string): Promise<HtmlForms> {
 	const [parse, data, media] = await Promise.all([
 		import("@oh-my-pi/pi-tui/html-form/parse"),
 		import("@oh-my-pi/pi-tui/html-form/data"),
-		import("@oh-my-pi/pi-tui/html-form/media"),
+		loadFormMedia(ompVersion),
 	]);
 	return {
 		parseHtmlForm: parse.parseHtmlForm,
@@ -92,9 +92,18 @@ async function loadHtmlForms(): Promise<HtmlForms> {
 		fieldQuestions: data.fieldQuestions,
 		fieldError: data.fieldError,
 		isArrayChoice: data.isArrayChoice,
-		loadFormImage: media.loadFormImage,
-		svgMedia: media.svgMedia,
+		...media,
 	};
+}
+
+/** omp 18.21.0 moved the picture loader from `html-form/media` to `media` and renamed `loadFormImage` `loadMedia`. */
+async function loadFormMedia(ompVersion: string): Promise<Pick<HtmlForms, "loadFormImage" | "svgMedia">> {
+	if (Bun.semver.order(ompVersion, "18.21.0") >= 0) {
+		const media = await import("@oh-my-pi/pi-tui/media");
+		return { loadFormImage: media.loadMedia, svgMedia: media.svgMedia };
+	}
+	const media = await import("@oh-my-pi/pi-tui/html-form/media");
+	return { loadFormImage: media.loadFormImage, svgMedia: media.svgMedia };
 }
 
 function choiceBlock(field: ChoiceField, question: string): ChoiceBlock {
@@ -251,9 +260,10 @@ export function formAnswer(
  */
 export function formDialog(
 	cwd: () => string,
+	ompVersion: string,
 ): (html: string, dialogOptions?: ExtensionUIDialogOptions) => Promise<FormDialogResult | undefined> {
 	return async (html, dialogOptions) => {
-		const forms = await loadHtmlForms();
+		const forms = await loadHtmlForms(ompVersion);
 		const form = forms.parseHtmlForm(html);
 		const outer = dialogOptions?.signal;
 		const params = await formParams(form, forms, { cwd: cwd(), signal: outer });

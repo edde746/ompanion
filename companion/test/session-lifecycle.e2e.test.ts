@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "
 import { mkdir, realpath, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { isRecord } from "../src/args.ts";
-import { type Frame, OmpDriver } from "./driver.ts";
+import { type Frame, OMP_VERSION, OmpDriver } from "./driver.ts";
 
 setDefaultTimeout(60_000);
 
@@ -140,6 +140,8 @@ describe("context.breakdown", () => {
 			"systemPrompt",
 			"systemTools",
 			"systemContext",
+			// omp 18.18.9 counts loaded instruction files apart from the system context.
+			...(Bun.semver.order(OMP_VERSION, "18.18.9") >= 0 ? ["instructionFiles"] : []),
 			"skills",
 			"messages",
 		]);

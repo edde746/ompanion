@@ -4,7 +4,7 @@ import { renderGoalPrompt } from "@oh-my-pi/pi-coding-agent/goals/runtime";
 import type { Goal } from "@oh-my-pi/pi-tui/tools/goal";
 import { prompt } from "@oh-my-pi/pi-utils";
 import type { Turn } from "../../harness/fake-provider/client.ts";
-import { type Frame, OmpDriver, requestMessages, requestTools } from "./driver.ts";
+import { type Frame, OMP_VERSION, OmpDriver, requestMessages, requestTools } from "./driver.ts";
 
 setDefaultTimeout(60_000);
 
@@ -146,7 +146,9 @@ describe("goal continuation", () => {
 		expect(await snapshotGoal()).toMatchObject({ objective: "keep checking", status: "active" });
 	});
 
-	test("a todo list whose open work is all blocked holds the continuation", async () => {
+	// omp 18.20.0 dropped the `blocked` todo status.
+	const blockedTodos = Bun.semver.order(OMP_VERSION, "18.20.0") < 0;
+	test.skipIf(!blockedTodos)("a todo list whose open work is all blocked holds the continuation", async () => {
 		const todo = (args: Record<string, unknown>): Turn => ({ steps: [{ toolCall: { name: "todo", arguments: args } }] });
 		await omp.fake.enqueue([
 			todo({ op: "init", list: [{ phase: "Release", items: ["Ship it"] }] }),

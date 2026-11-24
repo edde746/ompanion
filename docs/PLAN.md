@@ -439,11 +439,15 @@ logic in the app would stop with it.
   in models.yml never does (can1357/oh-my-pi#14596): without the poll, a running session's model list lacked the new
   provider and `set_model` refused its models. A provider whose models come only from online discovery is not
   refreshed in other sessions.
+- Tool intents (`companion/src/index.ts`): omp 19 leaves `tools.intentTracing` off in RPC while no settings layer
+  sets it, as nothing showed intents there. The app shows them in tool cards, approvals and the Agent Hub, so on omp 19
+  and later the companion pins the setting's default (on) with omp's `pinDefault`, as omp pins its protocol defaults: a
+  configured value, or any global write of the setting, ends the pin.
 
 Version policy: the app drives omp 18.3.1 and later (`minimumOmpVersion`, `ui/src/core/host/probe.ts`) and installs
-the newest release it has digests for (`ompReleases`, `ui/src/core/host/install.ts`: 18.16.0). One companion build
+the newest release it has digests for (`ompReleases`, `ui/src/core/host/install.ts`: 19.1.1). One companion build
 serves every such release and feature-checks what it uses (`ui/src/app/sessions/companion_asset.ts`); an omp release
-that breaks it needs a build of its own. The tests run the omp named in `harness/omp-version` (18.16.0), and CI's
+that breaks it needs a build of its own. The tests run the omp named in `harness/omp-version` (19.1.1), and CI's
 integration job runs the UI's end-to-end tests (omp, the Go core, OpenSSH) against both that omp and the minimum. A
 machine whose omp is older gets the install offer; a newer omp gets the same build and no warning.
 

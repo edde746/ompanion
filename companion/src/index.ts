@@ -1,4 +1,5 @@
 import type { AgentSession, ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@oh-my-pi/pi-coding-agent";
+import { lookup } from "@oh-my-pi/pi-coding-agent/config/registry";
 import { CallParseError, parseCall } from "./args.ts";
 import { askDialog } from "./ask.ts";
 import { bindChannel, type Channel, channel, errorFrame, eventFrame, replyFrame } from "./channel.ts";
@@ -34,7 +35,10 @@ const verbs: VerbTable = mergeVerbs(
 );
 
 function mainSession(pi: ExtensionAPI): AgentSession | undefined {
-	return pi.pi.AgentRegistry.global().get(pi.pi.MAIN_AGENT_ID)?.session ?? undefined;
+	// From omp 18.18 the registry holds a handle that may stand for a session on another thread; the main agent's is
+	// this thread's AgentSession.
+	const session = pi.pi.AgentRegistry.global().get(pi.pi.MAIN_AGENT_ID)?.session;
+	return session instanceof pi.pi.AgentSession ? session : undefined;
 }
 
 let mainBound = false;
@@ -58,7 +62,18 @@ async function bindMain(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> 
 	if (bindChannel(ui).kind === "output") {
 		Object.defineProperty(ui, "askDialog", { value: askDialog, writable: true, configurable: true });
 		const cwd = () => mainSession(pi)?.sessionManager.getCwd() ?? process.cwd();
-		Object.defineProperty(ui, "formDialog", { value: formDialog(cwd), writable: true, configurable: true });
+		const dialog = formDialog(cwd, pi.pi.VERSION);
+		Object.defineProperty(ui, "formDialog", { value: dialog, writable: true, configurable: true });
+		// omp 19 leaves tool-call intents off in RPC while no settings layer sets them, as only the TUI showed them.
+		// The app shows them too, so it holds the setting's default (on) the way omp pins its protocol defaults, until
+		// the user configures the setting. omp read the setting when it built the agent and its system prompt, and a
+		// pin that keeps the setting's value is no change to its listeners, so the companion applies it to both.
+		const intents = Bun.semver.order(pi.pi.VERSION, "19.0.0") >= 0 ? lookup("tools.intentTracing") : undefined;
+		if (intents && !intents.isConfigured(session.settings)) {
+			intents.pinDefault(session.settings);
+			session.agent.intentTracing = intents.get(session.settings) === true;
+			await session.refreshBaseSystemPrompt();
+		}
 	}
 	watchCore(session);
 	await installSessionHooks(pi, session);

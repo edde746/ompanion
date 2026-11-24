@@ -72,15 +72,17 @@ function busy(session: AgentSession): boolean {
 		running > 0 ||
 		session.isStreaming ||
 		session.isCompacting ||
+		// omp 19 writes a handoff as a background compaction; up to 18.22 `isGeneratingHandoff` tells.
+		session.isBackgroundCompacting ||
+		Reflect.get(session, "isGeneratingHandoff") === true ||
 		session.isRetrying ||
-		session.isGeneratingHandoff ||
 		session.isBashRunning ||
 		session.hasPostPromptWork ||
 		session.hasAdmittedSubmission ||
 		session.isSessionTransitioning ||
 		session.agent.peekSteeringQueue().length > 0 ||
 		session.agent.peekFollowUpQueue().length > 0 ||
-		session.hasPendingAsyncWork() ||
+		pendingAsyncWork(session) ||
 		agentPauseGate.paused ||
 		channel().openRequests().length > 0 ||
 		loopEnabled() ||
@@ -89,6 +91,16 @@ function busy(session: AgentSession): boolean {
 			.list()
 			.some(ref => ref.kind !== "main" && ref.status === "running")
 	);
+}
+
+/**
+ * Background jobs or deliveries that can still start a turn. omp 18.21.0 replaced `hasPendingAsyncWork()` with the run
+ * lifecycle: a run still open (one paused on background work included), or a source that can wake the session.
+ */
+function pendingAsyncWork(session: AgentSession): boolean {
+	const legacy: unknown = Reflect.get(session, "hasPendingAsyncWork");
+	if (typeof legacy === "function") return Reflect.apply(legacy, session, []) === true;
+	return session.isRunActive || session.wakeSources !== undefined;
 }
 
 /**

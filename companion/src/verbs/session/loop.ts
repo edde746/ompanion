@@ -20,7 +20,7 @@ import { cfgLoopConditionTimeoutMs, cfgLoopMode } from "@oh-my-pi/pi-coding-agen
 import type { LoopConditionConfig, LoopLimitRuntime } from "@oh-my-pi/pi-tui/status-line/loop";
 import { expectKeys, isRecord, requireNullableString } from "../../args.ts";
 import { channel, emitEvent } from "../../channel.ts";
-import { notifyDone } from "../../notify.ts";
+import { endsRun, notifyDone } from "../../notify.ts";
 import { type CommandTable, Refusal, VerbError, type VerbTable } from "../../protocol.ts";
 import { announceChange } from "./changes.ts";
 
@@ -374,7 +374,7 @@ export function installLoopMode(session: AgentSession): void {
 				return;
 			}
 			case "agent_end":
-				lastEndTerminal = event.isTerminal !== false;
+				lastEndTerminal = endsRun(event);
 				if (lastEndTerminal) scheduleIteration(session);
 				return;
 		}

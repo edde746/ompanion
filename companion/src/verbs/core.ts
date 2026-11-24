@@ -277,7 +277,10 @@ export const coreVerbs: VerbTable = {
 		expectKeys(args, []);
 		const message = session.popLastQueuedMessage();
 		checkQueue(session);
-		return message ?? null;
+		if (!message) return null;
+		// omp 18.20.3 adds the queue the message came from; `Restored` (docs/contracts/ompx.md) has no such field.
+		const { queue: _queue, ...restored } = message;
+		return restored;
 	},
 
 	"queue.take": async (args, { session }) => {

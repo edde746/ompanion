@@ -433,6 +433,14 @@ function watchDialogs(ui: ExtensionUIContext): void {
 	};
 }
 
+/**
+ * Whether a session `agent_end` ends the run. omp up to 18.20 also ends a model loop the run goes on after with an
+ * `agent_end` flagged `isTerminal: false`; from 18.21.0 the session emits `agent_pause` for it and `agent_end` once.
+ */
+export function endsRun(event: { type: "agent_end" }): boolean {
+	return Reflect.get(event, "isTerminal") !== false;
+}
+
 function runEnded(messages: readonly AgentMessage[], continues: boolean): void {
 	runOpen = false;
 	paused = false;
@@ -444,7 +452,9 @@ function runEnded(messages: readonly AgentMessage[], continues: boolean): void {
 	const last = messages.findLast((message): message is AssistantMessage => message.role === "assistant");
 	// The user stopped it: they are there.
 	if (last?.stopReason === "aborted") return;
-	if (last?.stopReason === "error") send("failed", last.errorMessage ?? retry ?? "Unknown error");
+	// A failed retry's error says more than the run's last one: a retry whose `continue()` failed before its turn
+	// started names that and the original error. One that gave up repeats the last attempt's error.
+	if (last?.stopReason === "error") send("failed", retry ?? last.errorMessage ?? "Unknown error");
 	else if (retry !== undefined) send("failed", retry);
 	else send("done", body ?? doneBody(last));
 }
@@ -480,18 +490,19 @@ export function installNotifications(
 			case "auto_retry_end": {
 				if (event.success) return;
 				const error = event.finalError ?? "Unknown error";
-				// An attempt that gave up inside the run: the run's `agent_end` follows. A retry scheduled after a
-				// non-terminal `agent_end` whose `continue()` failed before its turn started
-				// (turn-recovery.ts #failRetryAfterLocalContinueError) is followed by nothing.
+				// An attempt that gave up inside the run: the run's `agent_end` follows. On omp up to 18.20, a retry
+				// scheduled after a non-terminal `agent_end` whose `continue()` failed before its turn started
+				// (turn-recovery.ts #failRetryAfterLocalContinueError) is followed by nothing; from 18.21.0 that loop end is
+				// an `agent_pause`, which leaves the run open, and the run's `agent_end` follows.
 				if (runOpen && !paused) retryError = error;
 				else failRun(error);
 				return;
 			}
 			case "agent_end":
-				if (event.isTerminal !== false) runEnded(event.messages, continues());
-				// omp holds back the `agent_end` of a run a prompt still waits on and emits it, non-terminal, once the
-				// prompt returns: after the failed retry's `auto_retry_end`, with nothing after it. Once retries gave up,
-				// whatever omp starts next is a run of its own.
+				if (endsRun(event)) runEnded(event.messages, continues());
+				// omp up to 18.20 holds back the `agent_end` of a run a prompt still waits on and emits it, non-terminal,
+				// once the prompt returns: after the failed retry's `auto_retry_end`, with nothing after it. Once retries
+				// gave up, whatever omp starts next is a run of its own.
 				else if (retryError !== undefined) failRun(retryError);
 				else paused = true;
 				return;
