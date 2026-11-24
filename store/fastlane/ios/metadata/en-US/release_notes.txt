@@ -1,15 +1,11 @@
-ompanion 2.2.0 previews Markdown files in the Files tab, shows omp's advisor notes as a card, and can hide projects that sat idle for a while. It works with omp 18.3.1 and later and installs omp 18.16.0 on a machine that lacks it.
-
-New
-- Files: a Markdown file opens as a preview, rendered as the chat renders replies: front matter shows as a YAML block, relative links open their files, and relative images load from the machine. The preview button switches to the source and back, keeping your edits
-- Files: the toolbar's eye button hides or shows dotfiles
-- Files: Open folder, in the editor's menu, browses the open file's folder
-- omp's advisor notes show as a card instead of raw XML, each note with its severity (nit, concern, blocker); the card opens by itself when a note is a blocker
-- Settings → Hide idle projects: Off, 7, 30 or 90 days. A project whose sessions all sat untouched that long leaves the sidebar; a row under each machine and the search still show it
-
-Changed
-- The chat no longer stutters while it scrolls during a reply in a session with many subagents
+ompanion 2.2.1 fixes the app with omp 18.21 and later, up to omp 19.1.1, which it now installs on a machine that lacks omp. It still works with omp 18.3.1 and later.
 
 Fixed
-- A link to a heading in a file opens the file instead of looking for a file named with the heading
-- The interface could halt with an error when a part of the screen closed while its data changed
+- With omp 18.21.0 or later, the ask tool's questions never reached the app: the tool failed at once and the agent went on without an answer. They show in the chat again
+- With omp 18.21.0 or later, a session that sat idle for the idle-exit time ended with an error instead of stopping cleanly
+- With omp 19, tool cards, approvals and the Agent Hub lost the one-line description of what each tool call is for. The app turns it back on while omp's Intent Tracing setting is unset
+- Switching from a session with a goal to one without left the goal tool on
+- The notification of a run whose retry failed before it started names that failure
+
+Changed
+- The app installs omp 19.1.1 on a machine that lacks omp (was 18.16.0)

@@ -1,7 +1,5 @@
-ompanion 2.2.0 previews Markdown files in the Files tab, shows omp's advisor notes as a card, and can hide projects that sat idle for a while. It works with omp 18.3.1 and later and installs omp 18.16.0 on a machine that lacks it.
+ompanion 2.2.1 fixes the app with omp 18.21 and later, up to omp 19.1.1, which it now installs on a machine that lacks omp. It still works with omp 18.3.1 and later.
 
-New: a Markdown file in the Files tab opens as a preview, rendered as the chat renders replies, with front matter as a YAML block, relative links that open their files and relative images loaded from the machine; the preview button switches to the source and back. The Files toolbar hides or shows dotfiles, and Open folder in the editor's menu browses the open file's folder. omp's advisor notes show as a card instead of raw XML, each note with its severity, opened by itself when a note is a blocker. Settings → Hide idle projects (7, 30 or 90 days) clears projects whose sessions sat untouched that long from the sidebar; a row under each machine and the search still show them.
+Fixed: with omp 18.21.0 or later, the ask tool's questions never reached the app and the agent went on without an answer; they show in the chat again. A session that sat idle for the idle-exit time stops cleanly again instead of ending with an error. With omp 19, tool cards, approvals and the Agent Hub show what each tool call is for again: the app turns omp's Intent Tracing back on while the setting is unset. Switching from a session with a goal to one without turns the goal tool off. The notification of a run whose retry failed before it started names that failure.
 
-Changed: the chat no longer stutters while it scrolls during a reply in a session with many subagents.
-
-Fixed: a link to a heading in a file opens the file. The interface could halt with an error when a part of the screen closed while its data changed.
+Changed: the app installs omp 19.1.1 on a machine that lacks omp (was 18.16.0).
