@@ -20,10 +20,13 @@ func shellArgv(command string) (argv []string, cmdLine string) {
 	return []string{"cmd.exe", "/d", "/s", "/c", command}, `cmd.exe /d /s /c "` + command + `"`
 }
 
+// shellCommand starts command through shellArgv. The app is a GUI process with no console to share, so every console
+// program the core starts gets CREATE_NO_WINDOW: without it each cmd.exe, PowerShell and omp opens a console window on
+// the desktop. The program still gets a console, a hidden one, which the programs it starts share.
 func shellCommand(command string, env map[string]string, dir string) *exec.Cmd {
 	argv, cmdLine := shellArgv(command)
 	cmd := exec.Command(argv[0])
-	cmd.SysProcAttr = &syscall.SysProcAttr{CmdLine: cmdLine}
+	cmd.SysProcAttr = &syscall.SysProcAttr{CmdLine: cmdLine, CreationFlags: windows.CREATE_NO_WINDOW}
 	cmd.Env = environ(env)
 	cmd.Dir = dir
 	return cmd
@@ -37,13 +40,17 @@ type processGroup struct {
 	job windows.Handle // 0 once released
 }
 
-// startGroup starts cmd and puts it in a new job object. A process it started before that is outside the job; cmd.exe
-// and PowerShell start nothing that soon.
+// startGroup starts cmd with CREATE_NO_WINDOW (shellCommand) and puts it in a new job object. A process it started
+// before that is outside the job; cmd.exe and PowerShell start nothing that soon.
 func startGroup(cmd *exec.Cmd) (*processGroup, error) {
 	job, err := windows.CreateJobObject(nil, nil)
 	if err != nil {
 		return nil, err
 	}
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.CreationFlags |= windows.CREATE_NO_WINDOW
 	if err := cmd.Start(); err != nil {
 		return nil, errors.Join(err, windows.CloseHandle(job))
 	}
