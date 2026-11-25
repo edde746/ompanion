@@ -353,13 +353,14 @@ async function run(): Promise<void> {
   await sleep(2000);
   await shoot("06-files", { diff: boxOf(all(".file-editor-diff")[0]) });
 
-  // 5. Machine configuration and the model list the machine serves.
+  // 5. The machine page's omp configuration and the model list the machine serves.
   await leavePanels();
   await goHome();
   const devBox = await until("the dev-box row", 30, () => machineRow("dev-box"));
   devBox.querySelector<HTMLElement>('[aria-label="More"]')!.click();
-  press(await until("the Configure menu item", 10, () => withText('.menu-item[role="menuitem"]', "Configure")));
-  const config = await until("the config screen", 60, () => all(".config-screen")[0]);
+  const item = () => withText('.menu-item[role="menuitem"]', "Machine settings");
+  press(await until("the Machine settings menu item", 10, item));
+  const config = await until("the machine page", 60, () => all(".machine-page")[0]);
   press(await until("the Model roles section", 60, () => withText('[role="tab"]', "Model roles", config)));
   const card = await until("the model roles", 60, () => all(".roles-page-card", config)[0]);
   const global = card.querySelector<HTMLElement>(".roles-page-row button.button-text");
@@ -372,8 +373,7 @@ async function run(): Promise<void> {
   const cancel = withText(".dialog-actions button", "Cancel", picker, true);
   if (cancel) press(cancel);
   await settle();
-  press(await until("the config screen's back button", 10, () => all(".config-screen .back-button")[0]));
-  await settle();
+  await goHome();
 
   // 6. The session tree of the same session.
   if (!composer()) {

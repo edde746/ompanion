@@ -1,8 +1,9 @@
 /* lib/screens/machines/machine_detail_pane.dart */
 .machine-detail-pane {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  height: 100%;
+  min-height: 0;
   padding: 24px;
   overflow-y: auto;
   color: var(--on-surface);

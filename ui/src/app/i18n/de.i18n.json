@@ -919,7 +919,6 @@
     "refresh": "Aktualisieren",
     "collapse": "Einklappen",
     "expand": "Ausklappen",
-    "configure": "Konfigurieren",
     "machinePage": "Rechnereinstellungen",
     "pin": "Oben anheften",
     "unpin": "Anheften aufheben",
@@ -1406,13 +1405,13 @@
     }
   },
   "config": {
-    "title": "$machine konfigurieren",
     "connect": "Verbinden",
     "connecting": "Verbinde…",
     "needsOmp": "omp muss auf diesem Rechner installiert oder aktualisiert werden: $reason",
     "refresh": "Aktualisieren",
     "noOutput": "(keine Ausgabe)",
     "sections": {
+      "machine": "Rechner",
       "settings": "Einstellungen",
       "roles": "Modellrollen",
       "accounts": "Anbieter",

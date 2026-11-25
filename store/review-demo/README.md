@@ -124,7 +124,8 @@ the session list is behind the machine's row.
    use **⋮** → **Refresh** to reload it.
 
 Worth trying with the reviewer: **Files** (open `README.md`, edit, see the git diff), **Terminal** (a root
-shell on the server), the transcript's tool cards, and **Configure** on the machine.
+shell on the server), the transcript's tool cards, and omp's configuration on the machine's page (the gear on
+its row).
 
 ## The model and what it costs
 
@@ -194,9 +195,10 @@ written. If the server changes, replace `217.160.119.181` everywhere `git grep 2
 >    project's files and run commands on the server.
 >
 > Everything else works on the same machine: the Files panel edits files and shows git diffs, the Terminal
-> opens a shell, and Configure browses omp's settings, model roles, MCP servers, plugins and skills. Usage
-> has no limits to show on the demo server. No account, purchase or AI subscription is needed to reach any
-> of it. App Review may also connect to its own machine with omp 18.3.1 installed.
+> opens a shell, and the machine's page (the gear on its row) also browses omp's settings, model roles, MCP
+> servers, plugins and skills. Usage has no limits to show on the demo server. No account, purchase or AI
+> subscription is needed to reach any of it. App Review may also connect to its own machine with omp 18.3.1
+> installed.
 
 ### Google Play Console → App access
 
@@ -227,8 +229,8 @@ credentials"), so the password goes in the page's **Credentials** table instead:
 >    project's files and run commands on the server.
 >
 > Everything else works on the same machine: the Files panel edits files and shows git diffs, the Terminal
-> opens a shell, and Configure browses omp's settings, model roles, MCP servers, plugins and skills. No
-> account, purchase or AI subscription is needed to reach any of it.
+> opens a shell, and the machine's page (the gear on its row) also browses omp's settings, model roles, MCP
+> servers, plugins and skills. No account, purchase or AI subscription is needed to reach any of it.
 
 ## Files
 

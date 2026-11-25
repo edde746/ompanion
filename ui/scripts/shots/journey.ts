@@ -315,11 +315,10 @@ async function machineConfig(context: ShotContext): Promise<void> {
   const row = machineRow(page);
   await row.hover();
   await row.getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Configure" }).click();
-  await page.locator(".config-screen-page .settings-page-tile-title").first().waitFor({ timeout });
+  await page.getByRole("menuitem", { name: "Machine settings" }).click();
+  await page.locator(".machine-page").getByRole("tab", { name: "Settings", exact: true }).click();
+  await page.locator(".machine-page .settings-page-tile-title").first().waitFor({ timeout });
   await context.snap("13-machine-config");
-  await page.locator(".config-screen .back-button").first().click();
-  await page.locator(".config-screen").waitFor({ state: "detached" });
 }
 
 /** The custom theme's picks: a navy dark or a paper light background, and a blue accent (settings.ts's). */

@@ -28,14 +28,12 @@ import { Sidebar, type SidebarHandle } from "./sidebar";
 // Off the first frame (docs/research/web-ui/startup.md): these panes and dialogs load once the app has booted, or when
 // first shown.
 const ChatScreen = lazy(() => import("../chat/chat_screen").then((module) => ({ default: module.ChatScreen })));
-const MachineDetailPane = lazy(() =>
-  import("../machines/machine_detail_pane").then((module) => ({ default: module.MachineDetailPane })),
-);
+const MachinePage = lazy(() => import("../machines/machine_page").then((module) => ({ default: module.MachinePage })));
 const SettingsPane = lazy(() => import("../settings/settings_pane").then((module) => ({ default: module.SettingsPane })));
 const UsagePane = lazy(() => import("../usage/usage_pane").then((module) => ({ default: module.UsagePane })));
 const chatHeader = lazyModule(() => import("../chat/chat_header"));
 const machineEditor = lazyModule(() => import("../machines/machine_editor"));
-preloadAfterBoot(ChatScreen.preload, MachineDetailPane.preload, chatHeader, machineEditor);
+preloadAfterBoot(ChatScreen.preload, MachinePage.preload, chatHeader, machineEditor);
 
 export function ShellScreen() {
   const [width, setWidth] = createSignal(window.innerWidth);
@@ -143,12 +141,6 @@ function escInChat(): boolean {
 async function openNewSessionDialog(machine: Machine): Promise<void> {
   const { showNewSessionDialog } = await import("../sessions/new_session_dialog");
   await showNewSessionDialog(machine);
-}
-
-/** The machine's omp configuration page, loaded when first asked for. */
-async function openConfig(machine: Machine): Promise<void> {
-  const { openMachineConfig } = await import("../config/machine_config_screen");
-  await openMachineConfig(machine);
 }
 
 /** Shows the dock tab the chat reveals (a file, a subagent, a tab), the way the layout shows its panels. */
@@ -356,14 +348,9 @@ function CenterPane(props: {
           <h1 class="shell-center-title">{selectionTitle(shell.selection(), machine())}</h1>
           <Show when={machine()}>
             {(shown) => (
-              <>
-                <TextButton icon={Symbols.add_comment} onClick={() => void openNewSessionDialog(shown())}>
-                  {t.sessions.newSession}
-                </TextButton>
-                <TextButton icon={Symbols.tune} onClick={() => void openConfig(shown())}>
-                  {t.sessions.configure}
-                </TextButton>
-              </>
+              <TextButton icon={Symbols.add_comment} onClick={() => void openNewSessionDialog(shown())}>
+                {t.sessions.newSession}
+              </TextButton>
             )}
           </Show>
           {panelsButton()}
@@ -525,7 +512,7 @@ export function selectionBody(selection: ShellSelection, machine: Machine | unde
     case "MachineSelection":
       return machine ? (
         <Loading fallback={null}>
-          <MachineDetailPane machine={machine} />
+          <MachinePage machine={machine} />
         </Loading>
       ) : (
         <HomePane />

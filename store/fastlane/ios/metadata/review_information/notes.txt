@@ -6,7 +6,7 @@ ompanion is a client for omp, an AI coding agent that runs on the user's own mac
 4. Go back to the list of machines, tap the ⋮ on the machine's row and choose New session. Set Working directory to ~/work/notes-api and tap Start.
 5. Type a message in the composer and send it, for example "What does this project do?". The agent answers with GLM 5.3 Flash, a real AI model we pay for through OpenRouter, and can read and edit the project's files and run commands on the server.
 
-Everything else works on the same machine: the Files panel edits files and shows git diffs, the Terminal opens a shell, and Configure browses omp's settings, model roles, MCP servers, plugins and skills. Usage has no limits to show on the demo server. No account, purchase or AI subscription is needed to reach any of it. App Review may also connect to its own machine with omp 18.3.1 installed.
+Everything else works on the same machine: the Files panel edits files and shows git diffs, the Terminal opens a shell, and the machine's page (the gear on its row) also browses omp's settings, model roles, MCP servers, plugins and skills. Usage has no limits to show on the demo server. No account, purchase or AI subscription is needed to reach any of it. App Review may also connect to its own machine with omp 18.3.1 installed.
 
 Why the app needs a server (guidelines 2.1 and 4.2)
 

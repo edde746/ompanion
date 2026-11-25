@@ -1,6 +1,7 @@
-// The machine configuration page (src/app/screens/config/) on the local machine's isolated omp (OMP=1), for comparing
-// with the store's 08-config.png: one shot per section, reached as a user does (the machine row's menu,
-// Configure), and edits through the page whose result is read back from omp's files with `exec`.
+// omp's configuration on the machine page (src/app/screens/machines/machine_page.tsx, src/app/screens/config/) on the
+// local machine's isolated omp (OMP=1), for comparing with the store's 08-config.png: one shot per section, reached as
+// a user does (the machine row's menu, Machine settings, the section's tab), and edits through the page whose result
+// is read back from omp's files with `exec`.
 import type { Page } from "playwright-core";
 import type { Screen, ShotContext } from "../shot_types";
 import { openSession } from "./chat";
@@ -8,14 +9,14 @@ import { openSession } from "./chat";
 /** omp's start and a one-shot `omp` call fit, with room for a slow studio. */
 const timeout = 60_000;
 
-/** Opens the configuration of this computer from its sidebar row's menu. */
+/** Opens the machine page of this computer from its sidebar row's menu, on omp's Settings. */
 async function openConfig(page: Page): Promise<void> {
   // This computer is the first machine row; its buttons show while the pointer is over it (always on touch screens).
   const row = page.locator(".list-row:has(.machine-sessions-machine-name)").first();
   await row.hover();
   await row.locator('button[aria-label="More"]').click();
-  await page.getByRole("menuitem", { name: "Configure" }).click();
-  await page.locator(".config-screen-page").waitFor({ timeout });
+  await page.getByRole("menuitem", { name: "Machine settings" }).click();
+  await showSection(page, "Settings");
 }
 
 async function showSection(page: Page, label: string): Promise<void> {

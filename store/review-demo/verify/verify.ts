@@ -254,7 +254,7 @@ async function verify(options: Options): Promise<void> {
     }
     ok(`session list: ${sessions.length} session(s), newest "${sessions[0]?.title ?? "(untitled)"}"`);
 
-    // What the machine's Configure pane and its model picker read: omp's own model list and the companion's settings
+    // What the machine page's omp sections and its model picker read: omp's own model list and the companion's settings
     // schema, both from the machine's control process.
     const control = await runtime.control();
     if (control.companionHello === undefined) throw new Error("the companion did not load in the control session");

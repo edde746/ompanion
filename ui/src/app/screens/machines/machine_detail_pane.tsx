@@ -1,5 +1,4 @@
-// lib/screens/machines/machine_detail_pane.dart: the center pane of the selected machine (the shell passes the machine;
-// one that is gone shows the home pane there).
+// lib/screens/machines/machine_detail_pane.dart: the Machine section of the machine page (machine_page.tsx).
 import { createSignal, For, Match, onSettled, Show, Switch, untrack } from "solid-js";
 import { updateOmp } from "../../../core/host/install";
 import { keepAwake, setKeepAwake } from "../../../core/host/keep_awake";

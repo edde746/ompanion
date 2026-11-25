@@ -898,7 +898,6 @@
     "refresh": "Refresh",
     "collapse": "Collapse",
     "expand": "Expand",
-    "configure": "Configure",
     "machinePage": "Machine settings",
     "pin": "Pin to top",
     "unpin": "Unpin",
@@ -1385,13 +1384,13 @@
     }
   },
   "config": {
-    "title": "Configure $machine",
     "connect": "Connect",
     "connecting": "Connecting…",
     "needsOmp": "omp needs an install or an upgrade on this machine: $reason",
     "refresh": "Refresh",
     "noOutput": "(no output)",
     "sections": {
+      "machine": "Machine",
       "settings": "Settings",
       "roles": "Model roles",
       "accounts": "Providers",

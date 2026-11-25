@@ -82,7 +82,7 @@ what stock lacks.
 | Loop mode (prompt, limit, `--while`/`--until`) | `/loop` | CE-R: the companion's `/loop` command and `loop.enable`, `loop.suspend`, `loop.disable` (`modes/loop-limit`, `modes/loop-condition`; iterations in the companion); state from the companion's `loop.changed` and `state.snapshot`'s `loop` | composer-toolbar control with iterations or time left and a menu (suspend, turn off); session menu `Loop a prompt…`; Stop suspends a running loop | M6 |
 | Fast, extended context, skillful, computer, browser | slash | RPC `set_fast_mode`; TXT the rest | toggles | M2 |
 | Prewalk | `/prewalk` | TXT; launch flags | toggle | M4 |
-| Advisor | `/advisor` | TXT on/off/status/dump; CE settings for configure | advisor panel | M5 |
+| Advisor | `/advisor` | TXT on/off/status/dump; CE settings for the machine page | advisor panel | M5 |
 
 ## Models and accounts
 
@@ -98,7 +98,7 @@ what stock lacks.
 | Account pin | `/session pin` | CE `pinCurrentProviderOAuthAccount` | providers page | M5 |
 | Provider setup wizard | `/setup` | CE-R over `get_login_providers`, `login`, auth storage, settings | onboarding | M5 |
 | Usage limits | `/usage`, `omp usage` | CLI `usage --json` per machine, `usage invalidate`; `config get auth.accountPolicies`, `retry.usageReservePct` for policy lines | usage pane (all machines, one entry per account; a hide toggle covers emails, account ids and organizations with a random mosaic for screenshots) | M5 |
-| Stats | `/stats`, `/trace` | FS stats script run by the probe's Bun (omp's own, or the `bun` a package install runs on) over every session file, numbers kept per file between calls (`contracts/activity-stats.md`); CLI `stats --json` for the per-machine page | usage pane, Stats tab (all machines merged: totals, streaks, contribution grid, charts, prompts and their words); stats page per machine | M5 |
+| Stats | `/stats`, `/trace` | FS stats script run by the probe's Bun (omp's own, or the `bun` a package install runs on) over every session file, numbers kept per file between calls (`contracts/activity-stats.md`); CLI `stats --json` for the per-machine page | usage pane, Stats tab (all machines merged: totals, streaks, contribution grid, charts, prompts and their words); the machine page's Stats section | M5 |
 
 ## Sessions
 

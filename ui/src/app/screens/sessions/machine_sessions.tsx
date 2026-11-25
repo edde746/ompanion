@@ -36,11 +36,10 @@ import {
 import "./machine_sessions.css";
 import { machineStatusColor, machineStatusText } from "./machine_status";
 
-// Off the first frame: the dialogs and the configuration page load when first asked for, and once the app has booted.
-const machineConfig = lazyModule(() => import("../config/machine_config_screen"));
+// Off the first frame: the dialogs load when first asked for, and once the app has booted.
 const installOmpDialog = lazyModule(() => import("./install_omp_dialog"));
 const newSessionDialog = lazyModule(() => import("./new_session_dialog"));
-preloadAfterBoot(machineConfig, newSessionDialog);
+preloadAfterBoot(newSessionDialog);
 
 /**
  * Left insets of the sidebar's levels, from the row's rounded tone: the icon column (a project's folder icon, a
@@ -83,7 +82,7 @@ function hoverClass(): string | undefined {
   return isTouch() ? undefined : "machine-sessions-hover";
 }
 
-type MachineAction = "newSession" | "markRead" | "refresh" | "configure" | "install";
+type MachineAction = "newSession" | "markRead" | "refresh" | "machinePage" | "install";
 
 /**
  * A machine's row: its chevron, status dot and name, and on hover (always on touch screens) a button to the machine's
@@ -120,7 +119,7 @@ export function MachineHeader(props: {
         disabled: props.onMarkRead === undefined,
       },
       { value: "refresh", label: t.sessions.refresh, icon: Symbols.refresh, disabled: busy() },
-      { value: "configure", label: t.sessions.configure, icon: Symbols.tune },
+      { value: "machinePage", label: t.sessions.machinePage, icon: Symbols.settings },
     ];
     if (props.status.kind === "MachineNeedsOmp") {
       items.push({ value: "install", label: t.sessions.install, icon: Symbols.download });
@@ -138,8 +137,8 @@ export function MachineHeader(props: {
       case "refresh":
         void sessions.refresh(machine);
         break;
-      case "configure":
-        void machineConfig().then((module) => module.openMachineConfig(machine));
+      case "machinePage":
+        props.onOpen();
         break;
       case "install":
         void installOmpDialog().then((module) => module.showInstallOmpDialog(machine));

@@ -861,7 +861,6 @@ export type Translations = {
     readonly refresh: string;
     readonly collapse: string;
     readonly expand: string;
-    readonly configure: string;
     readonly machinePage: string;
     readonly pin: string;
     readonly unpin: string;
@@ -1288,13 +1287,13 @@ export type Translations = {
     };
   };
   readonly config: {
-    readonly title: (args: { machine: Param }) => string;
     readonly connect: string;
     readonly connecting: string;
     readonly needsOmp: (args: { reason: Param }) => string;
     readonly refresh: string;
     readonly noOutput: string;
     readonly sections: {
+      readonly machine: string;
       readonly settings: string;
       readonly roles: string;
       readonly accounts: string;
