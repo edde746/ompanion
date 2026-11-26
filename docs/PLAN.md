@@ -334,11 +334,14 @@ against Win32-OpenSSH on a Windows runner (R3). Differences, from `research/wind
   having an environment of its own, so `BUN_BE_BUN` never reaches omp; the pump opens `out.jsonl` itself and writes and
   rotates it as on POSIX. cmd.exe's `>>`, the form before a pump, refused every other writer and kept its own offset,
   so the log could never be rotated (measured on Windows 11 26200: a truncation fails with a sharing violation; through
-  a pump it succeeds and the next lines start at byte 0). Pipes and redirection in cmd pass bytes through unchanged;
-  PowerShell 5.1's do not.
+  a pump it succeeds and the next lines start at byte 0). For the same reason the pump's stderr goes to `pump.log`,
+  which `run.cmd` appends to `err.log` once the pipeline ends. Pipes and redirection in cmd pass bytes through
+  unchanged; PowerShell 5.1's do not.
 - Feed: `feed.ps1` is a byte pump from `in.jsonl` (opened for reading with `ReadWrite, Delete` sharing) to stdout, polling
-  every 50 ms, exiting when `in.jsonl.stop` appears. Its exit closes omp's stdin. Windows has no
-  signals; closing stdin is omp's only graceful stop (`Stop-Process -Force` skips cleanup).
+  every 50 ms, exiting when `in.jsonl.stop` appears or `code` does. Its exit closes omp's stdin. Windows has no
+  signals; closing stdin is omp's only graceful stop (`Stop-Process -Force` skips cleanup). The `code` check ends the
+  pipeline when omp ended on its own: PowerShell 5.1's console stream reports a write to a closed pipe as a success,
+  so the feed outlived omp and no exit marker came (measured on Windows 11 26200).
 - Scripts run as `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand
   <base64 UTF-16LE>`, which works under a cmd, PowerShell or bash default shell. cmd caps a line at
   8191 characters, so larger scripts are uploaded over SFTP and run with `-File`.

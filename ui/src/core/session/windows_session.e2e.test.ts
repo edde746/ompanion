@@ -215,6 +215,20 @@ describe.skipIf(!windowsHostConfigured)("detached runs on this Windows computer 
     expect(await stopRun(link, probe, run), "omp.cmd hands omp's exit code past the pump").toBe(0);
   }, 180_000);
 
+  test("a run whose pump fails ends, with the pump's error in err.log", async () => {
+    // A carry that is not under rotateAt: the pump refuses its arguments and exits, so omp's first frame has no reader.
+    const broken: LogLimits = { ...logLimits, carry: logLimits.rotateAt };
+    const run = (await openRun(link, probe, spec(probe, broken))).run;
+    const deadline = Date.now() + 60_000;
+    let now = await runOf(run.id);
+    while (now.state !== "exited" && Date.now() < deadline) {
+      await delay(200);
+      now = await runOf(run.id);
+    }
+    expect(now.state, "feed.ps1 left once omp.cmd wrote omp's exit code").toBe("exited");
+    expect(fs.readFileSync(`${run.dir}\\err.log`, "utf8")).toContain("usage: log.js pump");
+  }, 180_000);
+
   test("with PowerShell as the OpenSSH default shell, the probe notices and a run takes and sends non-ASCII", async () => {
     const key = "HKLM:\\SOFTWARE\\OpenSSH";
     const powershell = `${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;

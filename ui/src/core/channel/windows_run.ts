@@ -46,14 +46,16 @@ const encoder = new TextEncoder();
  * `run.cmd`, started by WMI. ASCII only: every path comes from the `OMPANION_*` environment variables the launch
  * sets, so no code page ever touches them, and cmd.exe expands a variable's value only once. Each pipeline stage that
  * is a batch file runs in a cmd.exe of its own, so `pump.cmd`'s `BUN_BE_BUN` never reaches omp; omp's exit code comes
- * from the file `omp.cmd` writes, as a pipeline's `ERRORLEVEL` is the pump's. `echo.` puts the exit marker on its own
- * line even when omp died mid-line.
+ * from the file `omp.cmd` writes, as a pipeline's `ERRORLEVEL` is the pump's. Once the pipeline ends, the pump's stderr
+ * (`pump.log`) joins omp's in `err.log`, before the exit marker. `echo.` puts the exit marker on its own line even when
+ * omp died mid-line.
  */
 export const windowsRunCmd =
   "@echo off\r\n" +
   '"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -NonInteractive ' +
   '-ExecutionPolicy Bypass -File "%OMPANION_RUN%\\feed.ps1" | "%OMPANION_RUN%\\omp.cmd" | ' +
   '"%OMPANION_RUN%\\pump.cmd"\r\n' +
+  'if exist "%OMPANION_RUN%\\pump.log" type "%OMPANION_RUN%\\pump.log" >> "%OMPANION_RUN%\\err.log"\r\n' +
   "set OMPANION_CODE=\r\n" +
   'set /p OMPANION_CODE=< "%OMPANION_RUN%\\code"\r\n' +
   "if not defined OMPANION_CODE set OMPANION_CODE=-1\r\n" +
@@ -70,21 +72,26 @@ export const windowsOmpCmd =
 
 /**
  * `pump.cmd`: [logScript]'s pump, run by Bun ([HostProbe.bunPath]). It opens `out.jsonl` itself: cmd.exe's `>>`
- * refuses other writers and keeps writing at its own offset (measured on Windows 11 26200).
+ * refuses other writers and keeps writing at its own offset (measured on Windows 11 26200). For the same reason its
+ * stderr goes to `pump.log`: `omp.cmd`'s `2>>` holds `err.log` while omp runs.
  */
 export const windowsPumpCmd =
   "@echo off\r\n" +
   "set BUN_BE_BUN=1\r\n" +
-  '"%OMPANION_BUN%" "%OMPANION_LOG%" pump "%OMPANION_RUN%" %OMPANION_PUMP%\r\n';
+  '"%OMPANION_BUN%" "%OMPANION_LOG%" pump "%OMPANION_RUN%" %OMPANION_PUMP% 2>> "%OMPANION_RUN%\\pump.log"\r\n';
 
 /**
  * `feed.ps1`: copies bytes appended to `in.jsonl` to stdout, polling every 50 ms, and exits once `in.jsonl.stop`
- * exists and everything before it was copied. Its exit closes omp's stdin, omp's only graceful stop on Windows.
- * `ReadWrite, Delete` sharing lets the appenders (`windowsAppenderScript`) write while it reads.
+ * exists and everything before it was copied, or once `omp.cmd` wrote omp's exit code to `code`. Its exit closes
+ * omp's stdin, omp's only graceful stop on Windows. The `code` check ends the pipeline, and so lets `run.cmd` write the
+ * exit marker, when omp ended on its own: Windows PowerShell's console stream reports a write to a closed pipe as a
+ * success, so the feed never notices. `ReadWrite, Delete` sharing lets the appenders (`windowsAppenderScript`) write
+ * while it reads.
  */
 export const windowsFeedScript = script`$ErrorActionPreference = 'Stop'
 $run = $env:OMPANION_RUN
 $stop = [System.IO.Path]::Combine($run, 'in.jsonl.stop')
+$code = [System.IO.Path]::Combine($run, 'code')
 $in = [System.IO.File]::Open([System.IO.Path]::Combine($run, 'in.jsonl'), [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::Read, [System.IO.FileShare]'ReadWrite, Delete')
 $out = [Console]::OpenStandardOutput()
 $buffer = New-Object byte[] 65536
@@ -92,7 +99,7 @@ try {
   while ($true) {
     $n = $in.Read($buffer, 0, $buffer.Length)
     if ($n -gt 0) { $out.Write($buffer, 0, $n); $out.Flush(); continue }
-    if ([System.IO.File]::Exists($stop)) { break }
+    if ([System.IO.File]::Exists($stop) -or [System.IO.File]::Exists($code)) { break }
     Start-Sleep -Milliseconds 50
   }
 } finally {

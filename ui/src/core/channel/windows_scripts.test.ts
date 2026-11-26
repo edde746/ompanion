@@ -80,6 +80,19 @@ describe.skipIf(pwsh === undefined)("with PowerShell 7", () => {
     expect(new Uint8Array(await copied)).toEqual(new Uint8Array(fs.readFileSync(input)));
   }, 30_000);
 
+  test("feed.ps1 exits once omp.cmd wrote omp's exit code, though its stdout is still open", async () => {
+    const run = temp;
+    fs.writeFileSync(`${run}/feed.ps1`, windowsFeedScript);
+    const feed = Bun.spawn([pwsh!, "-NoProfile", "-NonInteractive", "-File", `${run}/feed.ps1`], {
+      env: { ...process.env, OMPANION_RUN: run },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const errors = new Response(feed.stderr).text();
+    fs.writeFileSync(`${run}/code`, "1\r\n");
+    expect(await withTimeout(feed.exited, 25_000), await errors).toBe(0);
+  }, 30_000);
+
   test("the session listing script finds what the POSIX one finds", async () => {
     const home = `${temp}/home`;
     await writeSessionFixtures(home, temp);
